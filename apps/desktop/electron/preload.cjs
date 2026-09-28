@@ -27,6 +27,7 @@ const api = {
   projectFiles: () => ipcRenderer.invoke('project:list'),
   readProjectFile: relative => ipcRenderer.invoke('project:read', relative),
   openProjectFile: relative => ipcRenderer.invoke('project:open', relative),
+  validateImages: request => ipcRenderer.invoke('agent:validate-images', request),
   runAgent: task => ipcRenderer.invoke('agent:run', task),
   approveAgent: (id, response) => ipcRenderer.invoke('agent:approve', {id, response}),
   interruptAgent: () => ipcRenderer.invoke('agent:interrupt'),

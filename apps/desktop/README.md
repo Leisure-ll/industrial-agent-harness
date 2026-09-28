@@ -23,3 +23,11 @@ Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择�
 审批提交期间禁用按钮，提交成功或 SDK `ApprovalResponse` 到达后折叠为 Approved/Rejected 记录，移除行动按钮；失败保留请求供重试，任务结束的未决请求标为过期。后端拒绝重复、过期和非法审批。`test:logs` 同时覆盖配置继承、项目隔离、正在运行时禁止改配置、审批失败重试/批准/拒绝/过期及现有日志读取。
 
 左侧选中项目下缩进显示 **New chat** 和当前聊天，项目行打开项目详情。新聊天始终属于当前项目；当前实现仍只有一轮可见聊天状态，此次未新增历史会话恢复。
+
+## 图片输入
+
+输入框的 **Attach images** 支持文件选择，也可直接粘贴截图或拖入图片。发送前显示缩略图、文件名与移除按钮，发送后保留在用户消息中；仅图片发送使用默认描述任务。支持 PNG / JPEG / WebP，最多四张，每张 5 MiB、总计 10 MiB，最长边 8192、合计 32 MiPixels。项目切换与 New chat 清除草稿；模型拒绝、网络失败或取消后恢复图片，可带图重试。
+
+**Settings → Model API → Image input** 提供 Auto / Enabled / Disabled。Auto 仅对官方 MiniMax 兼容 API 的 M3 / M3.1 Flash preview 开启；其他视觉模型需手动选择 Enabled，纯文本模型保持 Disabled。更换模型、Provider 或 URL 会回到 Auto；模型缺少图片能力时禁用带图发送并提供配置入口。SDK / CLI 的 Provider 负责协议转换，Harness 不把图片变成路径或悄悄丢弃图片。
+
+`pnpm --filter @industrial-agent-harness/desktop test:images` 使用隔离配置验证文件选择、粘贴、拖入、三种格式、图片专属任务、模型禁用、错误带图重试、项目隔离与草稿重置。macOS 当前 MiniMax M3 的实际识图也已验证；其他模型仅支持显式能力配置，并不表示已经逐一验证。

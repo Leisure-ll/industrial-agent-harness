@@ -81,7 +81,8 @@ export interface ViewerHostApi {
   projectFiles(): Promise<Array<{path: string; name: string; depth: number; directory: boolean}>>;
   readProjectFile(relative: string): Promise<{path: string; name: string; sizeBytes: number; viewer: ViewerArtifact['kind'] | null; content: string | null; truncated: boolean}>;
   openProjectFile(relative: string): Promise<ViewerArtifact>;
-  runAgent(task: string): Promise<{started: boolean}>;
+  validateImages(request: {projectId: string; images: PromptImage[]}): Promise<PromptImage[]>;
+  runAgent(task: string | {projectId: string; task: string; images: PromptImage[]}): Promise<{started: boolean}>;
   approveAgent(id: string, response: 'approve' | 'approve_for_session' | 'reject'): Promise<void>;
   interruptAgent(): Promise<void>;
   onAgentEvent(callback: (event: AgentEvent) => void): () => void;
@@ -110,7 +111,9 @@ export type AgentEvent =
   | {type: 'done'; result: {status: string}}
   | {type: 'error'; message: string};
 
-export interface ModelProfile {provider: 'kimi' | 'openai_legacy'; endpoint: string; model: string; contextSize: number; thinking: boolean}
+export interface PromptImage {id: string; name: string; dataUrl: string; width?: number; height?: number; sizeBytes?: number; sha256?: string}
+
+export interface ModelProfile {provider: 'kimi' | 'openai_legacy'; endpoint: string; model: string; contextSize: number; thinking: boolean; imageInput: boolean; imageInputMode: 'auto' | 'enabled' | 'disabled'}
 export interface ModelProfileStatus extends ModelProfile {hasApiKey: boolean; keyPersisted: boolean}
 
 export interface BrokerResult {

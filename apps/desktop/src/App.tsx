@@ -1,7 +1,8 @@
 import {useEffect, useRef, useState} from 'react';
 import {Activity, Bug, ChevronDown, ChevronRight, Cpu, File, FilePlus2, Folder, FolderOpen, Maximize, Minimize, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Play, Plus, Settings2, Square, Sun, X} from 'lucide-react';
 import {ViewerCanvas, type ViewNavigation} from '@industrial-agent-harness/viewer-builtin/canvas';
-import type {AgentEvent, BrokerResult, CapabilityDetail, DomainOption, OpenedViewer, ProjectBinding, ViewerArtifact} from '@industrial-agent-harness/viewer-builtin/api';
+import type {AgentEvent, BrokerResult, CapabilityDetail, DomainOption, OpenedViewer, ProjectBinding, PromptImage, ViewerArtifact} from '@industrial-agent-harness/viewer-builtin/api';
+import {useImageAttachments, ImageAttachButton, ImageThumbnails} from './components/ImageAttachments';
 import {AgentLogPanel} from './components/AgentLogPanel';
 import {AgentFlow} from './components/AgentFlow';
 import {BrokerCall} from './components/BrokerCall';
@@ -23,6 +24,10 @@ export function App() {
   const [projects, setProjects] = useState<ProjectBinding[]>([]);
   const [domains, setDomains] = useState<DomainOption[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const attachments = useImageAttachments(activeProjectId);
+  const [submittedImages, setSubmittedImages] = useState<PromptImage[]>([]);
+  const sentImages = useRef<PromptImage[]>([]);
+  const [modelImageInput, setModelImageInput] = useState(false);
   const [page, setPage] = useState<'chat' | 'project'>('chat');
   const [projectDraft, setProjectDraft] = useState<{directory: string; name: string; domain: string} | null>(null);
   const [projectError, setProjectError] = useState('');
@@ -79,6 +84,7 @@ export function App() {
   }
   useEffect(() => {
     if (!window.viewerHost) {setError('Open the Electron desktop app to inspect local files.'); return;}
+    void window.viewerHost.modelGet().then(profile => setModelImageInput(profile.imageInput)).catch(reason => setError(String(reason)));
     void window.viewerHost.domains().then(setDomains).catch(reason => setError(String(reason)));
     void Promise.all([window.viewerHost.agentStatus(), window.viewerHost.projectBindings()]).then(([status, bindings]) => {
       setAgentStatus(status); setProjects(bindings.projects); setActiveProjectId(bindings.activeId);
@@ -101,6 +107,7 @@ export function App() {
       });
       if (event.type === 'tool-result') void window.viewerHost!.brokerTrace().then(trace => setBroker(current => current ? {...current, trace} : current));
       if (event.type === 'done' || event.type === 'error') setAgentBusy(false);
+      if (event.type === 'error' || (event.type === 'done' && event.result.status === 'cancelled')) attachments.restore(sentImages.current);
     });
   }, []);
   useEffect(() => {
@@ -150,7 +157,7 @@ export function App() {
       setCollapsedDirs(new Set());
       setArtifacts([]);
       setSourceFile(undefined); setSelectedId(''); setSelectedProjectFile(''); setOpened(undefined); setRightOpen(false); setFileTreeOpen(false);
-      setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setAgentEvents([]);
+      attachments.clear(); setSubmittedImages([]); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setAgentEvents([]);
       setProjectDraft(null); setPage('project');
     } catch (reason) {setProjectError(String(reason));}
   }
@@ -165,7 +172,7 @@ export function App() {
       setCollapsedDirs(new Set());
       setArtifacts([]);
       setSourceFile(undefined); setSelectedId(''); setSelectedProjectFile(''); setOpened(undefined); setRightOpen(false); setFileTreeOpen(false);
-      setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setAgentEvents([]);
+      attachments.clear(); setSubmittedImages([]); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setAgentEvents([]);
       setPage('project');
     } catch (reason) {setError(String(reason));}
   }
@@ -188,37 +195,45 @@ export function App() {
     try {
       await window.viewerHost!.newChat();
       setPage('chat');
-      setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
+      attachments.clear(); setSubmittedImages([]); setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
     } catch (reason) {setBrokerError(String(reason));}
   }
   async function resolveTask(context?: {domain: string; stage: string}) {
-    if (!task.trim()) return;
-    setBrokerError(''); setBroker(undefined); setDetail(undefined); setSubmittedTask(task); setAgentEvents([]);
+    if (agentBusy || attachments.loading || (!task.trim() && !attachments.images.length)) return;
+    if (attachments.images.length && !modelImageInput) {setBrokerError('Choose a vision model and enable Image input in Model API settings.'); return;}
+    const prompt = task.trim() || 'Describe the attached images.';
+    setTask(prompt);
+    const images = [...attachments.images];
+    setSubmittedImages(images);
+    setBrokerError(''); setBroker(undefined); setDetail(undefined); setSubmittedTask(prompt); setAgentEvents([]); setAgentBusy(true);
     try {
       const artifactKind = /\b(this|selected|current)\b|这个|当前|该|它/i.test(task) ? selected?.kind : undefined;
-      const result = await window.viewerHost!.resolve({task, artifactKind, domain: selectedDomain || context?.domain, stage: context?.domain === selectedDomain || !selectedDomain ? context?.stage : undefined});
+      const result = await window.viewerHost!.resolve({task: prompt, artifactKind, domain: selectedDomain || context?.domain, stage: context?.domain === selectedDomain || !selectedDomain ? context?.stage : undefined});
       setBroker(result);
-      if (agentStatus?.available && agentStatus.configured && agentStatus.projectDir) await runAgent(task);
-    } catch (reason) {setBrokerError(String(reason));}
+      if (agentStatus?.available && agentStatus.configured && agentStatus.projectDir) await runAgent(prompt, images);
+      else setAgentBusy(false);
+    } catch (reason) {setBrokerError(String(reason)); setAgentBusy(false);}
   }
   async function setProjectDomain(id: string, domain: string) {
     try {
       const bindings = await window.viewerHost!.setProjectDomain(id, domain);
       setProjects(bindings.projects);
-      setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
+      attachments.clear(); setSubmittedImages([]); setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
     } catch (reason) {throw reason;}
   }
   function resourcesChanged() {
-    setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
+    attachments.clear(); setSubmittedImages([]); setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
   }
   async function showDetail(id: string) {
     try {setDetail(await window.viewerHost!.detail(id)); const trace = await window.viewerHost!.brokerTrace(); setBroker(current => current ? {...current, trace} : current);}
     catch (reason) {setBrokerError(String(reason));}
   }
-  async function runAgent(prompt = submittedTask) {
+  async function runAgent(prompt = submittedTask, images = submittedImages) {
+    sentImages.current = images;
     setAgentEvents([]); setAgentBusy(true);
-    try {await window.viewerHost!.runAgent(prompt);}
-    catch (reason) {setAgentEvents([{type: 'error', message: String(reason)}]); setAgentBusy(false);}
+    attachments.clear();
+    try {await window.viewerHost!.runAgent(images.length ? {projectId: activeProjectId!, task: prompt, images} : prompt);}
+    catch (reason) {attachments.restore(images); setAgentEvents([{type: 'error', message: String(reason)}]); setAgentBusy(false);}
   }
 
   const diagnostic = agentEvents.filter(event => event.type === 'diagnostic-log').at(-1);
@@ -245,14 +260,14 @@ export function App() {
         <div className="ia-chat-scroll">
           {!submittedTask && <div className="ia-chat-welcome"><span className="ia-welcome-icon"><Cpu size={22}/></span><h1>What are you working on?</h1><p>Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.</p></div>}
           {submittedTask && <>
-            <div className="ia-user-message">{submittedTask}</div>
+            <div className="ia-user-message">{submittedTask}{submittedImages.length > 0 && <ImageThumbnails images={submittedImages}/>}</div>
             {brokerError && <div className="ia-flow-error">{brokerError}</div>}
             {broker && <BrokerCall broker={broker} detail={detail} debug={debug} selectedDomain={selectedDomain} onContext={context => void resolveTask(context)} onDetail={id => void showDetail(id)}/>}
             {agentEvents.length > 0 && <AgentFlow onLog={showAgentLog} events={agentEvents} running={agentBusy} debug={debug} approve={(id, decision) => window.viewerHost!.approveAgent(id, decision)}/>}
           </>}
         </div>
         {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy}/>}
-        <div className="ia-composer-wrap"><div className="ia-composer"><textarea aria-label="Engineering task" placeholder="Ask about your project…" value={task} onChange={event => setTask(event.target.value)} onKeyDown={event => {if (event.key === 'Enter' && !event.shiftKey) {event.preventDefault(); void resolveTask();}}}/><div className="ia-composer-footer"><DomainPill domain={fixedDomain} domains={domains} label="Session domain"/><div className="ia-send-actions">{agentBusy && <button onClick={() => void window.viewerHost!.interruptAgent()} title="Stop agent"><Square size={14}/></button>}{Boolean(broker && agentStatus?.available && agentStatus.configured && agentStatus.projectDir) && <button onClick={() => void runAgent()} disabled={agentBusy || task !== submittedTask} title="Run with Kimi"><Play size={14}/></button>}<button className="ia-send" onClick={() => void resolveTask()} disabled={!task.trim()} title="Send task"><ChevronRight size={17}/></button></div></div></div><div className="ia-composer-hint">{!agentStatus?.available ? 'Kimi CLI unavailable · run pnpm setup:kimi' : !agentStatus.configured ? 'Configure the Model API in Settings to run Kimi' : !agentStatus.projectDir ? 'Choose a project to run Kimi' : 'Kimi ready'}</div></div>
+        <div className="ia-composer-wrap"><div className="ia-composer" onDragOver={event => {if (event.dataTransfer.types.includes('Files')) event.preventDefault();}} onDrop={event => {if (!event.dataTransfer.files.length) return; event.preventDefault(); if (!agentBusy) void attachments.addFiles(Array.from(event.dataTransfer.files));}} onPaste={event => {const files = Array.from(event.clipboardData.items).filter(item => item.kind === 'file').map(item => item.getAsFile()).filter((file): file is File => Boolean(file)); if (files.length) {event.preventDefault(); if (!agentBusy) void attachments.addFiles(files);}}}><ImageThumbnails images={attachments.images} onRemove={attachments.remove} disabled={agentBusy || attachments.loading}/>{attachments.error && <p role="alert" className="ia-flow-error">{attachments.error}</p>}{attachments.loading && <p role="status">Preparing images…</p>}{attachments.images.length > 0 && !modelImageInput && <p className="ia-image-model-hint">This model is configured for text only. <button onClick={() => setModelSettingsOpen(true)}>Configure image input</button></p>}<textarea aria-label="Engineering task" placeholder="Ask about your project…" value={task} onChange={event => setTask(event.target.value)} onKeyDown={event => {if (event.key === 'Enter' && !event.shiftKey) {event.preventDefault(); void resolveTask();}}}/><div className="ia-composer-footer"><DomainPill domain={fixedDomain} domains={domains} label="Session domain"/><div className="ia-send-actions"><ImageAttachButton attachments={attachments} disabled={agentBusy || attachments.loading || !activeProjectId}/>{agentBusy && <button onClick={() => void window.viewerHost!.interruptAgent()} title="Stop agent"><Square size={14}/></button>}{Boolean(broker && agentStatus?.available && agentStatus.configured && agentStatus.projectDir) && <button onClick={() => void runAgent()} disabled={agentBusy || task !== submittedTask} title="Run with Kimi"><Play size={14}/></button>}<button className="ia-send" onClick={() => void resolveTask()} disabled={agentBusy || attachments.loading || (!task.trim() && !attachments.images.length) || (attachments.images.length > 0 && !modelImageInput)} title="Send task"><ChevronRight size={17}/></button></div></div></div><div className="ia-composer-hint">{!agentStatus?.available ? 'Kimi CLI unavailable · run pnpm setup:kimi' : !agentStatus.configured ? 'Configure the Model API in Settings to run Kimi' : !agentStatus.projectDir ? 'Choose a project to run Kimi' : 'Kimi ready'}</div></div>
         </>}
       </main>
       {rightOpen && <section ref={workspace} className="ia-viewer ia-workspace">
@@ -266,6 +281,6 @@ export function App() {
     {projectDraft && <CreateProjectModal draft={projectDraft} domains={domains} error={projectError} onChange={setProjectDraft} onChooseDirectory={chooseProjectDirectory} onClose={() => setProjectDraft(null)} onCreate={createProject}/>}
     {logOpen && activeProjectId && <AgentLogPanel key={activeProjectId} projectId={activeProjectId} projectName={projectName} initialTraceId={logTrace} runningTraceId={diagnostic?.type === 'diagnostic-log' ? diagnostic.traceId : undefined} running={agentBusy} onClose={() => setLogOpen(false)}/>}
     {resourceSettingsOpen && <GlobalResourceSettings busy={agentBusy} onChanged={() => {setResourceRevision(value => value + 1); resourcesChanged();}} onClose={() => setResourceSettingsOpen(false)}/>}
-    {modelSettingsOpen && <ModelSettings onClose={() => setModelSettingsOpen(false)} onSaved={() => void window.viewerHost!.agentStatus().then(setAgentStatus)}/>}
+    {modelSettingsOpen && <ModelSettings onClose={() => setModelSettingsOpen(false)} onSaved={profile => {setModelImageInput(profile.imageInput); void window.viewerHost!.agentStatus().then(setAgentStatus);}}/>}
   </div>;
 }

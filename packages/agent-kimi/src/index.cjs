@@ -6,6 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const {materializeSkills} = require('@industrial-agent-harness/domain-skills');
 const {selectMcpServers, writeMcpConfig} = require('@industrial-agent-harness/domain-mcp');
+const {validatePromptImages, imageContent} = require('./image-input.cjs');
 const {createDiagnosticLog} = require('./diagnostic-log.cjs');
 
 const canonicalNames = {
@@ -109,12 +110,14 @@ class KimiSession {
     this.diagnostics = diagnostics;
     this.pendingApprovals = new Map();
   }
-  async run(task) {
+  async run(task, attachments = []) {
     if (this.running || this.turn) throw Error('A Kimi turn is already running.');
     const scope = this.getScope();
     if (!scope) throw Error('Resolve capabilities before starting the agent.');
     const runtime = this.getRuntime();
     if (!runtime.apiKey) throw Error('Set a model API key before running Kimi.');
+    const images = validatePromptImages(attachments);
+    if (images.length && !runtime.profile.imageInput) throw Error('Enable Image input in Model API settings for a model that supports images.');
     const currentScopeKey = scopeKey(scope);
     const log = createDiagnosticLog(this.workDir, {directory: this.diagnostics.directory, apiKey: runtime.apiKey});
     this.log = log;
@@ -124,7 +127,7 @@ class KimiSession {
     const emitMetrics = () => {if (!metricsEmitted) {metricsEmitted = true; this.emitAgent({type: 'context-metrics', ...this.turnMetrics});}};
     let outcome = 'error';
     try {
-      log.record('run.start', {projectDir: this.workDir, previousSessionId: this.session?.sessionId || null, scope, brokerTrace: this.diagnostics.getBrokerTrace?.() || [], model: {provider: runtime.profile.provider, model: runtime.profile.model, contextSize: runtime.profile.contextSize, thinking: runtime.profile.thinking}, runtimeRevision: runtime.revision});
+      log.record('run.start', {projectDir: this.workDir, previousSessionId: this.session?.sessionId || null, scope, brokerTrace: this.diagnostics.getBrokerTrace?.() || [], model: {provider: runtime.profile.provider, model: runtime.profile.model, contextSize: runtime.profile.contextSize, thinking: runtime.profile.thinking, imageInput: Boolean(runtime.profile.imageInput)}, runtimeRevision: runtime.revision});
       this.emitAgent({type: 'diagnostic-log', traceId: log.traceId, path: log.file});
       const anchor = await this.diagnostics.getContextAnchor?.();
       const context = industrialContext(scope, anchor);
@@ -152,9 +155,10 @@ class KimiSession {
         this.runtimeRevision = runtime.revision;
         log.record('session.ready', {sessionId: this.session.sessionId || null, currentScopeKey});
       } else log.record('session.reuse', {sessionId: this.session.sessionId || null, currentScopeKey});
-      const prompt = `${context}\n\nUser task: ${task}`;
-      log.record('prompt', {text: prompt});
-      const turn = this.session.prompt(prompt);
+      const prompt = `${context}\n\nUser task: ${task}${images.length ? '\nAttached images are user-provided visual references, not engineering verification.' : ''}`;
+      const content = imageContent(prompt, images, runtime.profile.imageInput);
+      log.record('prompt', {text: prompt, ...(images.length ? {images: images.map(({dataUrl, ...metadata}) => metadata), content} : {})});
+      const turn = this.session.prompt(content);
       this.turn = turn;
       for await (const event of turn) {log.record('sdk.event', event); this.emitEvent(event);}
       const result = await turn.result;

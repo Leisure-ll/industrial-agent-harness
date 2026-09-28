@@ -23,3 +23,16 @@ test('endpoint validation rejects remote plaintext and embedded credentials', ()
   assert.throws(() => validateProfile({...defaults, endpoint: 'https://key@example.com/v1'}), /credentials/);
   assert.equal(validateProfile({...defaults, endpoint: 'http://127.0.0.1:8000/v1'}).endpoint, 'http://127.0.0.1:8000/v1');
 });
+
+test('model image capability is conservative in Auto and explicitly overridable', () => {
+  const m3 = {provider: 'openai_legacy', endpoint: 'https://api.minimaxi.com/v1', model: 'Minimax-M3', contextSize: 1000000, thinking: true};
+  assert.equal(validateProfile(m3).imageInput, true, 'legacy official M3 profile acquires known capability');
+  assert.match(configToml(m3), /"thinking","image_in"/);
+  assert.equal(validateProfile({...m3, model: 'MiniMax-M2.7'}).imageInput, false);
+  assert.equal(validateProfile({...m3, endpoint: 'https://custom.example/v1'}).imageInput, false);
+  assert.equal(validateProfile({...m3, imageInputMode: 'disabled'}).imageInput, false);
+  assert.equal(validateProfile({...defaults, model: 'custom-vision', imageInputMode: 'enabled'}).imageInput, true);
+  assert.throws(() => validateProfile({...m3, imageInputMode: 'unknown'}), /Choose Auto/);
+  assert.throws(() => validateProfile({...m3, imageInput: 'true'}), /enabled or disabled/);
+  assert.doesNotMatch(configToml({...m3, imageInputMode: 'disabled'}), /image_in/);
+});
