@@ -69,3 +69,13 @@
 .ia-image-attachments figure button {position: absolute; right: 3px; top: 3px; padding: 2px; background: var(--ia-raised); border: 1px solid var(--ia-border);}
 .ia-image-model-hint {font-size: 11px; color: var(--ia-muted);}
 .ia-image-model-hint button {text-decoration: underline;}
+
+
+.ia-chat-row {display: flex; align-items: center; min-width: 0;}
+.ia-project-list .ia-project-chats .ia-chat-row .ia-sidebar-chat {flex: 1; width: auto; min-width: 0;}
+.ia-chat-row .ia-sidebar-chat svg {flex: 0 0 auto;}
+.ia-chat-row .ia-sidebar-chat span {min-width: 0; flex: 1;}
+.ia-project-list .ia-project-chats .ia-chat-delete {flex: 0 0 24px; width: 24px; min-height: 24px; padding: 5px!important; color: var(--ia-muted); opacity: 0.55;}
+.ia-chat-delete:hover {opacity: 1;}
+.ia-chat-turn {margin-bottom: 24px;}
+.ia-history-more {display: block; margin: 12px auto; padding: 6px 12px; border: 1px solid var(--ia-border); border-radius: 6px; background: transparent; color: inherit; cursor: pointer;}

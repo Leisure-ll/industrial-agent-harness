@@ -235,3 +235,12 @@ Settings 提供全局资源默认值；项目详情页提供继承、启用、�
 Model API 的 Image input 提供 Auto / Enabled / Disabled。Auto 只识别已核对的模型与 API 组合：当前为官方 MiniMax OpenAI-compatible endpoint 上的 M3 / M3.1 Flash preview，旧 M3 配置自动获得能力；其他模型保守默认不支持。用户可手动声明其他视觉模型支持；这不为纯文本模型增加视觉能力。修改模型、Provider 或 URL 后重新采用 Auto。声明开启时写入 Kimi 的 image_in 能力，并通过固定 SDK 的多模态 ContentPart 发送内联图片，由原生 Provider 处理协议；不增加独立模型客户端或 Agent loop。
 
 带图实际输入与图片哈希保留在 Agent log，图片是用户提供的参考，不成为工程验证事实。自动识别依据 [MiniMax 官方兼容接口文档](https://platform.minimax.cn/docs/api-reference/text-openai-api)；不据此承诺任意代理、视觉模型或其他平台的兼容性。
+
+
+## PD-021：持久聊天与 Kimi 原生会话恢复
+
+- 日期：2026-09-28
+- 状态：已落实；补充 PD-019
+- 来源：用户确认采用 Kimi SDK 恢复接口，增加本地聊天索引和界面历史
+
+一个 Project 下保留多个历史聊天，关闭应用后可查看并继续。SQLite 保存聊天索引、任务、Broker 结果与展示事件；Kimi 原生上下文和会话状态由 SDK/CLI 保存到独立持久目录。Scope 或模型变化产生新的运行时会话段，界面历史仍连续，模型上下文按当前 Scope 重新建立。新聊天不删除旧聊天；明确删除聊天时清理其索引和运行时文件。历史审批显示为已决定或过期，不恢复操作按钮。Desktop 与 CLI 共用项目/Domain 身份及持久存储，禁止同一聊天并发执行，死亡进程遗留轮次标记为中断。实现与验证范围见 [聊天持久化](chat-persistence.md)。

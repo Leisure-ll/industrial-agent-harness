@@ -77,12 +77,17 @@ export interface ViewerHostApi {
   selectProject(id: string): Promise<{projects: ProjectBinding[]; activeId: string | null; projectDir: string | null}>;
   setProjectDomain(id: string, domain: string): Promise<{projects: ProjectBinding[]; activeId: string | null; projectDir: string | null}>;
   setProjectResource(projectId: string, kind: 'skill' | 'mcp', id: string, enabled: boolean): Promise<{projects: ProjectBinding[]; activeId: string | null; projectDir: string | null}>;
-  newChat(): Promise<void>;
+  chats(): Promise<{chats: ChatSummary[]; activeId: string | null}>;
+  chatHistory(request: {id: string; before?: string | null}): Promise<ChatHistory>;
+  selectChat(id: string): Promise<ChatHistory>;
+  deleteChat(id: string): Promise<{chats: ChatSummary[]; activeId: string | null}>;
+  onChatUpdated(callback: () => void): () => void;
+  newChat(): Promise<ChatHistory>;
   projectFiles(): Promise<Array<{path: string; name: string; depth: number; directory: boolean}>>;
   readProjectFile(relative: string): Promise<{path: string; name: string; sizeBytes: number; viewer: ViewerArtifact['kind'] | null; content: string | null; truncated: boolean}>;
   openProjectFile(relative: string): Promise<ViewerArtifact>;
   validateImages(request: {projectId: string; images: PromptImage[]}): Promise<PromptImage[]>;
-  runAgent(task: string | {projectId: string; task: string; images: PromptImage[]}): Promise<{started: boolean}>;
+  runAgent(task: string | {projectId: string; task: string; images: PromptImage[]; chatId?: string}, chatId?: string): Promise<{started: boolean}>;
   approveAgent(id: string, response: 'approve' | 'approve_for_session' | 'reject'): Promise<void>;
   interruptAgent(): Promise<void>;
   onAgentEvent(callback: (event: AgentEvent) => void): () => void;
@@ -95,8 +100,10 @@ export interface ResourceCatalog {skills: Array<{id: string; domain: string; tit
 export type ResourceMode = 'inherit' | 'enabled' | 'disabled';
 export interface ResourceSettingsSnapshot {catalog: ResourceCatalog; global: {skills: string[]; mcpServers: string[]}; overrides: {skills: Record<string, boolean>; mcpServers: Record<string, boolean>}; effective: {skills: string[]; mcpServers: string[]}}
 
-export type AgentEvent =
+export type AgentEvent = ({chatId?: string; turnId?: string} & (
   | {type: 'diagnostic-log'; traceId: string; path: string}
+  | {type: 'user-images'; images: PromptImage[]}
+  | {type: 'context-reset'; message: string}
   | {type: 'text'; text: string}
   | {type: 'thinking'; text: string}
   | {type: 'approval'; id: string; description: string; action: string}
@@ -109,7 +116,7 @@ export type AgentEvent =
   | {type: 'context-metrics'; peakContextUsage: number | null; lastContextUsage: number | null; compactions: number; toolResults: number; peakToolResultBytes: number}
   | {type: 'step'; number: number}
   | {type: 'done'; result: {status: string}}
-  | {type: 'error'; message: string};
+  | {type: 'error'; message: string}));
 
 export interface PromptImage {id: string; name: string; dataUrl: string; width?: number; height?: number; sizeBytes?: number; sha256?: string}
 
@@ -117,6 +124,7 @@ export interface ModelProfile {provider: 'kimi' | 'openai_legacy'; endpoint: str
 export interface ModelProfileStatus extends ModelProfile {hasApiKey: boolean; keyPersisted: boolean}
 
 export interface BrokerResult {
+  chatId?: string;
   scope: {version: string; domain: string | null; stage: string | null; capabilityIds: string[]; skills: string[]; tools: string[]};
   matches: Array<{id: string; title: string}>;
   contexts: Array<{domain: string; stage: string}>;
@@ -139,3 +147,7 @@ export interface DiagnosticRun {runId: string; traceId: string; at: string; size
 export interface DiagnosticRecord {sequence: number; at: string; type: string; event: string | null; category: DiagnosticCategory; summary: string; bytes: number}
 export interface DiagnosticPage {records: DiagnosticRecord[]; nextOffset: number | null; total: number; totalRecords: number; counts: Record<DiagnosticCategory, number>; pending: boolean}
 export interface DiagnosticContent {text: string; offset: number; nextOffset: number | null; totalBytes: number}
+
+export interface ChatSummary {id: string; title: string; domain: string; createdAt: string; updatedAt: string; archived: boolean}
+export interface ChatTurn {id: string; task: string; broker: BrokerResult | null; status: string; createdAt: string; events: AgentEvent[]}
+export interface ChatHistory {executing?: boolean; chat: ChatSummary; turns: ChatTurn[]; hasMore: boolean; before: string | null}

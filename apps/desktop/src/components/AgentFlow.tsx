@@ -35,6 +35,7 @@ export function AgentFlow({events, running, debug, approve, onLog}: {events: Age
 
   return <section className="ia-agent-flow">{events.map((event, index) => {
     if (event.type === 'diagnostic-log') return <div className="ia-agent-minor" key={index}><button className="ia-log-link" onClick={() => onLog?.(event.traceId)}>View agent log · {event.traceId.slice(0,8)}</button>{debug && <span title={event.path}> · Full recorded events</span>}</div>;
+    if (event.type === 'context-reset') return <div className="ia-agent-minor" key={index}>{event.message}</div>;
     if (event.type === 'text') return <article className="ia-agent-text" key={index}><p>{event.text}</p></article>;
     if (event.type === 'thinking') return <ThinkingPreview key={index} text={event.text} active={running && index === lastActivity}/>;
     if (event.type === 'approval') return <ApprovalCard key={index} event={event} decision={decisions.get(event.id) || (!running ? 'expired' : undefined)} approve={approve}/>;
