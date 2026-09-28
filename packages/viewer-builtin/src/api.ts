@@ -126,7 +126,7 @@ declare global {
 }
 
 export type DiagnosticCategory = 'tools' | 'context' | 'thinking' | 'approvals' | 'run' | 'ui';
-export interface DiagnosticRun {runId: string; traceId: string; at: string; sizeBytes: number | null; model: string | null; status: string | null; metrics: {peakContextUsage: number | null; compactions: number; toolResults: number} | null; error?: string}
+export interface DiagnosticRun {runId: string; traceId: string; at: string; sizeBytes: number | null; model: string | null; status: string | null; metrics: {peakContextUsage: number | null; compactions: number | null; toolResults: number | null} | null; error?: string}
 export interface DiagnosticRecord {sequence: number; at: string; type: string; event: string | null; category: DiagnosticCategory; summary: string; bytes: number}
 export interface DiagnosticPage {records: DiagnosticRecord[]; nextOffset: number | null; total: number; totalRecords: number; counts: Record<DiagnosticCategory, number>; pending: boolean}
 export interface DiagnosticContent {text: string; offset: number; nextOffset: number | null; totalBytes: number}
