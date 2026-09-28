@@ -33,9 +33,9 @@ const api = {
   readProjectFile: relative => ipcRenderer.invoke('project:read', relative),
   openProjectFile: relative => ipcRenderer.invoke('project:open', relative),
   validateImages: request => ipcRenderer.invoke('agent:validate-images', request),
-  runAgent: (task, chatId) => ipcRenderer.invoke('agent:run', typeof task === 'string' ? {task, chatId} : {...task, chatId: chatId || task.chatId}),
-  approveAgent: (id, response) => ipcRenderer.invoke('agent:approve', {id, response}),
-  interruptAgent: () => ipcRenderer.invoke('agent:interrupt'),
+  runAgent: (task, chatId) => ipcRenderer.invoke('agent:run', typeof task === 'string' && chatId ? {task, chatId} : task),
+  approveAgent: (id, response, chatId) => ipcRenderer.invoke('agent:approve', {id, response, chatId}),
+  interruptAgent: chatId => ipcRenderer.invoke('agent:interrupt', {chatId}),
   onAgentEvent: callback => {const listener = (_event, value) => callback(value); ipcRenderer.on('agent:event', listener); return () => ipcRenderer.removeListener('agent:event', listener);},
 };
 contextBridge.exposeInMainWorld('viewerHost', api);

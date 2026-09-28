@@ -29,6 +29,7 @@
 | [聊天持久化](chat-persistence.md) | Desktop/CLI 历史聊天、Kimi 原生上下文恢复、Scope 会话段、中断与验证边界 |
 | [CLI 与 Bench 入口](../apps/cli/README.md) | 无界面单任务命令、JSON Lines 事件、模型与工件输入 |
 | [Agent 聊天 UI 来源](agent-ui-provenance.md) | EDA Harness demo 的思考、Todo、工具呈现如何接入实时 SDK 事件 |
+| [并行 Session](parallel-sessions.md) | 同项目与跨项目聊天并行、后台审批、停止与配置影响范围 |
 
 来源：用户提供的《Industrial Harness 架构与开发 Plan》（2026-09-23，v0.1 提案）和《Industrial Capability Broker 开发 Plan》。本目录提炼两份材料供仓库实施使用，不把计划中的示例接口当成已经存在的实现。
 

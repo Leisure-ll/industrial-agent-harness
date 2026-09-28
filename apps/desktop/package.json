@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "start": "electron .",
     "test": "node --test electron/*.test.cjs",
+    "test:parallel": "electron . --parallel-selftest",
     "test:images": "electron . --image-input-selftest",
     "test:logs": "electron . --agent-log-selftest",
     "test:kicad": "electron . --kicad-selftest",

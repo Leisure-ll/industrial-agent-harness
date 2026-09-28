@@ -74,6 +74,7 @@ async function run(window, store) {
       assert.equal(await evaluate(`window.viewerHost.deleteChat(${JSON.stringify(original)}).then(()=>false,()=>true)`), true, 'cross-project deletion rejected');
       await evaluate(`Array.from(document.querySelectorAll('.ia-project-row')).find(item=>item.innerText.includes('Chat persistence')).click()`);
       await wait(`document.querySelector('.ia-project-page h1')?.innerText==='Chat persistence test'`);
+      await wait(`Array.from(document.querySelectorAll('.ia-sidebar-chat')).some(item=>item.innerText.includes('first turn')&&!item.disabled)`);
       await evaluate(`Array.from(document.querySelectorAll('.ia-sidebar-chat')).find(item=>item.innerText.includes('first turn')).click()`);
       await wait(`document.querySelectorAll('.ia-chat-turn').length===3`);
       await evaluate(`document.querySelector('button[aria-label="Delete chat New chat"]').click()`);

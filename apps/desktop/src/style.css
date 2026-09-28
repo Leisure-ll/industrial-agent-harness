@@ -79,3 +79,9 @@
 .ia-chat-delete:hover {opacity: 1;}
 .ia-chat-turn {margin-bottom: 24px;}
 .ia-history-more {display: block; margin: 12px auto; padding: 6px 12px; border: 1px solid var(--ia-border); border-radius: 6px; background: transparent; color: inherit; cursor: pointer;}
+
+.ia-session-running, .ia-project-running {flex: 0 0 auto; color: var(--ia-accent); font-size: 9px; white-space: nowrap;}
+
+.ia-session-running {width: 7px; height: 7px; border-radius: 50%; background: #438865; font-size: 0;}
+.ia-session-running.awaiting-approval {background: #b88622;}
+.ia-project-running {padding: 1px 4px; border: 1px solid var(--ia-border); border-radius: 7px;}
