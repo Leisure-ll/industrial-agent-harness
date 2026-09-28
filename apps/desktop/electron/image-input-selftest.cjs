@@ -72,7 +72,7 @@ async function run(window) {
     assert.equal(prompts.length, 1);
     assert.match(prompts[0][0].text, /Describe the attached images/);
     await evaluate(`document.querySelector('.ia-send').click()`);
-    await wait(`Array.from(document.querySelectorAll('.ia-agent-flow')).some(flow=>flow.innerText.includes('Image input received'))&&!document.querySelector('.ia-composer textarea').disabled`);
+    await wait(`document.querySelector('.ia-chat-scroll')?.innerText.includes('Image input received')&&!document.querySelector('button[title="Stop agent"]')`);
     assert.equal(prompts.length, 2);
     assert.deepEqual(prompts[1], prompts[0], 'provider failure keeps the exact image request for retry');
     assert.deepEqual(prompts[1].slice(1).map(part => part.image_url.url), fixtures.map(fixture => `data:${fixture.mime};base64,${fixture.base64}`));

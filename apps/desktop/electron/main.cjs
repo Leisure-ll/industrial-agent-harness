@@ -15,16 +15,17 @@ const {createViewerRegistry} = require('../../../packages/viewer-core/src/regist
 const {resolve, discloseDetail} = require('../../../packages/capability-broker/src/index.cjs');
 const {resolveProjectTask, effectiveCapabilities, resourceCatalog, ResourceSettings, ChatStore, defaultChatDirectory} = require('@industrial-agent-harness/harness-core');
 const {capabilities, listDomains} = require('@industrial-agent-harness/domain-skills');
+const {validatePromptImages} = require('../../../packages/agent-kimi/src/image-input.cjs');
 const {DiagnosticReader} = require('../../../packages/agent-kimi/src/diagnostic-reader.cjs');
 const {defaultLogDirectory} = require('../../../packages/agent-kimi/src/diagnostic-log.cjs');
-const {validatePromptImages} = require('../../../packages/agent-kimi/src/image-input.cjs');
+const {SessionManager} = require('./session-manager.cjs');
 const {KimiSession} = require('../../../packages/agent-kimi/src/index.cjs');
 const {ObservedContextStore} = require('@industrial-agent-harness/domain-runtime');
 const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = require('./model-config.cjs');
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: {standard: true, secure: true, supportFetchAPI: true, corsEnabled: true}}]);
-if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--agent-log-selftest', '--image-input-selftest', '--chat-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
 
 if (process.argv.includes('--chat-selftest') && process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA) app.setPath('userData', process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA);
 
@@ -36,9 +37,7 @@ let raster;
 let viewerProtocol;
 const godotRuntime = new GodotRuntimeManager();
 const kicadRuntime = new KiCadRuntimeManager();
-let brokerScope;
-let brokerTrace = [];
-let agent;
+const sessions = new SessionManager();
 let contextStore;
 let projectDir;
 let projectBindings = {projects: [], activeId: null};
@@ -47,27 +46,31 @@ let sessionApiKey = '';
 let modelRevision = 0;
 const chats = new ChatStore(process.argv.some(flag => flag.endsWith('-selftest')) ? path.join(app.getPath('userData'), 'chats') : defaultChatDirectory());
 let activeChatId;
-let preparedTurn;
-let resolvedRequest;
-let executionRelease;
-function chatList() {return {chats: activeProject()?.domain ? chats.list(projectDir, activeProject().domain) : [], activeId: activeChatId || null};}
+function chatList() {return {chats: activeProject()?.domain ? chats.list(projectDir, activeProject().domain).map(chat => ({...chat, running: sessions.busy(sessions.get(activeProject(), chat.id)), awaitingApproval: Boolean(sessions.get(activeProject(), chat.id).agent?.pendingApprovals.size)})) : [], activeId: activeChatId || null, sessions: sessions.snapshots()};}
 function ensureChat() {
   if (!activeChatId) activeChatId = chats.create(projectDir, activeProject()?.domain).id;
   chats.get(activeChatId, projectDir, activeProject()?.domain);
   return activeChatId;
 }
+function selectedSession() {
+  const entry = sessions.get(activeProject(), ensureChat());
+  if (!entry.scope && !sessions.busy(entry)) {
+    const last = chats.history(entry.id, entry.project.path, entry.project.domain).turns.at(-1);
+    entry.scope = last?.broker?.scope; entry.resolvedRequest = last?.broker?.request || (last ? {task: last.task} : undefined);
+  }
+  return entry;
+}
 function restoreChatSelection() {
   activeChatId = activeProject()?.domain ? chats.list(projectDir, activeProject().domain)[0]?.id : undefined;
-  preparedTurn = undefined;
-  const last = activeChatId ? chats.history(activeChatId, projectDir, activeProject().domain).turns.at(-1) : null;
-  brokerScope = last?.broker?.scope; resolvedRequest = last ? last.broker?.request || {task: last.task} : undefined;
 }
+function sessionContext(entry) {entry.context ||= new ObservedContextStore(entry.project.path, entry.project.domain); return entry.context;}
+function notifySessions() {if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('chat:updated');}
 function diagnosticDirectory() {return process.argv.some(flag => flag.endsWith('-selftest')) ? path.join(app.getPath('userData'), 'logs') : defaultLogDirectory();}
 const diagnosticReader = new DiagnosticReader(diagnosticDirectory());
 
 const resourceSettings = new ResourceSettings(process.argv.some(flag => flag.endsWith('-selftest')) ? path.join(app.getPath('userData'), 'resources') : undefined);
 let changingResources = false;
-function projectResourcePolicy() {return resourceSettings.snapshot(resourceCatalog(activeProject()?.domain), projectDir).effective;}
+function projectResourcePolicy(project = activeProject()) {return resourceSettings.snapshot(resourceCatalog(project?.domain), project?.path).effective;}
 
 function configDir() {return path.join(app.getPath('userData'), 'model');}
 function projectConfigDir() {return path.join(app.getPath('userData'), 'workspace');}
@@ -83,13 +86,13 @@ function clearProjectArtifacts() {
 function observedContext() {
   const domain = activeProject()?.domain;
   if (!projectDir || !domain) throw Error('Choose a project with a domain first.');
-  contextStore ||= new ObservedContextStore(projectDir, domain, process.argv.some(flag => flag.endsWith('-selftest')) ? {directory: path.join(app.getPath('userData'), 'state')} : {});
+  contextStore ||= new ObservedContextStore(projectDir, domain);
   return contextStore;
 }
 function keyFile() {return path.join(configDir(), 'api-key.bin');}
 function canPersistKey() {return safeStorage.isEncryptionAvailable() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text');}
 function readApiKey() {
-  if (['--agent-log-selftest', '--image-input-selftest', '--chat-selftest'].some(flag => process.argv.includes(flag))) return 'diagnostic-selftest-key';
+  if (['--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return 'diagnostic-selftest-key';
   if (sessionApiKey) return sessionApiKey;
   if (!canPersistKey() || !fs.existsSync(keyFile())) return '';
   try {return safeStorage.decryptString(fs.readFileSync(keyFile()));} catch {return '';}
@@ -100,10 +103,10 @@ function kimiExecutable() {
   return fs.existsSync(local) ? local : 'kimi';
 }
 function modelStatus() {return {...readProfile(configDir()), hasApiKey: Boolean(readApiKey()), keyPersisted: canPersistKey() && fs.existsSync(keyFile())};}
-function runtimeConfig() {
+function runtimeConfig(project = activeProject()) {
   const profile = readProfile(configDir());
   const apiKey = readApiKey();
-  return {profile, apiKey, revision: modelRevision, executable: kimiExecutable(), shareDir: writeCliConfig(configDir(), profile), env: sessionEnv(profile, apiKey), disabledMcpServers: projectResourcePolicy().mcpServers};
+  return {profile, apiKey, revision: modelRevision, executable: kimiExecutable(), shareDir: writeCliConfig(configDir(), profile), env: sessionEnv(profile, apiKey), disabledMcpServers: projectResourcePolicy(project).mcpServers};
 }
 
 function kindFor(file) {
@@ -203,46 +206,48 @@ function registerHandlers() {
   ipcMain.handle('broker:resolve', (event, request) => {
     chatRequest(event);
     if (changingResources) throw Error('Resource settings are being saved.');
-    const fixedDomain = activeProject()?.domain;
-    if (activeProject() && !fixedDomain) throw Error('Set this project’s domain before starting a session.');
-    if (agent?.running || agent?.turn || executionRelease) throw Error('Stop the current turn before submitting another task.');
-    const disabled = projectResourcePolicy();
-    const result = fixedDomain ? resolveProjectTask(fixedDomain, request, brokerScope, capabilities, disabled) : resolve(request, capabilities, brokerScope);
-    resolvedRequest = {...request}; result.request = resolvedRequest;
-    brokerScope = result.scope;
-    brokerTrace = result.trace;
-    if (activeProject()?.domain) {preparedTurn = {id: chats.beginTurn(ensureChat(), request.task, result, false), task: request.task, broker: result}; result.chatId = activeChatId;}
-    return result;
+    if (request?.chatId && request.chatId !== activeChatId) throw Error('Selected chat changed; retry the task.');
+    const entry = selectedSession();
+    if (sessions.busy(entry)) throw Error('This chat is already running.');
+    const result = resolveProjectTask(entry.project.domain, request, entry.scope, capabilities, projectResourcePolicy(entry.project));
+    entry.resolvedRequest = {...request}; result.request = entry.resolvedRequest;
+    entry.scope = result.scope; entry.trace = result.trace;
+    entry.preparedTurn = {id: chats.beginTurn(entry.id, request.task, result, false), task: request.task, broker: result};
+    notifySessions(); return {...result, chatId: entry.id, turnId: entry.preparedTurn.id};
   });
-  function loadDetail(capabilityId) {
-    const detail = discloseDetail(brokerScope, effectiveCapabilities(capabilities, projectResourcePolicy()), capabilityId);
-    brokerTrace.push({level: 'L3', event: 'detail.load', detail: {capabilityId, skills: detail.skills.map(item => item.id), tools: detail.tools.map(item => item.id)}});
+  function loadDetail(capabilityId, entry = selectedSession()) {
+    const detail = discloseDetail(entry.scope, effectiveCapabilities(capabilities, projectResourcePolicy(entry.project)), capabilityId);
+    entry.trace.push({level: 'L3', event: 'detail.load', detail: {capabilityId, skills: detail.skills.map(item => item.id), tools: detail.tools.map(item => item.id)}});
     return detail;
   }
   ipcMain.handle('broker:detail', (_event, capabilityId) => loadDetail(capabilityId));
-  ipcMain.handle('broker:trace', () => brokerTrace);
+  ipcMain.handle('broker:trace', () => selectedSession().trace);
   ipcMain.handle('model:get', () => modelStatus());
   ipcMain.handle('model:save', async (_event, request) => {
-    if (agent?.running || agent?.turn || executionRelease) throw Error('Stop the current Kimi turn before changing the model.');
+    if (changingResources) throw Error('Settings are being saved.');
+    sessions.assertIdle();
     const profile = validateProfile(request);
     if (request.apiKey !== undefined && (typeof request.apiKey !== 'string' || request.apiKey.length > 8192)) throw Error('Invalid API key.');
-    await agent?.close(); agent = undefined;
-    saveProfile(configDir(), profile);
-    if (request.apiKey) {
-      sessionApiKey = request.apiKey.trim();
-      if (canPersistKey()) {
-        fs.mkdirSync(configDir(), {recursive: true, mode: 0o700});
-        fs.writeFileSync(keyFile(), safeStorage.encryptString(sessionApiKey), {mode: 0o600});
-        fs.chmodSync(keyFile(), 0o600);
+    changingResources = true;
+    try {
+      await sessions.reset();
+      saveProfile(configDir(), profile);
+      if (request.apiKey) {
+        sessionApiKey = request.apiKey.trim();
+        if (canPersistKey()) {
+          fs.mkdirSync(configDir(), {recursive: true, mode: 0o700});
+          fs.writeFileSync(keyFile(), safeStorage.encryptString(sessionApiKey), {mode: 0o600});
+          fs.chmodSync(keyFile(), 0o600);
+        }
       }
-    }
-    if (request.clearApiKey) {sessionApiKey = ''; fs.rmSync(keyFile(), {force: true});}
-    writeCliConfig(configDir(), profile);
-    modelRevision++;
-    return modelStatus();
+      if (request.clearApiKey) {sessionApiKey = ''; fs.rmSync(keyFile(), {force: true});}
+      writeCliConfig(configDir(), profile);
+      modelRevision++;
+      return modelStatus();
+    } finally {changingResources = false;}
   });
   ipcMain.handle('agent:status', () => {
-    if (['--agent-log-selftest', '--image-input-selftest', '--chat-selftest'].some(flag => process.argv.includes(flag))) return {available:true,version:'SDK seam selftest',projectDir,configured:true};
+    if (['--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return {available:true,version:'SDK seam selftest',projectDir,configured:true};
     const executable = kimiExecutable();
     const result = spawnSync(executable, ['--version'], {encoding: 'utf8', timeout: 3000});
     const help = result.status === 0 ? spawnSync(executable, ['--help'], {encoding: 'utf8', timeout: 3000}) : null;
@@ -251,20 +256,22 @@ function registerHandlers() {
   });
   ipcMain.handle('project:bindings', () => projectSnapshot());
   ipcMain.handle('project:set-domain', async (_event, request) => {
-    if (agent?.running || agent?.turn || executionRelease) throw Error('Stop the current turn before changing the project domain.');
     const {id, domain} = request || {};
     if (!listDomains(capabilities).some(item => item.id === domain)) throw Error('Unknown domain.');
     const project = projectBindings.projects.find(item => item.id === id);
     if (!project) throw Error('Unknown project.');
     if (id !== projectBindings.activeId) throw Error('Open this project before changing its domain.');
     if (project.domain === domain) return projectSnapshot();
-    await agent?.close(); agent = undefined;
-    project.domain = domain;
-    clearProjectArtifacts();
-    activeChatId = undefined; preparedTurn = undefined;
-    brokerScope = undefined; brokerTrace = [];
-    saveBindings(projectConfigDir(), projectBindings);
-    return projectSnapshot();
+    if (changingResources) throw Error('Settings are being saved.');
+    sessions.assertIdle(project.id);
+    changingResources = true;
+    try {
+      await sessions.reset(project.id);
+      project.domain = domain;
+      if (activeProject()?.id === project.id) {clearProjectArtifacts(); activeChatId = undefined;}
+      saveBindings(projectConfigDir(), projectBindings);
+      return projectSnapshot();
+    } finally {changingResources = false;}
   });
   function resourceProject(event, request) {
     if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) throw Error('Resource settings require the main app window.');
@@ -277,13 +284,13 @@ function registerHandlers() {
   });
   async function setResource(event, request) {
     const project = resourceProject(event, request);
-    if (agent?.running || agent?.turn || changingResources) throw Error('Stop the current turn before changing resources.');
+    if (changingResources) throw Error('Resource settings are being saved.');
+    sessions.assertIdle(project?.id);
     changingResources = true;
     try {
-      await agent?.close(); agent = undefined;
+      await sessions.reset(project?.id);
       resourceProject(event, request);
       const snapshot = resourceSettings.set(resourceCatalog(project?.domain), request, project?.path);
-      brokerScope = undefined; brokerTrace = []; preparedTurn = undefined;
       return snapshot;
     } finally {changingResources = false;}
   }
@@ -294,14 +301,11 @@ function registerHandlers() {
     return projectSnapshot();
   });
   ipcMain.handle('project:select', async (_event, id) => {
-    if (agent?.running || agent?.turn || executionRelease) throw Error('Stop the current turn before switching projects.');
     const item = projectBindings.projects.find(candidate => candidate.id === id);
     if (!item) throw Error('Unknown project.');
     const actual = fs.realpathSync(item.path);
     if (!fs.statSync(actual).isDirectory()) throw Error('Project directory is unavailable.');
-    await agent?.close(); agent = undefined;
     projectBindings.activeId = id; projectDir = actual;
-    brokerScope = undefined; brokerTrace = [];
     clearProjectArtifacts();
     restoreChatSelection();
     saveBindings(projectConfigDir(), projectBindings);
@@ -312,48 +316,39 @@ function registerHandlers() {
     return result.canceled ? null : fs.realpathSync(result.filePaths[0]);
   });
   ipcMain.handle('project:create', async (_event, request) => {
-    if (agent?.running || agent?.turn || executionRelease) throw Error('Stop the current turn before creating a project.');
     if (!request || !listDomains(capabilities).some(item => item.id === request.domain)) throw Error('Choose a valid project domain.');
     if (typeof request.directory !== 'string' || typeof request.name !== 'string') throw Error('Invalid project details.');
     const next = addBinding(projectBindings, request.directory, request.domain, request.name);
-    await agent?.close(); agent = undefined;
     projectBindings = next;
     projectDir = activeProject().path;
-    activeChatId = undefined; preparedTurn = undefined;
-    brokerScope = undefined; brokerTrace = [];
+    activeChatId = undefined;
     clearProjectArtifacts();
     saveBindings(projectConfigDir(), projectBindings);
     return projectSnapshot();
   });
-  ipcMain.handle('agent:new', async event => {
+  ipcMain.handle('agent:new', event => {
     chatRequest(event);
-    if (agent?.running || agent?.turn || executionRelease) throw Error('Stop the current turn before starting a new chat.');
-    await agent?.close(); agent = undefined;
-    brokerScope = undefined; brokerTrace = [];
-    preparedTurn = undefined; activeChatId = chats.create(projectDir, activeProject()?.domain).id;
-    return chats.history(activeChatId, projectDir, activeProject().domain);
+    activeChatId = chats.create(projectDir, activeProject().domain).id;
+    notifySessions(); return chats.history(activeChatId, projectDir, activeProject().domain);
   });
   function chatRequest(event) {
     if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) throw Error('Chats require the main app window.');
     if (!activeProject()?.domain) throw Error('Choose a project with a domain.');
   }
   ipcMain.handle('chat:list', event => {chatRequest(event); return chatList();});
-  ipcMain.handle('chat:history', (event, request) => {chatRequest(event); return {...chats.history(request.id, projectDir, activeProject().domain, request.before || null), executing: request.id === activeChatId && Boolean(executionRelease)};});
-  ipcMain.handle('chat:select', async (event, id) => {
+  ipcMain.handle('chat:history', (event, request) => {chatRequest(event); return chats.history(request.id, projectDir, activeProject().domain, request.before || null);});
+  ipcMain.handle('chat:select', (event, id) => {
     chatRequest(event);
-    if (agent?.running || agent?.turn || executionRelease) throw Error('Stop the current turn before switching chats.');
     const history = chats.history(id, projectDir, activeProject().domain);
-    await agent?.close(); agent = undefined; activeChatId = id; preparedTurn = undefined;
-    const last = history.turns.at(-1); brokerScope = last?.broker?.scope; resolvedRequest = last ? last.broker?.request || {task: last.task} : undefined; brokerTrace = [];
-    return history;
+    activeChatId = id; return history;
   });
   ipcMain.handle('chat:delete', async (event, id) => {
-    chatRequest(event);
-    if (agent?.running || agent?.turn || executionRelease) throw Error('Stop the current turn before deleting a chat.');
-    chats.get(id, projectDir, activeProject().domain);
-    if (id === activeChatId) {await agent?.close(); agent = undefined; activeChatId = undefined; preparedTurn = undefined; brokerScope = undefined;}
-    chats.remove(id, projectDir, activeProject().domain);
-    return chatList();
+    chatRequest(event); chats.get(id, projectDir, activeProject().domain);
+    const project = activeProject();
+    await sessions.remove(project, id);
+    chats.remove(id, project.path, project.domain);
+    if (id === activeChatId) activeChatId = undefined;
+    notifySessions(); return chatList();
   });
   ipcMain.handle('project:list', () => {
     if (!projectDir) return [];
@@ -406,47 +401,55 @@ function registerHandlers() {
   ipcMain.handle('agent:validate-images', (event, request) => imageRequest(event, request));
   ipcMain.handle('agent:run', (event, request) => {
     chatRequest(event);
-    const task = typeof request === 'string' ? request : request?.task;
-    const images = typeof request === 'string' || !request?.images ? [] : imageRequest(event, request);
-    if (images.length && !readProfile(configDir()).imageInput) throw Error('Enable Image input in Model API settings for a model that supports images.');
-    if (request?.chatId && request.chatId !== activeChatId) throw Error('Selected chat changed; reopen the chat before running this task.');
     if (changingResources) throw Error('Resource settings are being saved.');
-    if (!projectDir || !activeProject()?.domain) throw Error('Choose an engineering project first.');
-    if (typeof task !== 'string' || !task.trim() || Buffer.byteLength(task, 'utf8') > 128 * 1024) throw Error('Describe the task in at most 128 KB.');
-    if (!brokerScope || resolvedRequest?.task !== task) throw Error('Resolve this task scope first.');
-    if (agent?.running || agent?.turn || executionRelease) throw Error('A turn is already running.');
-    const chatId = ensureChat();
-    executionRelease = chats.acquire(chatId);
+    if (request?.chatId && request.chatId !== activeChatId) throw Error('Selected chat changed; retry the task.');
+    const entry = selectedSession();
+    const task = typeof request === 'string' ? request : request?.task;
+    const images = typeof request === 'string' || request?.images === undefined ? [] : imageRequest(event, request);
+    if (images.length && !readProfile(configDir()).imageInput) throw Error('Enable Image input in Model API settings for a model that supports images.');
+    if (typeof task !== 'string' || !task.trim() || Buffer.byteLength(task, 'utf8') > 128 * 1024) throw Error('Describe the task first.');
+    if (!entry.scope || entry.resolvedRequest?.task !== task) throw Error('Resolve this task in the current chat first.');
+    if (sessions.busy(entry)) throw Error('This chat is already running.');
+    entry.release = chats.acquire(entry.id);
     try {
       chats.recoverInterrupted();
-      const current = resolveProjectTask(activeProject().domain, {...resolvedRequest, task}, brokerScope, capabilities, projectResourcePolicy());
-      current.request = resolvedRequest; brokerScope = current.scope; brokerTrace = current.trace;
-      const turnId = preparedTurn?.task === task ? preparedTurn.id : chats.beginTurn(chatId, task, current, false);
-      chats.updateBroker(turnId, current);
-      preparedTurn = undefined;
+      const current = resolveProjectTask(entry.project.domain, {...entry.resolvedRequest, task}, entry.scope, capabilities, projectResourcePolicy(entry.project));
+      current.request = entry.resolvedRequest; entry.scope = current.scope; entry.trace = current.trace;
+      const turnId = entry.preparedTurn?.task === task ? entry.preparedTurn.id : chats.beginTurn(entry.id, task, current, false);
+      chats.updateBroker(turnId, current); entry.preparedTurn = undefined;
       chats.start(turnId);
-      if (images.length) chats.append(turnId, {type: 'user-images', images});
       let outcome = 'error';
       const emit = event => {
         chats.append(turnId, event);
         if (event.type === 'done') outcome = event.result.status;
         if (event.type === 'error') outcome = 'error';
-        if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('agent:event', {...event, chatId, turnId});
+        if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('agent:event', {...event, chatId: entry.id, projectId: entry.project.id, turnId});
+        if (['approval', 'approval-resolved', 'done', 'error'].includes(event.type)) notifySessions();
       };
-      agent ||= new KimiSession(projectDir, () => brokerScope, id => observedContext().readArtifact(id), loadDetail, emit, runtimeConfig,
-        process.argv.includes('--agent-log-selftest') ? require('./agent-log-selftest.cjs').createSession : process.argv.includes('--chat-selftest') ? require('./chat-selftest.cjs').createSession : process.argv.includes('--image-input-selftest') ? require('./image-input-selftest.cjs').createSession : undefined,
-        {directory: diagnosticDirectory(), getBrokerTrace: () => brokerTrace, getContextAnchor: () => observedContext().anchor(), readContextPage: (checkpointId, offset, limit) => observedContext().readPage(checkpointId, offset, limit), resolveSession: key => chats.runtimeSession(chatId, key), sessionInitialized: id => chats.initialized(id)});
-      agent.emit = emit;
-      void agent.run(task, images).catch(error => emit({type: 'error', message: String(error)})).finally(() => {
+      entry.agent ||= new KimiSession(entry.project.path, () => entry.scope, id => sessionContext(entry).readArtifact(id), id => loadDetail(id, entry), emit, () => runtimeConfig(entry.project),
+        process.argv.includes('--parallel-selftest') ? require('./parallel-selftest.cjs').createSession : process.argv.includes('--image-input-selftest') ? require('./image-input-selftest.cjs').createSession : process.argv.includes('--agent-log-selftest') ? require('./agent-log-selftest.cjs').createSession : process.argv.includes('--chat-selftest') ? require('./chat-selftest.cjs').createSession : undefined,
+        {directory: diagnosticDirectory(), getBrokerTrace: () => entry.trace, getContextAnchor: () => sessionContext(entry).anchor(), readContextPage: (checkpointId, offset, limit) => sessionContext(entry).readPage(checkpointId, offset, limit), resolveSession: key => chats.runtimeSession(entry.id, key), sessionInitialized: id => chats.initialized(id)});
+      entry.agent.emit = emit;
+      if (images.length) emit({type: 'user-images', images});
+      void entry.agent.run(task, images).catch(error => emit({type: 'error', message: String(error)})).finally(() => {
         chats.finish(turnId, outcome);
-        const release = executionRelease; executionRelease = undefined; release?.();
-        if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('chat:updated', {chatId, turnId});
+        const release = entry.release; entry.release = undefined; release?.();
+        notifySessions();
       });
-      return {started: true, chatId, turnId};
-    } catch (error) {executionRelease?.(); executionRelease = undefined; throw error;}
+      notifySessions(); return {started: true, chatId: entry.id, turnId};
+    } catch (error) {entry.release?.(); entry.release = undefined; throw error;}
   });
-  ipcMain.handle('agent:approve', (_event, {id, response}) => {if (!agent) throw Error('No active approval.'); return agent.approve(id, response);});
-  ipcMain.handle('agent:interrupt', () => agent?.interrupt());
+  ipcMain.handle('agent:approve', (event, {id, response, chatId}) => {
+    chatRequest(event);
+    if (chatId && chatId !== activeChatId) throw Error('Open the chat that requested approval.');
+    const entry = selectedSession();
+    if (!entry.agent) throw Error('No active approval.'); return entry.agent.approve(id, response);
+  });
+  ipcMain.handle('agent:interrupt', (event, request) => {
+    chatRequest(event);
+    if (request?.chatId && request.chatId !== activeChatId) throw Error('Open the chat to stop it.');
+    return selectedSession().agent?.interrupt();
+  });
   ipcMain.handle('viewer:open', async (_event, {artifactId}) => {
     const {artifact, file} = await checked(artifactId);
     const plugin = viewerRegistry.get(artifact.kind);
@@ -465,6 +468,7 @@ function registerHandlers() {
 }
 
 async function createWindow() {
+  if (process.argv.includes('--parallel-selftest')) require('./parallel-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--image-input-selftest')) require('./image-input-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--chat-selftest')) require('./chat-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--agent-log-selftest')) require('./agent-log-selftest.cjs').prepare(projectConfigDir(), diagnosticDirectory());
@@ -490,11 +494,12 @@ async function createWindow() {
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
-  if (process.argv.includes('--image-input-selftest')) {await require('./image-input-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--chat-selftest')) {
     await require('./chat-selftest.cjs').run(window, chats);
     app.quit(); return;
   }
+  if (process.argv.includes('--parallel-selftest')) {await require('./parallel-selftest.cjs').run(window); app.quit(); return;}
+  if (process.argv.includes('--image-input-selftest')) {await require('./image-input-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--agent-log-selftest')) {
     await require('./agent-log-selftest.cjs').run(window);
     app.quit(); return;
@@ -650,4 +655,4 @@ async function createWindow() {
 
 app.whenReady().then(createWindow).catch(error => {console.error(error); app.exit(1);});
 app.on('window-all-closed', () => {if (process.platform !== 'darwin') app.quit();});
-app.on('before-quit', () => {raster?.close(); viewerProtocol?.close(); godotRuntime.close(); kicadRuntime.close(); void agent?.close();});
+app.on('before-quit', () => {raster?.close(); viewerProtocol?.close(); godotRuntime.close(); kicadRuntime.close(); void sessions.close();});

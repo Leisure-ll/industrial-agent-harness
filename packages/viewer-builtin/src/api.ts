@@ -58,7 +58,7 @@ export interface ViewerHostApi {
   open(request: {artifactId: string}): Promise<OpenedViewer>;
   render(request: {token: string; box: number[]; width: number; height: number; visible: string[]; quality: string; theme?: string}): Promise<{png: string; box: number[]}>;
   netlist(request: {token: string; module: string; focus?: string}): Promise<NetlistData>;
-  resolve(request: {task: string; artifactKind?: string; domain?: string; stage?: string}): Promise<BrokerResult>;
+  resolve(request: {task: string; chatId?: string; artifactKind?: string; domain?: string; stage?: string}): Promise<BrokerResult>;
   domains(): Promise<DomainOption[]>;
   resourceGet(request: {projectId?: string}): Promise<ResourceSettingsSnapshot>;
   resourceSet(request: {projectId?: string; kind: 'skill' | 'mcp'; id: string; mode: ResourceMode}): Promise<ResourceSettingsSnapshot>;
@@ -77,19 +77,19 @@ export interface ViewerHostApi {
   selectProject(id: string): Promise<{projects: ProjectBinding[]; activeId: string | null; projectDir: string | null}>;
   setProjectDomain(id: string, domain: string): Promise<{projects: ProjectBinding[]; activeId: string | null; projectDir: string | null}>;
   setProjectResource(projectId: string, kind: 'skill' | 'mcp', id: string, enabled: boolean): Promise<{projects: ProjectBinding[]; activeId: string | null; projectDir: string | null}>;
-  chats(): Promise<{chats: ChatSummary[]; activeId: string | null}>;
+  chats(): Promise<{chats: ChatSummary[]; activeId: string | null; sessions: SessionStatus[]}>;
   chatHistory(request: {id: string; before?: string | null}): Promise<ChatHistory>;
   selectChat(id: string): Promise<ChatHistory>;
-  deleteChat(id: string): Promise<{chats: ChatSummary[]; activeId: string | null}>;
+  deleteChat(id: string): Promise<{chats: ChatSummary[]; activeId: string | null; sessions: SessionStatus[]}>;
   onChatUpdated(callback: () => void): () => void;
   newChat(): Promise<ChatHistory>;
   projectFiles(): Promise<Array<{path: string; name: string; depth: number; directory: boolean}>>;
   readProjectFile(relative: string): Promise<{path: string; name: string; sizeBytes: number; viewer: ViewerArtifact['kind'] | null; content: string | null; truncated: boolean}>;
   openProjectFile(relative: string): Promise<ViewerArtifact>;
   validateImages(request: {projectId: string; images: PromptImage[]}): Promise<PromptImage[]>;
-  runAgent(task: string | {projectId: string; task: string; images: PromptImage[]; chatId?: string}, chatId?: string): Promise<{started: boolean}>;
-  approveAgent(id: string, response: 'approve' | 'approve_for_session' | 'reject'): Promise<void>;
-  interruptAgent(): Promise<void>;
+  runAgent(task: string | {task: string; chatId?: string; projectId?: string; images?: PromptImage[]}, chatId?: string): Promise<{started: boolean}>;
+  approveAgent(id: string, response: 'approve' | 'approve_for_session' | 'reject', chatId?: string): Promise<void>;
+  interruptAgent(chatId?: string): Promise<void>;
   onAgentEvent(callback: (event: AgentEvent) => void): () => void;
 }
 
@@ -100,10 +100,11 @@ export interface ResourceCatalog {skills: Array<{id: string; domain: string; tit
 export type ResourceMode = 'inherit' | 'enabled' | 'disabled';
 export interface ResourceSettingsSnapshot {catalog: ResourceCatalog; global: {skills: string[]; mcpServers: string[]}; overrides: {skills: Record<string, boolean>; mcpServers: Record<string, boolean>}; effective: {skills: string[]; mcpServers: string[]}}
 
-export type AgentEvent = ({chatId?: string; turnId?: string} & (
-  | {type: 'diagnostic-log'; traceId: string; path: string}
+export type AgentEvent = ({chatId?: string; projectId?: string; turnId?: string} & (
   | {type: 'user-images'; images: PromptImage[]}
+  | {type: 'input-images'; images: PromptImage[]}
   | {type: 'context-reset'; message: string}
+  | {type: 'diagnostic-log'; traceId: string; path: string}
   | {type: 'text'; text: string}
   | {type: 'thinking'; text: string}
   | {type: 'approval'; id: string; description: string; action: string}
@@ -125,6 +126,7 @@ export interface ModelProfileStatus extends ModelProfile {hasApiKey: boolean; ke
 
 export interface BrokerResult {
   chatId?: string;
+  turnId?: string;
   scope: {version: string; domain: string | null; stage: string | null; capabilityIds: string[]; skills: string[]; tools: string[]};
   matches: Array<{id: string; title: string}>;
   contexts: Array<{domain: string; stage: string}>;
@@ -148,6 +150,7 @@ export interface DiagnosticRecord {sequence: number; at: string; type: string; e
 export interface DiagnosticPage {records: DiagnosticRecord[]; nextOffset: number | null; total: number; totalRecords: number; counts: Record<DiagnosticCategory, number>; pending: boolean}
 export interface DiagnosticContent {text: string; offset: number; nextOffset: number | null; totalBytes: number}
 
-export interface ChatSummary {id: string; title: string; domain: string; createdAt: string; updatedAt: string; archived: boolean}
+export interface SessionStatus {chatId: string; projectId: string; running: boolean; awaitingApproval: boolean}
+export interface ChatSummary {id: string; running?: boolean; awaitingApproval?: boolean; title: string; domain: string; createdAt: string; updatedAt: string; archived: boolean}
 export interface ChatTurn {id: string; task: string; broker: BrokerResult | null; status: string; createdAt: string; events: AgentEvent[]}
 export interface ChatHistory {executing?: boolean; chat: ChatSummary; turns: ChatTurn[]; hasMore: boolean; before: string | null}
