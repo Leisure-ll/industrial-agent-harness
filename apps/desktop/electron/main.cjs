@@ -67,7 +67,8 @@ function selectedSession() {
 function restoreChatSelection() {
   activeChatId = activeProject()?.domain ? chats.list(projectDir, activeProject().domain)[0]?.id : undefined;
 }
-function sessionContext(entry) {entry.context ||= new ObservedContextStore(entry.project.path, entry.project.domain); return entry.context;}
+function contextStoreOptions() {return process.argv.some(flag => flag.endsWith('-selftest')) ? {directory: path.join(app.getPath('userData'), 'state')} : {};}
+function sessionContext(entry) {entry.context ||= new ObservedContextStore(entry.project.path, entry.project.domain, contextStoreOptions()); return entry.context;}
 function notifySessions() {if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('chat:updated');}
 function diagnosticDirectory() {return process.argv.some(flag => flag.endsWith('-selftest')) ? path.join(app.getPath('userData'), 'logs') : defaultLogDirectory();}
 const diagnosticReader = new DiagnosticReader(diagnosticDirectory());
@@ -90,7 +91,7 @@ function clearProjectArtifacts() {
 function observedContext() {
   const domain = activeProject()?.domain;
   if (!projectDir || !domain) throw Error('Choose a project with a domain first.');
-  contextStore ||= new ObservedContextStore(projectDir, domain);
+  contextStore ||= new ObservedContextStore(projectDir, domain, contextStoreOptions());
   return contextStore;
 }
 function keyFile() {return path.join(configDir(), 'api-key.bin');}

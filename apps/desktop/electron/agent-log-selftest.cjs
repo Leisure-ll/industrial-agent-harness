@@ -153,6 +153,7 @@ async function run(window) {
     assert.equal(await evaluate(`document.querySelectorAll('.ia-approval button').length`),0,'no stale approval actions after completion');
     fs.writeFileSync(path.join(evidence,'agent-log-live.png'),(await window.webContents.capturePage()).toPNG());
     assert.ok(!requests.some(url=>/^https?:/.test(url)));
+    assert.ok(fs.readdirSync(path.join(evidence,'state')).some(file=>file.endsWith('.sqlite')), 'self-test project observations stay in isolated user data');
     console.log(JSON.stringify({ok:true,history:true,resourceSettings:true,projectChatHierarchy:true,approvalLifecycle:true,toolPayload:true,payloadParts:parts,compaction:true,liveUpdates:true,projectBoundary:true,externalRequests:0,evidence}));
   } catch(error){fs.writeFileSync(path.join(evidence,'agent-log-failure.png'),(await window.webContents.capturePage()).toPNG());console.error('Agent log UI evidence:',evidence);throw error;}
   finally {window.webContents.session.webRequest.onBeforeRequest(null);}
