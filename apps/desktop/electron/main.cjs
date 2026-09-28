@@ -332,7 +332,7 @@ function registerHandlers() {
   });
   ipcMain.handle('agent:new', event => {
     chatRequest(event);
-    activeChatId = chats.create(projectDir, activeProject().domain).id;
+    activeChatId = chats.createDraft(projectDir, activeProject().domain, activeChatId).id;
     notifySessions(); return chatHistory(activeChatId);
   });
   function chatRequest(event) {

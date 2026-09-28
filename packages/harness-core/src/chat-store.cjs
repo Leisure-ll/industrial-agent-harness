@@ -26,6 +26,7 @@ class ChatStore {
       CREATE TABLE IF NOT EXISTS runtime_sessions (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE, compatibility_key TEXT NOT NULL, initialized INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS execution_locks (chat_id TEXT PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE, owner_pid INTEGER NOT NULL, token TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS turns (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE, task TEXT NOT NULL, broker_json TEXT, status TEXT NOT NULL, owner_pid INTEGER, created_at TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS chat_turns ON turns(chat_id);
       CREATE TABLE IF NOT EXISTS chat_events (turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE, sequence INTEGER NOT NULL, type TEXT NOT NULL, event_json TEXT NOT NULL, PRIMARY KEY(turn_id, sequence));`);
     if (!version) this.db.exec('PRAGMA user_version = 1');
     this.recoverInterrupted();
@@ -40,6 +41,18 @@ class ChatStore {
     const id = crypto.randomUUID(), now = new Date().toISOString();
     this.db.prepare('INSERT INTO chats (id, project_key, project_path, domain, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, key, projectPath, domain, 'New chat', now, now);
     return this.get(id, projectDir, domain);
+  }
+  createDraft(projectDir, domain, preferredId = null) {
+    const {key} = this.project(projectDir, domain);
+    // Serialize lookup + insert across windows; a title is not evidence of emptiness.
+    return this.transaction(() => {
+      const draft = this.db.prepare(`SELECT id FROM chats
+        WHERE project_key = ? AND archived = 0
+          AND NOT EXISTS (SELECT 1 FROM turns WHERE chat_id = chats.id)
+          AND NOT EXISTS (SELECT 1 FROM execution_locks WHERE chat_id = chats.id)
+        ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END, updated_at DESC, rowid DESC LIMIT 1`).get(key, preferredId);
+      return draft ? this.get(draft.id, projectDir, domain) : this.create(projectDir, domain);
+    });
   }
   get(id, projectDir, domain) {
     if (!uuid(id)) throw Error('Invalid chat ID.');
