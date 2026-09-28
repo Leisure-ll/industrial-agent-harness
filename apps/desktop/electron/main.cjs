@@ -15,13 +15,15 @@ const {createViewerRegistry} = require('../../../packages/viewer-core/src/regist
 const {resolve, discloseDetail} = require('../../../packages/capability-broker/src/index.cjs');
 const {resolveProjectTask, effectiveCapabilities, resourceCatalog} = require('@industrial-agent-harness/harness-core');
 const {capabilities, listDomains} = require('@industrial-agent-harness/domain-skills');
+const {DiagnosticReader} = require('../../../packages/agent-kimi/src/diagnostic-reader.cjs');
+const {defaultLogDirectory} = require('../../../packages/agent-kimi/src/diagnostic-log.cjs');
 const {KimiSession} = require('../../../packages/agent-kimi/src/index.cjs');
 const {ObservedContextStore} = require('@industrial-agent-harness/domain-runtime');
 const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = require('./model-config.cjs');
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: {standard: true, secure: true, supportFetchAPI: true, corsEnabled: true}}]);
-if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--agent-log-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
 
 const desktopRoot = path.resolve(__dirname, '..');
 const artifacts = new Map();
@@ -40,6 +42,8 @@ let projectBindings = {projects: [], activeId: null};
 let mainWindow;
 let sessionApiKey = '';
 let modelRevision = 0;
+function diagnosticDirectory() {return process.argv.includes('--agent-log-selftest') ? path.join(app.getPath('userData'), 'logs') : defaultLogDirectory();}
+const diagnosticReader = new DiagnosticReader(diagnosticDirectory());
 
 function configDir() {return path.join(app.getPath('userData'), 'model');}
 function projectConfigDir() {return path.join(app.getPath('userData'), 'workspace');}
@@ -61,6 +65,7 @@ function observedContext() {
 function keyFile() {return path.join(configDir(), 'api-key.bin');}
 function canPersistKey() {return safeStorage.isEncryptionAvailable() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text');}
 function readApiKey() {
+  if (process.argv.includes('--agent-log-selftest')) return 'diagnostic-selftest-key';
   if (sessionApiKey) return sessionApiKey;
   if (!canPersistKey() || !fs.existsSync(keyFile())) return '';
   try {return safeStorage.decryptString(fs.readFileSync(keyFile()));} catch {return '';}
@@ -156,6 +161,19 @@ const viewerRegistry = createViewerRegistry([
 ]);
 
 function registerHandlers() {
+  function diagnosticProject(event, request) {
+    if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame || !projectDir || request?.projectId !== activeProject()?.id) throw Error('Diagnostic logs belong to the selected project.');
+    return projectDir;
+  }
+  async function diagnosticRequest(method, event, request) {
+    const project = diagnosticProject(event, request);
+    const result = await diagnosticReader[method](project, request);
+    if (activeProject()?.id !== request.projectId || projectDir !== project) throw Error('Selected project changed; reopen agent logs.');
+    return result;
+  }
+  ipcMain.handle('agent:log-runs', (event, request) => diagnosticRequest('list', event, request));
+  ipcMain.handle('agent:log-page', (event, request) => diagnosticRequest('page', event, request));
+  ipcMain.handle('agent:log-record', (event, request) => diagnosticRequest('record', event, request));
   ipcMain.handle('broker:domains', () => listDomains(capabilities));
   ipcMain.handle('resource:catalog', () => resourceCatalog(activeProject()?.domain));
   ipcMain.handle('broker:resolve', (_event, request) => {
@@ -198,6 +216,7 @@ function registerHandlers() {
     return modelStatus();
   });
   ipcMain.handle('agent:status', () => {
+    if (process.argv.includes('--agent-log-selftest')) return {available:true,version:'SDK seam selftest',projectDir,configured:true};
     const executable = kimiExecutable();
     const result = spawnSync(executable, ['--version'], {encoding: 'utf8', timeout: 3000});
     const help = result.status === 0 ? spawnSync(executable, ['--help'], {encoding: 'utf8', timeout: 3000}) : null;
@@ -310,7 +329,7 @@ function registerHandlers() {
     if (!projectDir) throw Error('Choose an engineering project first.');
     if (typeof task !== 'string' || !task.trim()) throw Error('Describe the task first.');
     if (!brokerScope) throw Error('Resolve the task scope first.');
-    agent ||= new KimiSession(projectDir, () => brokerScope, id => observedContext().readArtifact(id), loadDetail, event => mainWindow?.webContents.send('agent:event', event), runtimeConfig, undefined, {getBrokerTrace: () => brokerTrace, getContextAnchor: () => observedContext().anchor(), readContextPage: (checkpointId, offset, limit) => observedContext().readPage(checkpointId, offset, limit)});
+    agent ||= new KimiSession(projectDir, () => brokerScope, id => observedContext().readArtifact(id), loadDetail, event => mainWindow?.webContents.send('agent:event', event), runtimeConfig, process.argv.includes('--agent-log-selftest') ? require('./agent-log-selftest.cjs').createSession : undefined, {directory: diagnosticDirectory(), getBrokerTrace: () => brokerTrace, getContextAnchor: () => observedContext().anchor(), readContextPage: (checkpointId, offset, limit) => observedContext().readPage(checkpointId, offset, limit)});
     void agent.run(task).catch(error => mainWindow?.webContents.send('agent:event', {type: 'error', message: String(error)}));
     return {started: true};
   });
@@ -334,6 +353,7 @@ function registerHandlers() {
 }
 
 async function createWindow() {
+  if (process.argv.includes('--agent-log-selftest')) require('./agent-log-selftest.cjs').prepare(projectConfigDir(), diagnosticDirectory());
   if (process.argv.includes('--kicad-selftest')) require('./kicad-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--godot-selftest')) require('./godot-selftest.cjs').prepare(projectConfigDir());
   projectBindings = readBindings(projectConfigDir(), path.resolve(desktopRoot, '../../examples/chip-sobel'));
@@ -354,6 +374,10 @@ async function createWindow() {
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
+  if (process.argv.includes('--agent-log-selftest')) {
+    await require('./agent-log-selftest.cjs').run(window);
+    app.quit(); return;
+  }
   if (process.argv.includes('--kicad-selftest')) {
     await require('./kicad-selftest.cjs').run(window);
     app.quit();
@@ -447,7 +471,7 @@ async function createWindow() {
     await require('./navigation-selftest.cjs').verifyNavigation(window, measureNetlist);
     await require('./navigation-selftest.cjs').verifyWheel(window, measureNetlist, (deltaY,ctrlKey) => window.webContents.executeJavaScript(`(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('.rp-net-stage').dispatchEvent(e);return e.defaultPrevented;})()`));
     screenshots.push(await shot('netlist'));
-    await window.webContents.executeJavaScript(`const area = document.querySelector('.ia-composer textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(area, 'Inspect the netlist signals'); area.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('.ia-chat-actions button').click()`);
+    await window.webContents.executeJavaScript(`const area = document.querySelector('.ia-composer textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(area, 'Inspect the netlist signals'); area.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('.ia-chat-actions button[title="Toggle debug logs"]').click()`);
     await new Promise(resolve => setTimeout(resolve, 100));
     await window.webContents.executeJavaScript(`document.querySelector('.ia-send').click()`);
     await waitFor(`document.querySelector('.ia-broker-tool:not([open])')?.innerText.includes('chip / rtl')`);

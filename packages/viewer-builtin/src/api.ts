@@ -63,6 +63,9 @@ export interface ViewerHostApi {
   resourceCatalog(): Promise<ResourceCatalog>;
   detail(capabilityId: string): Promise<CapabilityDetail>;
   brokerTrace(): Promise<BrokerResult['trace']>;
+  diagnosticRuns(request: {projectId: string}): Promise<{runs: DiagnosticRun[]; limited: boolean}>;
+  diagnosticPage(request: {projectId: string; runId: string; offset?: number; category?: DiagnosticCategory | 'all'; query?: string}): Promise<DiagnosticPage>;
+  diagnosticRecord(request: {projectId: string; runId: string; sequence: number; offset?: number}): Promise<DiagnosticContent>;
   agentStatus(): Promise<{available: boolean; version: string; projectDir: string | null; configured: boolean}>;
   modelGet(): Promise<ModelProfileStatus>;
   modelSave(request: ModelProfile & {apiKey?: string; clearApiKey?: boolean}): Promise<ModelProfileStatus>;
@@ -121,3 +124,9 @@ export interface CapabilityDetail {
 declare global {
   interface Window {viewerHost?: ViewerHostApi}
 }
+
+export type DiagnosticCategory = 'tools' | 'context' | 'thinking' | 'approvals' | 'run' | 'ui';
+export interface DiagnosticRun {runId: string; traceId: string; at: string; sizeBytes: number | null; model: string | null; status: string | null; metrics: {peakContextUsage: number | null; compactions: number; toolResults: number} | null; error?: string}
+export interface DiagnosticRecord {sequence: number; at: string; type: string; event: string | null; category: DiagnosticCategory; summary: string; bytes: number}
+export interface DiagnosticPage {records: DiagnosticRecord[]; nextOffset: number | null; total: number; totalRecords: number; counts: Record<DiagnosticCategory, number>; pending: boolean}
+export interface DiagnosticContent {text: string; offset: number; nextOffset: number | null; totalBytes: number}

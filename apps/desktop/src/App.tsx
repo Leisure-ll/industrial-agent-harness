@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import {Activity, Bug, ChevronDown, ChevronRight, Cpu, File, FilePlus2, Folder, FolderOpen, Maximize, Minimize, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Play, Plus, Settings2, Square, Sun, X} from 'lucide-react';
 import {ViewerCanvas, type ViewNavigation} from '@industrial-agent-harness/viewer-builtin/canvas';
 import type {AgentEvent, BrokerResult, CapabilityDetail, DomainOption, OpenedViewer, ProjectBinding, ResourceCatalog, ViewerArtifact} from '@industrial-agent-harness/viewer-builtin/api';
+import {AgentLogPanel} from './components/AgentLogPanel';
 import {AgentFlow} from './components/AgentFlow';
 import {BrokerCall} from './components/BrokerCall';
 import {TodoList} from './components/TodoList';
@@ -43,6 +44,9 @@ export function App() {
   const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem('ia-theme') === 'dark' ? 'dark' : 'light');
   const [debug, setDebug] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [logTrace, setLogTrace] = useState<string>();
+  function showAgentLog(traceId?: string) {setLogTrace(traceId); setLogOpen(true);}
   const [task, setTask] = useState('');
   const [submittedTask, setSubmittedTask] = useState('');
   const [broker, setBroker] = useState<BrokerResult>();
@@ -221,6 +225,7 @@ export function App() {
     catch (reason) {setAgentEvents([{type: 'error', message: String(reason)}]); setAgentBusy(false);}
   }
 
+  const diagnostic = agentEvents.filter(event => event.type === 'diagnostic-log').at(-1);
   return <div className={`rp-shell ia-app theme-${theme} ${leftOpen ? '' : 'left-collapsed'} ${rightOpen ? '' : 'right-collapsed'}`}>
     <div className="ia-columns">
       {leftOpen && <aside className="ia-tree ia-sidebar">
@@ -235,7 +240,7 @@ export function App() {
         {settingsOpen && <div className="ia-settings-popover"><div className="ia-settings-title"><b>Settings</b><button className="ia-icon" onClick={() => setSettingsOpen(false)}>×</button></div><div className="ia-settings-row"><span>Appearance</span><button onClick={() => setTheme(value => value === 'light' ? 'dark' : 'light')}>{theme === 'light' ? <Sun size={14}/> : <Moon size={14}/>} {theme === 'light' ? 'Light' : 'Dark'}</button></div><div className="ia-settings-row"><span>Debug logs</span><button onClick={() => setDebug(value => !value)}><Bug size={14}/> {debug ? 'On' : 'Off'}</button></div><div className="ia-settings-row"><span>Model API</span><button onClick={() => {setSettingsOpen(false); setModelSettingsOpen(true);}}>Configure</button></div><div className="ia-settings-note">Kimi CLI: {agentStatus?.available ? agentStatus.version || 'available' : 'unavailable'}</div></div>}
       </aside>}
       <main className="ia-chat">
-        <header className="ia-chat-header"><div>{!leftOpen && <button className="ia-icon" onClick={() => setLeftOpen(true)} title="Show sidebar"><PanelLeftOpen size={16}/></button>}<Folder size={14}/><b>{projectName}</b></div><div className="ia-chat-actions"><button className={debug ? 'active' : ''} onClick={() => setDebug(value => !value)} title="Toggle debug logs"><Bug size={15}/></button><button onClick={() => setRightOpen(value => !value)} title={rightOpen ? 'Hide workspace' : 'Show workspace'}>{rightOpen ? <PanelRightClose size={16}/> : <PanelRightOpen size={16}/>}</button></div></header>
+        <header className="ia-chat-header"><div>{!leftOpen && <button className="ia-icon" onClick={() => setLeftOpen(true)} title="Show sidebar"><PanelLeftOpen size={16}/></button>}<Folder size={14}/><b>{projectName}</b></div><div className="ia-chat-actions"><button aria-label="View agent logs" title="View detailed agent logs" disabled={!activeProjectId} onClick={() => showAgentLog()}>Logs</button><button className={debug ? 'active' : ''} onClick={() => setDebug(value => !value)} title="Toggle debug logs"><Bug size={15}/></button><button onClick={() => setRightOpen(value => !value)} title={rightOpen ? 'Hide workspace' : 'Show workspace'}>{rightOpen ? <PanelRightClose size={16}/> : <PanelRightOpen size={16}/>}</button></div></header>
         {page === 'project' && activeProject ? <ProjectDetails project={activeProject} domains={domains} resources={resources} busy={agentBusy} onDomainChange={setProjectDomain} onResourceChange={setProjectResource} onNewChat={newChat}/> : <>
         <div className="ia-chat-scroll">
           {!submittedTask && <div className="ia-chat-welcome"><span className="ia-welcome-icon"><Cpu size={22}/></span><h1>What are you working on?</h1><p>Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.</p></div>}
@@ -243,7 +248,7 @@ export function App() {
             <div className="ia-user-message">{submittedTask}</div>
             {brokerError && <div className="ia-flow-error">{brokerError}</div>}
             {broker && <BrokerCall broker={broker} detail={detail} debug={debug} selectedDomain={selectedDomain} onContext={context => void resolveTask(context)} onDetail={id => void showDetail(id)}/>}
-            {agentEvents.length > 0 && <AgentFlow events={agentEvents} running={agentBusy} debug={debug} approve={(id, decision) => void window.viewerHost!.approveAgent(id, decision)}/>}
+            {agentEvents.length > 0 && <AgentFlow onLog={showAgentLog} events={agentEvents} running={agentBusy} debug={debug} approve={(id, decision) => void window.viewerHost!.approveAgent(id, decision)}/>}
           </>}
         </div>
         {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy}/>}
@@ -259,6 +264,7 @@ export function App() {
       </section>}
     </div>
     {projectDraft && <CreateProjectModal draft={projectDraft} domains={domains} error={projectError} onChange={setProjectDraft} onChooseDirectory={chooseProjectDirectory} onClose={() => setProjectDraft(null)} onCreate={createProject}/>}
+    {logOpen && activeProjectId && <AgentLogPanel key={activeProjectId} projectId={activeProjectId} projectName={projectName} initialTraceId={logTrace} runningTraceId={diagnostic?.type === 'diagnostic-log' ? diagnostic.traceId : undefined} running={agentBusy} onClose={() => setLogOpen(false)}/>}
     {modelSettingsOpen && <ModelSettings onClose={() => setModelSettingsOpen(false)} onSaved={() => void window.viewerHost!.agentStatus().then(setAgentStatus)}/>}
   </div>;
 }

@@ -9,3 +9,5 @@ Harness 外部工具返回最多 16 KiB UTF-8 JSON；能力详情可按 `skills`
 每轮生成一份完整的 JSONL 诊断日志，保留 Broker Trace、实际送入 SDK 的提示、SDK 暴露的原始事件和未截断的工具结果。固定 CLI 版本的 `context.jsonl` 与 `wire.jsonl` 也在每轮结束时保存受限权限的快照，日志记录路径、字节数及 SHA-256；快照失败会显式记录。日志路径通过 `diagnostic-log` 事件给 CLI 与桌面 Debug 模式。已知 API Key 和常见凭据字段会脱敏；日志仍含工程数据。若提供观察状态回调，提示中会附带最小 Checkpoint 锚点，`industrial_context_read` 可按页取回；该工具只报告文件哈希观察，不报告工程验收结论。
 
 每个 SDK 会话还使用独立临时 Kimi share directory：复制模型配置，以 `extra_skill_dirs` 添加经过 Project 禁用策略和 Broker Scope 筛选的仓库 Skill，并生成会话 `mcp.json`。Kimi 原有的项目/用户 Skill 搜索路径仍可使用。关闭会话时删除这份临时配置；用户的 `~/.kimi` 不会被改写。当前默认 MCP 列表为空。
+
+`DiagnosticReader` 为桌面日志面板提供当前项目的运行列表、分类/摘要过滤、记录分页与 UTF-8 内容分段读取。它复用写入器的项目目录键，检查记录 Trace ID/顺序、文件及目录边界、符号链接与资源上限；追加中的不完整尾行等待下次刷新。缓存有界且仅保存记录索引，原始内容从只读文件句柄读取。支持范围与 UI 限额见 [桌面文档](../../apps/desktop/README.md)。
