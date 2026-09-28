@@ -15,7 +15,9 @@
     "./netlist": "./src/netlist/NetlistViewport.tsx",
     "./waveform": "./src/waveform/WaveformViewport.tsx",
     "./styles.css": "./src/viewer-styles.css",
-    "./api": "./src/api.ts"
+    "./api": "./src/api.ts",
+    "./canvas": "./src/ViewerCanvas.tsx",
+    "./kicad": "./src/kicad/KiCadViewport.tsx"
   },
   "devDependencies": {
     "@types/react": "19.2.18",

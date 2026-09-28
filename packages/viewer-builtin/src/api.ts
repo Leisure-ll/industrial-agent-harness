@@ -22,7 +22,7 @@ export interface NetlistData {
 
 export interface ViewerArtifact {
   id: string;
-  kind: 'layout' | 'netlist' | 'waveform';
+  kind: 'layout' | 'netlist' | 'waveform' | 'kicad';
   name: string;
   design: string;
   sizeBytes: number;
@@ -37,10 +37,13 @@ export interface WaveformData {
   initialRange?: [number, number];
 }
 
+export interface KiCadData {token: string; name: string; document: 'board' | 'schematic'; url: string}
+
 export type OpenedViewer =
   | {kind: 'layout'; artifact: ViewerArtifact; data: LayoutMeta}
   | {kind: 'netlist'; artifact: ViewerArtifact; data: NetlistData}
-  | {kind: 'waveform'; artifact: ViewerArtifact; data: WaveformData};
+  | {kind: 'waveform'; artifact: ViewerArtifact; data: WaveformData}
+  | {kind: 'kicad'; artifact: ViewerArtifact; data: KiCadData};
 
 export interface ViewerHostApi {
   open(request: {artifactId: string}): Promise<OpenedViewer>;
@@ -62,7 +65,7 @@ export interface ViewerHostApi {
   setProjectResource(projectId: string, kind: 'skill' | 'mcp', id: string, enabled: boolean): Promise<{projects: ProjectBinding[]; activeId: string | null; projectDir: string | null}>;
   newChat(): Promise<void>;
   projectFiles(): Promise<Array<{path: string; name: string; depth: number; directory: boolean}>>;
-  readProjectFile(relative: string): Promise<{path: string; name: string; sizeBytes: number; viewer: 'layout' | 'netlist' | 'waveform' | null; content: string | null; truncated: boolean}>;
+  readProjectFile(relative: string): Promise<{path: string; name: string; sizeBytes: number; viewer: ViewerArtifact['kind'] | null; content: string | null; truncated: boolean}>;
   openProjectFile(relative: string): Promise<ViewerArtifact>;
   runAgent(task: string): Promise<{started: boolean}>;
   approveAgent(id: string, response: 'approve' | 'approve_for_session' | 'reject'): Promise<void>;

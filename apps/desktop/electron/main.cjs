@@ -8,6 +8,8 @@ const {RasterService} = require('../../../packages/viewer-builtin/src/layout/ras
 const {renderNetlist} = require('../../../packages/viewer-builtin/src/netlist/netlist.cjs');
 const {createViewerProtocol} = require('../../../packages/viewer-builtin/src/waveform/protocol.cjs');
 const {initialVcdSignals} = require('../../../packages/viewer-builtin/src/waveform/signals.cjs');
+const {KiCadRuntimeManager, isKiCadFile} = require('../../../packages/viewer-builtin/src/kicad/runtime.cjs');
+const {createViewerRegistry} = require('../../../packages/viewer-core/src/registry.cjs');
 const {resolve, discloseDetail} = require('../../../packages/capability-broker/src/index.cjs');
 const {resolveProjectTask, effectiveCapabilities, resourceCatalog} = require('@industrial-agent-harness/harness-core');
 const {capabilities, listDomains} = require('@industrial-agent-harness/domain-skills');
@@ -17,7 +19,7 @@ const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = 
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: {standard: true, secure: true, supportFetchAPI: true, corsEnabled: true}}]);
-if (process.argv.includes('--viewer-selftest')) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (process.argv.includes('--viewer-selftest') || process.argv.includes('--kicad-selftest')) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
 
 const desktopRoot = path.resolve(__dirname, '..');
 const artifacts = new Map();
@@ -25,6 +27,7 @@ const netlistSessions = new Map();
 let activeLayoutToken;
 let raster;
 let viewerProtocol;
+const kicadRuntime = new KiCadRuntimeManager();
 let brokerScope;
 let brokerTrace = [];
 let agent;
@@ -43,6 +46,7 @@ function clearProjectArtifacts() {
   contextStore?.close(); contextStore = undefined;
   artifacts.clear();
   netlistSessions.clear(); activeLayoutToken = undefined;
+  kicadRuntime.close();
 }
 function observedContext() {
   const domain = activeProject()?.domain;
@@ -70,16 +74,9 @@ function runtimeConfig() {
 }
 
 function kindFor(file) {
-  const ext = path.extname(file).toLowerCase();
-  if (['.gds', '.gdsii', '.oas', '.oasis'].includes(ext)) return 'layout';
-  if (['.vcd', '.fst', '.ghw'].includes(ext)) return 'waveform';
-  if (ext === '.json') {
-    const stat = fs.statSync(file);
-    if (stat.size <= 20 * 1024 * 1024) {
-      try {if (JSON.parse(fs.readFileSync(file, 'utf8'))?.modules) return 'netlist';} catch {}
-    }
-  }
-  throw Error('This Viewer currently supports GDS/OAS, Yosys JSON, and VCD/FST/GHW.');
+  const kind = viewerRegistry.match(file);
+  if (!kind) throw Error('No registered Viewer supports this file.');
+  return kind;
 }
 
 function projectFile(relative) {
@@ -129,6 +126,28 @@ function getRaster() {
   }
   return raster;
 }
+
+const viewerRegistry = createViewerRegistry([
+  {id: 'layout', matches: file => ['.gds', '.gdsii', '.oas', '.oasis'].includes(path.extname(file).toLowerCase()), open: async ({artifact, file}) => {
+    const token = crypto.randomUUID();
+    const data = await getRaster().call({op: 'load', path: file, token});
+    activeLayoutToken = token;
+    return {artifact, kind: 'layout', data};
+  }},
+  {id: 'netlist', matches: file => {
+    if (path.extname(file).toLowerCase() !== '.json' || fs.statSync(file).size > 20 * 1024 * 1024) return false;
+    try {return Boolean(JSON.parse(fs.readFileSync(file, 'utf8'))?.modules);} catch {return false;}
+  }, open: async ({artifact, file}) => {
+    const token = crypto.randomUUID();
+    const data = await renderNetlist(file);
+    netlistSessions.set(token, file);
+    return {artifact, kind: 'netlist', data: {...data, token}};
+  }},
+  {id: 'waveform', matches: file => ['.vcd', '.fst', '.ghw'].includes(path.extname(file).toLowerCase()), open: async ({artifact, file}) => ({artifact, kind: 'waveform', data: {
+    url: viewerProtocol.registerWave(file), name: artifact.name, defaultSignals: initialVcdSignals(file),
+  }})},
+  {id: 'kicad', matches: isKiCadFile, open: async ({artifact, file}) => ({artifact, kind: 'kicad', data: await kicadRuntime.open(file, artifact.sha256, projectDir)})},
+]);
 
 function registerHandlers() {
   ipcMain.handle('broker:domains', () => listDomains(capabilities));
@@ -292,22 +311,9 @@ function registerHandlers() {
   ipcMain.handle('agent:interrupt', () => agent?.interrupt());
   ipcMain.handle('viewer:open', async (_event, {artifactId}) => {
     const {artifact, file} = await checked(artifactId);
-    if (artifact.kind === 'layout') {
-      const token = crypto.randomUUID();
-      const data = await getRaster().call({op: 'load', path: file, token});
-      activeLayoutToken = token;
-      return {artifact, kind: 'layout', data};
-    }
-    if (artifact.kind === 'netlist') {
-      const token = crypto.randomUUID();
-      const data = await renderNetlist(file);
-      netlistSessions.set(token, file);
-      return {artifact, kind: 'netlist', data: {...data, token}};
-    }
-    return {artifact, kind: 'waveform', data: {
-      url: viewerProtocol.registerWave(file), name: artifact.name,
-      defaultSignals: initialVcdSignals(file),
-    }};
+    const plugin = viewerRegistry.get(artifact.kind);
+    if (!plugin) throw Error('Viewer plugin unavailable.');
+    return plugin.open({artifact, file});
   });
   ipcMain.handle('viewer:render', (_event, request) => {
     if (request?.token !== activeLayoutToken) throw Error('Layout artifact changed; reopen this view.');
@@ -321,10 +327,11 @@ function registerHandlers() {
 }
 
 async function createWindow() {
+  if (process.argv.includes('--kicad-selftest')) require('./kicad-selftest.cjs').prepare(projectConfigDir());
   projectBindings = readBindings(projectConfigDir(), path.resolve(desktopRoot, '../../examples/chip-sobel'));
   projectDir = activeProject()?.path;
   viewerProtocol = createViewerProtocol(desktopRoot);
-  protocol.handle('app', viewerProtocol.handle);
+  protocol.handle('app', request => new URL(request.url).hostname === 'kicad' ? kicadRuntime.handle(request) : viewerProtocol.handle(request));
   registerHandlers();
   const window = new BrowserWindow({
     width: 1440, height: 900, minWidth: 1000, minHeight: 650,
@@ -334,6 +341,11 @@ async function createWindow() {
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
+  if (process.argv.includes('--kicad-selftest')) {
+    await require('./kicad-selftest.cjs').run(window);
+    app.quit();
+    return;
+  }
   if (process.argv.includes('--viewer-selftest')) {
     async function waitFor(script, timeout = 30000) {
       const end = Date.now() + timeout;
@@ -456,4 +468,4 @@ async function createWindow() {
 
 app.whenReady().then(createWindow).catch(error => {console.error(error); app.exit(1);});
 app.on('window-all-closed', () => {if (process.platform !== 'darwin') app.quit();});
-app.on('before-quit', () => {raster?.close(); viewerProtocol?.close(); void agent?.close();});
+app.on('before-quit', () => {raster?.close(); viewerProtocol?.close(); kicadRuntime.close(); void agent?.close();});
