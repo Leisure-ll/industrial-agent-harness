@@ -19,6 +19,8 @@
 
 Desktop 在所属项目下显示历史聊天、新聊天和删除入口。启动或切换项目时读取最近聊天；点击另一聊天恢复其展示历史。每次先读取最近 10 轮，点击 Load earlier messages 继续向前分页。项目列表初始显示最近 200 个聊天。每轮发送后保留前面的消息；输入框清空，聊天自动跟随最新输出，向上阅读时保持阅读位置。
 
+Desktop 的 New chat 优先复用当前项目、Domain 下未提交过任何轮次的空白聊天；当前聊天已经为空时禁用侧栏入口。切换回同一个空白聊天保留未发送的文字和图片。创建请求期间阻止重复点击，主进程通过共享 ChatStore 的事务查询/创建草稿，多个窗口或直接重复 IPC 请求也不会持续新增空白记录。有 scoped、失败或中断轮次的聊天都属于历史，不能按标题 `New chat` 判断为空；已归档或被执行锁占用的聊天不复用。现有重复空白记录保留，仍可手动删除。CLI 的每次独立运行继续创建独立聊天。
+
 CLI 默认每个真实 Agent run 创建持久聊天，在 `chat` 事件和最终 `result` 中输出 `chatId`。例如：
 
 ```sh
@@ -37,10 +39,10 @@ Kimi SDK 0.1.8 的 `listSessions` / `parseSessionEvents` 使用全局默认路�
 
 ## 验证
 
-- `pnpm test`：共享存储、隔离、分页、持久会话与 CLI 行为测试，以及已有回归检查。
+- `pnpm test`：共享存储、空白聊天复用与跨进程并发创建、隔离、分页、持久会话与 CLI 行为测试，以及已有回归检查。
 - `pnpm test:architecture`：共享 Core 不依赖 Kimi/Electron，执行与领域边界不变。
 - `pnpm test:chat-resume`：真实固定 Kimi CLI / SDK、多个独立 CLI 进程、本地可控 OpenAI 兼容端点；验证第三轮请求带前两轮上下文、换模型建立新段、SIGTERM 中断后原上下文可继续。没有使用远端模型或用户 API key。没有本地 Kimi 时此项明确跳过。
-- `pnpm --filter @industrial-agent-harness/desktop test:chats`：两次真正启动/退出 macOS Electron，使用确定性 SDK seam 验证历史恢复、第三轮续聊、聊天切换、消息分页、删除、过期审批和跨项目拒绝，并保存截图。
+- `pnpm --filter @industrial-agent-harness/desktop test:chats`：两次真正启动/退出 macOS Electron，使用确定性 SDK seam 验证历史恢复、第三轮续聊、聊天切换、快速连点与 IPC 空白聊天复用、重载与未发送草稿保留、消息分页、删除、过期审批和跨项目拒绝，并保存截图。
 - `pnpm --filter @industrial-agent-harness/desktop test:logs`：已有诊断日志、资源配置、实时审批和压缩事件 UI 回归。
 
 验证覆盖本地 macOS 开发运行；不宣称 Windows/Linux 发行包或真实工业动作的崩溃恢复已验收。持久聊天不替代 Industrial Core Vertical Slice 的工程状态、Run/Action、Verification 验收。

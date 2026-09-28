@@ -78,6 +78,7 @@ export function App() {
   const [chatList, setChatList] = useState<ChatSummary[]>([]);
   const [runningSessions, setRunningSessions] = useState<SessionStatus[]>([]);
   const [navigating, setNavigating] = useState(false);
+  const creatingChat = useRef(false);
   const projectIdRef = useRef<string | null>(null);
   projectIdRef.current = activeProjectId;
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -276,15 +277,20 @@ export function App() {
     } catch (reason) {setError(String(reason));}
   }
   async function newChat() {
+    if (navigating || submitting.current || creatingChat.current) return;
+    creatingChat.current = true;
     setNavigating(true);
-    if (activeProject && !activeProject.domain) {setPage('project'); setNavigating(false); return;}
     try {
-      applyHistory(await window.viewerHost!.newChat());
+      if (activeProject && !activeProject.domain) {setPage('project'); return;}
+      const history = await window.viewerHost!.newChat();
+      if (history.chat.id !== chatIdRef.current) {
+        applyHistory(history);
+        setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
+      }
       await refreshChats();
       setPage('chat');
-      setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
     } catch (reason) {setBrokerError(String(reason));}
-    finally {setNavigating(false);}
+    finally {creatingChat.current = false; setNavigating(false);}
   }
   async function resolveTask(context?: {domain: string; stage: string}, prompt = task) {
     if (navigating || submitting.current || agentBusy || attachments.loading || (!prompt.trim() && !attachments.images.length)) return;
@@ -337,7 +343,7 @@ export function App() {
         <div className="ia-project-list">{projects.map(item => {const domain = domainFor(item.domain); const active = item.id === activeProjectId; return <div key={item.id} className="ia-project-group">
           <button className={`ia-project-row ${active ? 'selected' : ''}`} onClick={() => void selectProject(item.id)} title={item.path} disabled={navigating || submitting.current}><FolderOpen size={15}/><span className="ia-project-row-name">{item.name}</span>{runningSessions.some(session => session.projectId === item.id && session.running) && <small className="ia-project-running" title="Running chats">{runningSessions.filter(session => session.projectId === item.id && session.running).length}</small>}{domain && <span className="ia-project-domain-badge" title={domain.label}><span aria-hidden="true">{domain.emoji}</span>{domain.label}</span>}</button>
           {active && <div className="ia-project-chats" role="group" aria-label={`${item.name} chats`} data-project-id={item.id}>
-            <button className="ia-new-chat" onClick={() => void newChat()} disabled={navigating || submitting.current || !item.domain} aria-label={`New chat in ${item.name}`}><FilePlus2 size={14}/> New chat</button>
+            <button className="ia-new-chat" onClick={() => void newChat()} disabled={navigating || submitting.current || !item.domain || (page === 'chat' && Boolean(activeChatId) && turns.length === 0)} title={page === 'chat' && activeChatId && turns.length === 0 ? 'Send a message in this chat before starting another' : 'New chat'} aria-label={`New chat in ${item.name}`}><FilePlus2 size={14}/> New chat</button>
             {chatList.map(chat => <div className="ia-chat-row" key={chat.id}><button className="ia-sidebar-chat" title={chat.title} disabled={navigating || submitting.current} aria-current={page === 'chat' && activeChatId === chat.id ? 'page' : undefined} onClick={() => void openChat(chat.id)}><Activity size={14}/><span>{chat.title}</span>{chat.running && <small className={`ia-session-running ${chat.awaitingApproval ? 'awaiting-approval' : ''}`} role="status" aria-label={chat.awaitingApproval ? 'Awaiting approval' : 'Running'} title={chat.awaitingApproval ? 'Awaiting approval' : 'Running'}/>}</button><button className="ia-chat-delete" aria-label={`Delete chat ${chat.title}`} title="Delete chat" disabled={chat.running || navigating || submitting.current} onClick={() => void deleteChat(chat.id)}><Trash2 size={12}/></button></div>)}
           </div>}
         </div>;})}</div>

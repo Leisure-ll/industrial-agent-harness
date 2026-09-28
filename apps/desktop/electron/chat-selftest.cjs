@@ -56,6 +56,27 @@ async function run(window, store) {
       const original = await evaluate(`window.viewerHost.chats().then(result=>result.activeId)`);
       await evaluate(`document.querySelector('.ia-new-chat').click()`);
       await wait(`document.querySelectorAll('.ia-chat-turn').length===0&&document.querySelectorAll('.ia-sidebar-chat').length===2`);
+      const draft = await evaluate(`window.viewerHost.chats().then(result=>result.activeId)`);
+      assert.equal(await evaluate(`document.querySelector('.ia-new-chat').disabled`), true, 'an empty active chat disables New chat');
+      fs.writeFileSync(path.join(store.directory, 'desktop-empty-chat.png'), (await window.webContents.capturePage()).toPNG());
+      await evaluate(`Array.from({length:20},()=>document.querySelector('.ia-new-chat').click())`);
+      assert.equal(await evaluate(`window.viewerHost.chats().then(result=>result.chats.length)`), 2);
+      const repeated = await evaluate(`Promise.all(Array.from({length:20},()=>window.viewerHost.newChat())).then(results=>results.map(result=>result.chat.id))`);
+      assert.deepEqual([...new Set(repeated)], [draft], 'IPC requests also reuse the draft');
+      await window.webContents.reload();
+      await wait(`document.querySelectorAll('.ia-chat-turn').length===0&&document.querySelectorAll('.ia-sidebar-chat').length===2`);
+      // Returning from the project page to the same empty chat keeps the unsent draft.
+      await evaluate(`(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'Unsent draft');area.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+      await wait(`document.querySelector('.ia-composer textarea').value==='Unsent draft'`);
+      await evaluate(`document.querySelector('.ia-project-row').click()`);
+      await wait(`Boolean(document.querySelector('.ia-project-page'))`);
+      await evaluate(`document.querySelector('.ia-project-start').click()`);
+      await wait(`document.querySelector('.ia-composer textarea')?.value==='Unsent draft'`);
+      await evaluate(`Array.from(document.querySelectorAll('.ia-sidebar-chat')).find(item=>item.innerText.includes('first turn')).click()`);
+      await wait(`document.querySelectorAll('.ia-chat-turn').length===3`);
+      await evaluate(`Array.from({length:20},()=>document.querySelector('.ia-new-chat').click())`);
+      await wait(`document.querySelectorAll('.ia-chat-turn').length===0&&!document.querySelector('.ia-composer textarea').value&&document.querySelectorAll('.ia-sidebar-chat').length===2`);
+      assert.equal(await evaluate(`window.viewerHost.chats().then(result=>result.activeId)`), draft, 'reuse the existing draft from history');
       await evaluate(`Array.from(document.querySelectorAll('.ia-sidebar-chat')).find(item=>item.innerText.includes('first turn')).click()`);
       await wait(`document.querySelectorAll('.ia-chat-turn').length===3`);
       const project = await evaluate(`window.viewerHost.projectBindings().then(result=>result.projectDir)`);

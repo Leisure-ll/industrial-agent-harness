@@ -13,6 +13,44 @@ function fixture(t) {
   return {directory, project, store: new ChatStore(path.join(directory, 'chats'))};
 }
 
+test('desktop drafts reuse actual empty chats within the project/domain and preserve existing rows', t => {
+  const {directory, project, store} = fixture(t); t.after(() => store.close());
+  const first = store.createDraft(project, 'test-domain');
+  assert.equal(store.createDraft(project, 'test-domain').id, first.id);
+  const legacy = store.create(project, 'test-domain');
+  assert.equal(store.createDraft(project, 'test-domain', first.id).id, first.id, 'keep the current draft');
+  assert.equal(store.list(project, 'test-domain').length, 2, 'existing duplicates are not deleted');
+  const turn = store.beginTurn(first.id, 'New chat', null, false);
+  assert.equal(store.createDraft(project, 'test-domain', first.id).id, legacy.id, 'a scoped turn is not empty even with the default title');
+  store.finish(turn, 'error');
+  assert.equal(store.createDraft(project, 'test-domain', first.id).id, legacy.id, 'failed submissions remain history');
+  assert.notEqual(store.createDraft(project, 'other-domain', legacy.id).id, legacy.id);
+  const other = path.join(directory, 'other'); fs.mkdirSync(other);
+  assert.notEqual(store.createDraft(other, 'test-domain', legacy.id).id, legacy.id);
+  store.db.prepare('UPDATE chats SET archived = 1 WHERE id = ?').run(legacy.id);
+  const draft = store.createDraft(project, 'test-domain', legacy.id);
+  assert.notEqual(draft.id, legacy.id, 'archived chats are not reopened');
+  const release = store.acquire(draft.id);
+  const unlocked = store.createDraft(project, 'test-domain', draft.id);
+  assert.notEqual(unlocked.id, draft.id, 'do not reuse a chat reserved for execution');
+  release();
+  const reopened = new ChatStore(path.join(directory, 'chats')); t.after(() => reopened.close());
+  assert.equal(reopened.createDraft(project, 'test-domain', draft.id).id, draft.id, 'draft survives reopening');
+});
+
+test('concurrent desktop draft requests from separate processes create only one chat', async t => {
+  const {directory, project, store} = fixture(t); t.after(() => store.close());
+  const results = await Promise.all(Array.from({length: 6}, () => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['-e', `const {ChatStore}=require(${JSON.stringify(path.resolve(__dirname, '../src/index.cjs'))});const store=new ChatStore(${JSON.stringify(path.join(directory, 'chats'))});process.stdout.write(JSON.stringify(Array.from({length:20},()=>store.createDraft(${JSON.stringify(project)},'test-domain').id)));store.close();`], {stdio: ['ignore', 'pipe', 'pipe']});
+    t.after(() => child.kill('SIGKILL'));
+    let output = '', errors = '';
+    child.stdout.on('data', data => {output += data;}); child.stderr.on('data', data => {errors += data;});
+    child.once('error', reject); child.once('exit', code => {if (code !== 0) reject(Error(errors)); else {try {resolve(JSON.parse(output));} catch (error) {reject(error);}}});
+  })));
+  assert.equal(new Set(results.flat()).size, 1);
+  assert.equal(store.list(project, 'test-domain').length, 1);
+});
+
 test('history survives reopening, separates projects/domains and pages without gaps', t => {
   const {directory, project, store} = fixture(t);
   const chat = store.create(project, 'test-domain');
