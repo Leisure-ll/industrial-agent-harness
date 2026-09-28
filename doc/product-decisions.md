@@ -117,3 +117,15 @@
 ### 决定
 
 每次 Agent 运行保存一份可按 Trace ID 关联的 JSONL 文件，记录 Broker 决策、实际提示词、SDK 暴露的原始事件、完整工具返回、审批、压缩及结果。CLI 输出日志路径，桌面 Debug 模式显示路径。日志写在受限权限的用户数据目录，脱敏已知模型凭据；界面仍采用紧凑呈现。诊断日志是调试证据，不自动构成工程 Verification。
+
+
+## PD-013：PCB domain 的 KiCad Viewer V1
+
+- 日期：2026-09-28
+- 状态：已确定，V1 接入
+- 来源：用户要求参考 Godot Viewer 为 PCB domain 接入 KiCad
+- 原因：在项目文件树内直接查看 KiCad 设计，并沿用通用 Viewer Registry 与隔离画布。
+
+### 决定
+
+保留已有 PCB domain，打开 `.kicad_pcb` 或 `.kicad_sch` 自动选择 KiCad Viewer。本地固定版本 KiCanvas 提供板图的图层、网络、封装和属性查看，以及原理图与多页浏览。所有源文件只读，主文件及引用的子页经过哈希和项目边界校验。无需安装原生 KiCad 或联网；编辑、DRC/ERC、3D 与原生编辑器连接不属于此次 Viewer 接入。已验证范围和格式限制记录在 [KiCad Viewer V1](kicad-viewer.md)。
