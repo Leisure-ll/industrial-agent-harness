@@ -8,6 +8,8 @@ const {RasterService} = require('../../../packages/viewer-builtin/src/layout/ras
 const {renderNetlist} = require('../../../packages/viewer-builtin/src/netlist/netlist.cjs');
 const {createViewerProtocol} = require('../../../packages/viewer-builtin/src/waveform/protocol.cjs');
 const {initialVcdSignals} = require('../../../packages/viewer-builtin/src/waveform/signals.cjs');
+const {GodotRuntimeManager, isGodotExport} = require('../../../packages/viewer-builtin/src/godot/runtime.cjs');
+const {createAssetPlugins} = require('../../../packages/viewer-builtin/src/assets/service.cjs');
 const {KiCadRuntimeManager, isKiCadFile} = require('../../../packages/viewer-builtin/src/kicad/runtime.cjs');
 const {createViewerRegistry} = require('../../../packages/viewer-core/src/registry.cjs');
 const {resolve, discloseDetail} = require('../../../packages/capability-broker/src/index.cjs');
@@ -19,7 +21,7 @@ const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = 
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: {standard: true, secure: true, supportFetchAPI: true, corsEnabled: true}}]);
-if (process.argv.includes('--viewer-selftest') || process.argv.includes('--kicad-selftest')) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
 
 const desktopRoot = path.resolve(__dirname, '..');
 const artifacts = new Map();
@@ -27,6 +29,7 @@ const netlistSessions = new Map();
 let activeLayoutToken;
 let raster;
 let viewerProtocol;
+const godotRuntime = new GodotRuntimeManager();
 const kicadRuntime = new KiCadRuntimeManager();
 let brokerScope;
 let brokerTrace = [];
@@ -46,6 +49,7 @@ function clearProjectArtifacts() {
   contextStore?.close(); contextStore = undefined;
   artifacts.clear();
   netlistSessions.clear(); activeLayoutToken = undefined;
+  godotRuntime.close();
   kicadRuntime.close();
 }
 function observedContext() {
@@ -128,6 +132,7 @@ function getRaster() {
 }
 
 const viewerRegistry = createViewerRegistry([
+  ...createAssetPlugins({projectRoot: () => projectDir}),
   {id: 'layout', matches: file => ['.gds', '.gdsii', '.oas', '.oasis'].includes(path.extname(file).toLowerCase()), open: async ({artifact, file}) => {
     const token = crypto.randomUUID();
     const data = await getRaster().call({op: 'load', path: file, token});
@@ -146,6 +151,7 @@ const viewerRegistry = createViewerRegistry([
   {id: 'waveform', matches: file => ['.vcd', '.fst', '.ghw'].includes(path.extname(file).toLowerCase()), open: async ({artifact, file}) => ({artifact, kind: 'waveform', data: {
     url: viewerProtocol.registerWave(file), name: artifact.name, defaultSignals: initialVcdSignals(file),
   }})},
+  {id: 'godot', matches: file => isGodotExport(file), open: async ({artifact, file}) => ({artifact, kind: 'godot', data: await godotRuntime.open(file, artifact.sha256)})},
   {id: 'kicad', matches: isKiCadFile, open: async ({artifact, file}) => ({artifact, kind: 'kicad', data: await kicadRuntime.open(file, artifact.sha256, projectDir)})},
 ]);
 
@@ -270,7 +276,8 @@ function registerHandlers() {
     const output = [];
     const walk = (dir, depth) => {
       if (depth > 3 || output.length >= 250) return;
-      const entries = fs.readdirSync(dir, {withFileTypes: true}).filter(item => !item.name.startsWith('.') && !['node_modules', 'dist', 'build', '__pycache__', 'target'].includes(item.name)).sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name));
+      const hidden = activeProject()?.domain === 'godot' ? ['node_modules', '__pycache__', 'target'] : ['node_modules', 'dist', 'build', '__pycache__', 'target'];
+      const entries = fs.readdirSync(dir, {withFileTypes: true}).filter(item => !item.name.startsWith('.') && !hidden.includes(item.name)).sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name));
       for (const entry of entries) {
         if (output.length >= 250) break;
         if (!entry.isDirectory() && !entry.isFile()) continue;
@@ -328,10 +335,16 @@ function registerHandlers() {
 
 async function createWindow() {
   if (process.argv.includes('--kicad-selftest')) require('./kicad-selftest.cjs').prepare(projectConfigDir());
+  if (process.argv.includes('--godot-selftest')) require('./godot-selftest.cjs').prepare(projectConfigDir());
   projectBindings = readBindings(projectConfigDir(), path.resolve(desktopRoot, '../../examples/chip-sobel'));
   projectDir = activeProject()?.path;
   viewerProtocol = createViewerProtocol(desktopRoot);
-  protocol.handle('app', request => new URL(request.url).hostname === 'kicad' ? kicadRuntime.handle(request) : viewerProtocol.handle(request));
+  protocol.handle('app', request => {
+    const host = new URL(request.url).hostname;
+    if (host === 'godot') return godotRuntime.handle(request);
+    if (host === 'kicad') return kicadRuntime.handle(request);
+    return viewerProtocol.handle(request);
+  });
   registerHandlers();
   const window = new BrowserWindow({
     width: 1440, height: 900, minWidth: 1000, minHeight: 650,
@@ -343,6 +356,11 @@ async function createWindow() {
   else await window.loadURL('app://viewer/index.html');
   if (process.argv.includes('--kicad-selftest')) {
     await require('./kicad-selftest.cjs').run(window);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--godot-selftest')) {
+    await require('./godot-selftest.cjs').run(window);
     app.quit();
     return;
   }
@@ -416,7 +434,7 @@ async function createWindow() {
     const screenshots = [projectScreenshot, createScreenshot, await shot('initial')];
     await window.webContents.executeJavaScript(`document.querySelector('.ia-chat-actions button:last-child').click()`);
     await waitFor(`Boolean(document.querySelector('.ia-workspace')) && !document.querySelector('.ia-workspace-tree')`);
-    await window.webContents.executeJavaScript(`document.querySelector('.ia-workspace-actions button').click()`);
+    await window.webContents.executeJavaScript(`document.querySelector('.ia-file-tree-toggle').click()`);
     await waitFor(`Boolean(document.querySelector('.ia-file-list button[title="README.md"]'))`);
     if (await window.webContents.executeJavaScript(`document.body.innerText.includes('VIEWER EXAMPLES')`)) throw Error('Reference Viewer fixtures appeared in the project file tree.');
     await window.webContents.executeJavaScript(`document.querySelector('.ia-file-list button[title="README.md"]').click()`);
@@ -425,6 +443,9 @@ async function createWindow() {
     await waitFor(`Boolean(document.querySelector('.ia-file-list button[title="outputs/sobel_netlist.json"]'))`);
     await window.webContents.executeJavaScript(`document.querySelector('.ia-file-list button[title="outputs/sobel_netlist.json"]').click()`);
     await waitFor(`document.querySelector('.ia-viewer-footer')?.innerText.includes('NETLIST · Ready')`, 120000);
+    const measureNetlist = () => window.webContents.executeJavaScript(`new DOMMatrix(getComputedStyle(document.querySelector('.rp-net-drawing')).transform).a`);
+    await require('./navigation-selftest.cjs').verifyNavigation(window, measureNetlist);
+    await require('./navigation-selftest.cjs').verifyWheel(window, measureNetlist, (deltaY,ctrlKey) => window.webContents.executeJavaScript(`(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('.rp-net-stage').dispatchEvent(e);return e.defaultPrevented;})()`));
     screenshots.push(await shot('netlist'));
     await window.webContents.executeJavaScript(`const area = document.querySelector('.ia-composer textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(area, 'Inspect the netlist signals'); area.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('.ia-chat-actions button').click()`);
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -450,6 +471,22 @@ async function createWindow() {
       await window.webContents.executeJavaScript(`document.querySelector('.ia-file-list button[title="outputs/${file}"]').click()`);
       await waitFor(`document.querySelector('.ia-viewer-footer')?.innerText.includes('${kind.toUpperCase()} · Ready')`, 120000);
       if (kind === 'waveform') await waitFor(`document.querySelector('.rp-surfer iframe')?.getAttribute('data-signals-ready') === '6'`);
+      if (kind === 'layout') {
+        const measure = () => window.webContents.executeJavaScript(`Number(document.querySelector('.rp-view-footer span:last-child').innerText.match(/([0-9.]+)×/)[1])`);
+        await require('./navigation-selftest.cjs').verifyNavigation(window, measure);
+        await require('./navigation-selftest.cjs').verifyWheel(window, measure, (deltaY,ctrlKey) => window.webContents.executeJavaScript(`(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('.rp-canvas-host').dispatchEvent(e);return e.defaultPrevented;})()`));
+      }
+      if (kind === 'waveform') {
+        const frame = window.webContents.mainFrame.frames.find(item => item.url.startsWith('app://surfer/'));
+        const measure = async () => {
+          const state = await frame.executeJavaScript(`import('./surfer.js').then(module => module.get_state())`);
+          const range = state.match(/curr_left:\s*\(([-0-9.e+]+)\),\s*curr_right:\s*\(([-0-9.e+]+)\)/);
+          if (!range) throw Error('Surfer native time range is unavailable.');
+          return 1 / (Number(range[2]) - Number(range[1]));
+        };
+        await require('./navigation-selftest.cjs').verifyNavigation(window, measure, {percent:false});
+        await require('./navigation-selftest.cjs').verifyWheel(window, measure, (deltaY,ctrlKey) => frame.executeJavaScript(`(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('canvas').dispatchEvent(e);return e.defaultPrevented;})()`));
+      }
       screenshots.push(await shot(kind));
     }
     await window.webContents.executeJavaScript(`document.querySelector('.ia-settings-button').click()`);
@@ -468,4 +505,4 @@ async function createWindow() {
 
 app.whenReady().then(createWindow).catch(error => {console.error(error); app.exit(1);});
 app.on('window-all-closed', () => {if (process.platform !== 'darwin') app.quit();});
-app.on('before-quit', () => {raster?.close(); viewerProtocol?.close(); kicadRuntime.close(); void agent?.close();});
+app.on('before-quit', () => {raster?.close(); viewerProtocol?.close(); godotRuntime.close(); kicadRuntime.close(); void agent?.close();});

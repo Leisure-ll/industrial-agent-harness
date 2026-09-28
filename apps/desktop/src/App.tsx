@@ -1,6 +1,6 @@
-import {useEffect, useState} from 'react';
-import {Activity, Bug, ChevronDown, ChevronRight, Cpu, File, FilePlus2, Folder, FolderOpen, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Play, Plus, Settings2, Square, Sun, X} from 'lucide-react';
-import {ViewerCanvas} from '@industrial-agent-harness/viewer-builtin/canvas';
+import {useEffect, useRef, useState} from 'react';
+import {Activity, Bug, ChevronDown, ChevronRight, Cpu, File, FilePlus2, Folder, FolderOpen, Maximize, Minimize, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Play, Plus, Settings2, Square, Sun, X} from 'lucide-react';
+import {ViewerCanvas, type ViewNavigation} from '@industrial-agent-harness/viewer-builtin/canvas';
 import type {AgentEvent, BrokerResult, CapabilityDetail, DomainOption, OpenedViewer, ProjectBinding, ResourceCatalog, ViewerArtifact} from '@industrial-agent-harness/viewer-builtin/api';
 import {AgentFlow} from './components/AgentFlow';
 import {BrokerCall} from './components/BrokerCall';
@@ -35,6 +35,10 @@ export function App() {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(false);
   const [fileTreeOpen, setFileTreeOpen] = useState(false);
+  const workspace = useRef<HTMLElement>(null);
+  const [viewerFullscreen, setViewerFullscreen] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState('');
+  const [viewNavigation, setViewNavigation] = useState<ViewNavigation | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem('ia-theme') === 'dark' ? 'dark' : 'light');
@@ -49,6 +53,24 @@ export function App() {
   const [agentBusy, setAgentBusy] = useState(false);
 
   useEffect(() => {localStorage.setItem('ia-theme', theme);}, [theme]);
+  useEffect(() => {
+    const changed = () => setViewerFullscreen(Boolean(workspace.current && document.fullscreenElement === workspace.current));
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && document.fullscreenElement === workspace.current) {
+        void document.exitFullscreen().catch(() => setFullscreenError('Use the exit fullscreen button to restore the workspace.'));
+      }
+    };
+    document.addEventListener('fullscreenchange', changed);
+    window.addEventListener('keydown', escape);
+    return () => {document.removeEventListener('fullscreenchange', changed); window.removeEventListener('keydown', escape);};
+  }, []);
+  async function toggleViewerFullscreen() {
+    setFullscreenError('');
+    try {
+      if (document.fullscreenElement === workspace.current) await document.exitFullscreen();
+      else await workspace.current?.requestFullscreen();
+    } catch {setFullscreenError('Unable to enter fullscreen. Please try again.');}
+  }
   useEffect(() => {
     if (!window.viewerHost) {setError('Open the Electron desktop app to inspect local files.'); return;}
     void window.viewerHost.domains().then(setDomains).catch(reason => setError(String(reason)));
@@ -80,6 +102,7 @@ export function App() {
     void window.viewerHost.resourceCatalog().then(setResources).catch(reason => setError(String(reason)));
   }, [activeProjectId, projects.find(item => item.id === activeProjectId)?.domain]);
   useEffect(() => {
+    setViewNavigation(null);
     if (!selectedId) {setOpened(undefined); setLoading(false); return;}
     let cancelled = false;
     setLoading(true); setReady(false); setError(''); setOpened(undefined);
@@ -227,10 +250,10 @@ export function App() {
         <div className="ia-composer-wrap"><div className="ia-composer"><textarea aria-label="Engineering task" placeholder="Ask about your project…" value={task} onChange={event => setTask(event.target.value)} onKeyDown={event => {if (event.key === 'Enter' && !event.shiftKey) {event.preventDefault(); void resolveTask();}}}/><div className="ia-composer-footer"><DomainPill domain={fixedDomain} domains={domains} label="Session domain"/><div className="ia-send-actions">{agentBusy && <button onClick={() => void window.viewerHost!.interruptAgent()} title="Stop agent"><Square size={14}/></button>}{Boolean(broker && agentStatus?.available && agentStatus.configured && agentStatus.projectDir) && <button onClick={() => void runAgent()} disabled={agentBusy || task !== submittedTask} title="Run with Kimi"><Play size={14}/></button>}<button className="ia-send" onClick={() => void resolveTask()} disabled={!task.trim()} title="Send task"><ChevronRight size={17}/></button></div></div></div><div className="ia-composer-hint">{!agentStatus?.available ? 'Kimi CLI unavailable · run pnpm setup:kimi' : !agentStatus.configured ? 'Configure the Model API in Settings to run Kimi' : !agentStatus.projectDir ? 'Choose a project to run Kimi' : 'Kimi ready'}</div></div>
         </>}
       </main>
-      {rightOpen && <section className="ia-viewer ia-workspace">
-        <header className="ia-viewer-header"><div><File size={14}/><b>{activeName || 'Workspace'}</b>{activeName && <button className="ia-icon" onClick={() => {setSourceFile(undefined); setSelectedId(''); setSelectedProjectFile('');}} title="Close file"><X size={13}/></button>}</div><div className="ia-workspace-actions"><button onClick={() => setFileTreeOpen(value => !value)} title={fileTreeOpen ? 'Hide file tree' : 'Show file tree'}>{fileTreeOpen ? <PanelRightClose size={15}/> : <PanelRightOpen size={15}/>}</button><button onClick={() => setRightOpen(false)} title="Hide workspace"><X size={15}/></button></div></header>
+      {rightOpen && <section ref={workspace} className="ia-viewer ia-workspace">
+        <header className="ia-viewer-header"><div><File size={14}/><b>{activeName || 'Workspace'}</b>{activeName && <button className="ia-icon" onClick={() => {setSourceFile(undefined); setSelectedId(''); setSelectedProjectFile('');}} title="Close file"><X size={13}/></button>}</div><div className="ia-workspace-actions">{fullscreenError && <span role="status">{fullscreenError}</span>}{opened && <div className="ia-view-navigation" aria-label="Viewer zoom controls"><button aria-label="Zoom out" title="Zoom out" disabled={!ready || !viewNavigation?.ready} onClick={() => viewNavigation?.zoomOut()}>−</button><output aria-label="Viewer zoom">{viewNavigation?.percent == null ? viewNavigation?.description || 'Zoom' : `${viewNavigation.percent}%`}</output><button aria-label="Zoom in" title="Zoom in" disabled={!ready || !viewNavigation?.ready} onClick={() => viewNavigation?.zoomIn()}>+</button><button aria-label="Fit viewer" title="Fit content to the view" disabled={!ready || !viewNavigation?.ready} onClick={() => viewNavigation?.fit()}>Fit</button></div>}<button onClick={() => void toggleViewerFullscreen()} title={viewerFullscreen ? 'Exit viewer fullscreen' : 'Fullscreen viewer'} aria-label={viewerFullscreen ? 'Exit viewer fullscreen' : 'Fullscreen viewer'} aria-pressed={viewerFullscreen}>{viewerFullscreen ? <Minimize size={15}/> : <Maximize size={15}/>}</button><button className="ia-file-tree-toggle" onClick={() => setFileTreeOpen(value => !value)} title={fileTreeOpen ? 'Hide file tree' : 'Show file tree'}>{fileTreeOpen ? <PanelRightClose size={15}/> : <PanelRightOpen size={15}/>}</button><button onClick={() => setRightOpen(false)} title="Hide workspace"><X size={15}/></button></div></header>
         <div className="ia-workspace-body"><div className="ia-workspace-content"><div className="ia-workspace-breadcrumb">{sourceFile?.path || selectedProjectFile || projectName}</div>
-          {sourceFile ? <div className="ia-source-panel">{sourceFile.content == null ? <p>Binary file · no text preview available.</p> : <pre>{sourceFile.content}</pre>}{sourceFile.truncated && <small>Preview limited to the first 2 MB.</small>}</div> : selected ? <div className="rp-stage ia-viewer-stage">{opened && <ViewerCanvas key={selectedId} opened={opened} onReady={() => setReady(true)} onError={setError}/>}{!opened && <div className="ia-workspace-empty">{error || (loading ? 'Opening viewer…' : 'Preparing viewer…')}</div>}</div> : <div className="ia-workspace-empty">{error || 'Open the file tree to browse this project.'}</div>}
+          {sourceFile ? <div className="ia-source-panel">{sourceFile.content == null ? <p>Binary file · no text preview available.</p> : <pre>{sourceFile.content}</pre>}{sourceFile.truncated && <small>Preview limited to the first 2 MB.</small>}</div> : selected ? <div className="rp-stage ia-viewer-stage">{opened ? <ViewerCanvas key={selectedId} onNavigation={setViewNavigation} opened={opened} onReady={() => setReady(true)} onError={setError}/> : <div className="ia-workspace-empty">{error || (loading ? 'Opening viewer…' : 'Preparing viewer…')}</div>}</div> : <div className="ia-workspace-empty">{error || 'Open the file tree to browse this project.'}</div>}
           {selected && <footer className="ia-viewer-footer">{selected.kind.toUpperCase()} · {ready ? 'Ready' : loading ? 'Loading' : error ? 'Error' : 'Preparing'} · SHA-256 {selected.sha256.slice(0, 16)}…</footer>}
         </div>{fileTreeOpen && <aside className="ia-workspace-tree"><div className="ia-file-search">FILES</div><button className="ia-file-root" onClick={() => setPage('project')}><ChevronDown size={13}/><FolderOpen size={14}/><span>{projectName}</span></button><div className="ia-file-list">{visibleProjectFiles.map(item => <button key={item.path} className={selectedProjectFile === item.path ? 'selected' : ''} style={{paddingLeft: 11 + item.depth * 13}} onClick={() => item.directory ? toggleDirectory(item.path) : void selectProjectFile(item.path)} title={item.path}>{item.directory ? collapsedDirs.has(item.path.replaceAll('\\', '/')) ? <ChevronRight size={12}/> : <ChevronDown size={12}/> : <File size={13}/>}<span>{item.name}</span></button>)}{!projectFiles.length && <p className="ia-file-hint">Choose a project to browse its files.</p>}</div></aside>}</div>
       </section>}

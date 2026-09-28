@@ -118,6 +118,39 @@
 
 每次 Agent 运行保存一份可按 Trace ID 关联的 JSONL 文件，记录 Broker 决策、实际提示词、SDK 暴露的原始事件、完整工具返回、审批、压缩及结果。CLI 输出日志路径，桌面 Debug 模式显示路径。日志写在受限权限的用户数据目录，脱敏已知模型凭据；界面仍采用紧凑呈现。诊断日志是调试证据，不自动构成工程 Verification。
 
+## PD-010：Godot Web Export Viewer V1
+
+- 日期：2026-09-24
+- 状态：已确定，V1 已在 macOS Electron 真实导出实测
+- 来源：用户确认的 Godot Viewer 接入方案
+- 原因：在工作区内直接查看并控制 Godot 场景，同时让 Viewer Bridge 与 MCP 保持分离。
+
+### 决定
+
+Godot 作为 Viewer-only Domain 注册。项目文件树识别完整的 Godot Web Export；Viewer 顶部提供 Scene 与运行控制，左侧提供 Scene Tree 和 Inspect，中间运行 Web Export，底部保留 Runtime State 开关位置。Web iframe 通过 JavaScriptBridge autoload 和版本化消息桥与 React Viewer 通信。复杂场景编辑仍使用 Godot。2026-09-28 使用仓库 Playground 源项目和 Godot 4.7.2 完成 macOS Electron 实测；其他平台与发行包仍待验证。
+
+## PD-011：Viewer 全屏查看
+
+- 日期：2026-09-28
+- 状态：已确定
+- 来源：用户要求右侧 Viewer 支持全屏显示
+- 原因：游戏与大型产物需要更大的查看面积。
+
+### 决定
+
+工作区标题栏提供全屏与退出按钮。全屏使用浏览器 Fullscreen API，隐藏周围面板、项目文件树、路径与产物页脚；Viewer 自己的工具栏、Scene Tree 和状态栏保持可用。点击退出恢复原布局；macOS 原生 Esc 退出后的 HTML 全屏状态同步尚未验证。切换时保留已挂载的 Viewer 与 Godot 运行会话。
+
+## PD-012：图片、Sprite 图集与动画预览
+
+- 日期：2026-09-28
+- 状态：已确定
+- 来源：用户要求补充三个素材 Viewer
+- 原因：在文件工作区查看游戏素材与动作，避免每次启动游戏。
+
+### 决定
+
+PNG/JPEG/WebP 打开图片 Viewer，顶部切换图片、图集和动画模式；图集手动设置网格、选帧；动画支持动作选择、播放、逐帧、倍率和循环。受支持的 Godot 动画文本资源及可选 `.sprite.json` 通过独立插件注册，读取真实帧与时序；不猜测动作、不运行脚本、不修改项目。支持范围与限制见 [素材 Viewer](godot-assets-viewers.md)。
+
 
 ## PD-013：PCB domain 的 KiCad Viewer V1
 
@@ -129,3 +162,27 @@
 ### 决定
 
 保留已有 PCB domain，打开 `.kicad_pcb` 或 `.kicad_sch` 自动选择 KiCad Viewer。本地固定版本 KiCanvas 提供板图的图层、网络、封装和属性查看，以及原理图与多页浏览。所有源文件只读，主文件及引用的子页经过哈希和项目边界校验。无需安装原生 KiCad 或联网；编辑、DRC/ERC、3D 与原生编辑器连接不属于此次 Viewer 接入。已验证范围和格式限制记录在 [KiCad Viewer V1](kicad-viewer.md)。
+
+## PD-014：可直接绑定的 Viewer 示例项目
+
+- 日期：2026-09-28
+- 状态：已确定
+- 来源：用户要求合并全部 Viewer 工作、启动本地应用并提供 example 项目
+- 原因：让用户能立即通过普通项目文件树体验新增查看能力。
+
+### 决定
+
+仓库提供 `examples/pcb-led` 与 `examples/godot-viewer` 两个独立源项目，分别绑定 PCB 与 Godot Domain。板图、原理图、原创图集和场景源文件随仓库提交；Godot 导出脚本复制当前 Viewer Bridge，生成本地单线程 Web 导出，导出二进制不进入版本库。示例沿用普通 Project 创建和文件查看流程，不增加产品内 fixture 菜单。查看与交互演示不构成工程 Verification。
+
+## PD-015：所有自接入 Viewer 的统一缩放与全屏
+
+- 日期：2026-09-28
+- 状态：已确定
+- 来源：用户要求所有自行接入的 Viewer 都具备缩放、滚轮操作和全屏
+- 原因：分散的控制方式使工程画布与素材预览难以一致查看。
+
+### 决定
+
+八种专用 Viewer 共用工作区标题栏的缩小、放大、Fit 与全屏按钮，并支持在画布内用滚轮或触控板捏合缩放。各适配器注册临时视图控制器；切换文件卸载旧控制器，加载与失败时禁用缩放。版图、网表、KiCad 和素材缩放显示内容，波形缩放时间范围，Godot 放大预览且保留运行实例。百分比以 Fit 为 100%，波形显示 Time。KiCad 默认适配电路内容并保留 Whole page；Shift+滚轮保留其原有平移。拖拽仍用于画布平移。全屏保持已挂载的 Viewer 与公共导航，退出恢复工作区。这些交互不修改源文件或工业状态。本条补充 PD-011 与 PD-012，今后自接入的专用 Viewer 遵循相同契约。
+
+macOS Electron 自测覆盖八种实际 Viewer 的按钮、滚轮/捏合、Fit 与全屏切换；其他平台及发行包尚未验证。

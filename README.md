@@ -37,6 +37,19 @@ pnpm dev
 
 一个本地目录对应一个 Project。点击左侧 Projects 标题旁的「＋」可填写项目名称、选择目录和 Domain；点击已有项目可打开详情页，查看目录并修改该项目的 Domain。Domain 在创建时用带 emoji 的圆角按钮选择，在项目列表和新 Session 的输入框中只读显示。Sobel 示例默认属于 Chip；领域列表随已注册能力更新。
 
+## Viewer 示例项目
+
+无需配置模型即可查看这两个示例。点击 Projects 旁的「＋」绑定相应文件夹，选择 Domain，再打开右侧工作区和文件树。
+
+| 示例文件夹 | Domain | 打开文件 |
+| --- | --- | --- |
+| [LED 电路板](examples/pcb-led/README.md) | PCB | `led.kicad_pcb` 查看板图，`led.kicad_sch` 查看原理图；本地 KiCanvas 运行时无需安装 KiCad |
+| [Godot Playground](examples/godot-viewer/README.md) | Godot | `build/playground.html` 运行场景；`robot.png`、`robot.sprite.json` 和 `playground.tscn` 查看图片、图集和动画 |
+
+Godot 场景先安装 Godot 4 及匹配的 Web 导出模板，在仓库根目录运行 `node examples/godot-viewer/export.cjs`。导出脚本使用当前 Viewer Bridge 并生成单线程 Web 运行时，较大的导出文件仅在本地生成。所有专用 Viewer 共用标题栏的缩小、放大、Fit（适配视图）和全屏按钮，Esc 退出全屏。画布内滚轮或触控板捏合缩放；波形缩放时间轴，Godot 缩放预览。KiCad 默认适配电路内容，Whole page 查看完整图纸。
+
+macOS 已实测这两个示例的真实渲染，以及 Godot 暂停、单步、相机选择、节点检查、素材预览与 Viewer 全屏。示例用于查看和交互演示，不代表工业验证结果。
+
 ## 文档
 
 从 [文档目录](doc/README.md) 开始阅读架构、Capability Broker、Viewer 层、领域扩展和开发阶段。仓库开发规则见 [AGENTS.md](AGENTS.md)。

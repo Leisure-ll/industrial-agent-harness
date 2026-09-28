@@ -22,7 +22,7 @@ export interface NetlistData {
 
 export interface ViewerArtifact {
   id: string;
-  kind: 'layout' | 'netlist' | 'waveform' | 'kicad';
+  kind: 'layout' | 'netlist' | 'waveform' | 'godot' | 'kicad' | 'image' | 'sprite' | 'animation';
   name: string;
   design: string;
   sizeBytes: number;
@@ -37,13 +37,22 @@ export interface WaveformData {
   initialRange?: [number, number];
 }
 
+export interface GodotNode {path: string; name: string; class: string; children: GodotNode[]}
+export interface GodotState {scene: string; tree: GodotNode | null; paused: boolean; selectedPath: string; overlays: {collision: boolean; navmesh: boolean; physics: boolean}}
+export interface GodotData {token: string; name: string; url: string}
 export interface KiCadData {token: string; name: string; document: 'board' | 'schematic'; url: string}
+export interface AssetImage {name: string; url: string; width: number; height: number; sha256: string}
+export interface SpriteFrame {image: number; rect: [number, number, number, number]; duration: number}
+export interface SpriteAnimation {name: string; loop: boolean; frames: SpriteFrame[]}
+export interface AssetData {name: string; images: AssetImage[]; columns: number; rows: number; animations: SpriteAnimation[]; initialMode: 'image' | 'sprite' | 'animation'}
 
 export type OpenedViewer =
   | {kind: 'layout'; artifact: ViewerArtifact; data: LayoutMeta}
   | {kind: 'netlist'; artifact: ViewerArtifact; data: NetlistData}
   | {kind: 'waveform'; artifact: ViewerArtifact; data: WaveformData}
-  | {kind: 'kicad'; artifact: ViewerArtifact; data: KiCadData};
+  | {kind: 'godot'; artifact: ViewerArtifact; data: GodotData}
+  | {kind: 'kicad'; artifact: ViewerArtifact; data: KiCadData}
+  | {kind: 'image' | 'sprite' | 'animation'; artifact: ViewerArtifact; data: AssetData};
 
 export interface ViewerHostApi {
   open(request: {artifactId: string}): Promise<OpenedViewer>;

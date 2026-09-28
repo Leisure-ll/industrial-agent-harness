@@ -1,6 +1,6 @@
 # 文档目录
 
-这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、KiCad Viewer V1、确定性 Broker 和 Kimi SDK 接口已落地；完整 Domain Runtime、Domain MCP、真实工业动作及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
+这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer 与 KiCad Viewer V1 接入、确定性 Broker 和 Kimi SDK 接口已落地；Godot 与 KiCad 示例已通过 macOS Electron 实测。完整 Domain Runtime、Domain MCP、真实工业动作及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
 
 当前里程碑是 **Industrial Core Vertical Slice**。2026-09-23 的架构评审材料已核对并纳入以下四页；它们是现状、约束、路线和验收的主入口，旧版开发计划保留为背景资料。
 
@@ -16,8 +16,10 @@
 | --- | --- |
 | [系统架构](architecture.md) | Kimi Code、桌面端、Broker、工业运行时与领域包的职责和数据流 |
 | [Capability Broker](capability-broker.md) | Capability 解析、skill 与 MCP 工具的渐进式披露、Scope 和 Trace |
-| [KiCad Viewer V1](kicad-viewer.md) | PCB domain 的本地板图/原理图查看、文件边界与运行时来源 |
 | [Viewer 层](viewer-layer.md) | 内置查看、关键产物预览、外部打开与证据边界 |
+| [素材 Viewer](godot-assets-viewers.md) | 图片预览、图集切分、动画播放与 Godot 文本资源支持范围 |
+| [KiCad Viewer V1](kicad-viewer.md) | PCB domain 的本地板图/原理图查看、文件边界与运行时来源 |
+| [Godot Viewer V1](godot-viewer.md) | Web Export 准备、Scene Tree 与 Viewer Bridge 的当前接入边界 |
 | [Domain Pack](domain-pack.md) | 芯片与 PCB 等领域的扩展方式和最小契约 |
 | [早期开发计划](development-plan.md) | 两份原始 Plan 的阶段性整理；里程碑顺序以新的实施路线图为准 |
 | [产品决策记录](product-decisions.md) | 已确认的用户交互与项目模型决定，包括 Project、目录、Domain 和 Session 的关系 |

@@ -1,8 +1,12 @@
 # KiCad Viewer V1
 
-PCB projects use the file tree → Artifact ID → Viewer Registry → isolated canvas path, following the Godot Viewer integration pattern. Opening a `.kicad_pcb` or `.kicad_sch` file displays the local KiCanvas viewer. No KiCad installation, export step, or network connection is required. The existing PCB domain remains `pcb`; this does not introduce another domain or agent tool.
+PCB projects reuse the file tree → Artifact ID → Viewer Registry → isolated canvas path used by the Godot Viewer. Opening a `.kicad_pcb` or `.kicad_sch` file displays the local KiCanvas viewer. No KiCad installation, export step, or network connection is required. The existing PCB domain remains `pcb`; this does not introduce another domain or agent tool.
 
 ## Use
+
+The original [LED example](../examples/pcb-led/README.md) supplies a self-contained board and schematic that can be bound as a normal PCB project. Both files are also rendered by the macOS desktop selftest.
+
+The shared workspace toolbar provides zoom out/in, Fit and fullscreen. The canvas supports ordinary wheel and Ctrl+wheel trackpad pinch; middle/right drag pans, and Shift+wheel retains upstream pan. Fit defaults to the design content, excluding the drawing sheet/grid; Whole page restores the complete sheet. The pinned label painter includes the origin in its bounds, so fitting uses a conservative text envelope at each label anchor without changing CAD rendering.
 
 Create or select a project with the PCB domain, open the workspace and file tree, then select a board or schematic. The board viewer provides pan/zoom, front/back view, layer visibility, footprints, nets, and selected-object properties. Schematics provide pan/zoom, symbols, and properties. Referenced schematic sheets in the same document directory or its subdirectories are included and accessible from KiCanvas's project panel.
 
@@ -42,4 +46,4 @@ pnpm --filter @industrial-agent-harness/desktop build
 pnpm --filter @industrial-agent-harness/desktop test:kicad
 ```
 
-On 2026-09-28 the runtime tests, architecture gate, skill tests, TypeScript/Vite build, and macOS Electron integration passed. The desktop test creates an isolated temporary PCB project, selects real KiCad geometry fixtures through the production file tree/IPC/Registry path, checks board/schematic/multi-sheet canvas loading and layer toggles, captures screenshots, rejects a malformed source and changed child sheet, and blocks/checks all network requests. It does not modify the user's projects or model configuration. Linux/Windows packaged flows remain unverified.
+On 2026-09-28 the runtime tests, architecture gate, skill tests, TypeScript/Vite build, and macOS Electron integration passed. The desktop test creates an isolated temporary PCB project, selects real KiCad geometry fixtures through the production file tree/IPC/Registry path, checks board/schematic/multi-sheet canvas loading, native camera zoom/Fit, cursor anchoring for wheel/pinch, fullscreen and layer toggles, captures screenshots, rejects a malformed source and changed child sheet, and blocks/checks all network requests. It does not modify the user's projects or model configuration. Linux/Windows packaged flows remain unverified.
