@@ -23,5 +23,10 @@
     const encoded = JSON.stringify({id: event.data.id, command: event.data.command, args: event.data.args || {}});
     if (callback) callback(encoded); else if (pending.length < 32) pending.push(encoded);
   });
+  document.addEventListener('wheel', event => {
+    if (event.shiftKey || event.target?.tagName !== 'CANVAS') return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    window.parent.postMessage({channel, type:'wheel', deltaY:event.deltaY, deltaMode:event.deltaMode}, '*');
+  }, {capture:true, passive:false});
   window.parent.postMessage({channel, type: 'loaded'}, '*');
 })();

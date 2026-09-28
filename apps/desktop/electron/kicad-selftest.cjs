@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const {verifyNavigation} = require('./navigation-selftest.cjs');
 const {saveBindings} = require('./project-bindings.cjs');
 let directory;
 function prepare(config) {
@@ -53,6 +54,33 @@ async function run(window) {
       assert.equal(display.loaded, true, JSON.stringify(display));
       assert.ok(display.width > 100 && display.height > 100, JSON.stringify(display));
       assert.equal(display.sourceCount, file === 'hierarchy.kicad_sch' ? 2 : 1);
+      const native = `(() => {
+        function find(root) {for (const node of root.querySelectorAll('*')) {if (node.localName === '${tag}') return node; if (node.shadowRoot) {const found = find(node.shadowRoot); if (found) return found;}}}
+        return find(document);
+      })()`;
+      const measure = () => frame.executeJavaScript(`${native}.viewer.viewport.camera.zoom`);
+      await verifyNavigation(window, measure);
+      const fitted = await measure();
+      // Both ordinary wheel and trackpad pinch zoom around the pointer.
+      for (const ctrlKey of [false, true]) {
+        const anchor = await frame.executeJavaScript(`(() => {
+          const element = ${native}, canvas = element.canvas, camera = element.viewer.viewport.camera;
+          const rect = canvas.getBoundingClientRect(), point = camera.center.copy(); point.set(rect.width * .6, rect.height * .4);
+          const before = camera.screen_to_world(point);
+          canvas.dispatchEvent(new WheelEvent('wheel', {deltaY:-60, ctrlKey:${ctrlKey}, clientX:rect.left+point.x, clientY:rect.top+point.y, cancelable:true}));
+          const after = camera.screen_to_world(point);
+          return {distance: Math.hypot(before.x-after.x, before.y-after.y), zoom:camera.zoom};
+        })()`);
+        assert.ok(anchor.zoom > fitted && anchor.distance * anchor.zoom < 1, JSON.stringify(anchor));
+      }
+      await evaluate(`document.querySelector('button[aria-label="Fit viewer"]').click()`);
+      await waitFor(async () => Math.abs(await measure() / fitted - 1) < .01);
+      if (file === 'led.kicad_sch') {
+        await evaluate(`document.querySelector('.rp-kicad-toolbar button').click()`);
+        await waitFor(async () => await measure() < fitted * .6);
+        await evaluate(`document.querySelector('button[aria-label="Fit viewer"]').click()`);
+        await waitFor(async () => Math.abs(await measure() / fitted - 1) < .01);
+      }
       if (tag === 'kc-board-viewer') {
         const changed = await frame.executeJavaScript(`(() => {
           function find(root, tag) {for (const node of root.querySelectorAll('*')) {if (node.localName === tag) return node; if (node.shadowRoot) {const found = find(node.shadowRoot, tag); if (found) return found;}}}

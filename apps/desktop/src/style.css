@@ -41,3 +41,5 @@
 .ia-workspace:fullscreen{width:100vw;height:100vh;min-width:0;max-width:none;border:0;flex:none;background:var(--ia-bg)}
 .ia-workspace:fullscreen .ia-workspace-tree,.ia-workspace:fullscreen .ia-file-tree-toggle,.ia-workspace:fullscreen .ia-workspace-breadcrumb,.ia-workspace:fullscreen .ia-viewer-footer{display:none}
 .ia-workspace:fullscreen .ia-viewer-stage{margin:0;border-radius:0}
+
+.ia-view-navigation{display:flex;align-items:center;gap:2px}.ia-view-navigation output{min-width:42px;text-align:center;font-size:11px;font-variant-numeric:tabular-nums}.ia-view-navigation button{font-size:15px}.ia-view-navigation button:last-child{font-size:11px;width:auto;padding:0 7px}.ia-workspace-actions button:disabled{opacity:.35;cursor:default}.ia-viewer-header>div:first-child{min-width:0}.ia-viewer-header b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

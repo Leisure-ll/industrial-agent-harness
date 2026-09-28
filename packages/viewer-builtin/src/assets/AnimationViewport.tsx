@@ -3,8 +3,8 @@ import type {SpriteAnimation} from '../api';
 import {AssetCanvas} from './AssetCanvas';
 import {frameAtTime} from './model';
 
-export function AnimationViewport({animation, images, pixelated, zoom, background}: {
-  animation: SpriteAnimation; images: HTMLImageElement[]; pixelated: boolean; zoom: number; background: string;
+export function AnimationViewport({animation, images, pixelated, zoom, background, fitRevision, onZoom}: {
+  animation: SpriteAnimation; images: HTMLImageElement[]; pixelated: boolean; zoom: number; background: string; fitRevision?: number; onZoom?: (factor: number) => void;
 }) {
   const [index, setIndex] = useState(0); const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1); const [loop, setLoop] = useState(animation.loop);
@@ -30,7 +30,7 @@ export function AnimationViewport({animation, images, pixelated, zoom, backgroun
       <label>Speed <select aria-label="Animation speed" value={speed} onChange={event => setSpeed(Number(event.target.value))}>{[0.25, 0.5, 1, 2, 4].map(value => <option key={value} value={value}>{value}×</option>)}</select></label>
       <label><input type="checkbox" checked={loop} onChange={event => setLoop(event.target.checked)}/>Loop</label>
     </div>
-    <AssetCanvas image={images[current.image]} rect={current.rect} pixelated={pixelated} zoom={zoom} background={background}/>
+    <AssetCanvas image={images[current.image]} rect={current.rect} pixelated={pixelated} zoom={zoom} background={background} fitRevision={fitRevision} onZoom={onZoom}/>
     <div className="rp-asset-timeline"><label>Frame {index + 1} / {animation.frames.length}<input aria-label="Animation frame" type="range" min={0} max={animation.frames.length - 1} value={index} onChange={event => seek(Number(event.target.value))}/></label><span>{current.duration.toFixed(3)} s · {current.rect[2]} × {current.rect[3]} px</span></div>
   </div>;
 }

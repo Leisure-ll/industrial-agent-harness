@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const {verifyNavigation, verifyWheel} = require('./navigation-selftest.cjs');
 const {saveBindings} = require('./project-bindings.cjs');
 let configDirectory;
 function prepare(config) {
@@ -45,6 +46,14 @@ async function run(window) {
     await new Promise(resolve => setTimeout(resolve, 300));
     await evaluate(inspectRobot);
     assert.equal(await evaluate(position), paused, 'pause freezes real scene node');
+    await verifyWheel(window, () => evaluate(`document.querySelector('.rp-godot-canvas iframe').getBoundingClientRect().width`), (deltaY, ctrlKey) => frame.executeJavaScript(`(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('canvas').dispatchEvent(e);return e.defaultPrevented;})()`));
+    const runtimeIdentity = frame.routingId;
+    const runtimeWidth = await evaluate(`document.querySelector('.rp-godot-canvas iframe').clientWidth`);
+    await verifyNavigation(window, () => evaluate(`document.querySelector('.rp-godot-canvas iframe').getBoundingClientRect().width`));
+    assert.ok(Math.abs(await evaluate(`document.querySelector('.rp-godot-canvas iframe').clientWidth`) / runtimeWidth - 1) < .03, 'zoom magnifies preview without changing runtime viewport');
+    assert.equal(window.webContents.mainFrame.frames.find(item => item.url.startsWith('app://godot/')).routingId, runtimeIdentity, 'navigation retains the runtime');
+    await evaluate(inspectRobot);
+    assert.equal(await evaluate(position), paused, 'navigation preserves paused scene state');
     await evaluate(`document.querySelector('button[aria-label="Step frame"]').click()`);
     await new Promise(resolve => setTimeout(resolve, 250));
     await evaluate(inspectRobot);
@@ -66,6 +75,19 @@ async function run(window) {
     for (const [file, kind] of [['robot.png', 'IMAGE'], ['robot.sprite.json', 'SPRITE'], ['playground.tscn', 'ANIMATION']]) {
       await evaluate(`document.querySelector('.ia-file-list button[title="${file}"]').click()`);
       await waitFor(`document.querySelector('.ia-viewer-footer')?.innerText.includes('${kind} · Ready')`);
+      // Measure rendered opaque robot pixels, rather than trusting the zoom label.
+      const measureAsset = () => evaluate(`(() => {
+        const canvas = document.querySelector('.rp-asset-canvas canvas');
+        const pixels = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+        let top=canvas.height,bottom=0;
+        for(let y=0;y<canvas.height;y++) for(let x=0;x<canvas.width;x++) {
+          const p=(y*canvas.width+x)*4;
+          if(pixels[p+3]>250 && pixels[p+1]>100 && pixels[p+2]>100) {top=Math.min(top,y);bottom=Math.max(bottom,y);}
+        }
+        return bottom-top;
+      })()`);
+      await verifyNavigation(window, measureAsset);
+      await verifyWheel(window, measureAsset, (deltaY,ctrlKey) => evaluate(`(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('.rp-asset-canvas canvas').dispatchEvent(e);return e.defaultPrevented;})()`));
       if (kind !== 'IMAGE') assert.ok(await evaluate(`document.body.innerText.includes('idle') || document.body.innerText.includes('run')`));
     }
     assert.ok(!requests.some(url => /^https?:/.test(url)), requests.join('\n'));

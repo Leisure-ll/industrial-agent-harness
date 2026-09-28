@@ -46,7 +46,7 @@ pnpm dev
 | [LED 电路板](examples/pcb-led/README.md) | PCB | `led.kicad_pcb` 查看板图，`led.kicad_sch` 查看原理图；本地 KiCanvas 运行时无需安装 KiCad |
 | [Godot Playground](examples/godot-viewer/README.md) | Godot | `build/playground.html` 运行场景；`robot.png`、`robot.sprite.json` 和 `playground.tscn` 查看图片、图集和动画 |
 
-Godot 场景先安装 Godot 4 及匹配的 Web 导出模板，在仓库根目录运行 `node examples/godot-viewer/export.cjs`。导出脚本使用当前 Viewer Bridge 并生成单线程 Web 运行时，较大的导出文件仅在本地生成。Viewer 标题栏可切换全屏，Esc 退出。
+Godot 场景先安装 Godot 4 及匹配的 Web 导出模板，在仓库根目录运行 `node examples/godot-viewer/export.cjs`。导出脚本使用当前 Viewer Bridge 并生成单线程 Web 运行时，较大的导出文件仅在本地生成。所有专用 Viewer 共用标题栏的缩小、放大、Fit（适配视图）和全屏按钮，Esc 退出全屏。画布内滚轮或触控板捏合缩放；波形缩放时间轴，Godot 缩放预览。KiCad 默认适配电路内容，Whole page 查看完整图纸。
 
 macOS 已实测这两个示例的真实渲染，以及 Godot 暂停、单步、相机选择、节点检查、素材预览与 Viewer 全屏。示例用于查看和交互演示，不代表工业验证结果。
 

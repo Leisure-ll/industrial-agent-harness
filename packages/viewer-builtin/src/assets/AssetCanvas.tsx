@@ -1,10 +1,12 @@
 import {useEffect, useRef, useState} from 'react';
+import {useWheelZoom} from '../navigation';
 
-export function AssetCanvas({image, rect, columns = 1, rows = 1, selected = 0, onSelect, pixelated, zoom, background}: {
+export function AssetCanvas({image, rect, columns = 1, rows = 1, selected = 0, onSelect, pixelated, zoom, background, fitRevision = 0, onZoom}: {
   image: HTMLImageElement; rect?: [number, number, number, number]; columns?: number; rows?: number; selected?: number;
-  onSelect?: (index: number) => void; pixelated: boolean; zoom: number; background: string;
+  onSelect?: (index: number) => void; pixelated: boolean; zoom: number; background: string; fitRevision?: number; onZoom?: (factor: number) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  useWheelZoom(canvas, onZoom);
   const [size, setSize] = useState({width: 1, height: 1});
   const [pan, setPan] = useState({x: 0, y: 0});
   const drag = useRef<{x: number; y: number; panX: number; panY: number; moved: boolean} | null>(null);
@@ -13,7 +15,7 @@ export function AssetCanvas({image, rect, columns = 1, rows = 1, selected = 0, o
     const observer = new ResizeObserver(([entry]) => setSize({width: entry.contentRect.width, height: entry.contentRect.height}));
     observer.observe(node); return () => observer.disconnect();
   }, []);
-  useEffect(() => {setPan({x: 0, y: 0});}, [image, zoom]);
+  useEffect(() => {setPan({x: 0, y: 0});}, [image, zoom, fitRevision]);
   const region: [number, number, number, number] = rect ?? [0, 0, image.naturalWidth, image.naturalHeight];
   const scale = Math.min((size.width - 32) / region[2], (size.height - 32) / region[3]) * zoom;
   const factor = Math.max(0.01, scale);

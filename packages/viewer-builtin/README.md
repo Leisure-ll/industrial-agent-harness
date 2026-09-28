@@ -26,3 +26,5 @@ Godot 导出和桥接说明见 [Godot Viewer V1](../../doc/godot-viewer.md)。
 图片、图集和动作预览说明见 [素材 Viewer](../../doc/godot-assets-viewers.md)。
 
 PCB 项目内 KiCad 文件的使用、限制与本地运行时来源见 [KiCad Viewer V1](../../doc/kicad-viewer.md)。
+
+八种专用 Viewer（版图、网表、波形、Godot、图片、图集、动画、KiCad）通过 `src/navigation.tsx` 的 `ViewNavigation` 注册缩放与 Fit。工作区统一呈现缩小、放大、适配和全屏入口；加载期间禁用缩放，切换文件时移除旧控制器。新接入的专用 Viewer 应实现同一接口，并在真实渲染路径验证按钮、滚轮/捏合和全屏。百分比以当前 Fit 为 100%，波形使用时间轴语义。Godot 放大已挂载的预览，不修改场景相机。

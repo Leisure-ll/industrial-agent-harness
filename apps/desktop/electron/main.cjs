@@ -443,6 +443,9 @@ async function createWindow() {
     await waitFor(`Boolean(document.querySelector('.ia-file-list button[title="outputs/sobel_netlist.json"]'))`);
     await window.webContents.executeJavaScript(`document.querySelector('.ia-file-list button[title="outputs/sobel_netlist.json"]').click()`);
     await waitFor(`document.querySelector('.ia-viewer-footer')?.innerText.includes('NETLIST · Ready')`, 120000);
+    const measureNetlist = () => window.webContents.executeJavaScript(`new DOMMatrix(getComputedStyle(document.querySelector('.rp-net-drawing')).transform).a`);
+    await require('./navigation-selftest.cjs').verifyNavigation(window, measureNetlist);
+    await require('./navigation-selftest.cjs').verifyWheel(window, measureNetlist, (deltaY,ctrlKey) => window.webContents.executeJavaScript(`(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('.rp-net-stage').dispatchEvent(e);return e.defaultPrevented;})()`));
     screenshots.push(await shot('netlist'));
     await window.webContents.executeJavaScript(`const area = document.querySelector('.ia-composer textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(area, 'Inspect the netlist signals'); area.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('.ia-chat-actions button').click()`);
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -468,6 +471,22 @@ async function createWindow() {
       await window.webContents.executeJavaScript(`document.querySelector('.ia-file-list button[title="outputs/${file}"]').click()`);
       await waitFor(`document.querySelector('.ia-viewer-footer')?.innerText.includes('${kind.toUpperCase()} · Ready')`, 120000);
       if (kind === 'waveform') await waitFor(`document.querySelector('.rp-surfer iframe')?.getAttribute('data-signals-ready') === '6'`);
+      if (kind === 'layout') {
+        const measure = () => window.webContents.executeJavaScript(`Number(document.querySelector('.rp-view-footer span:last-child').innerText.match(/([0-9.]+)×/)[1])`);
+        await require('./navigation-selftest.cjs').verifyNavigation(window, measure);
+        await require('./navigation-selftest.cjs').verifyWheel(window, measure, (deltaY,ctrlKey) => window.webContents.executeJavaScript(`(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('.rp-canvas-host').dispatchEvent(e);return e.defaultPrevented;})()`));
+      }
+      if (kind === 'waveform') {
+        const frame = window.webContents.mainFrame.frames.find(item => item.url.startsWith('app://surfer/'));
+        const measure = async () => {
+          const state = await frame.executeJavaScript(`import('./surfer.js').then(module => module.get_state())`);
+          const range = state.match(/curr_left:\s*\(([-0-9.e+]+)\),\s*curr_right:\s*\(([-0-9.e+]+)\)/);
+          if (!range) throw Error('Surfer native time range is unavailable.');
+          return 1 / (Number(range[2]) - Number(range[1]));
+        };
+        await require('./navigation-selftest.cjs').verifyNavigation(window, measure, {percent:false});
+        await require('./navigation-selftest.cjs').verifyWheel(window, measure, (deltaY,ctrlKey) => frame.executeJavaScript(`(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('canvas').dispatchEvent(e);return e.defaultPrevented;})()`));
+      }
       screenshots.push(await shot(kind));
     }
     await window.webContents.executeJavaScript(`document.querySelector('.ia-settings-button').click()`);

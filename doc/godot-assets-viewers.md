@@ -51,3 +51,5 @@
 `packages/viewer-builtin/tests/assets.test.cjs` 覆盖三个插件的数据路径、越界和符号链接、坏帧索引、尺寸上限、源哈希变化、Godot 关键帧、SpriteFrames 权重及播放时序。桌面 TypeScript、Vite build 和架构检查验证接线。
 
 本地测试使用官方 Godot Platformer 的 `player/robot.webp` 和 `player/player.tscn`，来源提交为 `15d4fcd70a429dfd455d6fce9d0cd004abd07373`；示例代码 MIT，素材归属以其 README 与 LICENSE 为准。测试项目位于 `/tmp/harness-godot-platformer`，未作为产品内置示例入口发布。macOS Electron 实测已显示 WebP 原图和透明棋盘，手动切分 8 × 8 图集并预览第 30 帧；打开 player.tscn 自动读取 10 个动作，验证 run 的播放、暂停及逐帧前进。其他操作系统尚未验证。
+
+图片、图集和动画共用工作区的缩小、放大、Fit 与全屏。画布内滚轮或触控板捏合缩放，拖拽平移；Fit 清除平移并恢复适配大小。缩放不改变动作帧、时序或资源文件。
