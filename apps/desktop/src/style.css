@@ -60,3 +60,12 @@
 .ia-project-list .ia-project-chats button {width: calc(100% - 6px); margin: 2px 3px; padding: 7px 8px; min-height: 29px; color: var(--ia-muted); font-size: 11px;}
 .ia-project-list .ia-project-chats .ia-sidebar-chat[aria-current="page"] {background: var(--ia-active); color: var(--ia-text);}
 .ia-project-chats .ia-sidebar-chat span {overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+.ia-image-file-input {display: none;}
+.ia-image-attachments {display: flex; flex-wrap: wrap; gap: 9px; margin: 0 0 8px;}
+.ia-image-attachments:empty {display: none;}
+.ia-image-attachments figure {position: relative; margin: 0; width: 95px; border: 1px solid var(--ia-border); border-radius: 7px; overflow: hidden; background: var(--ia-panel);}
+.ia-image-attachments img {width: 95px; height: 72px; object-fit: contain; display: block;}
+.ia-image-attachments figcaption {padding: 4px; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+.ia-image-attachments figure button {position: absolute; right: 3px; top: 3px; padding: 2px; background: var(--ia-raised); border: 1px solid var(--ia-border);}
+.ia-image-model-hint {font-size: 11px; color: var(--ia-muted);}
+.ia-image-model-hint button {text-decoration: underline;}

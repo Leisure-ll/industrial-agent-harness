@@ -1,4 +1,4 @@
-const {app, BrowserWindow, dialog, ipcMain, protocol, safeStorage} = require('electron');
+const {app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, nativeImage} = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -17,13 +17,14 @@ const {resolveProjectTask, effectiveCapabilities, resourceCatalog, ResourceSetti
 const {capabilities, listDomains} = require('@industrial-agent-harness/domain-skills');
 const {DiagnosticReader} = require('../../../packages/agent-kimi/src/diagnostic-reader.cjs');
 const {defaultLogDirectory} = require('../../../packages/agent-kimi/src/diagnostic-log.cjs');
+const {validatePromptImages} = require('../../../packages/agent-kimi/src/image-input.cjs');
 const {KimiSession} = require('../../../packages/agent-kimi/src/index.cjs');
 const {ObservedContextStore} = require('@industrial-agent-harness/domain-runtime');
 const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = require('./model-config.cjs');
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: {standard: true, secure: true, supportFetchAPI: true, corsEnabled: true}}]);
-if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--agent-log-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--agent-log-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
 
 const desktopRoot = path.resolve(__dirname, '..');
 const artifacts = new Map();
@@ -42,7 +43,7 @@ let projectBindings = {projects: [], activeId: null};
 let mainWindow;
 let sessionApiKey = '';
 let modelRevision = 0;
-function diagnosticDirectory() {return process.argv.includes('--agent-log-selftest') ? path.join(app.getPath('userData'), 'logs') : defaultLogDirectory();}
+function diagnosticDirectory() {return ['--agent-log-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag)) ? path.join(app.getPath('userData'), 'logs') : defaultLogDirectory();}
 const diagnosticReader = new DiagnosticReader(diagnosticDirectory());
 
 const resourceSettings = new ResourceSettings(process.argv.some(flag => flag.endsWith('-selftest')) ? path.join(app.getPath('userData'), 'resources') : undefined);
@@ -69,7 +70,7 @@ function observedContext() {
 function keyFile() {return path.join(configDir(), 'api-key.bin');}
 function canPersistKey() {return safeStorage.isEncryptionAvailable() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text');}
 function readApiKey() {
-  if (process.argv.includes('--agent-log-selftest')) return 'diagnostic-selftest-key';
+  if (['--agent-log-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return 'diagnostic-selftest-key';
   if (sessionApiKey) return sessionApiKey;
   if (!canPersistKey() || !fs.existsSync(keyFile())) return '';
   try {return safeStorage.decryptString(fs.readFileSync(keyFile()));} catch {return '';}
@@ -219,7 +220,7 @@ function registerHandlers() {
     return modelStatus();
   });
   ipcMain.handle('agent:status', () => {
-    if (process.argv.includes('--agent-log-selftest')) return {available:true,version:'SDK seam selftest',projectDir,configured:true};
+    if (['--agent-log-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return {available:true,version:'SDK seam selftest',projectDir,configured:true};
     const executable = kimiExecutable();
     const result = spawnSync(executable, ['--version'], {encoding: 'utf8', timeout: 3000});
     const help = result.status === 0 ? spawnSync(executable, ['--help'], {encoding: 'utf8', timeout: 3000}) : null;
@@ -338,13 +339,31 @@ function registerHandlers() {
     try {fs.readSync(fd, buffer, 0, buffer.length, 0);} finally {fs.closeSync(fd);}
     return {path: relative, name: path.basename(file), sizeBytes, viewer: null, content: buffer.includes(0) ? null : buffer.toString('utf8'), truncated: sizeBytes > limit};
   });
-  ipcMain.handle('agent:run', (_event, task) => {
+  function imageRequest(event, request) {
+    if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame || !activeProject() || request?.projectId !== activeProject().id) throw Error('Images belong to the selected project.');
+    const images = validatePromptImages(request.images);
+    for (const image of images) {
+      // Electron nativeImage decodes PNG/JPEG only. WebP is decoded by Chromium
+      // before upload; the shared validator independently bounds its header.
+      if (image.mime === 'image/webp') continue;
+      const decoded = nativeImage.createFromBuffer(Buffer.from(image.dataUrl.split(',')[1], 'base64'));
+      const size = decoded.getSize();
+      if (decoded.isEmpty() || !size.width || !size.height || size.width > 8192 || size.height > 8192 || size.width * size.height !== image.width * image.height) throw Error('This image is corrupt or cannot be decoded.');
+    }
+    return images;
+  }
+  ipcMain.handle('agent:validate-images', (event, request) => imageRequest(event, request));
+  ipcMain.handle('agent:run', (event, request) => {
     if (changingResources) throw Error('Resource settings are being saved.');
     if (!projectDir) throw Error('Choose an engineering project first.');
-    if (typeof task !== 'string' || !task.trim()) throw Error('Describe the task first.');
+    if (agent?.running || agent?.turn) throw Error('A task is already running.');
+    const task = typeof request === 'string' ? request : request?.task;
+    const images = typeof request === 'string' ? [] : imageRequest(event, request);
+    if (typeof task !== 'string' || !task.trim() || Buffer.byteLength(task, 'utf8') > 128 * 1024) throw Error('Describe the task in at most 128 KB.');
+    if (images.length && !readProfile(configDir()).imageInput) throw Error('Enable Image input in Model API settings for a model that supports images.');
     if (!brokerScope) throw Error('Resolve the task scope first.');
-    agent ||= new KimiSession(projectDir, () => brokerScope, id => observedContext().readArtifact(id), loadDetail, event => mainWindow?.webContents.send('agent:event', event), runtimeConfig, process.argv.includes('--agent-log-selftest') ? require('./agent-log-selftest.cjs').createSession : undefined, {directory: diagnosticDirectory(), getBrokerTrace: () => brokerTrace, getContextAnchor: () => observedContext().anchor(), readContextPage: (checkpointId, offset, limit) => observedContext().readPage(checkpointId, offset, limit)});
-    void agent.run(task).catch(error => mainWindow?.webContents.send('agent:event', {type: 'error', message: String(error)}));
+    agent ||= new KimiSession(projectDir, () => brokerScope, id => observedContext().readArtifact(id), loadDetail, event => mainWindow?.webContents.send('agent:event', event), runtimeConfig, process.argv.includes('--agent-log-selftest') ? require('./agent-log-selftest.cjs').createSession : process.argv.includes('--image-input-selftest') ? require('./image-input-selftest.cjs').createSession : undefined, {directory: diagnosticDirectory(), getBrokerTrace: () => brokerTrace, getContextAnchor: () => observedContext().anchor(), readContextPage: (checkpointId, offset, limit) => observedContext().readPage(checkpointId, offset, limit)});
+    void agent.run(task, images).catch(error => mainWindow?.webContents.send('agent:event', {type: 'error', message: String(error)}));
     return {started: true};
   });
   ipcMain.handle('agent:approve', (_event, {id, response}) => {if (!agent) throw Error('No active approval.'); return agent.approve(id, response);});
@@ -367,6 +386,7 @@ function registerHandlers() {
 }
 
 async function createWindow() {
+  if (process.argv.includes('--image-input-selftest')) require('./image-input-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--agent-log-selftest')) require('./agent-log-selftest.cjs').prepare(projectConfigDir(), diagnosticDirectory());
   if (process.argv.includes('--kicad-selftest')) require('./kicad-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--godot-selftest')) require('./godot-selftest.cjs').prepare(projectConfigDir());
@@ -389,6 +409,7 @@ async function createWindow() {
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
+  if (process.argv.includes('--image-input-selftest')) {await require('./image-input-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--agent-log-selftest')) {
     await require('./agent-log-selftest.cjs').run(window);
     app.quit(); return;

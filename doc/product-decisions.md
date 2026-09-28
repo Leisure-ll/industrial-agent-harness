@@ -223,3 +223,15 @@ Settings 提供全局资源默认值；项目详情页提供继承、启用、�
 - 来源：用户指出 New chat 与 Project 的层级关系不正确
 
 左侧按项目组织：项目行打开详情，选中项目下缩进显示 New chat 及当前聊天。取消项目列表之外的全局 New chat 和独立聊天行。新聊天始终使用所属项目目录与 Domain，执行任务时禁用创建入口。此次只调整现有当前聊天的层级，不新增历史会话持久化。
+
+## PD-020：图片附件与模型输入能力
+
+- 日期：2026-09-28
+- 状态：已落实；macOS Electron、固定 SDK/CLI 与当前 MiniMax M3 已验证
+- 来源：用户要求给模型发送图片，并考虑不同模型的兼容性
+
+输入框提供附件按钮、粘贴和拖入图片，发送前可预览和移除；仅图片也可发送。支持 PNG、JPEG、WebP，每次最多四张、单张 5 MiB、总计 10 MiB，最长边 8192、总像素 32 MiPixels。主进程校验格式、字节、尺寸和项目绑定，Chromium 解码新增图片；切换项目或新聊天清空草稿。模型或传输失败保留同一批图片以便重试，不自动退化为文字请求。
+
+Model API 的 Image input 提供 Auto / Enabled / Disabled。Auto 只识别已核对的模型与 API 组合：当前为官方 MiniMax OpenAI-compatible endpoint 上的 M3 / M3.1 Flash preview，旧 M3 配置自动获得能力；其他模型保守默认不支持。用户可手动声明其他视觉模型支持；这不为纯文本模型增加视觉能力。修改模型、Provider 或 URL 后重新采用 Auto。声明开启时写入 Kimi 的 image_in 能力，并通过固定 SDK 的多模态 ContentPart 发送内联图片，由原生 Provider 处理协议；不增加独立模型客户端或 Agent loop。
+
+带图实际输入与图片哈希保留在 Agent log，图片是用户提供的参考，不成为工程验证事实。自动识别依据 [MiniMax 官方兼容接口文档](https://platform.minimax.cn/docs/api-reference/text-openai-api)；不据此承诺任意代理、视觉模型或其他平台的兼容性。
