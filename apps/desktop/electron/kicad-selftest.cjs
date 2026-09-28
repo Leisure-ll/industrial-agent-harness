@@ -8,6 +8,8 @@ function prepare(config) {
   fs.mkdirSync(directory, {recursive: true});
   const fixtures = path.resolve(__dirname, '../../../packages/viewer-builtin/fixtures/kicad');
   for (const file of ['pads.kicad_pcb', 'symbols.kicad_sch', 'hierarchy.kicad_sch']) fs.copyFileSync(path.join(fixtures, file), path.join(directory, file));
+  const example = path.resolve(__dirname, '../../../examples/pcb-led');
+  for (const file of ['led.kicad_pcb', 'led.kicad_sch']) fs.copyFileSync(path.join(example, file), path.join(directory, file));
   fs.mkdirSync(path.join(directory, 'sub'));
   fs.copyFileSync(path.join(fixtures, 'symbols.kicad_sch'), path.join(directory, 'sub/child.kicad_sch'));
   fs.writeFileSync(path.join(directory, 'invalid.kicad_pcb'), '(kicad_pcb broken');
@@ -33,9 +35,9 @@ async function run(window) {
     await waitFor(() => evaluate(`document.querySelector('.ia-domain-pill')?.innerText.includes('PCB')`));
     await evaluate(`document.querySelector('.ia-chat-actions button:last-child').click()`);
     await waitFor(() => evaluate(`Boolean(document.querySelector('.ia-workspace-actions button'))`));
-    await evaluate(`document.querySelector('button[title="Show file tree"]').click()`);
+    await evaluate(`document.querySelector('.ia-file-tree-toggle').click()`);
     const screenshots = [];
-    for (const [file, tag] of [['pads.kicad_pcb', 'kc-board-viewer'], ['symbols.kicad_sch', 'kc-schematic-viewer'], ['hierarchy.kicad_sch', 'kc-schematic-viewer']]) {
+    for (const [file, tag] of [['pads.kicad_pcb', 'kc-board-viewer'], ['symbols.kicad_sch', 'kc-schematic-viewer'], ['hierarchy.kicad_sch', 'kc-schematic-viewer'], ['led.kicad_pcb', 'kc-board-viewer'], ['led.kicad_sch', 'kc-schematic-viewer']]) {
       await waitFor(() => evaluate(`Boolean(document.querySelector('.ia-file-list button[title="${file}"]'))`));
       await evaluate(`document.querySelector('.ia-file-list button[title="${file}"]').click()`);
       await waitFor(() => evaluate(`document.querySelector('.rp-kicad-toolbar strong')?.innerText === '${file}' && document.querySelector('.ia-viewer-footer')?.innerText.includes('KICAD · Ready')`));

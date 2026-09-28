@@ -1,8 +1,10 @@
 # KiCad Viewer V1
 
-PCB projects use the file tree → Artifact ID → Viewer Registry → isolated canvas path, following the Godot Viewer integration pattern. Opening a `.kicad_pcb` or `.kicad_sch` file displays the local KiCanvas viewer. No KiCad installation, export step, or network connection is required. The existing PCB domain remains `pcb`; this does not introduce another domain or agent tool.
+PCB projects reuse the file tree → Artifact ID → Viewer Registry → isolated canvas path used by the Godot Viewer. Opening a `.kicad_pcb` or `.kicad_sch` file displays the local KiCanvas viewer. No KiCad installation, export step, or network connection is required. The existing PCB domain remains `pcb`; this does not introduce another domain or agent tool.
 
 ## Use
+
+The original [LED example](../examples/pcb-led/README.md) supplies a self-contained board and schematic that can be bound as a normal PCB project. Both files are also rendered by the macOS desktop selftest.
 
 Create or select a project with the PCB domain, open the workspace and file tree, then select a board or schematic. The board viewer provides pan/zoom, front/back view, layer visibility, footprints, nets, and selected-object properties. Schematics provide pan/zoom, symbols, and properties. Referenced schematic sheets in the same document directory or its subdirectories are included and accessible from KiCanvas's project panel.
 

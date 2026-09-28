@@ -8,9 +8,10 @@
     "build": "tsc --noEmit && vite build",
     "start": "electron .",
     "test": "node --test electron/*.test.cjs",
+    "test:kicad": "electron . --kicad-selftest",
+    "test:godot": "electron . --godot-selftest",
     "setup:layout": "node scripts/setup-layout.cjs",
-    "setup:kimi": "node scripts/setup-kimi.cjs",
-    "test:kicad": "electron . --kicad-selftest"
+    "setup:kimi": "node scripts/setup-kimi.cjs"
   },
   "dependencies": {
     "@industrial-agent-harness/agent-kimi": "workspace:*",

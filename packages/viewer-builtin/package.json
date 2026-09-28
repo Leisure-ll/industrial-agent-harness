@@ -14,10 +14,11 @@
     "./layout": "./src/layout/LayoutViewport.tsx",
     "./netlist": "./src/netlist/NetlistViewport.tsx",
     "./waveform": "./src/waveform/WaveformViewport.tsx",
-    "./styles.css": "./src/viewer-styles.css",
-    "./api": "./src/api.ts",
+    "./godot": "./src/godot/GodotViewport.tsx",
+    "./kicad": "./src/kicad/KiCadViewport.tsx",
     "./canvas": "./src/ViewerCanvas.tsx",
-    "./kicad": "./src/kicad/KiCadViewport.tsx"
+    "./styles.css": "./src/viewer-styles.css",
+    "./api": "./src/api.ts"
   },
   "devDependencies": {
     "@types/react": "19.2.18",
