@@ -204,6 +204,8 @@ function registerHandlers() {
   }
   ipcMain.handle('agent:log-runs', (event, request) => diagnosticRequest('list', event, request));
   ipcMain.handle('agent:log-page', (event, request) => diagnosticRequest('page', event, request));
+  ipcMain.handle('agent:log-view', (event, request) => diagnosticRequest('view', event, request));
+  ipcMain.handle('agent:log-detail', (event, request) => diagnosticRequest('detail', event, request));
   ipcMain.handle('agent:log-record', (event, request) => diagnosticRequest('record', event, request));
   ipcMain.handle('broker:domains', () => listDomains(capabilities));
   ipcMain.handle('resource:catalog', () => resourceCatalog(activeProject()?.domain));

@@ -67,6 +67,8 @@ export interface ViewerHostApi {
   brokerTrace(): Promise<BrokerResult['trace']>;
   diagnosticRuns(request: {projectId: string}): Promise<{runs: DiagnosticRun[]; limited: boolean}>;
   diagnosticPage(request: {projectId: string; runId: string; offset?: number; category?: DiagnosticCategory | 'all'; query?: string}): Promise<DiagnosticPage>;
+  diagnosticView(request: {projectId: string; runId: string; view: DiagnosticView; offset?: number; query?: string}): Promise<DiagnosticViewPage>;
+  diagnosticDetail(request: {projectId: string; runId: string; id: string; field: string; offset?: number}): Promise<DiagnosticContent>;
   diagnosticRecord(request: {projectId: string; runId: string; sequence: number; offset?: number}): Promise<DiagnosticContent>;
   agentStatus(): Promise<{available: boolean; version: string; projectDir: string | null; configured: boolean}>;
   modelGet(): Promise<ModelProfileStatus>;
@@ -154,3 +156,8 @@ export interface SessionStatus {chatId: string; projectId: string; running: bool
 export interface ChatSummary {id: string; running?: boolean; awaitingApproval?: boolean; title: string; domain: string; createdAt: string; updatedAt: string; archived: boolean}
 export interface ChatTurn {id: string; task: string; broker: BrokerResult | null; status: string; createdAt: string; events: AgentEvent[]}
 export interface ChatHistory {executing?: boolean; chat: ChatSummary; turns: ChatTurn[]; hasMore: boolean; before: string | null}
+
+export type DiagnosticView = 'timeline' | 'context' | 'tools';
+export interface DiagnosticField {key: string; label: string; open: boolean; bytes: number}
+export interface DiagnosticEntry {id: string; kind: string; title: string; at: string; sequences: number[]; summary: string; fields: DiagnosticField[]; stepId?: string | null; contextId?: string; callId?: string; status?: string; durationMs?: number; number?: number; usage?: Record<string, number> | null; contextUsage?: number | null; note?: string}
+export interface DiagnosticViewPage {entries: DiagnosticEntry[]; nextOffset: number | null; total: number; totalRecords: number; counts: Record<DiagnosticView, number>}

@@ -10,7 +10,7 @@ Harness 外部工具返回最多 16 KiB UTF-8 JSON；能力详情可按 `skills`
 
 每个 SDK 会话使用独立 Kimi share directory（Desktop/CLI 提供持久目录，未提供持久回调的调用方使用临时目录）：复制模型配置，以 `extra_skill_dirs` 添加经过 Project 禁用策略和 Broker Scope 筛选的仓库 Skill，并生成会话 `mcp.json`。Kimi 原有的项目/用户 Skill 搜索路径仍可使用。关闭会话只删除临时目录，持久目录仅在明确删除聊天时清理；用户的 `~/.kimi` 不会被改写。当前默认 MCP 列表为空。
 
-`DiagnosticReader` 为桌面日志面板提供当前项目的运行列表、分类/摘要过滤、记录分页与 UTF-8 内容分段读取。它复用写入器的项目目录键，检查记录 Trace ID/顺序、文件及目录边界、符号链接与资源上限；追加中的不完整尾行等待下次刷新。缓存有界且仅保存记录索引，原始内容从只读文件句柄读取。支持范围与 UI 限额见 [桌面文档](../../apps/desktop/README.md)。
+`DiagnosticReader` 提供当前项目的运行列表、原始记录分页及 UTF-8 分段读取；只读语义投影提供时间线、上下文和调用/返回配对，不改写原始日志。上下文从同项目同 Trace 的固定原生快照读取，验证路径、大小及 SHA-256；无压缩且当前提示及全部 Checkpoint 保留时，按步骤边界展示保存的消息。该视图不是完整 HTTP 请求记录，不猜测缺失的上下文或工具定义。索引缓存有界，完整语义内容只缓存一轮；原始记录最多 64 MiB，单记录 16 MiB，上下文快照最多 64 MiB；逐步骤消息关联最多 200,000 项。SDK/UI 双重记录只在展示中去重。支持范围与 UI 限额见 [桌面文档](../../apps/desktop/README.md)。
 
 `KimiSession.run(task, images)` 接受经校验的内联 PNG/JPEG/WebP 用户参考。有图时调用原生 SDK `prompt(ContentPart[])`，保留原始 data URL；无图保持字符串接口。模型能力配置共享于 CLI/Desktop，声明支持图片时生成 `image_in`；配置不支持则在请求前拒绝，不静默退化成文本。图片字节、尺寸、哈希及实际 ContentPart 存入每轮诊断日志；这些输入不构成工程验证结果。
 

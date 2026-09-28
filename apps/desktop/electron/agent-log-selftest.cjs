@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const {createDiagnosticLog} = require('../../../packages/agent-kimi/src/diagnostic-log.cjs');
 const {saveBindings} = require('./project-bindings.cjs');
 let evidence, historicalTrace;
@@ -11,7 +12,10 @@ function prepare(config,directory) {
   saveBindings(config,{activeId:'log-test',projects:[{id:'log-test',name:'Agent log test',path:project,domain:'chip'},{id:'other-test',name:'Other project',path:other,domain:'chip'}]});
   const log=createDiagnosticLog(project,{directory,apiKey:'test-secret'});historicalTrace=log.traceId;
   log.record('run.start',{projectDir:project,model:{model:'Diagnostic test'}});
-  log.record('prompt',{text:'User task: inspect signals'});
+  const prompt='Industrial Context: read only.\n\nUser task: inspect signals';
+  log.record('prompt',{text:prompt});
+  log.record('sdk.event',{type:'StepBegin',payload:{n:1}});
+  for(const text of ['I will inspect ', 'the signal files.']) {log.record('sdk.event',{type:'ContentPart',payload:{type:'text',text}});log.record('harness.event',{type:'text',text});}
   log.record('sdk.event',{type:'ToolCall',payload:{id:'call-small',function:{name:'read_file',arguments:'{"path":"signals.json","note":"<script>window.logInjected=true</script>"}'}}});
   log.record('sdk.event',{type:'ToolResult',payload:{tool_call_id:'call-small',return_value:{output:'full detail\n'.repeat(1500)+'END-OF-FULL-RESULT',is_error:false,message:'test-secret'}}});
   log.record('sdk.event',{type:'ToolResult',payload:{tool_call_id:'call-large',return_value:{output:'工具细节🙂\n'.repeat(10000)+'END-OF-LARGE-RESULT',is_error:false}}});
@@ -20,7 +24,12 @@ function prepare(config,directory) {
   log.record('sdk.event',{type:'CompactionEnd',payload:{}});
   log.record('sdk.event',{type:'ApprovalRequest',payload:{id:'approval-1',action:'write',description:'Example approval'}});
   log.record('approval.response',{id:'approval-1',response:'reject'});
+  log.record('sdk.event',{type:'StepBegin',payload:{n:2}});
   for(let i=0;i<115;i++)log.record('sdk.event',{type:'ContentPart',payload:{type:'think',think:`Thinking ${i}`}});
+  log.record('sdk.event',{type:'ContentPart',payload:{type:'text',text:'Signal files inspected. The complete results are available above.'}});
+  const native=[{role:'_system_prompt',content:'You are the diagnostic test agent. Read-only project inspection.'},{role:'user',content:prompt},{role:'_checkpoint',id:1},{role:'assistant',content:'I will inspect the signal files.',tool_calls:[{id:'call-small',function:{name:'read_file',arguments:'{"path":"signals.json"}'}}]},{role:'tool',tool_call_id:'call-small',content:'full detail\n'.repeat(1500)+'END-OF-FULL-RESULT'},{role:'_checkpoint',id:2},{role:'assistant',content:'Signal files inspected.'}];
+  const content=native.map(row=>JSON.stringify(row)).join('\n')+'\n', target=path.join(path.dirname(log.file),`${log.traceId}.after-turn.context.jsonl`);fs.writeFileSync(target,content);
+  log.record('kimi.snapshot',{phase:'after-turn',kind:'context',path:target,bytes:Buffer.byteLength(content),sha256:crypto.createHash('sha256').update(content).digest('hex')});
   log.record('run.end',{status:'completed',metrics:{peakContextUsage:.84,compactions:1,toolResults:2}});log.close();
   const foreign=createDiagnosticLog(other,{directory});foreign.record('run.start',{});foreign.record('prompt',{text:'OTHER-PROJECT-PRIVATE'});foreign.close();
 }
@@ -58,7 +67,8 @@ async function run(window) {
     while(Date.now()<deadline){if(await evaluate(script))return;await new Promise(resolve=>setTimeout(resolve,100));}
     throw Error(`Agent log UI timed out: ${script}`);
   }
-  const selectType = async value=>{await evaluate(`(() => {const select=document.querySelector('select[aria-label="Agent log event type"]');select.value='${value}';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);await new Promise(resolve=>setTimeout(resolve,350));};
+  const switchView = async label=>{await evaluate(`Array.from(document.querySelectorAll('.ia-log-tabs button')).find(button=>button.innerText.startsWith('${label}')).click()`);await new Promise(resolve=>setTimeout(resolve,350));};
+  const selectType = async value=>{await switchView('原始事件');await evaluate(`(() => {const select=document.querySelector('select[aria-label="Agent log event type"]');select.value='${value}';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);await new Promise(resolve=>setTimeout(resolve,350));};
   const choose = async name=>{await wait(`Array.from(document.querySelectorAll('.ia-log-records button')).some(button=>!button.disabled&&button.innerText.includes('${name}'))`);await evaluate(`Array.from(document.querySelectorAll('.ia-log-records button')).find(button=>button.innerText.includes('${name}')).click()`);};
   const requests=[];
   window.webContents.session.webRequest.onBeforeRequest((details,callback)=>{requests.push(details.url);callback({cancel:/^https?:/.test(details.url)});});
@@ -69,6 +79,25 @@ async function run(window) {
     await wait(`document.querySelector('.ia-log-run-info')?.innerText.includes('84%')`);
     assert.equal(await evaluate(`document.querySelectorAll('.ia-log-runs>button').length`),1,'history is project scoped');
     assert.equal(await evaluate(`window.viewerHost.diagnosticRuns({projectId:'other-test'}).then(()=>false,()=>true)`),true,'wrong project rejected over IPC');
+    assert.ok(await evaluate(`document.querySelector('.ia-log-tabs button[aria-pressed="true"]')?.innerText.startsWith('时间线')`),'timeline is the default');
+    assert.equal(await evaluate(`document.querySelectorAll('.ia-log-records button[data-kind="tool"]').length`),2,'calls and results are paired');
+    await choose('模型回复');await wait(`document.querySelector('.ia-log-prose')?.innerText==='I will inspect the signal files.'`);
+    assert.equal(await evaluate(`document.querySelectorAll('.ia-log-records button[data-kind="assistant"]').length`),2,'stream chunks and UI duplicates collapse');
+    fs.writeFileSync(path.join(evidence,'agent-log-timeline.png'),(await window.webContents.capturePage()).toPNG());
+    await switchView('工具调用');await choose('read_file');
+    await wait(`document.querySelector('.ia-log-detail')?.innerText.includes('END-OF-FULL-RESULT')`);
+    assert.ok(await evaluate(`document.querySelector('.ia-log-detail')?.innerText.includes('signals.json')`),'input and result are visible together');
+    assert.equal(await evaluate(`Boolean(window.logInjected)`),false,'logged markup is text');
+    await wait(`Boolean(document.querySelector('.ia-log-related button'))`);
+    await evaluate(`Array.from(document.querySelectorAll('.ia-log-related button')).find(button=>button.innerText.includes('回到时间线')).click()`);
+    await wait(`document.querySelector('.ia-log-records button.selected')?.innerText.includes('read_file')`);
+    await switchView('上下文');await choose('本轮 SDK 输入');
+    await wait(`document.querySelector('.ia-log-tool-content')?.innerText.includes('Industrial Context: read only.')`);
+    await choose('结束时会话上下文');
+    await evaluate(`Array.from(document.querySelectorAll('.ia-log-field summary')).find(row=>row.innerText.includes('系统指令')).click()`);
+    await wait(`document.querySelector('.ia-log-detail')?.innerText.includes('Read-only project inspection.')`);
+    assert.ok(!await evaluate(`document.querySelector('.ia-log-records')?.innerText.includes('模型第 1 步 ·')`),'compaction does not invent request snapshots');
+    fs.writeFileSync(path.join(evidence,'agent-log-context.png'),(await window.webContents.capturePage()).toPNG());
     await selectType('context');await choose('CompactionBegin');
     await wait(`document.querySelector('.ia-log-raw')?.innerText.includes('context pressure')`);
     assert.ok(await evaluate(`document.querySelector('.ia-log-records')?.innerText.includes('CompactionEnd')`));
@@ -117,7 +146,9 @@ async function run(window) {
     await wait(`document.querySelector('.ia-log-records')?.innerText.includes('CompactionBegin')`);
     await wait(`document.querySelector('.ia-log-records')?.innerText.includes('CompactionEnd')`);
     await selectType('tools');await choose('ToolResult');
-    await wait(`document.querySelector('.ia-log-tool-content')?.innerText==='LIVE-FULL-RESULT'`);
+    await wait(`document.querySelector('.ia-log-tool-content')?.innerText.includes('LIVE-FULL-RESULT')`);
+    await switchView('工具调用');await choose('read_file');
+    await wait(`Array.from(document.querySelectorAll('.ia-log-tool-content')).some(node=>node.innerText==='LIVE-FULL-RESULT')`);
     await wait(`Array.from(document.querySelectorAll('.ia-approval-resolved summary')).some(row=>row.innerText.includes('Approval expired'))`);
     assert.equal(await evaluate(`document.querySelectorAll('.ia-approval button').length`),0,'no stale approval actions after completion');
     fs.writeFileSync(path.join(evidence,'agent-log-live.png'),(await window.webContents.capturePage()).toPNG());
