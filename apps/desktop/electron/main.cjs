@@ -5,11 +5,12 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const {spawnSync} = require('node:child_process');
 const {RasterService} = require('../../../packages/viewer-builtin/src/layout/raster.cjs');
-const {renderNetlist} = require('../../../packages/viewer-builtin/src/netlist/netlist.cjs');
+const {renderNetlist, isYosysNetlist} = require('../../../packages/viewer-builtin/src/netlist/netlist.cjs');
 const {createViewerProtocol} = require('../../../packages/viewer-builtin/src/waveform/protocol.cjs');
 const {initialVcdSignals} = require('../../../packages/viewer-builtin/src/waveform/signals.cjs');
 const {GodotRuntimeManager, isGodotExport} = require('../../../packages/viewer-builtin/src/godot/runtime.cjs');
 const {createAssetPlugins} = require('../../../packages/viewer-builtin/src/assets/service.cjs');
+const {createDocumentPlugins} = require('../../../packages/viewer-builtin/src/documents/service.cjs');
 const {KiCadRuntimeManager, isKiCadFile} = require('../../../packages/viewer-builtin/src/kicad/runtime.cjs');
 const {createViewerRegistry} = require('../../../packages/viewer-core/src/registry.cjs');
 const {resolve, discloseDetail} = require('../../../packages/capability-broker/src/index.cjs');
@@ -25,7 +26,7 @@ const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = 
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: {standard: true, secure: true, supportFetchAPI: true, corsEnabled: true}}]);
-if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--documents-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
 
 if (process.argv.includes('--chat-selftest') && process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA) app.setPath('userData', process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA);
 
@@ -176,10 +177,7 @@ const viewerRegistry = createViewerRegistry([
     activeLayoutToken = token;
     return {artifact, kind: 'layout', data};
   }},
-  {id: 'netlist', matches: file => {
-    if (path.extname(file).toLowerCase() !== '.json' || fs.statSync(file).size > 20 * 1024 * 1024) return false;
-    try {return Boolean(JSON.parse(fs.readFileSync(file, 'utf8'))?.modules);} catch {return false;}
-  }, open: async ({artifact, file}) => {
+  {id: 'netlist', matches: isYosysNetlist, open: async ({artifact, file}) => {
     const token = crypto.randomUUID();
     const data = await renderNetlist(file);
     netlistSessions.set(token, file);
@@ -190,6 +188,8 @@ const viewerRegistry = createViewerRegistry([
   }})},
   {id: 'godot', matches: file => isGodotExport(file), open: async ({artifact, file}) => ({artifact, kind: 'godot', data: await godotRuntime.open(file, artifact.sha256)})},
   {id: 'kicad', matches: isKiCadFile, open: async ({artifact, file}) => ({artifact, kind: 'kicad', data: await kicadRuntime.open(file, artifact.sha256, projectDir)})},
+  // Generic formats are fallbacks; preserve specialized JSON/HTML detection.
+  ...createDocumentPlugins({projectRoot: () => projectDir}),
 ]);
 
 function registerHandlers() {
@@ -475,6 +475,7 @@ function registerHandlers() {
 }
 
 async function createWindow() {
+  if (process.argv.includes('--documents-selftest')) require('./documents-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--parallel-selftest')) require('./parallel-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--image-input-selftest')) require('./image-input-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--chat-selftest')) require('./chat-selftest.cjs').prepare(projectConfigDir());
@@ -501,6 +502,7 @@ async function createWindow() {
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
+  if (process.argv.includes('--documents-selftest')) {await require('./documents-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--chat-selftest')) {
     await require('./chat-selftest.cjs').run(window, chats);
     app.quit(); return;

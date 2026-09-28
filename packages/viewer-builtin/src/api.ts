@@ -22,7 +22,7 @@ export interface NetlistData {
 
 export interface ViewerArtifact {
   id: string;
-  kind: 'layout' | 'netlist' | 'waveform' | 'godot' | 'kicad' | 'image' | 'sprite' | 'animation';
+  kind: 'layout' | 'netlist' | 'waveform' | 'godot' | 'kicad' | 'image' | 'sprite' | 'animation' | DocumentKind;
   name: string;
   design: string;
   sizeBytes: number;
@@ -45,6 +45,8 @@ export interface AssetImage {name: string; url: string; width: number; height: n
 export interface SpriteFrame {image: number; rect: [number, number, number, number]; duration: number}
 export interface SpriteAnimation {name: string; loop: boolean; frames: SpriteFrame[]}
 export interface AssetData {name: string; images: AssetImage[]; columns: number; rows: number; animations: SpriteAnimation[]; initialMode: 'image' | 'sprite' | 'animation'}
+export type DocumentKind = 'table' | 'json' | 'jsonl' | 'markdown' | 'text';
+export interface DocumentData {text: string; rows?: string[][]; columns?: number; ragged?: boolean; records?: number; error?: string; warning?: string}
 
 export type OpenedViewer =
   | {kind: 'layout'; artifact: ViewerArtifact; data: LayoutMeta}
@@ -52,7 +54,8 @@ export type OpenedViewer =
   | {kind: 'waveform'; artifact: ViewerArtifact; data: WaveformData}
   | {kind: 'godot'; artifact: ViewerArtifact; data: GodotData}
   | {kind: 'kicad'; artifact: ViewerArtifact; data: KiCadData}
-  | {kind: 'image' | 'sprite' | 'animation'; artifact: ViewerArtifact; data: AssetData};
+  | {kind: 'image' | 'sprite' | 'animation'; artifact: ViewerArtifact; data: AssetData}
+  | {kind: DocumentKind; artifact: ViewerArtifact; data: DocumentData};
 
 export interface ViewerHostApi {
   open(request: {artifactId: string}): Promise<OpenedViewer>;
