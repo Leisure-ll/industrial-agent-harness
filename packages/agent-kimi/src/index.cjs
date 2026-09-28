@@ -107,9 +107,10 @@ class KimiSession {
     this.getRuntime = getRuntime;
     this.sessionFactory = sessionFactory;
     this.diagnostics = diagnostics;
+    this.pendingApprovals = new Map();
   }
   async run(task) {
-    if (this.turn) throw Error('A Kimi turn is already running.');
+    if (this.running || this.turn) throw Error('A Kimi turn is already running.');
     const scope = this.getScope();
     if (!scope) throw Error('Resolve capabilities before starting the agent.');
     const runtime = this.getRuntime();
@@ -117,6 +118,7 @@ class KimiSession {
     const currentScopeKey = scopeKey(scope);
     const log = createDiagnosticLog(this.workDir, {directory: this.diagnostics.directory, apiKey: runtime.apiKey});
     this.log = log;
+    this.running = true;
     this.turnMetrics = {peakContextUsage: null, lastContextUsage: null, compactions: 0, toolResults: 0, peakToolResultBytes: 0};
     let metricsEmitted = false;
     const emitMetrics = () => {if (!metricsEmitted) {metricsEmitted = true; this.emitAgent({type: 'context-metrics', ...this.turnMetrics});}};
@@ -162,11 +164,12 @@ class KimiSession {
     } catch (error) {emitMetrics(); this.emitAgent({type: 'error', message: String(error)});}
     finally {
       this.turn = undefined;
+      for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
       try {
         this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
         log.record('run.end', {status: outcome, sessionId: this.session?.sessionId || null, metrics: this.turnMetrics, brokerTrace: this.diagnostics.getBrokerTrace?.() || []});
       }
-      finally {log.close(); this.log = undefined;}
+      finally {log.close(); this.log = undefined; this.running = false;}
     }
   }
   captureKimiSnapshot(log, phase, apiKey) {
@@ -189,7 +192,11 @@ class KimiSession {
     if (event.type === 'ContentPart') {
       if (event.payload.type === 'text') this.emitAgent({type: 'text', text: event.payload.text});
       else if (event.payload.type === 'think') this.emitAgent({type: 'thinking', text: event.payload.think});
-    } else if (event.type === 'ApprovalRequest') this.emitAgent({type: 'approval', id: event.payload.id, description: event.payload.description, action: event.payload.action});
+    } else if (event.type === 'ApprovalRequest') {
+      this.pendingApprovals.set(event.payload.id, 'pending');
+      this.emitAgent({type: 'approval', id: event.payload.id, description: event.payload.description, action: event.payload.action});
+    }
+    else if (event.type === 'ApprovalResponse') this.resolveApproval(event.payload.request_id, event.payload.response);
     else if (event.type === 'ToolCall') this.emitAgent({type: 'tool', id: event.payload.id, name: event.payload.function.name, arguments: event.payload.function.arguments || ''});
     else if (event.type === 'ToolResult') {
       const value = event.payload.return_value;
@@ -211,7 +218,24 @@ class KimiSession {
     else if (event.type === 'CompactionBegin') {this.turnMetrics.compactions++; this.emitAgent({type: 'compaction', state: 'begin'});}
     else if (event.type === 'CompactionEnd') this.emitAgent({type: 'compaction', state: 'end'});
   }
-  approve(id, response) {if (!this.turn) throw Error('No active turn.'); this.log?.record('approval.response', {id, response}); return this.turn.approve(id, response);}
+  resolveApproval(id, decision) {
+    if (!this.pendingApprovals.has(id)) return;
+    this.pendingApprovals.delete(id);
+    this.emitAgent({type: 'approval-resolved', id, decision});
+  }
+  async approve(id, response) {
+    if (!['approve', 'approve_for_session', 'reject'].includes(response)) throw Error('Invalid approval decision.');
+    if (!this.turn || this.pendingApprovals.get(id) !== 'pending') throw Error('This approval is no longer pending.');
+    this.pendingApprovals.set(id, 'submitting');
+    try {
+      await this.turn.approve(id, response);
+      this.log?.record('approval.response', {id, response});
+      this.resolveApproval(id, response);
+    } catch (error) {
+      if (this.pendingApprovals.has(id)) this.pendingApprovals.set(id, 'pending');
+      throw error;
+    }
+  }
   interrupt() {this.log?.record('turn.interrupt', {}); return this.turn?.interrupt();}
   async close() {await this.session?.close(); this.session = undefined; if (this.sessionConfigDir) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true}); this.sessionConfigDir = undefined;}
 }

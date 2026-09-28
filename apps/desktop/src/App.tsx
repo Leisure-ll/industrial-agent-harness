@@ -1,11 +1,12 @@
 import {useEffect, useRef, useState} from 'react';
 import {Activity, Bug, ChevronDown, ChevronRight, Cpu, File, FilePlus2, Folder, FolderOpen, Maximize, Minimize, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Play, Plus, Settings2, Square, Sun, X} from 'lucide-react';
 import {ViewerCanvas, type ViewNavigation} from '@industrial-agent-harness/viewer-builtin/canvas';
-import type {AgentEvent, BrokerResult, CapabilityDetail, DomainOption, OpenedViewer, ProjectBinding, ResourceCatalog, ViewerArtifact} from '@industrial-agent-harness/viewer-builtin/api';
+import type {AgentEvent, BrokerResult, CapabilityDetail, DomainOption, OpenedViewer, ProjectBinding, ViewerArtifact} from '@industrial-agent-harness/viewer-builtin/api';
 import {AgentLogPanel} from './components/AgentLogPanel';
 import {AgentFlow} from './components/AgentFlow';
 import {BrokerCall} from './components/BrokerCall';
 import {TodoList} from './components/TodoList';
+import {GlobalResourceSettings} from './components/ResourceSettings';
 import {ModelSettings} from './components/ModelSettings';
 import {ProjectDetails} from './components/ProjectDetails';
 import {CreateProjectModal} from './components/CreateProjectModal';
@@ -21,7 +22,6 @@ export function App() {
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(() => new Set());
   const [projects, setProjects] = useState<ProjectBinding[]>([]);
   const [domains, setDomains] = useState<DomainOption[]>([]);
-  const [resources, setResources] = useState<ResourceCatalog>({skills: [], mcpServers: []});
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [page, setPage] = useState<'chat' | 'project'>('chat');
   const [projectDraft, setProjectDraft] = useState<{directory: string; name: string; domain: string} | null>(null);
@@ -42,6 +42,8 @@ export function App() {
   const [viewNavigation, setViewNavigation] = useState<ViewNavigation | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
+  const [resourceSettingsOpen, setResourceSettingsOpen] = useState(false);
+  const [resourceRevision, setResourceRevision] = useState(0);
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem('ia-theme') === 'dark' ? 'dark' : 'light');
   const [debug, setDebug] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
@@ -101,10 +103,6 @@ export function App() {
       if (event.type === 'done' || event.type === 'error') setAgentBusy(false);
     });
   }, []);
-  useEffect(() => {
-    if (!window.viewerHost) return;
-    void window.viewerHost.resourceCatalog().then(setResources).catch(reason => setError(String(reason)));
-  }, [activeProjectId, projects.find(item => item.id === activeProjectId)?.domain]);
   useEffect(() => {
     setViewNavigation(null);
     if (!selectedId) {setOpened(undefined); setLoading(false); return;}
@@ -210,9 +208,7 @@ export function App() {
       setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
     } catch (reason) {throw reason;}
   }
-  async function setProjectResource(id: string, kind: 'skill' | 'mcp', resourceId: string, enabled: boolean) {
-    const bindings = await window.viewerHost!.setProjectResource(id, kind, resourceId, enabled);
-    setProjects(bindings.projects);
+  function resourcesChanged() {
     setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
   }
   async function showDetail(id: string) {
@@ -230,25 +226,29 @@ export function App() {
     <div className="ia-columns">
       {leftOpen && <aside className="ia-tree ia-sidebar">
         <div className="ia-sidebar-brand"><span className="ia-product-mark"><Cpu size={16}/></span><b>Industrial Harness</b><button className="ia-icon" onClick={() => setLeftOpen(false)} title="Hide sidebar"><PanelLeftClose size={16}/></button></div>
-        <button className="ia-new-chat" onClick={() => void newChat()} disabled={agentBusy || Boolean(activeProject && !activeProject.domain)}><FilePlus2 size={15}/> New chat</button>
         <div className="ia-projects-heading"><span>PROJECTS</span><button onClick={chooseProject} disabled={agentBusy} aria-label="New project" title="New project"><Plus size={15}/></button></div>
-        <div className="ia-project-list">{projects.map(item => {const domain = domainFor(item.domain); return <button key={item.id} className={item.id === activeProjectId ? 'selected' : ''} onClick={() => void selectProject(item.id)} title={item.path}><FolderOpen size={15}/><span className="ia-project-row-name">{item.name}</span>{domain && <span className="ia-project-domain-badge" title={domain.label}><span aria-hidden="true">{domain.emoji}</span>{domain.label}</span>}</button>;})}</div>
+        <div className="ia-project-list">{projects.map(item => {const domain = domainFor(item.domain); const active = item.id === activeProjectId; return <div key={item.id} className="ia-project-group">
+          <button className={`ia-project-row ${active ? 'selected' : ''}`} onClick={() => void selectProject(item.id)} title={item.path}><FolderOpen size={15}/><span className="ia-project-row-name">{item.name}</span>{domain && <span className="ia-project-domain-badge" title={domain.label}><span aria-hidden="true">{domain.emoji}</span>{domain.label}</span>}</button>
+          {active && <div className="ia-project-chats" role="group" aria-label={`${item.name} chats`} data-project-id={item.id}>
+            <button className="ia-new-chat" onClick={() => void newChat()} disabled={agentBusy || !item.domain} aria-label={`New chat in ${item.name}`}><FilePlus2 size={14}/> New chat</button>
+            {submittedTask && <button className="ia-sidebar-chat" title={submittedTask} aria-current={page === 'chat' ? 'page' : undefined} onClick={() => setPage('chat')}><Activity size={14}/><span>{submittedTask}</span></button>}
+          </div>}
+        </div>;})}</div>
         {error && <p className="ia-sidebar-error">{error}</p>}
-        {submittedTask && <button className="ia-sidebar-chat" title={submittedTask} onClick={() => setPage('chat')}><Activity size={14}/><span>{submittedTask}</span></button>}
         <div className="ia-sidebar-spacer"/>
         <div className="ia-tree-bottom"><button className="ia-settings-button" onClick={() => setSettingsOpen(value => !value)}><Settings2 size={16}/> Settings <ChevronRight size={14}/></button></div>
-        {settingsOpen && <div className="ia-settings-popover"><div className="ia-settings-title"><b>Settings</b><button className="ia-icon" onClick={() => setSettingsOpen(false)}>×</button></div><div className="ia-settings-row"><span>Appearance</span><button onClick={() => setTheme(value => value === 'light' ? 'dark' : 'light')}>{theme === 'light' ? <Sun size={14}/> : <Moon size={14}/>} {theme === 'light' ? 'Light' : 'Dark'}</button></div><div className="ia-settings-row"><span>Debug logs</span><button onClick={() => setDebug(value => !value)}><Bug size={14}/> {debug ? 'On' : 'Off'}</button></div><div className="ia-settings-row"><span>Model API</span><button onClick={() => {setSettingsOpen(false); setModelSettingsOpen(true);}}>Configure</button></div><div className="ia-settings-note">Kimi CLI: {agentStatus?.available ? agentStatus.version || 'available' : 'unavailable'}</div></div>}
+        {settingsOpen && <div className="ia-settings-popover"><div className="ia-settings-title"><b>Settings</b><button className="ia-icon" onClick={() => setSettingsOpen(false)}>×</button></div><div className="ia-settings-row"><span>Appearance</span><button onClick={() => setTheme(value => value === 'light' ? 'dark' : 'light')}>{theme === 'light' ? <Sun size={14}/> : <Moon size={14}/>} {theme === 'light' ? 'Light' : 'Dark'}</button></div><div className="ia-settings-row"><span>Debug logs</span><button onClick={() => setDebug(value => !value)}><Bug size={14}/> {debug ? 'On' : 'Off'}</button></div><div className="ia-settings-row"><span>Model API</span><button onClick={() => {setSettingsOpen(false); setModelSettingsOpen(true);}}>Configure</button></div><div className="ia-settings-row"><span>MCP &amp; Skills</span><button onClick={() => {setSettingsOpen(false); setResourceSettingsOpen(true);}}>Configure</button></div><div className="ia-settings-note">Kimi CLI: {agentStatus?.available ? agentStatus.version || 'available' : 'unavailable'}</div></div>}
       </aside>}
       <main className="ia-chat">
         <header className="ia-chat-header"><div>{!leftOpen && <button className="ia-icon" onClick={() => setLeftOpen(true)} title="Show sidebar"><PanelLeftOpen size={16}/></button>}<Folder size={14}/><b>{projectName}</b></div><div className="ia-chat-actions"><button aria-label="View agent logs" title="View detailed agent logs" disabled={!activeProjectId} onClick={() => showAgentLog()}>Logs</button><button className={debug ? 'active' : ''} onClick={() => setDebug(value => !value)} title="Toggle debug logs"><Bug size={15}/></button><button onClick={() => setRightOpen(value => !value)} title={rightOpen ? 'Hide workspace' : 'Show workspace'}>{rightOpen ? <PanelRightClose size={16}/> : <PanelRightOpen size={16}/>}</button></div></header>
-        {page === 'project' && activeProject ? <ProjectDetails project={activeProject} domains={domains} resources={resources} busy={agentBusy} onDomainChange={setProjectDomain} onResourceChange={setProjectResource} onNewChat={newChat}/> : <>
+        {page === 'project' && activeProject ? <ProjectDetails key={activeProject.id} project={activeProject} domains={domains} busy={agentBusy} onDomainChange={setProjectDomain} resourceRevision={resourceRevision} onResourcesChanged={resourcesChanged} onNewChat={newChat}/> : <>
         <div className="ia-chat-scroll">
           {!submittedTask && <div className="ia-chat-welcome"><span className="ia-welcome-icon"><Cpu size={22}/></span><h1>What are you working on?</h1><p>Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.</p></div>}
           {submittedTask && <>
             <div className="ia-user-message">{submittedTask}</div>
             {brokerError && <div className="ia-flow-error">{brokerError}</div>}
             {broker && <BrokerCall broker={broker} detail={detail} debug={debug} selectedDomain={selectedDomain} onContext={context => void resolveTask(context)} onDetail={id => void showDetail(id)}/>}
-            {agentEvents.length > 0 && <AgentFlow onLog={showAgentLog} events={agentEvents} running={agentBusy} debug={debug} approve={(id, decision) => void window.viewerHost!.approveAgent(id, decision)}/>}
+            {agentEvents.length > 0 && <AgentFlow onLog={showAgentLog} events={agentEvents} running={agentBusy} debug={debug} approve={(id, decision) => window.viewerHost!.approveAgent(id, decision)}/>}
           </>}
         </div>
         {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy}/>}
@@ -265,6 +265,7 @@ export function App() {
     </div>
     {projectDraft && <CreateProjectModal draft={projectDraft} domains={domains} error={projectError} onChange={setProjectDraft} onChooseDirectory={chooseProjectDirectory} onClose={() => setProjectDraft(null)} onCreate={createProject}/>}
     {logOpen && activeProjectId && <AgentLogPanel key={activeProjectId} projectId={activeProjectId} projectName={projectName} initialTraceId={logTrace} runningTraceId={diagnostic?.type === 'diagnostic-log' ? diagnostic.traceId : undefined} running={agentBusy} onClose={() => setLogOpen(false)}/>}
+    {resourceSettingsOpen && <GlobalResourceSettings busy={agentBusy} onChanged={() => {setResourceRevision(value => value + 1); resourcesChanged();}} onClose={() => setResourceSettingsOpen(false)}/>}
     {modelSettingsOpen && <ModelSettings onClose={() => setModelSettingsOpen(false)} onSaved={() => void window.viewerHost!.agentStatus().then(setAgentStatus)}/>}
   </div>;
 }

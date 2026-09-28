@@ -4,7 +4,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 const {parseArgs} = require('./args.cjs');
-const {resolveProjectTask, effectiveCapabilities, resourceCatalog} = require('@industrial-agent-harness/harness-core');
+const {resolveProjectTask, effectiveCapabilities, resourceCatalog, ResourceSettings, defaultResourceDirectory} = require('@industrial-agent-harness/harness-core');
 const {capabilities} = require('@industrial-agent-harness/domain-skills');
 const {discloseDetail} = require('@industrial-agent-harness/capability-broker');
 const {KimiSession} = require('@industrial-agent-harness/agent-kimi');
@@ -33,6 +33,8 @@ Options:
   --disable-mcp ID            Disable a repository MCP server for this run (repeatable)
   --timeout-ms N               Interrupt a turn after N milliseconds
 
+Global/project resource defaults use ~/.industrial-agent-harness/resource-settings.json.
+Set INDUSTRIAL_HARNESS_CONFIG_DIR to use an isolated configuration directory.
 Output is JSON Lines on stdout. API keys are read only from the environment.\n`;
 
 function emit(output, event) {output.write(`${JSON.stringify({schemaVersion: 1, ...event})}\n`);}
@@ -58,8 +60,9 @@ async function run(options, output = process.stdout, environment = process.env, 
   if (!fs.statSync(projectDir).isDirectory()) throw Error('Project path must be a directory.');
   const runId = crypto.randomUUID();
   const send = event => emit(output, {runId, ...event});
-  const disabled = {skills: options.disabledSkills || [], mcpServers: options.disabledMcpServers || []};
   const catalog = resourceCatalog(options.domain);
+  const saved = new ResourceSettings(defaultResourceDirectory(environment)).snapshot(catalog, projectDir).effective;
+  const disabled = {skills: [...new Set([...saved.skills, ...(options.disabledSkills || [])])], mcpServers: [...new Set([...saved.mcpServers, ...(options.disabledMcpServers || [])])]};
   for (const id of disabled.skills) if (!catalog.skills.some(item => item.id === id)) throw Error(`Unknown project skill: ${id}`);
   for (const id of disabled.mcpServers) if (!catalog.mcpServers.some(item => item.id === id)) throw Error(`Unknown project MCP: ${id}`);
   const broker = resolveProjectTask(options.domain, {task: options.task}, undefined, capabilities, disabled);
