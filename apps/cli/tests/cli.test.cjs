@@ -79,3 +79,23 @@ test('headless CLI runs a task and emits agent and approval events', async t => 
   assert.deepEqual(approvals, [{id: 'a1', decision: 'reject'}]);
   assert.equal(rows.at(-1).status, 'completed');
 });
+
+test('CLI uses the same persisted global and per-project policy as Desktop', async t => {
+  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-cli-policy-'));
+  t.after(() => fs.rmSync(projectDir, {recursive: true, force: true}));
+  const {ResourceSettings, resourceCatalog} = require('@industrial-agent-harness/harness-core');
+  const store = new ResourceSettings(path.join(projectDir, 'config'));
+  const catalog = resourceCatalog('chip');
+  store.set(catalog, {kind: 'skill', id: 'chip.netlist.inspect', mode: 'disabled'});
+  async function scope() {
+    const rows = [];
+    const output = new Writable({write(chunk, _encoding, callback) {rows.push(...String(chunk).trim().split('\n').map(JSON.parse)); callback();}});
+    await run({projectDir, domain: 'chip', task: 'Inspect netlist signals', scopeOnly: true}, output, {INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(projectDir, 'config')});
+    return rows[0].scope;
+  }
+  assert.deepEqual((await scope()).skills, []);
+  store.set(catalog, {kind: 'skill', id: 'chip.netlist.inspect', mode: 'enabled'}, projectDir);
+  assert.deepEqual((await scope()).skills, ['chip.netlist.inspect']);
+  store.set(catalog, {kind: 'skill', id: 'chip.netlist.inspect', mode: 'inherit'}, projectDir);
+  assert.deepEqual((await scope()).skills, []);
+});

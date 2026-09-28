@@ -60,6 +60,8 @@ export interface ViewerHostApi {
   netlist(request: {token: string; module: string; focus?: string}): Promise<NetlistData>;
   resolve(request: {task: string; artifactKind?: string; domain?: string; stage?: string}): Promise<BrokerResult>;
   domains(): Promise<DomainOption[]>;
+  resourceGet(request: {projectId?: string}): Promise<ResourceSettingsSnapshot>;
+  resourceSet(request: {projectId?: string; kind: 'skill' | 'mcp'; id: string; mode: ResourceMode}): Promise<ResourceSettingsSnapshot>;
   resourceCatalog(): Promise<ResourceCatalog>;
   detail(capabilityId: string): Promise<CapabilityDetail>;
   brokerTrace(): Promise<BrokerResult['trace']>;
@@ -89,11 +91,15 @@ export interface ProjectBinding {id: string; name: string; path: string; domain?
 export interface DomainOption {id: string; label: string; emoji: string}
 export interface ResourceCatalog {skills: Array<{id: string; domain: string; title: string; enabledByDefault: boolean}>; mcpServers: Array<{id: string; domain: string; title: string; enabledByDefault: boolean}>}
 
+export type ResourceMode = 'inherit' | 'enabled' | 'disabled';
+export interface ResourceSettingsSnapshot {catalog: ResourceCatalog; global: {skills: string[]; mcpServers: string[]}; overrides: {skills: Record<string, boolean>; mcpServers: Record<string, boolean>}; effective: {skills: string[]; mcpServers: string[]}}
+
 export type AgentEvent =
   | {type: 'diagnostic-log'; traceId: string; path: string}
   | {type: 'text'; text: string}
   | {type: 'thinking'; text: string}
   | {type: 'approval'; id: string; description: string; action: string}
+  | {type: 'approval-resolved'; id: string; decision: 'approve' | 'approve_for_session' | 'reject' | 'expired'}
   | {type: 'tool'; id: string; name: string; arguments: string}
   | {type: 'tool-result'; id: string; error: boolean; message: string; output: string; outputBytes?: number; outputTruncated?: boolean}
   | {type: 'todo'; items: Array<{title: string; status: 'pending' | 'in_progress' | 'done'}>}

@@ -13,3 +13,13 @@ Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择�
 日志来自 `~/.industrial-agent-harness/logs/<project-hash>/`，沿用生产日志的凭据脱敏；仅有当前 Project 的日志可通过受限主进程 API 读取，API 不接受任意路径。查看不发起 Agent 运行或修改项目/模型配置。最多列出 50 次运行，每页 100 个事件，文件/记录查看上限分别为 64/16 MiB；原文件不被截断，超限明确报错。
 
 `pnpm --filter @industrial-agent-harness/desktop test:logs` 在隔离用户目录和正常项目绑定下检查历史、筛选、完整长返回、原始 JSON、项目边界、Esc、实时追加及结束刷新。测试使用确定性 SDK 会话注入，运行经过生产 `KimiSession` 与日志写入/读取/IPC/UI 链路，不发起模型网络请求。
+
+## MCP 与 Skill 配置
+
+左下角 **Settings → MCP & Skills → Configure** 管理全局默认值。点击左侧项目进入详情页，在 **MCP & Skills** 为该 Domain 的已有资源选择 **Inherit / Enabled / Disabled**；项目覆盖优先于全局默认值，并显示当前生效状态。全局修改同步刷新项目继承状态。当前有四个内置 Skill，尚无默认 Domain MCP provider，MCP 区域明确显示空状态，不支持添加自定义资源。
+
+配置保存到 `~/.industrial-agent-harness/resource-settings.json`（权限 0600、原子替换），与 CLI 共用；`INDUSTRIAL_HARNESS_CONFIG_DIR` 可指定隔离配置目录。项目按真实目录绑定，原项目禁用列表首次启动时迁移为显式禁用，之后恢复继承不会再次迁移。资源变更关闭旧 Kimi session、清空 Broker Scope，下一任务重新解析；正在执行或准备任务时拒绝更改。该配置只管理资源启用，不修改项目源码或用户 Kimi 配置。
+
+审批提交期间禁用按钮，提交成功或 SDK `ApprovalResponse` 到达后折叠为 Approved/Rejected 记录，移除行动按钮；失败保留请求供重试，任务结束的未决请求标为过期。后端拒绝重复、过期和非法审批。`test:logs` 同时覆盖配置继承、项目隔离、正在运行时禁止改配置、审批失败重试/批准/拒绝/过期及现有日志读取。
+
+左侧选中项目下缩进显示 **New chat** 和当前聊天，项目行打开项目详情。新聊天始终属于当前项目；当前实现仍只有一轮可见聊天状态，此次未新增历史会话恢复。

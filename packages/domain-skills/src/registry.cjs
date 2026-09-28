@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-// Repository-owned defaults. Project bindings store only disabled IDs.
+// Repository-owned defaults. Harness resource policy stores ID enablement only.
 const skills = Object.freeze([
   {id: 'chip.netlist.inspect', domain: 'chip', title: 'Inspect RTL netlist', directory: 'chip-netlist-inspect'},
   {id: 'chip.waveform.inspect', domain: 'chip', title: 'Inspect simulation waveform', directory: 'chip-waveform-inspect'},

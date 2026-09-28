@@ -27,8 +27,21 @@ function prepare(config,directory) {
 // Deterministic SDK seam; production KimiSession still writes the run and emits UI events.
 function createSession() {
   return {sessionId:'log-selftest-session',close:async()=>{},prompt(){
-    return {result:Promise.resolve({status:'completed'}),approve:async()=>{},cancel:async()=>{},async *[Symbol.asyncIterator](){
+    let resume, attempts=0;
+    const approval = () => new Promise(resolve => {resume=resolve;});
+    return {result:Promise.resolve({status:'completed'}),approve:async(id,response)=>{
+      await new Promise(resolve=>setTimeout(resolve,250));
+      if(id==='approve-live'&&++attempts===1)throw Error('Approval transport test failure');
+      resume(response);
+    },cancel:async()=>{},async *[Symbol.asyncIterator](){
       yield {type:'StatusUpdate',payload:{context_usage:.65,token_usage:{output:10}}};
+      let pending=approval();
+      yield {type:'ApprovalRequest',payload:{id:'approve-live',tool_call_id:'live-call',action:'run command',description:'Approval lifecycle test'}};
+      await pending;
+      pending=approval();
+      yield {type:'ApprovalRequest',payload:{id:'reject-live',tool_call_id:'reject-call',action:'write file',description:'Reject lifecycle test'}};
+      await pending;
+      yield {type:'ApprovalRequest',payload:{id:'expire-live',tool_call_id:'expire-call',action:'unused request',description:'Expires at turn completion'}};
       await new Promise(resolve=>setTimeout(resolve,3500));
       yield {type:'CompactionBegin',payload:{}};
       await new Promise(resolve=>setTimeout(resolve,1200));
@@ -51,6 +64,7 @@ async function run(window) {
   window.webContents.session.webRequest.onBeforeRequest((details,callback)=>{requests.push(details.url);callback({cancel:/^https?:/.test(details.url)});});
   try {
     await wait(`document.querySelector('.ia-chat-header b')?.innerText==='Agent log test'`);
+    await require('./resource-selftest.cjs').run(window,evidence);
     await evaluate(`document.querySelector('button[aria-label="View agent logs"]').click()`);
     await wait(`document.querySelector('.ia-log-run-info')?.innerText.includes('84%')`);
     assert.equal(await evaluate(`document.querySelectorAll('.ia-log-runs>button').length`),1,'history is project scoped');
@@ -84,6 +98,18 @@ async function run(window) {
     window.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'});window.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
     await wait(`!document.querySelector('.ia-agent-log')`);
     await evaluate(`(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'Inspect netlist signals');area.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('.ia-chat-actions button[aria-label="View agent logs"]').focus();document.querySelector('.ia-send').click();})()`);
+    await wait(`Boolean(document.querySelector('.ia-approval button'))`);
+    assert.equal(await evaluate(`document.querySelector('.ia-sidebar-chat').closest('.ia-project-chats').dataset.projectId`),'log-test','chat is nested under its project');
+    assert.equal(await evaluate(`window.viewerHost.resourceSet({kind:'skill',id:'chip.netlist.inspect',mode:'disabled'}).then(()=>false,()=>true)`),true,'running task blocks resource changes');
+    await evaluate(`(() => {const button=document.querySelector('.ia-approval button');button.click();button.click();})()`);
+    await wait(`document.querySelector('.ia-approval [role="alert"]')?.innerText.includes('transport test failure')`);
+    assert.equal(await evaluate(`document.querySelector('.ia-approval button').disabled`),false,'failed approval can be retried');
+    await evaluate(`document.querySelector('.ia-approval button').click()`);
+    await wait(`document.querySelector('.ia-approval-resolved summary')?.innerText.includes('Approved')`);
+    await wait(`Array.from(document.querySelectorAll('.ia-approval')).some(card=>card.innerText.includes('Reject lifecycle'))`);
+    await evaluate(`Array.from(document.querySelectorAll('.ia-approval')).find(card=>card.innerText.includes('Reject lifecycle')).querySelectorAll('button')[1].click()`);
+    await wait(`Array.from(document.querySelectorAll('.ia-approval-resolved summary')).some(row=>row.innerText.includes('Rejected'))`);
+    assert.equal(await evaluate(`Array.from(document.querySelectorAll('.ia-approval')).some(card=>card.innerText.includes('Approval lifecycle'))`),false,'resolved approval removes action buttons');
     await wait(`Boolean(document.querySelector('.ia-agent-flow .ia-log-link'))`);
     await evaluate(`document.querySelector('.ia-agent-flow .ia-log-link').click()`);
     await wait(`document.querySelector('.ia-log-runs>button.selected')?.innerText.includes('Running')`);
@@ -92,9 +118,11 @@ async function run(window) {
     await wait(`document.querySelector('.ia-log-records')?.innerText.includes('CompactionEnd')`);
     await selectType('tools');await choose('ToolResult');
     await wait(`document.querySelector('.ia-log-tool-content')?.innerText==='LIVE-FULL-RESULT'`);
+    await wait(`Array.from(document.querySelectorAll('.ia-approval-resolved summary')).some(row=>row.innerText.includes('Approval expired'))`);
+    assert.equal(await evaluate(`document.querySelectorAll('.ia-approval button').length`),0,'no stale approval actions after completion');
     fs.writeFileSync(path.join(evidence,'agent-log-live.png'),(await window.webContents.capturePage()).toPNG());
     assert.ok(!requests.some(url=>/^https?:/.test(url)));
-    console.log(JSON.stringify({ok:true,history:true,toolPayload:true,payloadParts:parts,compaction:true,liveUpdates:true,projectBoundary:true,externalRequests:0,evidence}));
+    console.log(JSON.stringify({ok:true,history:true,resourceSettings:true,projectChatHierarchy:true,approvalLifecycle:true,toolPayload:true,payloadParts:parts,compaction:true,liveUpdates:true,projectBoundary:true,externalRequests:0,evidence}));
   } catch(error){fs.writeFileSync(path.join(evidence,'agent-log-failure.png'),(await window.webContents.capturePage()).toPNG());console.error('Agent log UI evidence:',evidence);throw error;}
   finally {window.webContents.session.webRequest.onBeforeRequest(null);}
 }

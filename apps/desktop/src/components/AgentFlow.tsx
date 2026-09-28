@@ -1,14 +1,32 @@
 import type {AgentEvent} from '@industrial-agent-harness/viewer-builtin/api';
 import {ThinkingPreview} from './ThinkingPreview';
+import {useRef, useState} from 'react';
 
 type ToolResult = Extract<AgentEvent, {type: 'tool-result'}>;
 
-export function AgentFlow({events, running, debug, approve, onLog}: {events: AgentEvent[]; running: boolean; debug: boolean; approve: (id: string, decision: 'approve' | 'reject') => void; onLog?: (traceId?: string) => void}) {
+function ApprovalCard({event, decision, approve}: {event: Extract<AgentEvent, {type: 'approval'}>; decision?: string; approve: (id: string, decision: 'approve' | 'reject') => Promise<void>}) {
+  const submitting = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function respond(value: 'approve' | 'reject') {
+    if (submitting.current) return;
+    submitting.current = true; setBusy(true); setError('');
+    try {await approve(event.id, value);}
+    catch (reason) {setError(String(reason));}
+    finally {submitting.current = false; setBusy(false);}
+  }
+  if (decision) return <details className="ia-agent-tool ia-approval-resolved"><summary>{decision === 'reject' ? 'Rejected' : decision === 'expired' ? 'Approval expired' : 'Approved'} · {event.action}</summary><p>{event.description}</p></details>;
+  return <div className="ia-approval"><b>Approval requested · {event.action}</b><p>{event.description}</p><button disabled={busy} onClick={() => void respond('approve')}>{busy ? 'Submitting…' : 'Approve'}</button><button disabled={busy} onClick={() => void respond('reject')}>Reject</button>{error && <p role="alert" className="ia-flow-error">{error}</p>}</div>;
+}
+
+export function AgentFlow({events, running, debug, approve, onLog}: {events: AgentEvent[]; running: boolean; debug: boolean; approve: (id: string, decision: 'approve' | 'reject') => Promise<void>; onLog?: (traceId?: string) => void}) {
   const results = new Map<string, ToolResult>();
   const toolIds = new Set<string>();
+  const decisions = new Map<string, string>();
   for (const event of events) {
     if (event.type === 'tool') toolIds.add(event.id);
     if (event.type === 'tool-result') results.set(event.id, event);
+    if (event.type === 'approval-resolved') decisions.set(event.id, event.decision);
   }
   let lastActivity = -1;
   for (let index = events.length - 1; index >= 0; index--) {
@@ -19,7 +37,7 @@ export function AgentFlow({events, running, debug, approve, onLog}: {events: Age
     if (event.type === 'diagnostic-log') return <div className="ia-agent-minor" key={index}><button className="ia-log-link" onClick={() => onLog?.(event.traceId)}>View agent log · {event.traceId.slice(0,8)}</button>{debug && <span title={event.path}> · Full recorded events</span>}</div>;
     if (event.type === 'text') return <article className="ia-agent-text" key={index}><p>{event.text}</p></article>;
     if (event.type === 'thinking') return <ThinkingPreview key={index} text={event.text} active={running && index === lastActivity}/>;
-    if (event.type === 'approval') return <div className="ia-approval" key={index}><b>Approval requested · {event.action}</b><p>{event.description}</p><button onClick={() => approve(event.id, 'approve')}>Approve</button><button onClick={() => approve(event.id, 'reject')}>Reject</button></div>;
+    if (event.type === 'approval') return <ApprovalCard key={index} event={event} decision={decisions.get(event.id) || (!running ? 'expired' : undefined)} approve={approve}/>;
     if (event.type === 'tool') {
       const result = results.get(event.id);
       return <details className={`ia-agent-tool ${result?.error ? 'error' : ''}`} key={index}>
