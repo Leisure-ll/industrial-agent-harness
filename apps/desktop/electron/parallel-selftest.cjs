@@ -83,7 +83,25 @@ async function run(window) {
     fs.writeFileSync(path.join(evidence, 'parallel-sessions.png'), (await window.webContents.capturePage()).toPNG());
     turns.get('SESSION_BETA').finish(); turns.get('SESSION_ALPHA').finish();
     await wait(`window.viewerHost.chats().then(list=>!list.sessions.some(session=>session.running))`);
-    console.log(JSON.stringify({ok: true, sameProjectOverlap: true, crossProjectOverlap: true, backgroundApproval: true, approvalIdIsolation: true, stopIsolation: true, streamIsolation: true, globalModelGuard: true, evidence}));
+    // A persisted running turn without a local native actor is controlled by
+    // its original window. Restoring its history cannot resurrect approvals.
+    const {ChatStore} = require('@industrial-agent-harness/harness-core');
+    const store = new ChatStore(path.join(evidence, 'chats'));
+    const binding = await evaluate(`window.viewerHost.projectBindings().then(list=>list.projects.find(project=>project.id===list.activeId))`);
+    const external = store.create(binding.path, binding.domain);
+    const release = store.acquire(external.id);
+    try {
+      const externalTurn = store.beginTurn(external.id, 'OTHER_WINDOW_TASK');
+      store.append(externalTurn, {type: 'approval', id: 'external', action: 'external approval', description: 'OTHER_WINDOW_APPROVAL'});
+      await evaluate(`window.viewerHost.selectChat(${JSON.stringify(external.id)})`);
+      await window.webContents.reload();
+      await wait(`document.querySelector('.ia-chat-scroll')?.innerText.includes('OTHER_WINDOW_TASK')`);
+      assert.equal(await evaluate(`Boolean(document.querySelector('.ia-approval')||document.querySelector('button[title="Stop agent"]'))`), false, 'historical approvals and Stop belong to the original window');
+      assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').disabled`), true);
+      store.finish(externalTurn, 'cancelled'); release();
+      await wait(`!document.querySelector('.ia-composer textarea').disabled`);
+    } finally {release(); store.close();}
+    console.log(JSON.stringify({ok: true, sameProjectOverlap: true, crossProjectOverlap: true, backgroundApproval: true, approvalIdIsolation: true, stopIsolation: true, streamIsolation: true, globalModelGuard: true, restoredOwnerBoundary: true, evidence}));
   } catch (error) {fs.writeFileSync(path.join(evidence, 'parallel-failure.png'), (await window.webContents.capturePage()).toPNG()); throw error;}
 }
 module.exports = {prepare, createSession, run};

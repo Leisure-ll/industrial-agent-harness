@@ -52,6 +52,10 @@ function ensureChat() {
   chats.get(activeChatId, projectDir, activeProject()?.domain);
   return activeChatId;
 }
+function chatHistory(id, before = null) {
+  const history = chats.history(id, projectDir, activeProject().domain, before);
+  return {...history, executing: sessions.busy(sessions.get(activeProject(), id))};
+}
 function selectedSession() {
   const entry = sessions.get(activeProject(), ensureChat());
   if (!entry.scope && !sessions.busy(entry)) {
@@ -329,17 +333,17 @@ function registerHandlers() {
   ipcMain.handle('agent:new', event => {
     chatRequest(event);
     activeChatId = chats.create(projectDir, activeProject().domain).id;
-    notifySessions(); return chats.history(activeChatId, projectDir, activeProject().domain);
+    notifySessions(); return chatHistory(activeChatId);
   });
   function chatRequest(event) {
     if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) throw Error('Chats require the main app window.');
     if (!activeProject()?.domain) throw Error('Choose a project with a domain.');
   }
   ipcMain.handle('chat:list', event => {chatRequest(event); return chatList();});
-  ipcMain.handle('chat:history', (event, request) => {chatRequest(event); return chats.history(request.id, projectDir, activeProject().domain, request.before || null);});
+  ipcMain.handle('chat:history', (event, request) => {chatRequest(event); return chatHistory(request.id, request.before || null);});
   ipcMain.handle('chat:select', (event, id) => {
     chatRequest(event);
-    const history = chats.history(id, projectDir, activeProject().domain);
+    const history = chatHistory(id);
     activeChatId = id; return history;
   });
   ipcMain.handle('chat:delete', async (event, id) => {

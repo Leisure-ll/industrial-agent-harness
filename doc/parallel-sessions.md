@@ -6,6 +6,8 @@ The sidebar can create or open another chat while a task runs, including another
 
 Only a second submission to the same running chat is rejected. Approve/Reject and Stop target an explicit chat and reject stale selection; identical approval IDs in different native sessions remain independent. Deletion is blocked for the targeted running chat. Changing a Project Domain or resource override requires that project's chats to be idle; global model/resource changes require all affected chats to be idle. Existing Broker permission checks are repeated before execution, and callbacks never use a different selected project's scope or artifacts.
 
+If a restored running turn belongs to another window, its saved approvals and Stop are not actionable in this window. The UI identifies the owner boundary and refreshes until the turn finishes; a new chat can run alongside it. Loading saved events never creates a native actor or resumes an approval.
+
 The same Project directory is shared by its chats. Parallel execution does not create source-file isolation; each task keeps the existing tool approvals and execution permissions. This feature does not add industrial mutation or verification bypasses.
 
 Images use the existing capability-aware multimodal input. Submitted images are retained with their chat turn; errors and cancellation restore only the matching chat's draft. Switching chats clears the visible draft and displays the selected chat's saved inputs. Old diagnostic-only conversations whose native context was removed cannot be converted into resumable sessions by this feature.

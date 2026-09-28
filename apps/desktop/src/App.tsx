@@ -74,6 +74,7 @@ export function App() {
   const [agentStatus, setAgentStatus] = useState<{available: boolean; version: string; projectDir: string | null; configured: boolean}>();
   const [agentEvents, setAgentEvents] = useState<AgentEvent[]>([]);
   const [agentBusy, setAgentBusy] = useState(false);
+  const [agentOwned, setAgentOwned] = useState(false);
   const [chatList, setChatList] = useState<ChatSummary[]>([]);
   const [runningSessions, setRunningSessions] = useState<SessionStatus[]>([]);
   const [navigating, setNavigating] = useState(false);
@@ -101,7 +102,7 @@ export function App() {
     setTurns(history.turns); setHistoryBefore(history.before); setHasEarlier(history.hasMore);
     const last = history.turns.at(-1);
     setSubmittedTask(last?.task || ''); setBroker(last?.broker || undefined); setAgentEvents(last?.events || []);
-    setAgentBusy(last?.status === 'running'); setDetail(undefined);
+    setAgentBusy(last?.status === 'running'); setAgentOwned(Boolean(history.executing)); setDetail(undefined);
     attachments.clear();
     if (last && ['error', 'cancelled'].includes(last.status)) {const images = last.events.find(event => (event.type === 'user-images' || event.type === 'input-images')); if (images && (images.type === 'user-images' || images.type === 'input-images')) attachments.restore(images.images); setTask(last.task);}
   }
@@ -139,6 +140,11 @@ export function App() {
     catch (reason) {setError(String(reason));}
     finally {setHistoryLoading(false);}
   }
+  useEffect(() => {
+    if (!agentBusy || agentOwned) return;
+    const timer = window.setInterval(() => {void refreshChats(true).catch(reason => setError(String(reason)));}, 2000);
+    return () => window.clearInterval(timer);
+  }, [agentBusy, agentOwned, activeChatId]);
 
   useEffect(() => {localStorage.setItem('ia-theme', theme);}, [theme]);
   useEffect(() => {
@@ -175,6 +181,7 @@ export function App() {
       const prompt = sentTasks.current.get(chatId) || '';
       if (event.type === 'done' || event.type === 'error') {sentImages.current.delete(chatId); sentTasks.current.delete(chatId);}
       if (event.chatId && event.chatId !== chatIdRef.current) return;
+      setAgentOwned(true);
       setAgentEvents(current => appendDisplayEvent(current, event));
       setTurns(current => current.map((turn, index) => event.turnId ? turn.id === event.turnId ? {...turn, events: appendDisplayEvent(turn.events, event), status: event.type === 'done' ? event.result.status : event.type === 'error' ? 'error' : turn.status} : turn : index === current.length - 1 ? {...turn, events: appendDisplayEvent(turn.events, event)} : turn));
       if (event.type === 'tool-result') void window.viewerHost!.brokerTrace().then(trace => {if (chatId === chatIdRef.current) setBroker(current => current ? {...current, trace} : current);});
@@ -348,12 +355,13 @@ export function App() {
           {turns.map((turn, index) => <div className="ia-chat-turn" key={turn.id} data-turn-id={turn.id}>
             <div className="ia-user-message">{turn.task}{turn.events.map(event => (event.type === 'user-images' || event.type === 'input-images') ? <ImageThumbnails key="input-images" images={event.images}/> : null)}</div>
             {turn.broker && <BrokerCall broker={turn.broker} detail={index === turns.length - 1 ? detail : undefined} debug={debug} selectedDomain={selectedDomain} readOnly={index !== turns.length - 1 || agentBusy} onContext={context => void resolveTask(context, turn.task)} onDetail={id => void showDetail(id)}/>}
-            {turn.events.length > 0 && <AgentFlow onLog={showAgentLog} events={turn.events} running={agentBusy && index === turns.length - 1} debug={debug} approve={(id, decision) => window.viewerHost!.approveAgent(id, decision, chatIdRef.current || undefined)}/>}
+            {turn.events.length > 0 && <AgentFlow onLog={showAgentLog} events={turn.events} running={agentOwned && agentBusy && index === turns.length - 1} debug={debug} approve={(id, decision) => window.viewerHost!.approveAgent(id, decision, chatIdRef.current || undefined)}/>}
           </div>)}
           {brokerError && <div className="ia-flow-error">{brokerError}</div>}
         </div>
         {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy}/>}
-        <div className="ia-composer-wrap"><div className="ia-composer" onDragOver={event => {if (event.dataTransfer.types.includes('Files')) event.preventDefault();}} onDrop={event => {if (!event.dataTransfer.files.length) return; event.preventDefault(); if (!agentBusy) void attachments.addFiles(Array.from(event.dataTransfer.files));}} onPaste={event => {const files = Array.from(event.clipboardData.items).filter(item => item.kind === 'file').map(item => item.getAsFile()).filter((file): file is File => Boolean(file)); if (files.length) {event.preventDefault(); if (!agentBusy) void attachments.addFiles(files);}}}><ImageThumbnails images={attachments.images} onRemove={attachments.remove} disabled={agentBusy || attachments.loading}/>{attachments.error && <p role="alert" className="ia-flow-error">{attachments.error}</p>}{attachments.loading && <p role="status">Preparing images…</p>}{attachments.images.length > 0 && !modelImageInput && <p className="ia-image-model-hint">This model is configured for text only. <button onClick={() => setModelSettingsOpen(true)}>Configure image input</button></p>}<textarea aria-label="Engineering task" placeholder="Ask about your project…" value={task} disabled={agentBusy || navigating} onChange={event => setTask(event.target.value)} onKeyDown={event => {if (event.key === 'Enter' && !event.shiftKey) {event.preventDefault(); void resolveTask();}}}/><div className="ia-composer-footer"><DomainPill domain={fixedDomain} domains={domains} label="Session domain"/><div className="ia-send-actions"><ImageAttachButton attachments={attachments} disabled={agentBusy || attachments.loading || !activeProjectId}/>{agentBusy && <button onClick={() => void window.viewerHost!.interruptAgent(chatIdRef.current || undefined)} title="Stop agent"><Square size={14}/></button>}{Boolean(broker && agentStatus?.available && agentStatus.configured && agentStatus.projectDir) && <button onClick={() => void runAgent()} disabled={navigating || agentBusy || submitting.current || turns.at(-1)?.status !== 'scoped'} title="Run with Kimi"><Play size={14}/></button>}<button className="ia-send" onClick={() => void resolveTask()} disabled={navigating || agentBusy || attachments.loading || (!task.trim() && !attachments.images.length) || (attachments.images.length > 0 && !modelImageInput)} title="Send task"><ChevronRight size={17}/></button></div></div></div><div className="ia-composer-hint">{!agentStatus?.available ? 'Kimi CLI unavailable · run pnpm setup:kimi' : !agentStatus.configured ? 'Configure the Model API in Settings to run Kimi' : !agentStatus.projectDir ? 'Choose a project to run Kimi' : 'Kimi ready'}</div></div>
+        {agentBusy && !agentOwned && <p role="status" className="ia-composer-hint">This chat is running in another window. Open a new chat to work in parallel.</p>}
+        <div className="ia-composer-wrap"><div className="ia-composer" onDragOver={event => {if (event.dataTransfer.types.includes('Files')) event.preventDefault();}} onDrop={event => {if (!event.dataTransfer.files.length) return; event.preventDefault(); if (!agentBusy) void attachments.addFiles(Array.from(event.dataTransfer.files));}} onPaste={event => {const files = Array.from(event.clipboardData.items).filter(item => item.kind === 'file').map(item => item.getAsFile()).filter((file): file is File => Boolean(file)); if (files.length) {event.preventDefault(); if (!agentBusy) void attachments.addFiles(files);}}}><ImageThumbnails images={attachments.images} onRemove={attachments.remove} disabled={agentBusy || attachments.loading}/>{attachments.error && <p role="alert" className="ia-flow-error">{attachments.error}</p>}{attachments.loading && <p role="status">Preparing images…</p>}{attachments.images.length > 0 && !modelImageInput && <p className="ia-image-model-hint">This model is configured for text only. <button onClick={() => setModelSettingsOpen(true)}>Configure image input</button></p>}<textarea aria-label="Engineering task" placeholder="Ask about your project…" value={task} disabled={agentBusy || navigating} onChange={event => setTask(event.target.value)} onKeyDown={event => {if (event.key === 'Enter' && !event.shiftKey) {event.preventDefault(); void resolveTask();}}}/><div className="ia-composer-footer"><DomainPill domain={fixedDomain} domains={domains} label="Session domain"/><div className="ia-send-actions"><ImageAttachButton attachments={attachments} disabled={agentBusy || attachments.loading || !activeProjectId}/>{agentOwned && agentBusy && <button onClick={() => void window.viewerHost!.interruptAgent(chatIdRef.current || undefined)} title="Stop agent"><Square size={14}/></button>}{Boolean(broker && agentStatus?.available && agentStatus.configured && agentStatus.projectDir) && <button onClick={() => void runAgent()} disabled={navigating || agentBusy || submitting.current || turns.at(-1)?.status !== 'scoped'} title="Run with Kimi"><Play size={14}/></button>}<button className="ia-send" onClick={() => void resolveTask()} disabled={navigating || agentBusy || attachments.loading || (!task.trim() && !attachments.images.length) || (attachments.images.length > 0 && !modelImageInput)} title="Send task"><ChevronRight size={17}/></button></div></div></div><div className="ia-composer-hint">{!agentStatus?.available ? 'Kimi CLI unavailable · run pnpm setup:kimi' : !agentStatus.configured ? 'Configure the Model API in Settings to run Kimi' : !agentStatus.projectDir ? 'Choose a project to run Kimi' : 'Kimi ready'}</div></div>
         </>}
       </main>
       {rightOpen && <section ref={workspace} className="ia-viewer ia-workspace">
