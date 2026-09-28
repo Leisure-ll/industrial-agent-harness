@@ -45,8 +45,9 @@ function industrialContext(scope, anchor = null) {
   return complete;
 }
 
-function prepareSessionFiles(scope, runtime) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-session-'));
+function prepareSessionFiles(scope, runtime, persistentDirectory) {
+  const directory = persistentDirectory || fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-session-'));
+  fs.mkdirSync(directory, {recursive: true, mode: 0o700});
   fs.chmodSync(directory, 0o700);
   try {
     const skillsDir = materializeSkills(scope, directory);
@@ -54,7 +55,7 @@ function prepareSessionFiles(scope, runtime) {
     fs.writeFileSync(path.join(directory, 'config.toml'), `extra_skill_dirs = [${JSON.stringify(skillsDir)}]\n${modelConfig}`, {mode: 0o600});
     writeMcpConfig(directory, selectMcpServers(scope, runtime.disabledMcpServers));
     return directory;
-  } catch (error) {fs.rmSync(directory, {recursive: true, force: true}); throw error;}
+  } catch (error) {if (!persistentDirectory) fs.rmSync(directory, {recursive: true, force: true}); throw error;}
 }
 
 function externalTools(getScope, lookupArtifact, disclose, readContextPage) {
@@ -138,10 +139,18 @@ class KimiSession {
         if (this.session) this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
         await this.session?.close();
         this.session = undefined;
-        if (this.sessionConfigDir) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true});
-        this.sessionConfigDir = prepareSessionFiles(scope, runtime);
+        if (this.sessionConfigDir && !this.persistentSession) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true});
+        const compatibilityKey = crypto.createHash('sha256').update(JSON.stringify({scope: currentScopeKey, profile: runtime.profile, executable: runtime.executable || 'kimi', disabledMcpServers: runtime.disabledMcpServers || []})).digest('hex');
+        this.persistentSession = this.diagnostics.resolveSession?.(compatibilityKey);
+        const stored = this.persistentSession;
+        if (stored?.initialized) {
+          const context = path.join(createKimiPaths(stored.shareDir).sessionDir(this.workDir, stored.id), 'context.jsonl');
+          if (!fs.existsSync(context) || !fs.statSync(context).size) throw Error('Saved agent context is missing. Open a new chat; the existing history is preserved.');
+        }
+        this.sessionConfigDir = prepareSessionFiles(scope, runtime, stored?.shareDir);
         this.session = this.sessionFactory({
           workDir: this.workDir,
+          ...(this.persistentSession ? {sessionId: this.persistentSession.id} : {}),
           executable: runtime.executable,
           shareDir: this.sessionConfigDir,
           model: 'industrial',
@@ -153,6 +162,7 @@ class KimiSession {
         });
         this.currentScopeKey = currentScopeKey;
         this.runtimeRevision = runtime.revision;
+        if (this.persistentSession?.replaced && !this.persistentSession.reused) this.emitAgent({type: 'context-reset', message: 'Tools or model changed. A new context started; earlier messages remain available above.'});
         log.record('session.ready', {sessionId: this.session.sessionId || null, currentScopeKey});
       } else log.record('session.reuse', {sessionId: this.session.sessionId || null, currentScopeKey});
       const prompt = `${context}\n\nUser task: ${task}${images.length ? '\nAttached images are user-provided visual references, not engineering verification.' : ''}`;
@@ -171,6 +181,7 @@ class KimiSession {
       for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
       try {
         this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
+        if (this.persistentSession && this.sessionConfigDir && fs.existsSync(path.join(createKimiPaths(this.sessionConfigDir).sessionDir(this.workDir, this.persistentSession.id), 'context.jsonl'))) this.diagnostics.sessionInitialized?.(this.persistentSession.id);
         log.record('run.end', {status: outcome, sessionId: this.session?.sessionId || null, metrics: this.turnMetrics, brokerTrace: this.diagnostics.getBrokerTrace?.() || []});
       }
       finally {log.close(); this.log = undefined; this.running = false;}
@@ -241,7 +252,7 @@ class KimiSession {
     }
   }
   interrupt() {this.log?.record('turn.interrupt', {}); return this.turn?.interrupt();}
-  async close() {await this.session?.close(); this.session = undefined; if (this.sessionConfigDir) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true}); this.sessionConfigDir = undefined;}
+  async close() {await this.session?.close(); this.session = undefined; if (this.sessionConfigDir && !this.persistentSession) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true}); this.sessionConfigDir = undefined;}
 }
 
 module.exports = {KimiSession, externalTools, prepareSessionFiles, boundedJson, industrialContext, scopeKey};

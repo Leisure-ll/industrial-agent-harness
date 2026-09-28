@@ -28,7 +28,7 @@ function materializeSkills(scope, directory) {
     const item = skills.find(skill => skill.id === id);
     if (!item) continue;
     const target = path.join(root, item.directory);
-    fs.mkdirSync(target, {mode: 0o700});
+    fs.mkdirSync(target, {recursive: true, mode: 0o700});
     fs.copyFileSync(skillFile(id), path.join(target, 'SKILL.md'));
   }
   return root;

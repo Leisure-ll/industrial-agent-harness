@@ -73,9 +73,9 @@ test('headless CLI runs a task and emits agent and approval events', async t => 
     approve(id, decision) {approvals.push({id, decision});}
     async close() {}
   }
-  const options = parseArgs(['run', '--project-dir', projectDir, '--domain', 'chip', '--task', 'Inspect netlist signals', '--state-dir', path.join(projectDir, 'state')]);
+  const options = parseArgs(['run', '--project-dir', projectDir, '--domain', 'chip', '--task', 'Inspect netlist signals', '--state-dir', path.join(projectDir, 'state'), '--chat-dir', path.join(projectDir, 'chats')]);
   assert.equal(await run(options, output, {KIMI_API_KEY: 'test-key'}, FakeSession), 0);
-  assert.deepEqual(rows.map(item => item.type), ['scope', 'agent_event', 'agent_event', 'approval_decision', 'agent_event', 'result']);
+  assert.deepEqual(rows.map(item => item.type), ['scope', 'chat', 'agent_event', 'agent_event', 'approval_decision', 'agent_event', 'result']);
   assert.deepEqual(approvals, [{id: 'a1', decision: 'reject'}]);
   assert.equal(rows.at(-1).status, 'completed');
 });
@@ -98,4 +98,22 @@ test('CLI uses the same persisted global and per-project policy as Desktop', asy
   assert.deepEqual((await scope()).skills, ['chip.netlist.inspect']);
   store.set(catalog, {kind: 'skill', id: 'chip.netlist.inspect', mode: 'inherit'}, projectDir);
   assert.deepEqual((await scope()).skills, []);
+});
+
+
+test('CLI lists shared project chats without a model key and validates resume ownership', async t => {
+  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-cli-chat-list-'));
+  t.after(() => fs.rmSync(projectDir, {recursive: true, force: true}));
+  const {ChatStore} = require('@industrial-agent-harness/harness-core');
+  const chatDir = path.join(projectDir, 'chats');
+  const store = new ChatStore(chatDir);
+  const chat = store.create(projectDir, 'chip');
+  store.finish(store.beginTurn(chat.id, 'Persisted task'), 'finished'); store.close();
+  const rows = [];
+  const output = new Writable({write(chunk, _encoding, callback) {rows.push(...String(chunk).trim().split('\n').map(JSON.parse)); callback();}});
+  const options = parseArgs(['chats', '--project-dir', projectDir, '--domain', 'chip', '--chat-dir', chatDir]);
+  assert.equal(await run(options, output, {}), 0);
+  assert.equal(rows[0].chats[0].id, chat.id);
+  assert.equal(rows[0].chats[0].title, 'Persisted task');
+  await assert.rejects(run({projectDir, domain: 'pcb', task: 'Continue', chatId: chat.id, chatDir}, output, {}), /unavailable/);
 });

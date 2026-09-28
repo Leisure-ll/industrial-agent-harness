@@ -6,6 +6,7 @@ const {saveBindings} = require('./project-bindings.cjs');
 const {saveProfile} = require('./model-config.cjs');
 let evidence;
 const prompts = [];
+const crypto = require('node:crypto');
 function prepare(config, models) {
   evidence = path.dirname(config);
   const projects = ['images', 'other'].map(id => {const folder = path.join(config, id); fs.mkdirSync(folder, {recursive: true}); return {id, name: id === 'images' ? 'Image input test' : 'Other project', path: folder, domain: 'chip'};});
@@ -14,7 +15,10 @@ function prepare(config, models) {
 }
 function createSession(options) {
   assert.match(fs.readFileSync(path.join(options.shareDir, 'config.toml'), 'utf8'), /"image_in"/);
-  return {sessionId: 'image-selftest', close: async () => {}, prompt(content) {
+  const directory = path.join(options.shareDir, 'sessions', crypto.createHash('md5').update(options.workDir).digest('hex'), options.sessionId);
+  fs.mkdirSync(directory, {recursive: true});
+  fs.appendFileSync(path.join(directory, 'context.jsonl'), '{}\n');
+  return {sessionId: options.sessionId, close: async () => {}, prompt(content) {
     prompts.push(content);
     return {result: Promise.resolve({status: 'completed'}), cancel: async () => {}, async *[Symbol.asyncIterator]() {
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -68,12 +72,14 @@ async function run(window) {
     assert.equal(prompts.length, 1);
     assert.match(prompts[0][0].text, /Describe the attached images/);
     await evaluate(`document.querySelector('.ia-send').click()`);
-    await wait(`document.querySelector('.ia-agent-flow')?.innerText.includes('Image input received')&&!document.querySelector('.ia-send').disabled`);
+    await wait(`Array.from(document.querySelectorAll('.ia-agent-flow')).some(flow=>flow.innerText.includes('Image input received'))&&!document.querySelector('.ia-composer textarea').disabled`);
     assert.equal(prompts.length, 2);
     assert.deepEqual(prompts[1], prompts[0], 'provider failure keeps the exact image request for retry');
     assert.deepEqual(prompts[1].slice(1).map(part => part.image_url.url), fixtures.map(fixture => `data:${fixture.mime};base64,${fixture.base64}`));
     assert.equal(await evaluate(`document.querySelectorAll('.ia-composer .ia-image-attachments img').length`), 0);
-    assert.equal(await evaluate(`document.querySelectorAll('.ia-user-message .ia-image-attachments img').length`), 3);
+    assert.equal(await evaluate(`document.querySelectorAll('.ia-chat-turn:last-of-type .ia-user-message .ia-image-attachments img').length`), 3);
+    await window.webContents.reload();
+    await wait(`document.querySelectorAll('.ia-user-message .ia-image-attachments img').length===6`);
     fs.writeFileSync(path.join(evidence, 'image-input-sent.png'), (await window.webContents.capturePage()).toPNG());
     const bad = {id: 'bad', name: 'invalid.png', dataUrl: 'data:image/png;base64,' + Buffer.from('not a PNG').toString('base64')};
     assert.equal(await evaluate(`window.viewerHost.validateImages({projectId:'images',images:[${JSON.stringify(bad)}]}).then(()=>false,()=>true)`), true);
