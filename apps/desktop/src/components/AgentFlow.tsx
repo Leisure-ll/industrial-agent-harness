@@ -23,8 +23,13 @@ export function AgentFlow({events, running, debug, approve, onLog}: {events: Age
   const results = new Map<string, ToolResult>();
   const toolIds = new Set<string>();
   const decisions = new Map<string, string>();
-  for (const event of events) {
-    if (event.type === 'tool') toolIds.add(event.id);
+  // A tool call can emit more than one 'tool' event under the same id: the
+  // initial frame has empty arguments, then a later frame arrives once the
+  // streamed ToolCallPart arguments are assembled. Render only the last one
+  // per id so the Input shows the complete arguments without duplication.
+  const lastToolIndex = new Map<string, number>();
+  for (const [index, event] of events.entries()) {
+    if (event.type === 'tool') {toolIds.add(event.id); lastToolIndex.set(event.id, index);}
     if (event.type === 'tool-result') results.set(event.id, event);
     if (event.type === 'approval-resolved') decisions.set(event.id, event.decision);
   }
@@ -40,10 +45,11 @@ export function AgentFlow({events, running, debug, approve, onLog}: {events: Age
     if (event.type === 'thinking') return <ThinkingPreview key={index} text={event.text} active={running && index === lastActivity}/>;
     if (event.type === 'approval') return <ApprovalCard key={index} event={event} decision={decisions.get(event.id) || (!running ? 'expired' : undefined)} approve={approve}/>;
     if (event.type === 'tool') {
+      if (lastToolIndex.get(event.id) !== index) return null;
       const result = results.get(event.id);
       return <details className={`ia-agent-tool ${result?.error ? 'error' : ''}`} key={index}>
         <summary>{result?.error ? 'Tool failed' : result ? 'Tool finished' : 'Using tool'} · {event.name}</summary>
-        <div className="ia-tool-detail"><small>Input</small><pre>{event.arguments || 'No arguments.'}</pre>{result && <><small>Result</small><pre>{result.output || result.message}</pre>{result.outputTruncated && <small>Display shortened; full result was {result.outputBytes?.toLocaleString()} bytes. {onLog && <button className="ia-log-link" onClick={() => onLog()}>View full result in agent logs</button>}</small>}</>}</div>
+        <div className="ia-tool-detail"><small>Input</small><pre>{event.arguments || 'No arguments.'}</pre>{result && <><small>Result</small><pre>{result.output || result.message}{result.imageCount ? `\n[${result.imageCount} image${result.imageCount > 1 ? 's' : ''} sent to the model]` : ''}</pre>{result.outputTruncated && <small>Display shortened; full result was {result.outputBytes?.toLocaleString()} bytes. {onLog && <button className="ia-log-link" onClick={() => onLog()}>View full result in agent logs</button>}</small>}</>}</div>
       </details>;
     }
     if (event.type === 'tool-result') return toolIds.has(event.id) ? null : <details className={`ia-agent-tool ${event.error ? 'error' : ''}`} key={index}><summary>{event.error ? 'Tool failed' : 'Tool finished'} · {event.message}</summary><div className="ia-tool-detail"><pre>{event.output || event.message}</pre>{event.outputTruncated && <small>Display shortened; full result was {event.outputBytes?.toLocaleString()} bytes. {onLog && <button className="ia-log-link" onClick={() => onLog()}>View full result in agent logs</button>}</small>}</div></details>;

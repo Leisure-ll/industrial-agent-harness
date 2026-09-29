@@ -77,7 +77,10 @@ export interface ViewerHostApi {
   diagnosticView(request: {projectId: string; runId: string; view: DiagnosticView; offset?: number; query?: string}): Promise<DiagnosticViewPage>;
   diagnosticDetail(request: {projectId: string; runId: string; id: string; field: string; offset?: number}): Promise<DiagnosticContent>;
   diagnosticRecord(request: {projectId: string; runId: string; sequence: number; offset?: number}): Promise<DiagnosticContent>;
-  agentStatus(): Promise<{available: boolean; version: string; projectDir: string | null; configured: boolean}>;
+  agentStatus(): Promise<{available: boolean; version: string; projectDir: string | null; configured: boolean; gui?: GuiPluginState}>;
+  guiState(): Promise<GuiPluginState>;
+  setGuiPlugin(enabled: boolean): Promise<GuiPluginState>;
+  onGuiProgress(callback: (event: {phase: string; tag?: string; cached?: boolean; error?: string}) => void): () => void;
   modelGet(): Promise<ModelProfileStatus>;
   modelSave(request: ModelProfile & {apiKey?: string; clearApiKey?: boolean}): Promise<ModelProfileStatus>;
   chooseProjectDirectory(): Promise<string | null>;
@@ -103,6 +106,7 @@ export interface ViewerHostApi {
 }
 
 export interface ProjectBinding {id: string; name: string; path: string; domain?: string | null; disabledSkills?: string[]; disabledMcpServers?: string[]}
+export interface GuiPluginState {enabled: boolean; install: 'missing' | 'ready' | string; version: string | null}
 export interface DomainOption {id: string; label: string; emoji: string}
 export interface ResourceCatalog {skills: Array<{id: string; domain: string; title: string; enabledByDefault: boolean}>; mcpServers: Array<{id: string; domain: string; title: string; enabledByDefault: boolean}>}
 
@@ -120,7 +124,7 @@ export type AgentEvent = ({chatId?: string; projectId?: string; turnId?: string}
   | {type: 'approval'; id: string; description: string; action: string}
   | {type: 'approval-resolved'; id: string; decision: 'approve' | 'approve_for_session' | 'reject' | 'expired'}
   | {type: 'tool'; id: string; name: string; arguments: string}
-  | {type: 'tool-result'; id: string; error: boolean; message: string; output: string; outputBytes?: number; outputTruncated?: boolean}
+  | {type: 'tool-result'; id: string; error: boolean; message: string; output: string; outputBytes?: number; outputTruncated?: boolean; imageCount?: number}
   | {type: 'todo'; items: Array<{title: string; status: 'pending' | 'in_progress' | 'done'}>}
   | {type: 'status'; contextUsage: number | null; tokenUsage: {input_other: number; output: number; input_cache_read: number; input_cache_creation: number} | null}
   | {type: 'compaction'; state: 'begin' | 'end'}

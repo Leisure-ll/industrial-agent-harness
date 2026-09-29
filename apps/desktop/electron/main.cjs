@@ -22,6 +22,8 @@ const {defaultLogDirectory} = require('../../../packages/agent-kimi/src/diagnost
 const {SessionManager} = require('./session-manager.cjs');
 const {KimiSession} = require('../../../packages/agent-kimi/src/index.cjs');
 const {ObservedContextStore} = require('@industrial-agent-harness/domain-runtime');
+const {createGuiPlugin, ensureInstalled, status: guiBridgeStatus} = require('@industrial-agent-harness/computer-use-bridge');
+const {readSettings, saveSettings} = require('./harness-settings.cjs');
 const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = require('./model-config.cjs');
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
@@ -45,6 +47,8 @@ let projectBindings = {projects: [], activeId: null};
 let mainWindow;
 let sessionApiKey = '';
 let modelRevision = 0;
+let appSettings = {guiPluginEnabled: false};
+let guiBridge;
 const chats = new ChatStore(process.argv.some(flag => flag.endsWith('-selftest')) ? path.join(app.getPath('userData'), 'chats') : defaultChatDirectory());
 let activeChatId;
 function chatList() {return {chats: activeProject()?.domain ? chats.list(projectDir, activeProject().domain).map(chat => ({...chat, running: sessions.busy(sessions.get(activeProject(), chat.id)), awaitingApproval: Boolean(sessions.get(activeProject(), chat.id).agent?.pendingApprovals.size)})) : [], activeId: activeChatId || null, sessions: sessions.snapshots()};}
@@ -82,6 +86,7 @@ function projectResourcePolicy(project = activeProject()) {return resourceSettin
 
 function configDir() {return path.join(app.getPath('userData'), 'model');}
 function projectConfigDir() {return path.join(app.getPath('userData'), 'workspace');}
+function guiBridgeDir() {return path.join(app.getPath('userData'), 'gui-bridge');}
 function activeProject() {return projectBindings.projects.find(item => item.id === projectBindings.activeId) || null;}
 function projectSnapshot() {return {...projectBindings, projectDir: projectDir || null};}
 function clearProjectArtifacts() {
@@ -111,6 +116,32 @@ function kimiExecutable() {
   return fs.existsSync(local) ? local : 'kimi';
 }
 function modelStatus() {return {...readProfile(configDir()), hasApiKey: Boolean(readApiKey()), keyPersisted: canPersistKey() && fs.existsSync(keyFile())};}
+function guiPlugin() {
+  if (!guiBridge) {
+    // Tool-call records are attributed per chat through the diagnostics
+    // pluginLog sink each KimiSession passes into toolsFactory.
+    guiBridge = createGuiPlugin({
+      enabled: () => appSettings.guiPluginEnabled,
+      installedDir: guiBridgeDir(),
+    });
+  }
+  return guiBridge;
+}
+function guiBridgeState() {
+  // A user-supplied GUI_BRIDGE_BIN never lands in the managed directory, so
+  // disk state alone would report 'missing' forever; it is ready by definition.
+  if (process.env.GUI_BRIDGE_BIN) return {enabled: appSettings.guiPluginEnabled, install: 'ready', version: null};
+  const installed = guiBridgeStatus(guiBridgeDir());
+  return {enabled: appSettings.guiPluginEnabled, install: installed.state, version: installed.version?.tag || null};
+}
+function guiInstallProgress(phase, detail) {
+  mainWindow?.webContents.send('settings:gui-progress', {phase, ...(detail && typeof detail === 'object' ? {detail: Object.keys(detail)} : {})});
+}
+function startGuiInstall() {
+  return ensureInstalled(guiBridgeDir(), process.env, guiInstallProgress)
+    .then(result => mainWindow?.webContents.send('settings:gui-progress', {phase: 'ready', tag: result.tag, cached: Boolean(result.cached)}))
+    .catch(error => mainWindow?.webContents.send('settings:gui-progress', {phase: 'error', error: String(error)}));
+}
 function runtimeConfig(project = activeProject(), externalServers = externalRegistry.records()) {
   const profile = readProfile(configDir());
   const apiKey = readApiKey();
@@ -233,6 +264,16 @@ function registerHandlers() {
   ipcMain.handle('broker:detail', (_event, capabilityId) => loadDetail(capabilityId));
   ipcMain.handle('broker:trace', () => selectedSession().trace);
   ipcMain.handle('model:get', () => modelStatus());
+  ipcMain.handle('settings:gui-state', () => guiBridgeState());
+  ipcMain.handle('settings:set-gui', (_event, {enabled}) => {
+    appSettings = {...appSettings, guiPluginEnabled: Boolean(enabled)};
+    saveSettings(configDir(), appSettings);
+    // Enabling is the authorization. No live session is torn down here:
+    // KimiSession detects the changed plugin set (plugins_changed) and rebuilds
+    // itself on the next run of each chat.
+    if (appSettings.guiPluginEnabled) void startGuiInstall();
+    return guiBridgeState();
+  });
   ipcMain.handle('model:save', async (_event, request) => {
     if (changingResources) throw Error('Settings are being saved.');
     sessions.assertIdle();
@@ -262,7 +303,7 @@ function registerHandlers() {
     const result = spawnSync(executable, ['--version'], {encoding: 'utf8', timeout: 3000});
     const help = result.status === 0 ? spawnSync(executable, ['--help'], {encoding: 'utf8', timeout: 3000}) : null;
     const available = !result.error && result.status === 0 && help?.status === 0 && help.stdout.includes('--wire');
-    return {available, version: available ? result.stdout.split('\n')[0].trim() : '', projectDir: projectDir || null, configured: Boolean(readApiKey())};
+    return {available, version: available ? result.stdout.split('\n')[0].trim() : '', projectDir: projectDir || null, configured: Boolean(readApiKey()), gui: guiBridgeState()};
   });
   ipcMain.handle('project:bindings', () => projectSnapshot());
   ipcMain.handle('project:set-domain', async (_event, request) => {
@@ -454,7 +495,7 @@ function registerHandlers() {
       };
       entry.agent ||= new KimiSession(entry.project.path, () => entry.scope, id => sessionContext(entry).readArtifact(id), id => loadDetail(id, entry), emit, () => runtimeConfig(entry.project, entry.externalServers),
         process.argv.includes('--parallel-selftest') ? require('./parallel-selftest.cjs').createSession : process.argv.includes('--image-input-selftest') ? require('./image-input-selftest.cjs').createSession : process.argv.includes('--agent-log-selftest') ? require('./agent-log-selftest.cjs').createSession : process.argv.includes('--chat-selftest') ? require('./chat-selftest.cjs').createSession : undefined,
-        {directory: diagnosticDirectory(), getBrokerTrace: () => entry.trace, getContextAnchor: () => sessionContext(entry).anchor(), readContextPage: (checkpointId, offset, limit) => sessionContext(entry).readPage(checkpointId, offset, limit), resolveSession: key => chats.runtimeSession(entry.id, key), sessionInitialized: id => chats.initialized(id)});
+        {directory: diagnosticDirectory(), getBrokerTrace: () => entry.trace, pluginLog: (canonicalId, risk, args, info) => {entry.trace.push({level: 'L2', event: 'plugin.tool-call', detail: {plugin: 'computer-use', tool: canonicalId, risk, args, ...info}}); if (entry.trace.length > 500) entry.trace.splice(0, entry.trace.length - 500);}, getContextAnchor: () => sessionContext(entry).anchor(), readContextPage: (checkpointId, offset, limit) => sessionContext(entry).readPage(checkpointId, offset, limit), resolveSession: key => chats.runtimeSession(entry.id, key), sessionInitialized: id => chats.initialized(id)}, [guiPlugin()]);
       entry.agent.emit = emit;
       if (images.length) emit({type: 'user-images', images});
       void entry.agent.run(task, images).catch(error => emit({type: 'error', message: String(error)})).finally(() => {
@@ -474,8 +515,7 @@ function registerHandlers() {
   ipcMain.handle('agent:interrupt', (event, request) => {
     chatRequest(event);
     if (request?.chatId && request.chatId !== activeChatId) throw Error('Open the chat to stop it.');
-    return selectedSession().agent?.interrupt();
-  });
+    return selectedSession().agent?.interrupt();  });
   ipcMain.handle('viewer:open', async (_event, {artifactId}) => {
     const {artifact, file} = await checked(artifactId);
     const plugin = viewerRegistry.get(artifact.kind);
@@ -496,6 +536,11 @@ function registerHandlers() {
 async function createWindow() {
   if (process.argv.includes('--mcp-selftest')) await require('./mcp-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--external-mcp-selftest')) await require('./external-mcp-selftest.cjs').prepare(projectConfigDir(), configDir(), path.dirname(resourceSettings.file));
+  appSettings = readSettings(configDir());
+  // A previously enabled plugin whose install never completed (offline first
+  // run, failed upgrade) must not stay durably enabled with no binary: retry
+  // on every startup until it lands. Progress reaches the Settings panel.
+  if (appSettings.guiPluginEnabled && !process.env.GUI_BRIDGE_BIN && guiBridgeStatus(guiBridgeDir()).state !== 'ready') void startGuiInstall();
   if (process.argv.includes('--documents-selftest')) require('./documents-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--parallel-selftest')) require('./parallel-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--image-input-selftest')) require('./image-input-selftest.cjs').prepare(projectConfigDir(), configDir());
@@ -687,4 +732,4 @@ async function createWindow() {
 
 app.whenReady().then(createWindow).catch(error => {console.error(error); app.exit(1);});
 app.on('window-all-closed', () => {if (process.platform !== 'darwin') app.quit();});
-app.on('before-quit', () => {raster?.close(); viewerProtocol?.close(); godotRuntime.close(); kicadRuntime.close(); void sessions.close();});
+app.on('before-quit', () => {raster?.close(); viewerProtocol?.close(); godotRuntime.close(); kicadRuntime.close(); void sessions.close(); void guiBridge?.close();});
