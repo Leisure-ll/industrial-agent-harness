@@ -1,10 +1,12 @@
 import {useEffect, useRef, useState} from 'react';
 import type {ResourceMode, ResourceSettingsSnapshot} from '@industrial-agent-harness/viewer-builtin/api';
+import {ExternalMcpSettings} from './ExternalMcpSettings';
 
 export function ResourceSettings({projectId, busy, onChanged}: {projectId?: string; busy: boolean; onChanged: () => void}) {
   const [snapshot, setSnapshot] = useState<ResourceSettingsSnapshot>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
   const mounted = useRef(false);
   const lock = useRef(false);
   useEffect(() => {
@@ -12,7 +14,7 @@ export function ResourceSettings({projectId, busy, onChanged}: {projectId?: stri
     let cancelled = false;
     void window.viewerHost!.resourceGet({projectId}).then(value => {if (!cancelled) setSnapshot(value);}).catch(reason => {if (!cancelled) setError(String(reason));});
     return () => {cancelled = true; mounted.current = false;};
-  }, [projectId]);
+  }, [projectId, revision]);
   async function change(kind: 'skill' | 'mcp', id: string, mode: ResourceMode) {
     if (lock.current) return;
     lock.current = true; setSaving(true); setError('');
@@ -43,6 +45,7 @@ export function ResourceSettings({projectId, busy, onChanged}: {projectId?: stri
       })}
     </div>)}
     {saving && <p role="status">Saving…</p>}
+    {!projectId && <ExternalMcpSettings busy={busy || saving} onChanged={() => {setRevision(value => value + 1); onChanged();}}/>}
   </section>;
 }
 

@@ -68,7 +68,11 @@ CLI 与 Desktop 共用 `~/.industrial-agent-harness/resource-settings.json` 的�
 
 真实 Agent run 默认保留聊天，在 `chat` 与 `result` JSONL 中输出 `chatId`。`chats --project-dir DIR --domain DOMAIN` 列出同一项目的聊天，`run ... --chat-id UUID` 继续最近的兼容 Kimi 会话段。Desktop/CLI 默认共用 `~/.industrial-agent-harness/chats`；`--chat-dir` 或 `INDUSTRIAL_HARNESS_CHAT_DIR` 可隔离存储。`--scope-only` 不创建聊天。模型、Scope 或 MCP 策略变化时建立新段并保留展示历史；历史读取不会执行工具。详见 [聊天持久化](../../doc/chat-persistence.md)。
 
-## Chip Pack MCP
+## 外部 MCP
+
+`node industrial-harness.cjs mcp add --file mcp.json` 导入标准 `mcpServers` JSON，`mcp list / refresh ID / remove ID` 管理服务。`mcp enable|disable|inherit ID --project-dir DIR` 设置项目策略；不带项目时 enable/disable 设置全局默认。支持 stdio、Streamable HTTP、旧 SSE 与 envRefs/headerEnv；注册和 Desktop 共用。截图任务用视觉模型并加 `--image-input`；默认拒绝审批，外部实际调用不信任服务的只读提示。配置、作用域、失败与验证限制见 [外部 MCP](../../doc/external-mcp.md)。preview.2 不提供该命令，需要新版包。
+
+## 内置 Chip 服务
 
 CLI 与桌面版已默认注册同一 `chip-pack.eda`，按 Chip 项目与任务范围启用。准备固定 Python 环境后，可用“检查工程状态”“运行综合任务”等任务调用。`--disable-mcp chip-pack.eda` 移除工具；全局与项目覆盖同样生效。真实 MCP 使用既有审批策略，默认拒绝。安装、运行时依赖与当前验证范围见 [共享 MCP 接入](../../doc/domain-mcp-integration.md)。
 

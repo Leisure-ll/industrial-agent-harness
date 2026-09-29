@@ -4,6 +4,8 @@
 
 首版分包为 [headless-v0.2.0-preview.2](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.2)，历史 Release 不自动补文件。发行包从固定提交构建，`HARNESS-PACKAGE.json` 的 `sourceDirty` 必须为 `false`；此前 `dist/domain-cli-20260929` 中的本地测试包不能替代发行包。
 
+[headless-v0.2.0-preview.3](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.3) 在所有包中加入 [外部 MCP 注册](external-mcp.md)：`node industrial-harness.cjs mcp add --file mcp.json`，与 Desktop 共用 stdio/HTTP/SSE 服务、项目策略和 Kimi 审批。截图任务使用视觉模型及 `--image-input`。外部服务不受领域分包排除，软件与系统授权仍需单独准备；preview.2 不提供此入口。
+
 | 包 | 默认领域 | 当前能力与测试依赖 |
 | --- | --- | --- |
 | Chip | chip | 三个原有检查 Skill、EDA 操作 Skill、25 工具的 MCP Gateway 与 EDA Harness 固定源码；先准备 Python，工业计算再准备镜像/PDK/工程 |

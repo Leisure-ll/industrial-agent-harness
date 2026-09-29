@@ -1,10 +1,10 @@
 const {ChatStore, defaultChatDirectory} = require('./chat-store.cjs');
 const {resolve} = require('@industrial-agent-harness/capability-broker');
 const {capabilities, listDomains, listSkills} = require('@industrial-agent-harness/domain-skills');
-const {listMcpServers} = require('@industrial-agent-harness/domain-mcp');
+const {listMcpServers, ExternalMcpRegistry} = require('@industrial-agent-harness/domain-mcp');
 const {ResourceSettings, defaultResourceDirectory, effectiveResourcePolicy} = require('./resource-settings.cjs');
 
-function resourceCatalog(domain) {return {skills: listSkills(domain), mcpServers: listMcpServers(domain)};}
+function resourceCatalog(domain, external = []) {return {skills: listSkills(domain), mcpServers: listMcpServers(domain, external)};}
 
 function effectiveCapabilities(registry, disabled = {}) {
   const disabledSkills = new Set(disabled.skills || []);
@@ -15,12 +15,22 @@ function effectiveCapabilities(registry, disabled = {}) {
   });
 }
 
-function resolveProjectTask(domain, request, previous, registry = capabilities, disabled = {}) {
+function resolveProjectTask(domain, request, previous, registry = capabilities, disabled = {}, external = []) {
   if (!listDomains(registry).some(item => item.id === domain)) throw Error('Choose a valid project domain.');
   if (request?.domain && request.domain !== domain) throw Error(`This project is fixed to the ${domain} domain.`);
   const result = resolve({...request, domain}, effectiveCapabilities(registry, disabled), previous);
+  const extensions = external.filter(server => !(disabled.mcpServers || []).includes(server.id));
+  if (extensions.length) {
+    const tools = extensions.flatMap(server => server.tools.map(tool => tool.id));
+    result.scope.tools = [...new Set([...result.scope.tools, ...tools])];
+    const replaced = result.trace.find(row => row.event === 'scope.replace');
+    if (replaced) replaced.detail.tools = result.scope.tools;
+    result.trace.push({level: 'L0', event: 'mcp.external.index', detail: extensions.map(server => ({id: server.id, title: server.title, tools: server.tools.length, scope: 'user-registered host service'}))});
+    result.trace.push({level: 'L2', event: 'mcp.external.scope', detail: {tools, reason: 'Explicitly registered general services are available across project domains; details remain deferred.'}});
+    result.trace.push({level: 'L3', event: 'mcp.external.deferred', detail: {providers: extensions.length, toolSchemas: tools.length}});
+  }
   result.trace.push({level: 'L0', event: 'resource.policy', detail: {disabledSkills: disabled.skills || [], disabledMcpServers: disabled.mcpServers || []}});
   return result;
 }
 
-module.exports = {ChatStore, defaultChatDirectory, resolveProjectTask, resourceCatalog, effectiveCapabilities, ResourceSettings, defaultResourceDirectory, effectiveResourcePolicy};
+module.exports = {ChatStore, defaultChatDirectory, resolveProjectTask, resourceCatalog, effectiveCapabilities, ResourceSettings, defaultResourceDirectory, effectiveResourcePolicy, ExternalMcpRegistry};

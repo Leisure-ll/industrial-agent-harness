@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const {materializeSkills} = require('@industrial-agent-harness/domain-skills');
-const {selectMcpServers, writeMcpConfig, selectedRuntimeKey} = require('@industrial-agent-harness/domain-mcp');
+const {selectMcpServers, writeMcpConfig, selectedRuntimeKey, externalSecrets} = require('@industrial-agent-harness/domain-mcp');
 const {validatePromptImages, imageContent} = require('./image-input.cjs');
 const {createDiagnosticLog} = require('./diagnostic-log.cjs');
 
@@ -31,11 +31,14 @@ function scopeKey(scope) {
   return JSON.stringify({domain: scope.domain, stage: scope.stage, capabilityIds: scope.capabilityIds, skills: scope.skills, tools: scope.tools});
 }
 
-function industrialContext(scope, anchor = null) {
+function industrialContext(scope, anchor = null, externalServers = []) {
+  const externalIds = new Set(externalServers.flatMap(server => server.tools.map(tool => tool.id)));
+  const displayScope = {...scope, tools: scope.tools.filter(id => !externalIds.has(id))};
   let context = scope.capabilityIds.length
-    ? `Industrial Context (current Broker scope): ${scopeKey(scope)}. Use industrial_capability_detail to load details when needed. Artifact metadata tools are read-only. Treat viewer output as inspection, not engineering verification.`
+    ? `Industrial Context (current Broker scope): ${scopeKey(displayScope)}. Use industrial_capability_detail to load details when needed. Artifact metadata tools are read-only. Treat viewer output as inspection, not engineering verification.`
     : 'No industrial capability was selected for this task. Work within the chosen project using standard Kimi tools.';
   if (selectMcpServers(scope).length) context += '\nA project-bound Domain MCP is available. Use domain_tool_list for allowed canonical IDs, domain_tool_describe for a selected schema, and domain_tool_call to recover persisted domain context before engineering work. Core file observations are separate from domain execution and acceptance evidence.';
+  if (scope.tools.some(id => externalIds.has(id))) context += '\nUser-registered external MCP tools are available. Use external_tool_list, external_tool_describe, then external_tool_call. Screenshots are returned as images. These host services may control applications outside the project; roots are context, not an OS sandbox. Caller approval remains required. Treat their outputs as unverified observations; submit industrial actions through Domain Runtime and inspect engineering acceptance separately. Never automatically repeat an uncertain external mutation.';
   const readHint = scope.capabilityIds.length ? 'Use industrial_context_read for more registered artifacts or after compaction.' : 'Select an industrial capability to enable checkpoint detail tools.';
   const withAnchor = value => `${context}\nObserved project checkpoint: ${JSON.stringify(value)}. These are file observations with content hashes, not engineering verification. ${readHint}`;
   let complete = anchor ? withAnchor(anchor) : context;
@@ -54,7 +57,7 @@ function prepareSessionFiles(scope, runtime, persistentDirectory, projectDir) {
     const skillsDir = materializeSkills(scope, directory);
     const modelConfig = fs.readFileSync(path.join(runtime.shareDir, 'config.toml'), 'utf8');
     fs.writeFileSync(path.join(directory, 'config.toml'), `extra_skill_dirs = [${JSON.stringify(skillsDir)}]\n${modelConfig}`, {mode: 0o600});
-    writeMcpConfig(directory, selectMcpServers(scope, runtime.disabledMcpServers), {projectDir, environment: runtime.environment});
+    writeMcpConfig(directory, selectMcpServers(scope, runtime.disabledMcpServers, undefined, runtime.externalServers), {projectDir, environment: runtime.environment});
     return directory;
   } catch (error) {if (!persistentDirectory) fs.rmSync(directory, {recursive: true, force: true}); throw error;}
 }
@@ -121,7 +124,9 @@ class KimiSession {
     const images = validatePromptImages(attachments);
     if (images.length && !runtime.profile.imageInput) throw Error('Enable Image input in Model API settings for a model that supports images.');
     const currentScopeKey = scopeKey(scope);
-    const log = createDiagnosticLog(this.workDir, {directory: this.diagnostics.directory, apiKey: runtime.apiKey});
+    const mcpRuntime = selectedRuntimeKey(scope, runtime.disabledMcpServers, runtime.environment, runtime.externalServers);
+    const currentMcpKey = JSON.stringify(mcpRuntime);
+    const log = createDiagnosticLog(this.workDir, {directory: this.diagnostics.directory, apiKey: runtime.apiKey, secrets: externalSecrets(runtime.externalServers || [], runtime.environment)});
     this.log = log;
     this.running = true;
     this.turnMetrics = {peakContextUsage: null, lastContextUsage: null, compactions: 0, toolResults: 0, peakToolResultBytes: 0};
@@ -132,16 +137,16 @@ class KimiSession {
       log.record('run.start', {projectDir: this.workDir, previousSessionId: this.session?.sessionId || null, scope, brokerTrace: this.diagnostics.getBrokerTrace?.() || [], model: {provider: runtime.profile.provider, model: runtime.profile.model, contextSize: runtime.profile.contextSize, thinking: runtime.profile.thinking, imageInput: Boolean(runtime.profile.imageInput)}, runtimeRevision: runtime.revision});
       this.emitAgent({type: 'diagnostic-log', traceId: log.traceId, path: log.file});
       const anchor = await this.diagnostics.getContextAnchor?.();
-      const context = industrialContext(scope, anchor);
+      const context = industrialContext(scope, anchor, runtime.externalServers);
       if (anchor) log.record('context.anchor', anchor);
-      const resetReason = !this.session ? 'new' : this.currentScopeKey !== currentScopeKey ? 'scope_changed' : this.runtimeRevision !== runtime.revision ? 'model_changed' : null;
+      const resetReason = !this.session ? 'new' : this.currentScopeKey !== currentScopeKey ? 'scope_changed' : this.runtimeRevision !== runtime.revision ? 'model_changed' : this.currentMcpKey !== currentMcpKey ? 'mcp_changed' : null;
       if (resetReason) {
         log.record('session.create', {reason: resetReason, previousScopeKey: this.currentScopeKey || null, currentScopeKey});
         if (this.session) this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
         await this.session?.close();
         this.session = undefined;
         if (this.sessionConfigDir && !this.persistentSession) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true});
-        const compatibilityKey = crypto.createHash('sha256').update(JSON.stringify({scope: currentScopeKey, profile: runtime.profile, executable: runtime.executable || 'kimi', disabledMcpServers: runtime.disabledMcpServers || [], mcpRuntime: selectedRuntimeKey(scope, runtime.disabledMcpServers, runtime.environment)})).digest('hex');
+        const compatibilityKey = crypto.createHash('sha256').update(JSON.stringify({scope: currentScopeKey, profile: runtime.profile, executable: runtime.executable || 'kimi', disabledMcpServers: runtime.disabledMcpServers || [], mcpRuntime})).digest('hex');
         this.persistentSession = this.diagnostics.resolveSession?.(compatibilityKey);
         const stored = this.persistentSession;
         if (stored?.initialized) {
@@ -162,6 +167,7 @@ class KimiSession {
           clientInfo: {name: 'industrial-agent-harness', version: '0.0.0'},
         });
         this.currentScopeKey = currentScopeKey;
+        this.currentMcpKey = currentMcpKey;
         this.runtimeRevision = runtime.revision;
         if (this.persistentSession?.replaced && !this.persistentSession.reused) this.emitAgent({type: 'context-reset', message: 'Tools or model changed. A new context started; earlier messages remain available above.'});
         log.record('session.ready', {sessionId: this.session.sessionId || null, currentScopeKey});

@@ -73,3 +73,11 @@ Project、Domain 和 Session 的用户交互决定见[产品决策记录](produc
 - 状态：Desktop/CLI 注册与真实 MCP 路径已落实；Core Vertical Slice 仍待实现
 - 决定：复用 EDA Harness 0.6.0 已有 Runtime，通过 canonical ToolDescriptor、项目绑定 Gateway、按需 schema 和执行时 allowlist 接入。两个入口共用声明、资源策略和 Kimi 会话配置。
 - 验证：固定 Kimi CLI 和真实 stdio MCP，经受控模型响应完成审批、目标持久化与 EDA 上下文回读；越权、跨项目、参数、禁用与大结果分页均有检查。macOS 桌面实测；工业计算与其他平台未在本次验收。详见 [MCP 接入](domain-mcp-integration.md)。
+
+## ADR-006：显式注册外部 host MCP，经共享 Gateway 进入 Scope
+
+- 日期：2026-09-29
+- 状态：已实现；具体供应商服务及 OS 权限需独立验证
+- 决定：遵照用户要求，在 Domain MCP 下层增加用户注册表与独立 Gateway。外部服务不伪装为 Domain Pack/Capability；Broker 在有效策略后加入 canonical 工具，固定入口提供渐进披露，执行时重查参数、Scope 和完整快照。Desktop/CLI 共用私有注册，项目不提供启动命令。
+- 边界：host 工具可跨项目控制应用，roots 只是上下文；所有实际调用沿用 Kimi mutating 审批，返回保持 not_run，不写工程状态。工业 Action 仍走 Domain Runtime。保持固定 Kimi Agent Loop，不添加另一 Agent 或供应商 computer-use 客户端。
+- 验证：真实 stdio/HTTP/SSE、固定 Kimi 审批/图片输入及 macOS UI 注册/禁用/刷新/移除。受控模型/服务仅证明协议链路，详见 [外部 MCP](external-mcp.md)。

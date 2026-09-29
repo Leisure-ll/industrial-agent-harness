@@ -33,6 +33,7 @@ jobs:
         run: |
           pnpm build
           pnpm test
+          pnpm test:external-mcp
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'

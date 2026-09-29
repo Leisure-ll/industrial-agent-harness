@@ -33,4 +33,19 @@ try {
     else assert.equal(fs.existsSync(path.join(path.dirname(entry), 'domain-packs/chip')), false);
     console.log(JSON.stringify({domain, ok: true, skills: catalog.skills.length, providers: catalog.packs.length}));
   }
+  const configFile = path.join(temporary, 'external.json');
+  fs.writeFileSync(configFile, JSON.stringify({mcpServers: {host: {command: process.execPath, args: [path.resolve(__dirname, '../tests/integration/fixtures/external-mcp-server.cjs')], env: {FIXTURE_CLICK_MARKER: path.join(temporary, 'host.json')}}}}));
+  const environment = {...process.env, INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(temporary, 'config')};
+  const command = (domain, args) => execFileSync(process.execPath, [path.join(directory, `headless-${domain}`, 'industrial-harness.cjs'), ...args], {cwd: temporary, encoding: 'utf8', env: environment});
+  command('chip', ['mcp', 'add', '--file', configFile]);
+  for (const domain of domains) {
+    assert.equal(JSON.parse(command(domain, ['mcp', 'list'])).servers[0].id, 'external.host');
+    const args = ['run', '--project-dir', temporary, '--task', 'Use the host screenshot', '--scope-only'];
+    const scope = JSON.parse(command(domain, args).split('\n')[0]).scope;
+    assert.equal(scope.tools.filter(id => id.startsWith('external.host.')).length, 3);
+    assert.deepEqual(JSON.parse(command(domain, [...args, '--disable-mcp', 'external.host']).split('\n')[0]).scope.tools, []);
+    console.log(JSON.stringify({domain, externalRegistrationShared: true, scoped: true, disable: true}));
+  }
+  command('godot', ['mcp', 'remove', 'external.host']);
+  assert.deepEqual(JSON.parse(command('chip', ['mcp', 'list'])).servers, []);
 } finally {fs.rmSync(temporary, {recursive: true, force: true});}
