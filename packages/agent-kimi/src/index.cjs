@@ -54,11 +54,11 @@ function prepareSessionFiles(scope, runtime, persistentDirectory, projectDir, pl
   fs.mkdirSync(directory, {recursive: true, mode: 0o700});
   fs.chmodSync(directory, 0o700);
   try {
-    const skillsDir = materializeSkills(scope, directory);
+    const skillsDir = materializeSkills(scope, directory, runtime.environment);
     const skillDirs = [...new Set([skillsDir, ...enabledPlugins(plugins).map(plugin => plugin.materializeSkill(directory))])];
     const modelConfig = fs.readFileSync(path.join(runtime.shareDir, 'config.toml'), 'utf8');
     fs.writeFileSync(path.join(directory, 'config.toml'), `extra_skill_dirs = [${skillDirs.map(dir => JSON.stringify(dir)).join(',')}]\n${modelConfig}`, {mode: 0o600});
-    writeMcpConfig(directory, selectMcpServers(scope, runtime.disabledMcpServers, undefined, runtime.externalServers), {projectDir, environment: runtime.environment});
+    writeMcpConfig(directory, selectMcpServers(scope, runtime.disabledMcpServers, undefined, runtime.externalServers), {projectDir, environment: runtime.environment, imageInput: Boolean(runtime.profile?.imageInput)});
     return directory;
   } catch (error) {if (!persistentDirectory) fs.rmSync(directory, {recursive: true, force: true}); throw error;}
 }

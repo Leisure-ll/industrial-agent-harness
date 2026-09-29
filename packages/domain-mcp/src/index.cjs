@@ -9,7 +9,7 @@ const {hash, externalSecrets} = require('./external-client.cjs');
 const servers = Object.freeze(domainPacks.map(pack => ({...pack.provider, toolIds: pack.provider.tools.map(tool => tool.id)})));
 
 function listMcpServers(domain, external = []) {
-  return [...servers.filter(item => !domain || item.domain === domain).map(({config, tools, ...item}) => ({...item, enabledByDefault: true})), ...external.map(server => ({...publicServer(server), toolIds: server.tools.map(tool => tool.id)}))];
+  return [...servers.filter(item => !domain || item.domain === domain).map(({config, tools, sourceFiles, ...item}) => ({...item, enabledByDefault: true})), ...external.map(server => ({...publicServer(server), toolIds: server.tools.map(tool => tool.id)}))];
 }
 
 function selectMcpServers(scope, disabledIds = [], registry = servers, external = []) {
@@ -20,7 +20,7 @@ function selectMcpServers(scope, disabledIds = [], registry = servers, external 
 }
 
 function writeMcpConfig(shareDir, selected, options = {}) {
-  const mcpServers = Object.fromEntries(selected.filter(item => item.transport !== 'external').map(item => [item.id, item.transport === 'gateway' ? gatewayConfig(shareDir, item, options.projectDir, options.environment) : item.config]));
+  const mcpServers = Object.fromEntries(selected.filter(item => item.transport !== 'external').map(item => [item.id, item.transport === 'gateway' ? gatewayConfig(shareDir, item, options.projectDir, options.environment, options) : item.config]));
   const external = selected.filter(item => item.transport === 'external');
   if (external.length) mcpServers['harness.external'] = writeExternalGateway(shareDir, external, options.projectDir, options.environment);
   const file = path.join(shareDir, 'mcp.json');

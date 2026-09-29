@@ -43,6 +43,9 @@ jobs:
           cd domain-packs/chip/eda-harness
           uv sync --frozen --no-dev --python 3.13
           cd ../../..
+          cd domain-packs/pcb
+          uv sync --frozen --no-dev --python 3.13
+          cd ../..
           pnpm test:mcp
       - name: Industrial Core vertical slice gate when implemented
         run: |

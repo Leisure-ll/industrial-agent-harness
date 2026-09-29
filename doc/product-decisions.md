@@ -339,3 +339,12 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 - 来源：用户希望下载 Chip 包后继续接入 computer-use，并确认实施共用注册层
 - 决定：全局设置提供本地命令、远程 URL 和标准配置 JSON 导入，实际探测后添加；提供工具数、刷新和移除。CLI 提供相同注册与管理，所有领域包共用。项目可禁用或继承，运行中的聊天禁止受影响配置修改。
 - 行为：沿用 Kimi 审批、原生截图和工具结果，服务变化需用户刷新。具体服务软件和系统授权另行准备；注册不代表工业验证通过。详见 [外部 MCP](external-mcp.md)。
+
+## PD-032：PCB MCP 与完整设计 Skill 对齐 PCB-bench
+
+- 日期：2026-09-29
+- 状态：注册、资源加载和协议链路已实现并验证；原生镜像执行待实测
+- 来源：用户要求参考 PCB-bench 的依赖、MCP/Skill 与工程能力，先提交接入 PR；超时等运行参数无需照搬。
+- 原因：PCB Viewer 只能观察产物；原生设计/修复须有真实工具、完整参考资源和独立验证语义。
+- 决定：默认注册 `pcb-bench.tools` 与 `pcb.design.e2e`，Desktop/CLI 沿用共享全局/项目资源策略、Scope 和审批。从固定的外部 backend 加载完整设计 Skill；不默认加载维护 Skill、任务或参考答案。原生工具在声明的 Docker Runtime 执行，模型不能用参数更换工程或授予权限。图片返回遵循模型 image input 设置。
+- 验证与限界：已验证真实 CLI 配置和 MCP 协议、89-schema 对照、完整 Skill 资源与失败/图片/分页语义。原生 KiCad 编辑、ERC/DRC/solver、原生多平台包装与完整工业闭环仍须独立实测，不把本次注册当作 bench Harness 超集已完成。见 [PCB MCP 接入](pcb-mcp-integration.md)。
