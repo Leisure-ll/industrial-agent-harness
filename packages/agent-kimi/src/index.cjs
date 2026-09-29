@@ -45,17 +45,47 @@ function industrialContext(scope, anchor = null) {
   return complete;
 }
 
-function prepareSessionFiles(scope, runtime, persistentDirectory) {
+function prepareSessionFiles(scope, runtime, persistentDirectory, plugins = []) {
   const directory = persistentDirectory || fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-session-'));
   fs.mkdirSync(directory, {recursive: true, mode: 0o700});
   fs.chmodSync(directory, 0o700);
   try {
     const skillsDir = materializeSkills(scope, directory);
+    const skillDirs = [...new Set([skillsDir, ...enabledPlugins(plugins).map(plugin => plugin.materializeSkill(directory))])];
     const modelConfig = fs.readFileSync(path.join(runtime.shareDir, 'config.toml'), 'utf8');
-    fs.writeFileSync(path.join(directory, 'config.toml'), `extra_skill_dirs = [${JSON.stringify(skillsDir)}]\n${modelConfig}`, {mode: 0o600});
+    fs.writeFileSync(path.join(directory, 'config.toml'), `extra_skill_dirs = [${skillDirs.map(dir => JSON.stringify(dir)).join(',')}]\n${modelConfig}`, {mode: 0o600});
     writeMcpConfig(directory, selectMcpServers(scope, runtime.disabledMcpServers));
     return directory;
   } catch (error) {if (!persistentDirectory) fs.rmSync(directory, {recursive: true, force: true}); throw error;}
+}
+
+function enabledPlugins(plugins) {
+  return (plugins || []).filter(plugin => plugin?.enabled?.() === true);
+}
+
+// Image tool results carry multi-megabyte data URIs; the diagnostic log keeps
+// the event shape but must not store the payloads themselves.
+function redactImagePayloads(event) {
+  if (event.type !== 'ToolResult') return event;
+  const value = event.payload?.return_value;
+  if (!value || typeof value.output === 'string' || !Array.isArray(value.output)) return event;
+  let redacted = false;
+  const output = value.output.map(part => {
+    if (part?.type === 'image_url' && typeof part.image_url?.url === 'string') {
+      redacted = true;
+      return {...part, image_url: {...part.image_url, url: `[image redacted, ${part.image_url.url.length} chars]`}};
+    }
+    return part;
+  });
+  return redacted ? {...event, payload: {...event.payload, return_value: {...value, output}}} : event;
+}
+
+// The native CLI history (context/wire snapshots) embeds tool-result images as
+// base64 data URIs. The same payloads redactImagePayloads keeps out of the
+// event log must also stay out of the copied files.
+const DATA_URI_PATTERN = /(data:image\/[a-zA-Z0-9.+-]+;base64,)([A-Za-z0-9+/=]+)/g;
+function redactSnapshotText(text) {
+  return text.replace(DATA_URI_PATTERN, (match, prefix, payload) => `${prefix}[image redacted, ${payload.length} chars]`);
 }
 
 function externalTools(getScope, lookupArtifact, disclose, readContextPage) {
@@ -100,7 +130,7 @@ function externalTools(getScope, lookupArtifact, disclose, readContextPage) {
 }
 
 class KimiSession {
-  constructor(workDir, getScope, lookupArtifact, disclose, emit, getRuntime, sessionFactory = createSession, diagnostics = {}) {
+  constructor(workDir, getScope, lookupArtifact, disclose, emit, getRuntime, sessionFactory = createSession, diagnostics = {}, plugins = []) {
     this.workDir = workDir;
     this.getScope = getScope;
     this.lookupArtifact = lookupArtifact;
@@ -109,6 +139,15 @@ class KimiSession {
     this.getRuntime = getRuntime;
     this.sessionFactory = sessionFactory;
     this.diagnostics = diagnostics;
+    this.plugins = plugins;
+    // ToolCall arrives with arguments:null; the real arguments stream in as
+    // ToolCallPart frames (carrying no id) before the ToolResult lands. Track
+    // them so the ToolResult event can carry the complete arguments. This is
+    // per-turn state: run() clears it in its finally block so an interrupted
+    // call cannot leak a phantom event into the next turn.
+    this.pendingToolArgs = new Map();
+    this.toolNames = new Map();
+    this.lastToolCall = null;
     this.pendingApprovals = new Map();
   }
   async run(task, attachments = []) {
@@ -120,6 +159,8 @@ class KimiSession {
     const images = validatePromptImages(attachments);
     if (images.length && !runtime.profile.imageInput) throw Error('Enable Image input in Model API settings for a model that supports images.');
     const currentScopeKey = scopeKey(scope);
+    const pluginKey = JSON.stringify(enabledPlugins(this.plugins).map(plugin => plugin.name));
+    this.activePluginTools = new Set(enabledPlugins(this.plugins).flatMap(plugin => plugin.toolNames || []));
     const log = createDiagnosticLog(this.workDir, {directory: this.diagnostics.directory, apiKey: runtime.apiKey});
     this.log = log;
     this.running = true;
@@ -133,21 +174,21 @@ class KimiSession {
       const anchor = await this.diagnostics.getContextAnchor?.();
       const context = industrialContext(scope, anchor);
       if (anchor) log.record('context.anchor', anchor);
-      const resetReason = !this.session ? 'new' : this.currentScopeKey !== currentScopeKey ? 'scope_changed' : this.runtimeRevision !== runtime.revision ? 'model_changed' : null;
+      const resetReason = !this.session ? 'new' : this.currentScopeKey !== currentScopeKey ? 'scope_changed' : this.runtimeRevision !== runtime.revision ? 'model_changed' : this.lastPluginKey !== pluginKey ? 'plugins_changed' : null;
       if (resetReason) {
         log.record('session.create', {reason: resetReason, previousScopeKey: this.currentScopeKey || null, currentScopeKey});
         if (this.session) this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
         await this.session?.close();
         this.session = undefined;
         if (this.sessionConfigDir && !this.persistentSession) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true});
-        const compatibilityKey = crypto.createHash('sha256').update(JSON.stringify({scope: currentScopeKey, profile: runtime.profile, executable: runtime.executable || 'kimi', disabledMcpServers: runtime.disabledMcpServers || []})).digest('hex');
+        const compatibilityKey = crypto.createHash('sha256').update(JSON.stringify({scope: currentScopeKey, profile: runtime.profile, executable: runtime.executable || 'kimi', disabledMcpServers: runtime.disabledMcpServers || [], plugins: pluginKey})).digest('hex');
         this.persistentSession = this.diagnostics.resolveSession?.(compatibilityKey);
         const stored = this.persistentSession;
         if (stored?.initialized) {
           const context = path.join(createKimiPaths(stored.shareDir).sessionDir(this.workDir, stored.id), 'context.jsonl');
           if (!fs.existsSync(context) || !fs.statSync(context).size) throw Error('Saved agent context is missing. Open a new chat; the existing history is preserved.');
         }
-        this.sessionConfigDir = prepareSessionFiles(scope, runtime, stored?.shareDir);
+        this.sessionConfigDir = prepareSessionFiles(scope, runtime, stored?.shareDir, this.plugins);
         this.session = this.sessionFactory({
           workDir: this.workDir,
           ...(this.persistentSession ? {sessionId: this.persistentSession.id} : {}),
@@ -157,11 +198,12 @@ class KimiSession {
           thinking: runtime.profile.thinking,
           env: runtime.env,
           yoloMode: false,
-          externalTools: externalTools(this.getScope, this.lookupArtifact, this.disclose, this.diagnostics.readContextPage),
+          externalTools: [...externalTools(this.getScope, this.lookupArtifact, this.disclose, this.diagnostics.readContextPage), ...enabledPlugins(this.plugins).flatMap(plugin => plugin.toolsFactory(this.diagnostics.pluginLog).map(tool => createExternalTool(tool)))],
           clientInfo: {name: 'industrial-agent-harness', version: '0.0.0'},
         });
         this.currentScopeKey = currentScopeKey;
         this.runtimeRevision = runtime.revision;
+        this.lastPluginKey = pluginKey;
         if (this.persistentSession?.replaced && !this.persistentSession.reused) this.emitAgent({type: 'context-reset', message: 'Tools or model changed. A new context started; earlier messages remain available above.'});
         log.record('session.ready', {sessionId: this.session.sessionId || null, currentScopeKey});
       } else log.record('session.reuse', {sessionId: this.session.sessionId || null, currentScopeKey});
@@ -170,7 +212,7 @@ class KimiSession {
       log.record('prompt', {text: prompt, ...(images.length ? {images: images.map(({dataUrl, ...metadata}) => metadata), content} : {})});
       const turn = this.session.prompt(content);
       this.turn = turn;
-      for await (const event of turn) {log.record('sdk.event', event); this.emitEvent(event);}
+      for await (const event of turn) {log.record('sdk.event', redactImagePayloads(event)); this.emitEvent(event);}
       const result = await turn.result;
       emitMetrics();
       outcome = result.status;
@@ -178,6 +220,9 @@ class KimiSession {
     } catch (error) {emitMetrics(); this.emitAgent({type: 'error', message: String(error)});}
     finally {
       this.turn = undefined;
+      this.pendingToolArgs.clear();
+      this.toolNames.clear();
+      this.lastToolCall = null;
       for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
       try {
         this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
@@ -195,7 +240,7 @@ class KimiSession {
       try {
         if (!fs.existsSync(source)) continue;
         const raw = fs.readFileSync(source, 'utf8');
-        const content = apiKey ? raw.replaceAll(apiKey, '[REDACTED_API_KEY]') : raw;
+        const content = redactSnapshotText(apiKey ? raw.replaceAll(apiKey, '[REDACTED_API_KEY]') : raw);
         const target = path.join(path.dirname(log.file), `${log.traceId}.${phase}.${kind}.jsonl`);
         fs.writeFileSync(target, content, {flag: 'wx', mode: 0o600});
         log.record('kimi.snapshot', {phase, kind, path: target, bytes: Buffer.byteLength(content, 'utf8'), sha256: crypto.createHash('sha256').update(content).digest('hex')});
@@ -209,17 +254,50 @@ class KimiSession {
       else if (event.payload.type === 'think') this.emitAgent({type: 'thinking', text: event.payload.think});
     } else if (event.type === 'ApprovalRequest') {
       this.pendingApprovals.set(event.payload.id, 'pending');
-      this.emitAgent({type: 'approval', id: event.payload.id, description: event.payload.description, action: event.payload.action});
+      if (this.activePluginTools?.has(event.payload.sender)) {
+        // Enabling the plugin is the authorization: auto-approve its tool
+        // approvals for this session instead of surfacing them to the user.
+        this.log?.record('plugin.auto-approve', {sender: event.payload.sender, id: event.payload.id});
+        this.approve(event.payload.id, 'approve_for_session').catch(error => this.emitAgent({type: 'approval_error', id: event.payload.id, message: String(error)}));
+      } else this.emitAgent({type: 'approval', id: event.payload.id, description: event.payload.description, action: event.payload.action});
     }
     else if (event.type === 'ApprovalResponse') this.resolveApproval(event.payload.request_id, event.payload.response);
-    else if (event.type === 'ToolCall') this.emitAgent({type: 'tool', id: event.payload.id, name: event.payload.function.name, arguments: event.payload.function.arguments || ''});
-    else if (event.type === 'ToolResult') {
+    else if (event.type === 'ToolCall') {
+      if (this.lastToolCall && this.pendingToolArgs.has(this.lastToolCall.id)) {
+        this.emitAgent({type: 'tool', id: this.lastToolCall.id, name: this.toolNames.get(this.lastToolCall.id) || this.lastToolCall.name, arguments: this.pendingToolArgs.get(this.lastToolCall.id)});
+      }
+      this.pendingToolArgs.set(event.payload.id, '');
+      this.toolNames.set(event.payload.id, event.payload.function.name);
+      this.lastToolCall = {id: event.payload.id, name: event.payload.function.name};
+      this.emitAgent({type: 'tool', id: event.payload.id, name: event.payload.function.name, arguments: event.payload.function.arguments || ''});
+    } else if (event.type === 'ToolCallPart') {
+      if (this.lastToolCall) this.pendingToolArgs.set(this.lastToolCall.id, (this.pendingToolArgs.get(this.lastToolCall.id) || '') + (event.payload.arguments_part || ''));
+    } else if (event.type === 'ToolResult') {
       const value = event.payload.return_value;
+      const rawArgs = this.pendingToolArgs.get(event.payload.tool_call_id) || '';
+      if (rawArgs) {
+        let args = rawArgs;
+        try {args = JSON.stringify(JSON.parse(rawArgs), null, 2);} catch {}
+        this.emitAgent({type: 'tool', id: event.payload.tool_call_id, name: this.toolNames.get(event.payload.tool_call_id) || '', arguments: args});
+      }
+      this.pendingToolArgs.delete(event.payload.tool_call_id);
+      this.toolNames.delete(event.payload.tool_call_id);
+      if (this.lastToolCall?.id === event.payload.tool_call_id) this.lastToolCall = null;
       this.turnMetrics.toolResults++;
-      const output = typeof value.output === 'string' ? value.output : '';
+      // output is a string or a ContentPart array (image results). Base64 image
+      // payloads must not enter the event stream or logs; keep only the text
+      // parts plus a count.
+      let output;
+      let imageCount = 0;
+      if (typeof value.output === 'string') output = value.output;
+      else {
+        const parts = Array.isArray(value.output) ? value.output : [];
+        imageCount = parts.filter(part => part?.type === 'image_url').length;
+        output = parts.filter(part => part?.type === 'text').map(part => part.text).join('\n');
+      }
       const outputBytes = Buffer.byteLength(output, 'utf8');
       this.turnMetrics.peakToolResultBytes = Math.max(this.turnMetrics.peakToolResultBytes, outputBytes);
-      this.emitAgent({type: 'tool-result', id: event.payload.tool_call_id, error: value.is_error, message: value.message, output: output.slice(0, 12000), outputBytes, outputTruncated: output.length > 12000});
+      this.emitAgent({type: 'tool-result', id: event.payload.tool_call_id, error: value.is_error, message: value.message, output: output.slice(0, 12000), outputBytes, outputTruncated: output.length > 12000, imageCount});
       for (const block of value.display || []) if (block.type === 'todo' && Array.isArray(block.items)) this.emitAgent({type: 'todo', items: block.items});
     } else if (event.type === 'StepBegin') this.emitAgent({type: 'step', number: event.payload.n});
     else if (event.type === 'StatusUpdate') {
