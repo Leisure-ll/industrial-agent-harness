@@ -7,6 +7,7 @@ const skills = Object.freeze([
   {id: 'chip.waveform.inspect', domain: 'chip', title: 'Inspect simulation waveform', directory: 'chip-waveform-inspect'},
   {id: 'chip.layout.inspect', domain: 'chip', title: 'Inspect physical layout', directory: 'chip-layout-inspect'},
   {id: 'pcb.layout.inspect', domain: 'pcb', title: 'Inspect PCB layout', directory: 'pcb-layout-inspect'},
+  {id: 'cad.autocad.macos', domain: 'cad', title: 'Operate AutoCAD on macOS', directory: 'cad-autocad-macos'},
 ]);
 
 function listSkills(domain) {
