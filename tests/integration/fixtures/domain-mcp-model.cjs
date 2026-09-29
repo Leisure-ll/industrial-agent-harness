@@ -8,9 +8,9 @@ async function startModel(options = {}) {
     let raw = ''; for await (const chunk of request) raw += chunk;
     const body = JSON.parse(raw); requests.push(body);
     const results = body.messages.filter(message => message.role === 'tool');
-    const rejected = results.some(message => /reject|denied/i.test(JSON.stringify(message.content)));
+    const rejected = results.some(message => /The tool call is rejected by the user/i.test(JSON.stringify(message.content)));
     const index = results.length;
-    const calls = options.calls || [
+    const calls = (typeof options.calls === 'function' ? options.calls(body) : options.calls) || [
       {name: 'domain_tool_describe', arguments: {toolId: 'eda.harness.create_goal'}},
       {name: 'domain_tool_call', arguments: {toolId: 'eda.harness.create_goal', arguments: {description: 'MCP_INTEGRATION_GOAL', constraints: {}, required_verification: []}}},
       {name: 'domain_tool_call', arguments: {toolId: 'eda.harness.get_operational_context', arguments: {}}},

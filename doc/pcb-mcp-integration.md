@@ -66,6 +66,19 @@ text-only 模式不会声称图片送达；返回中的图片摘要与 `delivere
 单次参数 64 KiB、文本返回 16 KiB、会话缓存 4 MiB；图片每张最多 4 MiB、最多 4 张、总计 10 MiB。
 没有自动变更重提；传输失败后查看既有 controller 记录。
 
+## 渐进披露与日志证据
+
+本接入按**模型上下文**衡量渐进披露，不以磁盘上是否已准备资源或进程里是否已有 schema 衡量：
+
+1. Broker 先记录 `domain.index`、`capability.resolve`、`skill.batch`、`tool.scope` 和 `detail.deferred`。会话只准备 Scope 选中的 Skill。
+2. Kimi 的初始系统指令包含 Skill 名称、描述与 `SKILL.md` 路径；正文及 references 不直接注入。用 `ReadFile` 读取正文及指定 reference 后，这些结果才进入模型消息。
+3. PCB gateway 启动时获取全部原生 schema 以核对固定工具身份；模型只看到四个 wrapper tool。`domain_tool_list` 给分页摘要，`domain_tool_describe` 才返回所选工具的参数 schema。
+4. 原始诊断日志保留 Broker Trace、ReadFile/describe/call 的 ToolCall/ToolResult，以及实际 Kimi 上下文快照。UI「工具调用」可展开文件路径、参数和返回；「上下文」可查看选择依据与已保存的步骤边界。没有专用 Skill 加载动画，也不将资源复制视为模型阅读。
+
+渐进披露测试使用真实固定 Kimi、CLI 和完整外部 Skill，逐步检查受控模型端实际收到的请求：初始正文/schema 不在上下文；读取正文和参考文件后进入；列表不带 schema；describe 后出现所选 schema。再用生产 `DiagnosticReader` 校验同一日志的 UI 工具投影与完整详情。这是日志数据链验证，**不是 Electron 页面截图或真实模型自主选择能力的验收**。
+
+真实设计任务仍须在固定原生镜像上完成正/负任务：从公开需求生成原理图并通过 ERC，生成 PCB、布局布线、填铜并通过 DRC/连通性检查，导出实际文件；对故障工程定位、修复并重新验证。执行需保留候选 revision、原生 receipts、检查结果及渐进披露日志。受控测试不会代替该 gate。
+
 ## 已验证与未验证
 
 - 架构与 Node 测试：声明/风险、Source 资源 hash/库存与 symlink 拒绝、旧 Viewer Scope、完整资源切换、全局/项目继承和真正 CLI `--scope-only`。
