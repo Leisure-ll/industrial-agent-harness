@@ -1,0 +1,73 @@
+# 外部 MCP：Desktop / CLI 共用注册
+
+外部服务可显式注册一次，在 Desktop 和 Chip / PCB / Godot CLI 包中共用。支持本地 stdio、Streamable HTTP 和旧 SSE；使用固定的官方 TypeScript MCP SDK 1.30.1。不自动安装服务、软件镜像或申请操作系统授权，也不读取项目里的任意 MCP 启动配置。
+
+## 添加和管理
+
+Desktop：**Settings → MCP & Skills → Configure → External MCP services**。选择 Local command、Remote URL 或 Import configuration，点击 **Add and check**。添加时实际连接服务并检查工具；失败不保存部分配置。工具数量和连接类型可见，启动参数与凭据不会返回公共列表。全局默认开关和项目 Inherit / Enabled / Disabled 共用已有资源策略。
+
+CLI，在解压包中执行：
+
+```sh
+node industrial-harness.cjs mcp add --file /absolute/path/mcp.json
+node industrial-harness.cjs mcp list
+node industrial-harness.cjs mcp disable external.computer-use --project-dir /absolute/project
+node industrial-harness.cjs mcp inherit external.computer-use --project-dir /absolute/project
+node industrial-harness.cjs mcp refresh external.computer-use
+node industrial-harness.cjs mcp remove external.computer-use
+```
+
+源码入口为 `pnpm cli mcp ...`。`mcp enable|disable` 不带项目目录时修改全局默认值；`inherit` 必须指定项目。单轮还可使用 `run --disable-mcp external.computer-use`。`mcp list` 只读已存元数据，不启动服务。
+
+本地服务配置示例，替换为已安装服务的实际命令：
+
+```json
+{
+  "mcpServers": {
+    "computer-use": {
+      "command": "/absolute/path/to/mcp-server",
+      "args": [],
+      "cwd": "/absolute/existing/directory",
+      "envRefs": {"SERVICE_TOKEN": "COMPUTER_USE_TOKEN"}
+    }
+  }
+}
+```
+
+不需要认证时省略 `envRefs`。支持普通 `env` 字符串映射；引用只保存变量名称，启动时从 Harness 进程环境读取。GUI 从应用的启动环境取值，缺少变量时明确报错。stdio 只传显式环境及 SDK 的基础环境，不将完整模型密钥环境转交外部进程。`cwd` 默认固定为注册时的工作目录；对于依赖工程路径的服务，请按服务说明配置，并使用 MCP roots。
+
+远程服务：
+
+```json
+{
+  "mcpServers": {
+    "remote-host": {
+      "url": "https://example.com/mcp",
+      "type": "http",
+      "headerEnv": {"Authorization": "COMPUTER_USE_AUTH"}
+    }
+  }
+}
+```
+
+环境值应包含完整认证值，例如 `Bearer …`。支持普通 `headers`；旧服务用 `type: "sse"`。当前不实现 OAuth 登录、安装器或其他客户端专用字段。名称最多 64 个 ASCII 字母/数字/点/下划线/连字符，资源 ID 为 `external.<名称>`；重复名称拒绝，修改连接配置需先移除再添加。
+
+## Scope、审批和结果
+
+通用服务在每个已有领域中可用，不生成新的工业 Capability 或 Domain。Broker 应用资源策略后，只把有效服务的 canonical Tool ID 放入 Scope 并记录 Trace。模型先获得 `external_tool_list / external_tool_describe / external_tool_call / external_tool_result_read` 四个固定入口，工具详情按需读取。原始工具名和 canonical ID 分开，不因重名调用另一服务。
+
+Gateway 调用前再次检查 ID、参数和当前服务的完整工具快照。发现新增、删除或 schema/描述变化时拒绝执行，要求 **Refresh tools**。配置、快照或引用环境值变化后，下一轮建立新 Kimi 会话段，保留产品历史；正在运行的 Gateway 使用固定 Scope。Desktop 禁止影响运行中聊天的配置修改；其他进程修改在下一轮生效，不承诺撤销已发出的操作。
+
+所有外部实际调用标为 mutating，不能靠服务自报 `readOnlyHint` 绕过 Kimi 审批。CLI 默认 `--approval reject`；自动批准需显式 `--approval approve`，将批准这一轮所有待审批操作。添加/刷新会启动用户选中的程序来发现工具，因此只添加可信服务。超时或失败不自动重发操作，返回说明“执行结果可能未知”，需检查软件实际状态后再决定重试。
+
+PNG/JPEG/WebP 原生 MCP ImageContent 继续传给 Kimi 模型，最多四张、合计 8 MiB；截图需视觉模型，Desktop 打开 Model API 的 Image input，CLI 使用 `--image-input`。文字最多 16 KiB，大返回在私有目录缓存并通过响应 ID 分页，单次与缓存总量上限 8 MiB。已知外部凭据在文本返回、缓存和诊断 JSONL 中脱敏；截图与工程资料仍按项目数据管理。
+
+**MCP roots 是上下文，不是操作系统沙箱**。computer-use 可控制项目之外的应用；权限由服务及操作系统决定。外部返回为 `verificationStatus: not_run`，不写入 DomainState 或产生工业验收结论。工业 Action 仍需独立 Domain Runtime / Verifier 接入，不能将外部 host 调用当作工业闭环完成。
+
+## 持久化与验证
+
+注册存于 `~/.industrial-agent-harness/external-mcp.json`，与同目录 `resource-settings.json` 共用；`INDUSTRIAL_HARNESS_CONFIG_DIR` 可隔离二者，CLI 管理命令支持 `--config-dir`。POSIX 文件 0600，原子替换并用跨进程锁；损坏时明确失败，不静默覆盖。项目不保存启动命令。最多 16 个服务、每个 128 个工具、总计 512 个工具；超限或不支持的 schema 拒绝注册。会话私有配置包含执行所需凭据，不写入用户 `~/.kimi`。
+
+`pnpm test:external-mcp` 检查实际 stdio/HTTP/SSE、共享策略、越权/参数/快照变化、分页、脱敏及损坏。安装固定 Kimi CLI 1.51.0 后，还运行真实 Kimi 审批、拒绝后无 host 修改和 MCP 图片进入模型请求的测试；缺少 CLI 时该项明确跳过。
+
+macOS Desktop：构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:external-mcp`，验证实际表单添加、CLI 共享读取、项目禁用、五次 Kimi 审批、图片输入、运行中拒绝修改、刷新/移除。受控模型与 MCP fixture 不代表任意供应商 computer-use 安装兼容性或屏幕录制/辅助功能权限已就绪。

@@ -11,7 +11,7 @@ async function run(window, evidence) {
   async function openGlobal() {
     await evaluate(`document.querySelector('.ia-settings-button').click()`);
     await evaluate(`Array.from(document.querySelectorAll('.ia-settings-row')).find(row=>row.innerText.includes('MCP & Skills')).querySelector('button').click()`);
-    await wait(`document.querySelectorAll('.ia-resource-modal input[type="checkbox"]').length===4`);
+    await wait(`document.querySelectorAll('.ia-resource-modal input[type="checkbox"]').length===6`);
   }
   async function closeGlobal() {
     window.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'});window.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
@@ -25,7 +25,7 @@ async function run(window, evidence) {
   assert.equal(await evaluate(`document.querySelector('.ia-new-chat').closest('.ia-project-chats').dataset.projectId`), 'log-test', 'new chat belongs to the selected project');
   assert.equal(await evaluate(`document.querySelectorAll('.ia-sidebar > .ia-new-chat').length`), 0, 'no global new-chat action');
   await openGlobal();
-  assert.ok(await evaluate(`document.querySelector('.ia-resource-modal').innerText.includes('No default domain MCP')`));
+  assert.ok(await evaluate(`document.querySelector('.ia-resource-modal').innerText.includes('Chip Pack')`));
   await evaluate(`document.querySelector('.ia-resource-modal input').click()`);
   await wait(`window.viewerHost.resourceGet({projectId:'log-test'}).then(state=>state.effective.skills.includes('chip.netlist.inspect'))`);
   fs.writeFileSync(path.join(evidence,'global-resources.png'),(await window.webContents.capturePage()).toPNG());

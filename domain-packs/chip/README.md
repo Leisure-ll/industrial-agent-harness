@@ -1,6 +1,6 @@
 # Chip Pack: EDA Harness 0.6.0
 
-This is a separate, no UI domain release. It contains the full EDA Harness MCP server (25 tools), its `eda-core` Skill, a project-bound Kimi adapter generator, and a Dockerfile for the EDA tool image. It is not installed into the Industrial Agent Harness Core Broker yet.
+This is a separate, no UI domain release. It contains the full EDA Harness MCP server (25 tools), its `eda-core` Skill, a project-bound Kimi adapter generator, and a Dockerfile for the EDA tool image. Industrial Agent Harness Desktop and CLI now register it through their shared scoped gateway; standalone usage remains supported.
 
 ## Install
 
@@ -44,4 +44,4 @@ The image contains Verilator, Yosys, OpenROAD, KLayout, Magic, Netgen LVS, and G
 
 ## Boundary with Core
 
-This domain pack runs as a standalone EDA Harness/Kimi integration. It does not inherit the current Core Broker allowlist. Do not connect its 25-tool MCP directly through the Core's empty Domain MCP registry or claim the Core vertical slice is complete. The split release lets real EDA scenarios expose gaps while Core's DomainState, Broker gateway, contracts, and shared Runtime integration are built and tested.
+Standalone EDA Harness/Kimi usage retains its own execution policy. Desktop and CLI use a project-bound scoped Gateway over this same MCP/Runtime, as documented in [Core MCP integration](../../doc/domain-mcp-integration.md). Do not register the raw 25-tool server directly with Core Kimi sessions. This connection does not complete Core's Industrial Vertical Slice or convert Core file observations into engineering verification.

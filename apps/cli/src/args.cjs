@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const {distributionDomain} = require('@industrial-agent-harness/domain-skills');
 
 const valueFlags = new Set(['project-dir', 'domain', 'task', 'task-file', 'provider', 'endpoint', 'model', 'context-size', 'approval', 'api-key-env', 'kimi-executable', 'artifact-manifest', 'timeout-ms', 'disable-skill', 'disable-mcp', 'state-dir', 'log-dir', 'chat-id', 'chat-dir']);
 
@@ -11,6 +12,7 @@ function parseArgs(argv) {
     const flag = argv[index];
     if (flag === '--scope-only') {options.scopeOnly = true; continue;}
     if (flag === '--no-thinking') {options.thinking = false; continue;}
+    if (flag === '--image-input') {options.imageInput = true; continue;}
     if (flag === '--enable-gui') {options.enableGui = true; continue;}
     if (!flag.startsWith('--') || !valueFlags.has(flag.slice(2))) throw Error(`Unknown option: ${flag}`);
     if (!argv[index + 1] || argv[index + 1].startsWith('--')) throw Error(`Missing value for ${flag}.`);
@@ -19,6 +21,10 @@ function parseArgs(argv) {
     const key = flag.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
     if (options[key] !== undefined) throw Error(`Duplicate option: ${flag}`);
     options[key] = argv[++index];
+  }
+  if (distributionDomain) {
+    if (options.domain && options.domain !== distributionDomain) throw Error(`This CLI package is fixed to the ${distributionDomain} domain.`);
+    options.domain = distributionDomain;
   }
   if (!options.projectDir || !options.domain) throw Error('Provide --project-dir and --domain.');
   if (options.command === 'chats') {if (options.scopeOnly || options.task || options.taskFile || options.chatId) throw Error('chats only lists project history; use run to submit a task.'); return options;}

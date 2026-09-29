@@ -6,7 +6,7 @@ Electron MVP 工作台采用项目树、Agent 对话、Viewer 三列布局。左
 
 通用文件无需领域工具：CSV/TSV 打开表格、普通 JSON 打开折叠结构、JSONL/NDJSON 按记录查看、Markdown 显示排版、TXT/LOG 支持行号与筛选分页。全部复用缩放、Fit 和全屏，结构化文件保留原文入口；Yosys JSON 与图集描述文件优先进入原专用 Viewer。支持格式与上限见 [通用文件 Viewer](../../doc/document-viewers.md)。运行 `pnpm --filter @industrial-agent-harness/desktop test:documents` 验证生产查看链路。
 
-Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择工程目录、解析能力后即可运行任务，并查看文本、工具事件和审批请求。当前 Agent 工具是按 Scope 提供的只读产物元数据工具；完整工业执行与验证链路尚未接入。
+Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择工程目录、解析能力后即可运行任务，并查看文本、工具事件和审批请求。工具包括按 Scope 提供的只读产物元数据、共享 Chip MCP 和显式注册的外部 MCP；完整 Core 工业执行与验证闭环尚未完成。
 
 运行 `pnpm dev` 或从仓库根目录运行 `pnpm build && pnpm start`。版图渲染可先运行 `pnpm setup:layout`，或设置 `KLAYOUT_PYTHON`。
 
@@ -21,7 +21,7 @@ Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择�
 
 ## MCP 与 Skill 配置
 
-左下角 **Settings → MCP & Skills → Configure** 管理全局默认值。点击左侧项目进入详情页，在 **MCP & Skills** 为该 Domain 的已有资源选择 **Inherit / Enabled / Disabled**；项目覆盖优先于全局默认值，并显示当前生效状态。全局修改同步刷新项目继承状态。当前有四个内置 Skill，尚无默认 Domain MCP provider，MCP 区域明确显示空状态，不支持添加自定义资源。
+左下角 **Settings → MCP & Skills → Configure** 管理全局默认值。点击项目进入详情页，在 **MCP & Skills** 为该 Domain 的资源选择 **Inherit / Enabled / Disabled**；项目覆盖优先于全局，并显示生效状态。已有五个内置 Skill 和 Chip Pack Domain MCP；同一全局页面的 **External MCP services** 可通过本地命令、远程 URL 或 JSON 导入添加外部服务。
 
 配置保存到 `~/.industrial-agent-harness/resource-settings.json`（权限 0600、原子替换），与 CLI 共用；`INDUSTRIAL_HARNESS_CONFIG_DIR` 可指定隔离配置目录。项目按真实目录绑定，原项目禁用列表首次启动时迁移为显式禁用，之后恢复继承不会再次迁移。资源变更关闭旧 Kimi session、清空 Broker Scope，下一任务重新解析；正在执行或准备任务时拒绝更改。该配置只管理资源启用，不修改项目源码或用户 Kimi 配置。
 
@@ -36,3 +36,9 @@ Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择�
 **Settings → Model API → Image input** 提供 Auto / Enabled / Disabled。Auto 仅对官方 MiniMax 兼容 API 的 M3 / M3.1 Flash preview 开启；其他视觉模型需手动选择 Enabled，纯文本模型保持 Disabled。更换模型、Provider 或 URL 会回到 Auto；模型缺少图片能力时禁用带图发送并提供配置入口。SDK / CLI 的 Provider 负责协议转换，Harness 不把图片变成路径或悄悄丢弃图片。
 
 `pnpm --filter @industrial-agent-harness/desktop test:images` 使用隔离配置验证文件选择、粘贴、拖入、三种格式、图片专属任务、模型禁用、错误带图重试、项目隔离与草稿重置。macOS 当前 MiniMax M3 的实际识图也已验证；其他模型仅支持显式能力配置，并不表示已经逐一验证。
+
+## Chip Pack MCP
+
+外部服务注册与 CLI 共用，详情见 [外部 MCP](../../doc/external-mcp.md)。`test:external-mcp` 在隔离用户目录运行真实 UI 添加/刷新/移除、项目禁用、运行中拒绝修改及固定 Kimi 审批/截图路径。需要服务自行安装并获得系统授权，GUI 不自动申请这些权限。
+
+Chip 项目默认注册 `chip-pack.eda`，在全局 MCP & Skills 与项目详情页可查看和禁用。准备固定 Python 依赖后，工程任务通过共用 Broker 和项目绑定网关调用 EDA Runtime；沿用聊天审批、工具结果和日志。macOS 真实 Kimi/Electron 路径由 `test:mcp` 验证。见 [共享 MCP 接入](../../doc/domain-mcp-integration.md)。

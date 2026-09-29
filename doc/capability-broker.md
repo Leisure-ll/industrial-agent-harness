@@ -56,9 +56,9 @@ Broker 可以先作为独立本地 Sidecar 实现，再与控制面和 MCP Gatew
 
 ## Trace 与评估
 
-桌面 MVP 已实现确定性关键词匹配的首批 Chip/PCB Capability Registry，并记录 L0 领域索引、L1 候选和匹配、L2 Scope/Skill/Tool 披露、L3 延迟详情加载。Debug 模式展示这些真实决策事件。当前工具 Scope 作用于交给 Kimi SDK 的 Harness 外部工具，工具处理器在调用时再核验 Scope；Domain MCP Gateway 和 Kimi 内建工具的统一执行策略仍需后续验证。
+桌面 MVP 已实现确定性关键词匹配的首批 Chip/PCB Capability Registry，并记录 L0 领域索引、L1 候选和匹配、L2 Scope/Skill/Tool 披露、L3 延迟详情加载。Debug 模式展示这些真实决策事件。当前工具 Scope 作用于交给 Kimi SDK 的 Harness 外部工具，工具处理器在调用时再核验 Scope；Chip Pack MCP 已通过执行边界校验的 Gateway 接入；Kimi 内建工具的统一工业执行策略仍需后续验证。
 
-默认 Skill 已由仓库中的 `SKILL.md` 文件注册，Project 保存禁用 ID。Broker 在解析前过滤被禁用的资源，并记录 `resource.policy` Trace；Kimi 会话通过 `extra_skill_dirs` 只追加当前 Scope 的仓库 Skill。Domain MCP 已有注册和会话配置路径，但默认服务器列表仍为空。引入真实 MCP 前，需要验证服务实际工具面与 canonical Tool ID 声明一致，并确认详细 schema 的按需披露方式，避免绕过 Broker Scope。
+默认 Skill 已由仓库中的 `SKILL.md` 文件注册，Project 保存禁用 ID。Broker 在解析前过滤被禁用的资源，并记录 `resource.policy` Trace；Kimi 会话通过 `extra_skill_dirs` 只追加当前 Scope 的仓库 Skill。Domain MCP 已注册 Chip Pack，默认清单和 ToolDescriptors 经校验合入共享 Registry；Gateway 检查真实工具面，只按需披露选中工具 schema，调用时校验 Scope 和项目。见 [MCP 接入](domain-mcp-integration.md)。
 
 每个 Project 绑定一个本地目录和一个 Domain。创建 Project 时从 Capability Registry 注册的领域中选择，之后在该 Project 的详情页修改。新 Session 在输入框中用只读小按钮展示所属 Domain；主进程拒绝跨领域解析请求。修改项目 Domain 时清空当前会话 Scope，Broker 结果中的阶段选项也受项目 Domain 限制。当前 MVP 在确定的领域内，根据任务词与用户指向的选中产物格式识别能力及阶段，并在 Trace 中记录 `context.infer`。没有匹配能力时保留空工业 Tool Scope，Kimi 仍可处理普通项目任务。更完整的项目 Domain State 尚未实现，当前推断不作为工程状态事实。
 

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const capabilities = require('./capabilities.cjs');
+const {capabilities} = require('./index.cjs');
 const {listSkills, skillFile, materializeSkills} = require('./registry.cjs');
 
 test('every capability skill has a repository file and only scoped skills reach Kimi', t => {

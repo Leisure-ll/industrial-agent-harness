@@ -66,6 +66,10 @@ export interface ViewerHostApi {
   resourceGet(request: {projectId?: string}): Promise<ResourceSettingsSnapshot>;
   resourceSet(request: {projectId?: string; kind: 'skill' | 'mcp'; id: string; mode: ResourceMode}): Promise<ResourceSettingsSnapshot>;
   resourceCatalog(): Promise<ResourceCatalog>;
+  externalMcpList(): Promise<ExternalMcpSummary[]>;
+  externalMcpAdd(request: {configuration: string}): Promise<ExternalMcpSummary[]>;
+  externalMcpRefresh(id: string): Promise<ExternalMcpSummary[]>;
+  externalMcpRemove(id: string): Promise<ExternalMcpSummary[]>;
   detail(capabilityId: string): Promise<CapabilityDetail>;
   brokerTrace(): Promise<BrokerResult['trace']>;
   diagnosticRuns(request: {projectId: string}): Promise<{runs: DiagnosticRun[]; limited: boolean}>;
@@ -107,6 +111,7 @@ export interface DomainOption {id: string; label: string; emoji: string}
 export interface ResourceCatalog {skills: Array<{id: string; domain: string; title: string; enabledByDefault: boolean}>; mcpServers: Array<{id: string; domain: string; title: string; enabledByDefault: boolean}>}
 
 export type ResourceMode = 'inherit' | 'enabled' | 'disabled';
+export interface ExternalMcpSummary {id: string; title: string; domain: 'all'; transport: 'stdio' | 'http' | 'sse'; toolCount: number; checkedAt: string; enabledByDefault: boolean; external: true}
 export interface ResourceSettingsSnapshot {catalog: ResourceCatalog; global: {skills: string[]; mcpServers: string[]}; overrides: {skills: Record<string, boolean>; mcpServers: Record<string, boolean>}; effective: {skills: string[]; mcpServers: string[]}}
 
 export type AgentEvent = ({chatId?: string; projectId?: string; turnId?: string} & (

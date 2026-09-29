@@ -14,7 +14,7 @@ const {createDocumentPlugins} = require('../../../packages/viewer-builtin/src/do
 const {KiCadRuntimeManager, isKiCadFile} = require('../../../packages/viewer-builtin/src/kicad/runtime.cjs');
 const {createViewerRegistry} = require('../../../packages/viewer-core/src/registry.cjs');
 const {resolve, discloseDetail} = require('../../../packages/capability-broker/src/index.cjs');
-const {resolveProjectTask, effectiveCapabilities, resourceCatalog, ResourceSettings, ChatStore, defaultChatDirectory} = require('@industrial-agent-harness/harness-core');
+const {resolveProjectTask, effectiveCapabilities, resourceCatalog: baseResourceCatalog, ResourceSettings, ChatStore, defaultChatDirectory, ExternalMcpRegistry} = require('@industrial-agent-harness/harness-core');
 const {capabilities, listDomains} = require('@industrial-agent-harness/domain-skills');
 const {validatePromptImages} = require('../../../packages/agent-kimi/src/image-input.cjs');
 const {DiagnosticReader} = require('../../../packages/agent-kimi/src/diagnostic-reader.cjs');
@@ -28,7 +28,7 @@ const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = 
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: {standard: true, secure: true, supportFetchAPI: true, corsEnabled: true}}]);
-if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--documents-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--documents-selftest', '--mcp-selftest', '--external-mcp-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
 
 if (process.argv.includes('--chat-selftest') && process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA) app.setPath('userData', process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA);
 
@@ -79,6 +79,8 @@ function diagnosticDirectory() {return process.argv.some(flag => flag.endsWith('
 const diagnosticReader = new DiagnosticReader(diagnosticDirectory());
 
 const resourceSettings = new ResourceSettings(process.argv.some(flag => flag.endsWith('-selftest')) ? path.join(app.getPath('userData'), 'resources') : undefined);
+const externalRegistry = new ExternalMcpRegistry(path.dirname(resourceSettings.file));
+function resourceCatalog(domain) {return baseResourceCatalog(domain, externalRegistry.records());}
 let changingResources = false;
 function projectResourcePolicy(project = activeProject()) {return resourceSettings.snapshot(resourceCatalog(project?.domain), project?.path).effective;}
 
@@ -103,7 +105,7 @@ function observedContext() {
 function keyFile() {return path.join(configDir(), 'api-key.bin');}
 function canPersistKey() {return safeStorage.isEncryptionAvailable() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text');}
 function readApiKey() {
-  if (['--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return 'diagnostic-selftest-key';
+  if (['--mcp-selftest', '--external-mcp-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return 'diagnostic-selftest-key';
   if (sessionApiKey) return sessionApiKey;
   if (!canPersistKey() || !fs.existsSync(keyFile())) return '';
   try {return safeStorage.decryptString(fs.readFileSync(keyFile()));} catch {return '';}
@@ -140,10 +142,10 @@ function startGuiInstall() {
     .then(result => mainWindow?.webContents.send('settings:gui-progress', {phase: 'ready', tag: result.tag, cached: Boolean(result.cached)}))
     .catch(error => mainWindow?.webContents.send('settings:gui-progress', {phase: 'error', error: String(error)}));
 }
-function runtimeConfig(project = activeProject()) {
+function runtimeConfig(project = activeProject(), externalServers = externalRegistry.records()) {
   const profile = readProfile(configDir());
   const apiKey = readApiKey();
-  return {profile, apiKey, revision: modelRevision, executable: kimiExecutable(), shareDir: writeCliConfig(configDir(), profile), env: sessionEnv(profile, apiKey), disabledMcpServers: projectResourcePolicy(project).mcpServers};
+  return {profile, apiKey, revision: modelRevision, executable: kimiExecutable(), shareDir: writeCliConfig(configDir(), profile), env: sessionEnv(profile, apiKey), disabledMcpServers: projectResourcePolicy(project).mcpServers, externalServers};
 }
 
 function kindFor(file) {
@@ -247,7 +249,8 @@ function registerHandlers() {
     if (request?.chatId && request.chatId !== activeChatId) throw Error('Selected chat changed; retry the task.');
     const entry = selectedSession();
     if (sessions.busy(entry)) throw Error('This chat is already running.');
-    const result = resolveProjectTask(entry.project.domain, request, entry.scope, capabilities, projectResourcePolicy(entry.project));
+    entry.externalServers = externalRegistry.records();
+    const result = resolveProjectTask(entry.project.domain, request, entry.scope, capabilities, projectResourcePolicy(entry.project), entry.externalServers);
     entry.resolvedRequest = {...request}; result.request = entry.resolvedRequest;
     entry.scope = result.scope; entry.trace = result.trace;
     entry.preparedTurn = {id: chats.beginTurn(entry.id, request.task, result, false), task: request.task, broker: result};
@@ -295,7 +298,7 @@ function registerHandlers() {
     } finally {changingResources = false;}
   });
   ipcMain.handle('agent:status', () => {
-    if (['--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return {available:true,version:'SDK seam selftest',projectDir,configured:true};
+    if (['--mcp-selftest', '--external-mcp-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return {available:true,version:'SDK seam selftest',projectDir,configured:true};
     const executable = kimiExecutable();
     const result = spawnSync(executable, ['--version'], {encoding: 'utf8', timeout: 3000});
     const help = result.status === 0 ? spawnSync(executable, ['--help'], {encoding: 'utf8', timeout: 3000}) : null;
@@ -343,6 +346,21 @@ function registerHandlers() {
     } finally {changingResources = false;}
   }
   ipcMain.handle('resource:set', setResource);
+  ipcMain.handle('external-mcp:list', event => {resourceProject(event, {}); return externalRegistry.list();});
+  async function externalChange(event, request, operation) {
+    resourceProject(event, {});
+    if (changingResources) throw Error('Resource settings are being saved.');
+    sessions.assertIdle(); changingResources = true;
+    try {
+      await sessions.reset();
+      if (operation === 'add') return await externalRegistry.add(request?.configuration);
+      if (typeof request?.id !== 'string') throw Error('Choose an external MCP service.');
+      return operation === 'refresh' ? await externalRegistry.refresh(request.id) : externalRegistry.remove(request.id);
+    } finally {changingResources = false;}
+  }
+  ipcMain.handle('external-mcp:add', (event, request) => externalChange(event, request, 'add'));
+  ipcMain.handle('external-mcp:refresh', (event, request) => externalChange(event, request, 'refresh'));
+  ipcMain.handle('external-mcp:remove', (event, request) => externalChange(event, request, 'remove'));
   ipcMain.handle('project:set-resource', async (event, request) => {
     if (!request?.projectId || typeof request?.enabled !== 'boolean') throw Error('Invalid project resource change.');
     await setResource(event, {...request, mode: request.enabled ? 'enabled' : 'disabled'});
@@ -461,7 +479,8 @@ function registerHandlers() {
     entry.release = chats.acquire(entry.id);
     try {
       chats.recoverInterrupted();
-      const current = resolveProjectTask(entry.project.domain, {...entry.resolvedRequest, task}, entry.scope, capabilities, projectResourcePolicy(entry.project));
+      entry.externalServers = externalRegistry.records();
+      const current = resolveProjectTask(entry.project.domain, {...entry.resolvedRequest, task}, entry.scope, capabilities, projectResourcePolicy(entry.project), entry.externalServers);
       current.request = entry.resolvedRequest; entry.scope = current.scope; entry.trace = current.trace;
       const turnId = entry.preparedTurn?.task === task ? entry.preparedTurn.id : chats.beginTurn(entry.id, task, current, false);
       chats.updateBroker(turnId, current); entry.preparedTurn = undefined;
@@ -474,7 +493,7 @@ function registerHandlers() {
         if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('agent:event', {...event, chatId: entry.id, projectId: entry.project.id, turnId});
         if (['approval', 'approval-resolved', 'done', 'error'].includes(event.type)) notifySessions();
       };
-      entry.agent ||= new KimiSession(entry.project.path, () => entry.scope, id => sessionContext(entry).readArtifact(id), id => loadDetail(id, entry), emit, () => runtimeConfig(entry.project),
+      entry.agent ||= new KimiSession(entry.project.path, () => entry.scope, id => sessionContext(entry).readArtifact(id), id => loadDetail(id, entry), emit, () => runtimeConfig(entry.project, entry.externalServers),
         process.argv.includes('--parallel-selftest') ? require('./parallel-selftest.cjs').createSession : process.argv.includes('--image-input-selftest') ? require('./image-input-selftest.cjs').createSession : process.argv.includes('--agent-log-selftest') ? require('./agent-log-selftest.cjs').createSession : process.argv.includes('--chat-selftest') ? require('./chat-selftest.cjs').createSession : undefined,
         {directory: diagnosticDirectory(), getBrokerTrace: () => entry.trace, pluginLog: (canonicalId, risk, args, info) => {entry.trace.push({level: 'L2', event: 'plugin.tool-call', detail: {plugin: 'computer-use', tool: canonicalId, risk, args, ...info}}); if (entry.trace.length > 500) entry.trace.splice(0, entry.trace.length - 500);}, getContextAnchor: () => sessionContext(entry).anchor(), readContextPage: (checkpointId, offset, limit) => sessionContext(entry).readPage(checkpointId, offset, limit), resolveSession: key => chats.runtimeSession(entry.id, key), sessionInitialized: id => chats.initialized(id)}, [guiPlugin()]);
       entry.agent.emit = emit;
@@ -515,6 +534,8 @@ function registerHandlers() {
 }
 
 async function createWindow() {
+  if (process.argv.includes('--mcp-selftest')) await require('./mcp-selftest.cjs').prepare(projectConfigDir(), configDir());
+  if (process.argv.includes('--external-mcp-selftest')) await require('./external-mcp-selftest.cjs').prepare(projectConfigDir(), configDir(), path.dirname(resourceSettings.file));
   appSettings = readSettings(configDir());
   // A previously enabled plugin whose install never completed (offline first
   // run, failed upgrade) must not stay durably enabled with no binary: retry
@@ -547,6 +568,8 @@ async function createWindow() {
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
+  if (process.argv.includes('--mcp-selftest')) {await require('./mcp-selftest.cjs').run(window); app.quit(); return;}
+  if (process.argv.includes('--external-mcp-selftest')) {await require('./external-mcp-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--documents-selftest')) {await require('./documents-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--chat-selftest')) {
     await require('./chat-selftest.cjs').run(window, chats);

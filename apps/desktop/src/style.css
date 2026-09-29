@@ -67,6 +67,19 @@
 .ia-resource-modal > header p {color: var(--ia-muted);}
 .ia-resource-modal > header button {font-size: 22px;}
 .ia-project-resources select {max-width: 180px; padding: 6px 8px; border: 1px solid var(--ia-border); border-radius: 6px; color: var(--ia-text); background: var(--ia-raised);}
+.ia-external-mcp {margin-top: 24px; border-top: 1px solid var(--ia-border); padding-top: 4px;}
+.ia-external-server {display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--ia-border);}
+.ia-external-server > div:first-child {display: grid; gap: 4px; font-size: 12px;}
+.ia-external-server small {color: var(--ia-muted); font-size: 10px; overflow-wrap: anywhere;}
+.ia-external-actions {display: flex; gap: 6px; flex-shrink: 0;}
+.ia-external-mcp button {border: 1px solid var(--ia-border); border-radius: 6px; background: var(--ia-raised); color: var(--ia-text); padding: 6px 9px; font-size: 11px;}
+.ia-external-mcp button:disabled {opacity: .5; cursor: default;}
+.ia-external-mcp form {display: grid; gap: 8px; margin-top: 18px;}
+.ia-external-mcp form h4 {margin: 0 0 2px; font-size: 12px;}
+.ia-project-resources .ia-external-mcp form label {display: block; padding: 0; border: 0; color: var(--ia-muted);}
+.ia-project-resources .ia-external-mcp form input,.ia-external-mcp textarea,.ia-project-resources .ia-external-mcp form select {box-sizing: border-box; width: 100%; max-width: none; padding: 8px 10px; border: 1px solid var(--ia-border); border-radius: 6px; background: var(--ia-bg); color: var(--ia-text); font: inherit; font-size: 12px;}
+.ia-external-mcp textarea {min-height: 75px; resize: vertical;}
+.ia-external-mcp form button {justify-self: start;}
 .ia-project-list {overflow-y: auto;}
 .ia-project-chats {margin: 3px 9px 10px 21px; padding-left: 7px; border-left: 1px solid var(--ia-border);}
 .ia-project-list .ia-project-chats button {width: calc(100% - 6px); margin: 2px 3px; padding: 7px 8px; min-height: 29px; color: var(--ia-muted); font-size: 11px;}

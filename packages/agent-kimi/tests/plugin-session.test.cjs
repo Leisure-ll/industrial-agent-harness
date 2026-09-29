@@ -22,14 +22,14 @@ function makePlugin({enabled = true} = {}) {
   };
 }
 
-function startSession(t, plugin) {
+function startSession(t, plugin, externalServers = []) {
   const shareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-plugin-'));
   t.after(() => fs.rmSync(shareDir, {recursive: true, force: true}));
   fs.writeFileSync(path.join(shareDir, 'config.toml'), 'default_model = "industrial"\n');
   const created = [];
   const events = [];
   const approvals = [];
-  const scope = {version: 'one', domain: 'chip', stage: 'rtl', capabilityIds: ['chip.rtl.netlist.inspect'], skills: ['chip.netlist.inspect'], tools: ['eda.netlist.inspect']};
+  const scope = {version: 'one', domain: 'chip', stage: 'rtl', capabilityIds: ['chip.rtl.netlist.inspect'], skills: ['chip.netlist.inspect'], tools: ['eda.netlist.inspect', ...externalServers.flatMap(server => server.tools.map(tool => tool.id))]};
   const factory = options => {
     const instance = {options, async close() {}, prompt() {
       return {
@@ -38,13 +38,14 @@ function startSession(t, plugin) {
         async *[Symbol.asyncIterator]() {
           yield {type: 'ApprovalRequest', payload: {id: 'a1', sender: 'fake_click', action: 'click', description: 'click e1'}};
           yield {type: 'ApprovalRequest', payload: {id: 'a2', sender: 'Shell', action: 'run', description: 'ls'}};
+          if (externalServers.length) yield {type: 'ApprovalRequest', payload: {id: 'a3', sender: 'external_tool_call', action: 'call', description: 'external mutation'}};
         },
       };
     }};
     created.push(instance);
     return instance;
   };
-  const session = new KimiSession(shareDir, () => scope, async () => null, () => null, event => events.push(event), () => ({apiKey: 'k', revision: 0, shareDir, profile: {thinking: false}, disabledMcpServers: []}), factory, {directory: path.join(shareDir, 'logs'), getBrokerTrace: () => []}, plugin ? [plugin] : []);
+  const session = new KimiSession(shareDir, () => scope, async () => null, () => null, event => events.push(event), () => ({apiKey: 'k', revision: 0, shareDir, profile: {thinking: false}, disabledMcpServers: [], externalServers}), factory, {directory: path.join(shareDir, 'logs'), getBrokerTrace: () => []}, plugin ? [plugin] : []);
   t.after(() => session.close());
   return {session, created, events, approvals, shareDir};
 }
@@ -224,4 +225,26 @@ test('a disabled plugin contributes nothing', async t => {
   assert.ok(!toolNames.includes('fake_click'));
   assert.ok(!fs.existsSync(path.join(created[0].options.shareDir, 'skills', 'fake-gui')));
   assert.deepEqual(events.filter(event => event.type === 'approval').map(event => event.id), ['a1', 'a2']);
+});
+
+
+test('external MCP and plugin skills coexist; external approvals remain interactive across session renewals', async t => {
+  const {toolSnapshot, hash} = require('../../domain-mcp/src/external-client.cjs');
+  const tools = toolSnapshot('external.host', [{name: 'observe', inputSchema: {type: 'object', properties: {}}}]);
+  const server = {id: 'external.host', tools, surfaceHash: hash(tools), revision: 'first', config: {transport: 'stdio', command: process.execPath, args: [], cwd: os.tmpdir(), env: {}, envRefs: {}}};
+  let enabled = true;
+  const plugin = {...makePlugin(), enabled: () => enabled};
+  const {session, created, events, approvals} = startSession(t, plugin, [server]);
+  await session.run('both');
+  const files = created[0].options.shareDir;
+  assert.ok(JSON.parse(fs.readFileSync(path.join(files, 'mcp.json'))).mcpServers['harness.external']);
+  assert.ok(fs.existsSync(path.join(files, 'skills', 'fake-gui', 'SKILL.md')));
+  assert.ok(fs.existsSync(path.join(files, 'skills', 'chip-netlist-inspect', 'SKILL.md')));
+  assert.deepEqual(approvals, [{id: 'a1', response: 'approve_for_session'}]);
+  assert.deepEqual(events.filter(event => event.type === 'approval').map(event => event.id), ['a2', 'a3']);
+  await session.run('unchanged'); assert.equal(created.length, 1);
+  server.revision = 'refreshed'; await session.run('MCP changed'); assert.equal(created.length, 2);
+  enabled = false; await session.run('plugin disabled'); assert.equal(created.length, 3);
+  assert.ok(!created[2].options.externalTools.some(tool => tool.name === 'fake_click'));
+  assert.ok(JSON.parse(fs.readFileSync(path.join(created[2].options.shareDir, 'mcp.json'))).mcpServers['harness.external']);
 });
