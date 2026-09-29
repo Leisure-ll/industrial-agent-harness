@@ -84,6 +84,10 @@ test('real external stdio gateway enforces pinned scope/schema, preserves screen
   const fresh = await gateway(t, path.join(directory, 'fresh'), servers, [click.toolId]).catch(error => {throw error;});
   assert.equal((await fresh.client.callTool({name: 'external_tool_describe', arguments: {toolId: screenshot.toolId}})).isError, true);
   assert.match((await fresh.client.callTool({name: 'external_tool_call', arguments: {toolId: click.toolId, arguments: {x: 3, y: 4}}})).content[0].text, /schemas changed/);
+  fs.writeFileSync(path.join(directory, 'drift'), 'fail');
+  const failed = await client.callTool({name: 'external_tool_call', arguments: {toolId: click.toolId, arguments: {x: 3, y: 4}}});
+  assert.equal(failed.isError, true); assert.ok(!JSON.stringify(failed).includes('external-fixture-private-secret')); assert.ok(JSON.stringify(failed).includes('[REDACTED_MCP_CREDENTIAL]'));
+  assert.ok(Buffer.byteLength(failed.content[0].text) <= 16 * 1024, 'remote error text must obey the same response bound');
 });
 
 test('remote HTTP and legacy SSE registration use explicit header credentials and the same scoped gateway', {timeout: 30000}, async t => {

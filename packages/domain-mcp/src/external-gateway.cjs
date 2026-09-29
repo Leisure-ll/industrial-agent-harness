@@ -142,7 +142,10 @@ function createExternalGateway(policy) {
           return {content: [{type: 'text', text: JSON.stringify({responseId: args.responseId, offset, nextOffset: offset + text.length < raw.length ? offset + text.length : null, characters: entry.characters, bytes: entry.bytes, sha256: entry.sha256, text})}]};
         }
       }
-    } catch (error) {return {content: [{type: 'text', text: error.message}], isError: true};}
+    } catch (error) {
+      const message = secrets.reduce((result, secret) => result.replaceAll(secret, '[REDACTED_MCP_CREDENTIAL]'), String(error.message));
+      return {content: [{type: 'text', text: message.slice(0, 2048)}], isError: true};
+    }
   });
   async function close() {await Promise.allSettled([...connections.values()].map(async pending => (await pending).close()));}
   server.onclose = () => {void close();};
