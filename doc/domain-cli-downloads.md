@@ -2,7 +2,7 @@
 
 同一个 Headless Release 提供 `industrial-agent-harness-cli-chip-<tag>.tar.gz`、`industrial-agent-harness-cli-pcb-<tag>.tar.gz`、`industrial-agent-harness-cli-godot-<tag>.tar.gz` 和各自 SHA-256 校验文件。
 
-首版分包为 [headless-v0.2.0-preview.1](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.1)，历史 Release 不自动补文件。发行包从固定提交构建，`PACKAGE.json` 的 `sourceDirty` 必须为 `false`；此前 `dist/domain-cli-20260929` 中的本地测试包不能替代发行包。
+首版分包为 [headless-v0.2.0-preview.2](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.2)，历史 Release 不自动补文件。发行包从固定提交构建，`HARNESS-PACKAGE.json` 的 `sourceDirty` 必须为 `false`；此前 `dist/domain-cli-20260929` 中的本地测试包不能替代发行包。
 
 | 包 | 默认领域 | 当前能力与测试依赖 |
 | --- | --- | --- |
@@ -20,7 +20,7 @@ node industrial-harness.cjs run --project-dir /absolute/project --task '检查�
 ```
 
 各包默认绑定所选 Domain，`--domain` 可省略；显式指定另一个领域会拒绝。只注册本领域 Capability / Skill / MCP，删除无关 Skill 与 Domain Pack 文件；Chip 之外不携带 EDA 源码或 Python 环境。
-`PACKAGE.json` 记录领域、构建时间、来源提交、是否含未提交改动与 provider 版本。
+`HARNESS-PACKAGE.json` 记录领域、构建时间、来源提交、是否含未提交改动与 provider 版本。
 
 所有包需要 Node.js 22.13+。实际 Agent 另需 Kimi CLI **1.51.0** 和模型 API key；可先用 `--scope-only` 测试注册而不启动模型。可使用 uv 在包外的独立目录安装：
 

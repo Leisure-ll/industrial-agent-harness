@@ -10,6 +10,12 @@ const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'domain-cli-smoke-'));
 try {
   for (const domain of domains) {
     const entry = path.join(directory, `headless-${domain}`, 'industrial-harness.cjs');
+    const packageRoot = path.dirname(entry);
+    const filenames = fs.readdirSync(packageRoot).map(name => name.toLowerCase());
+    assert.equal(new Set(filenames).size, filenames.length, 'Package root filenames must coexist on case-insensitive filesystems.');
+    const identity = JSON.parse(fs.readFileSync(path.join(packageRoot, 'HARNESS-PACKAGE.json'), 'utf8'));
+    assert.equal(identity.domain, domain);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8')).name, '@industrial-agent-harness/cli', 'Release identity must preserve the Node package manifest.');
     const args = ['run', '--project-dir', temporary, '--task', domain === 'chip' ? '检查工程状态' : domain === 'pcb' ? 'Inspect PCB board' : 'Inspect project files', '--scope-only'];
     const run = extra => execFileSync(process.execPath, [entry, ...args, ...extra], {cwd: temporary, encoding: 'utf8', env: {...process.env, INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(temporary, 'config')}}).trim().split('\n').map(JSON.parse);
     const rows = run([]); assert.equal(rows[0].scope.domain, domain); assert.equal(rows.at(-1).status, 'scoped');
