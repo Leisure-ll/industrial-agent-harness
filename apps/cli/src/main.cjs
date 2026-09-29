@@ -5,7 +5,7 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const {parseArgs} = require('./args.cjs');
 const {resolveProjectTask, effectiveCapabilities, resourceCatalog, ResourceSettings, defaultResourceDirectory, ChatStore, defaultChatDirectory} = require('@industrial-agent-harness/harness-core');
-const {capabilities, listDomains} = require('@industrial-agent-harness/domain-skills');
+const {capabilities, listDomains, distributionDomain} = require('@industrial-agent-harness/domain-skills');
 const {discloseDetail} = require('@industrial-agent-harness/capability-broker');
 const {KimiSession} = require('@industrial-agent-harness/agent-kimi');
 const {ObservedContextStore} = require('@industrial-agent-harness/domain-runtime');
@@ -120,7 +120,7 @@ async function runWithStore(options, output, environment, Session, chats) {
     send({type: 'chat', chatId: chat.id});
     contextStore = new ObservedContextStore(projectDir, options.domain, {directory: options.stateDir || environment.INDUSTRIAL_HARNESS_STATE_DIR});
     for (const [id, item] of artifacts) await contextStore.observeArtifact({id, kind: item.metadata.kind, file: item.file});
-    const runtime = {profile, apiKey, revision: 0, executable: options.kimiExecutable || environment.KIMI_EXECUTABLE || 'kimi', shareDir: writeCliConfig(configDir, profile), env: sessionEnv(profile, apiKey), disabledMcpServers: disabled.mcpServers};
+    const runtime = {profile, apiKey, revision: 0, executable: options.kimiExecutable || environment.KIMI_EXECUTABLE || 'kimi', shareDir: writeCliConfig(configDir, profile), env: sessionEnv(profile, apiKey), disabledMcpServers: disabled.mcpServers, environment};
     session = new Session(projectDir, () => scope, async id => {
       return contextStore.readArtifact(id);
     }, id => {
@@ -164,7 +164,7 @@ async function main() {
       return;
     }
     const options = parseArgs(process.argv.slice(2));
-    if (options.help) {process.stdout.write(usage); return;}
+    if (options.help) {process.stdout.write((distributionDomain ? `This CLI package is fixed to ${distributionDomain}; --domain is optional.\n\n` : '') + usage); return;}
     process.exitCode = await run(options);
   } catch (error) {
     emit(process.stdout, {type: 'error', message: String(error)});

@@ -36,3 +36,7 @@ Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择�
 **Settings → Model API → Image input** 提供 Auto / Enabled / Disabled。Auto 仅对官方 MiniMax 兼容 API 的 M3 / M3.1 Flash preview 开启；其他视觉模型需手动选择 Enabled，纯文本模型保持 Disabled。更换模型、Provider 或 URL 会回到 Auto；模型缺少图片能力时禁用带图发送并提供配置入口。SDK / CLI 的 Provider 负责协议转换，Harness 不把图片变成路径或悄悄丢弃图片。
 
 `pnpm --filter @industrial-agent-harness/desktop test:images` 使用隔离配置验证文件选择、粘贴、拖入、三种格式、图片专属任务、模型禁用、错误带图重试、项目隔离与草稿重置。macOS 当前 MiniMax M3 的实际识图也已验证；其他模型仅支持显式能力配置，并不表示已经逐一验证。
+
+## Chip Pack MCP
+
+Chip 项目默认注册 `chip-pack.eda`，在全局 MCP & Skills 与项目详情页可查看和禁用。准备固定 Python 依赖后，工程任务通过共用 Broker 和项目绑定网关调用 EDA Runtime；沿用聊天审批、工具结果和日志。macOS 真实 Kimi/Electron 路径由 `test:mcp` 验证。见 [共享 MCP 接入](../../doc/domain-mcp-integration.md)。

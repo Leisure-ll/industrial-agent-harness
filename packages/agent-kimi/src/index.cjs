@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const {materializeSkills} = require('@industrial-agent-harness/domain-skills');
-const {selectMcpServers, writeMcpConfig} = require('@industrial-agent-harness/domain-mcp');
+const {selectMcpServers, writeMcpConfig, selectedRuntimeKey} = require('@industrial-agent-harness/domain-mcp');
 const {validatePromptImages, imageContent} = require('./image-input.cjs');
 const {createDiagnosticLog} = require('./diagnostic-log.cjs');
 
@@ -32,9 +32,10 @@ function scopeKey(scope) {
 }
 
 function industrialContext(scope, anchor = null) {
-  const context = scope.capabilityIds.length
+  let context = scope.capabilityIds.length
     ? `Industrial Context (current Broker scope): ${scopeKey(scope)}. Use industrial_capability_detail to load details when needed. Artifact metadata tools are read-only. Treat viewer output as inspection, not engineering verification.`
     : 'No industrial capability was selected for this task. Work within the chosen project using standard Kimi tools.';
+  if (selectMcpServers(scope).length) context += '\nA project-bound Domain MCP is available. Use domain_tool_list for allowed canonical IDs, domain_tool_describe for a selected schema, and domain_tool_call to recover persisted domain context before engineering work. Core file observations are separate from domain execution and acceptance evidence.';
   const readHint = scope.capabilityIds.length ? 'Use industrial_context_read for more registered artifacts or after compaction.' : 'Select an industrial capability to enable checkpoint detail tools.';
   const withAnchor = value => `${context}\nObserved project checkpoint: ${JSON.stringify(value)}. These are file observations with content hashes, not engineering verification. ${readHint}`;
   let complete = anchor ? withAnchor(anchor) : context;
@@ -45,7 +46,7 @@ function industrialContext(scope, anchor = null) {
   return complete;
 }
 
-function prepareSessionFiles(scope, runtime, persistentDirectory) {
+function prepareSessionFiles(scope, runtime, persistentDirectory, projectDir) {
   const directory = persistentDirectory || fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-session-'));
   fs.mkdirSync(directory, {recursive: true, mode: 0o700});
   fs.chmodSync(directory, 0o700);
@@ -53,7 +54,7 @@ function prepareSessionFiles(scope, runtime, persistentDirectory) {
     const skillsDir = materializeSkills(scope, directory);
     const modelConfig = fs.readFileSync(path.join(runtime.shareDir, 'config.toml'), 'utf8');
     fs.writeFileSync(path.join(directory, 'config.toml'), `extra_skill_dirs = [${JSON.stringify(skillsDir)}]\n${modelConfig}`, {mode: 0o600});
-    writeMcpConfig(directory, selectMcpServers(scope, runtime.disabledMcpServers));
+    writeMcpConfig(directory, selectMcpServers(scope, runtime.disabledMcpServers), {projectDir, environment: runtime.environment});
     return directory;
   } catch (error) {if (!persistentDirectory) fs.rmSync(directory, {recursive: true, force: true}); throw error;}
 }
@@ -140,14 +141,14 @@ class KimiSession {
         await this.session?.close();
         this.session = undefined;
         if (this.sessionConfigDir && !this.persistentSession) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true});
-        const compatibilityKey = crypto.createHash('sha256').update(JSON.stringify({scope: currentScopeKey, profile: runtime.profile, executable: runtime.executable || 'kimi', disabledMcpServers: runtime.disabledMcpServers || []})).digest('hex');
+        const compatibilityKey = crypto.createHash('sha256').update(JSON.stringify({scope: currentScopeKey, profile: runtime.profile, executable: runtime.executable || 'kimi', disabledMcpServers: runtime.disabledMcpServers || [], mcpRuntime: selectedRuntimeKey(scope, runtime.disabledMcpServers, runtime.environment)})).digest('hex');
         this.persistentSession = this.diagnostics.resolveSession?.(compatibilityKey);
         const stored = this.persistentSession;
         if (stored?.initialized) {
           const context = path.join(createKimiPaths(stored.shareDir).sessionDir(this.workDir, stored.id), 'context.jsonl');
           if (!fs.existsSync(context) || !fs.statSync(context).size) throw Error('Saved agent context is missing. Open a new chat; the existing history is preserved.');
         }
-        this.sessionConfigDir = prepareSessionFiles(scope, runtime, stored?.shareDir);
+        this.sessionConfigDir = prepareSessionFiles(scope, runtime, stored?.shareDir, this.workDir);
         this.session = this.sessionFactory({
           workDir: this.workDir,
           ...(this.persistentSession ? {sessionId: this.persistentSession.id} : {}),
@@ -216,7 +217,7 @@ class KimiSession {
     else if (event.type === 'ToolResult') {
       const value = event.payload.return_value;
       this.turnMetrics.toolResults++;
-      const output = typeof value.output === 'string' ? value.output : '';
+      const output = typeof value.output === 'string' ? value.output : Array.isArray(value.output) ? value.output.map(part => part.type === 'text' ? part.text : `[${part.type || 'unknown'} content; see original SDK record]`).join('\n') : '';
       const outputBytes = Buffer.byteLength(output, 'utf8');
       this.turnMetrics.peakToolResultBytes = Math.max(this.turnMetrics.peakToolResultBytes, outputBytes);
       this.emitAgent({type: 'tool-result', id: event.payload.tool_call_id, error: value.is_error, message: value.message, output: output.slice(0, 12000), outputBytes, outputTruncated: output.length > 12000});

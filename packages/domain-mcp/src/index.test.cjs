@@ -15,3 +15,17 @@ test('a server is withheld unless every declared tool is in scope and it is enab
   const file = writeMcpConfig(root, []);
   assert.deepEqual(JSON.parse(fs.readFileSync(file)), {mcpServers: {}});
 });
+
+
+test('registered gateway intersects the current scope while direct providers retain all-or-nothing disclosure', () => {
+  const {listMcpServers} = require('./index.cjs');
+  const providers = listMcpServers('chip');
+  assert.equal(providers.length, 1); assert.equal(providers[0].id, 'chip-pack.eda');
+  assert.equal(providers[0].toolIds.length, 25);
+  assert.deepEqual(listMcpServers('pcb'), []);
+  const scope = {domain: 'chip', tools: ['eda.harness.get_server_info']};
+  assert.deepEqual(selectMcpServers(scope)[0].allowedToolIds, scope.tools);
+  assert.deepEqual(selectMcpServers(scope, ['chip-pack.eda']), []);
+  assert.deepEqual(selectMcpServers({...scope, domain: 'pcb'}), []);
+  assert.deepEqual(selectMcpServers({domain: 'chip', tools: ['unknown']}), []);
+});

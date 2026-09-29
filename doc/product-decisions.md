@@ -283,3 +283,19 @@ Model API 的 Image input 提供 Auto / Enabled / Disabled。Auto 只识别已�
 CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 显示可折叠结构；JSONL/NDJSON 按源行号和记录分页；Markdown 显示只读排版；TXT/LOG 提供行号、换行与筛选分页。通过现有文件树、Artifact 身份与 Registry 打开，不引入新的 Domain、Capability 或模型工具。Yosys 网表与图集描述文件保留专用优先级；普通 JSON 的 `modules` 字段不代表网表。其他文件沿用源码预览。
 
 新 Viewer 沿用统一缩放、Fit、滚轮/捏合和保留状态的全屏；结构化文件与文档保留原文入口。无效数据明确提示，不呈现部分解析结果为完整数据；无法精确表示的 JSON 数字默认显示原文。Markdown 不执行 HTML、跳转链接或加载嵌入资源。输入编码、文件/结构上限、格式范围与 macOS 实测记录见 [通用文件 Viewer](document-viewers.md)。根 README 清单与开发规则同步维护；原创示例以普通项目目录提供。
+
+## PD-026：Chip Pack 同时注册到桌面与 CLI
+
+- 日期：2026-09-29
+- 状态：已落实；补充 PD-008 的 Core 接入步骤
+- 来源：用户要求把已有 EDA Harness / Chip Pack MCP 注册到 UI 和 CLI
+- 决定：Chip 项目默认显示并启用 `chip-pack.eda`；复用已有全局/项目资源策略，禁用后两个入口都撤掉相应工具。按任务披露、按项目绑定，通过同一网关调用现有 EDA Runtime。审批与工具结果沿用聊天和 CLI 流程，EDA 持久化上下文通过 MCP 回读。
+- 依赖与验收：固定 Python 依赖需要准备；注册不等于工具镜像或 PDK 就绪。真实 Kimi/CLI 与 macOS Electron 已验证审批、调用及持久化回读，不把该接入计作完整 Core 工业闭环验收。
+
+## PD-027：CLI 按 Domain 分包用于测试
+
+- 日期：2026-09-29
+- 状态：构建与发布工作流已落实；本地包实测，新 GitHub Release 尚未发布
+- 来源：用户希望分 Domain 下载 CLI，方便测试阶段使用
+- 决定：同一 Headless Release 提供 Chip/PCB/Godot 独立 CLI 包和校验文件，默认绑定领域并拒绝跨领域请求；只注册本领域资源。Chip 携带 EDA 固定源码，Python/模型/工业软件另行准备。保留多领域 Bench 包和独立 Chip Pack。
+- 验证：macOS 从不同工作目录启动三个包，验证默认领域、拒绝、资源与 Chip 禁用；分包不意味着尚缺工业 MCP 的领域可执行工程任务。

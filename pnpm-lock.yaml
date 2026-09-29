@@ -95,7 +95,11 @@ importers:
         specifier: 4.6.5
         version: 4.6.5
 
-  packages/domain-mcp: {}
+  packages/domain-mcp:
+    dependencies:
+      '@industrial-agent-harness/domain-skills':
+        specifier: workspace:*
+        version: link:../domain-skills
 
   packages/domain-runtime:
     dependencies:

@@ -76,3 +76,16 @@ test('session preparation is busy and a completed turn expires unanswered approv
   assert.deepEqual(events.at(-1), {type: 'approval-resolved', id: 'expired', decision: 'expired'});
   await assert.rejects(session.approve('expired', 'approve'), /no longer pending/);
 });
+
+
+test('MCP multipart output retains text in chat events and metrics while the original record preserves media', () => {
+  const events = [];
+  const session = new KimiSession('.', () => null, () => null, () => null, event => events.push(event), () => null);
+  session.turnMetrics = {toolResults: 0, peakToolResultBytes: 0};
+  session.emitEvent({type: 'ToolResult', payload: {tool_call_id: 'mcp-call', return_value: {is_error: false, output: [{type: 'text', text: 'MCP result 中文'}, {type: 'image_url', image_url: {url: 'data:image/png;base64,AAA'}}]}}});
+  assert.match(events[0].output, /MCP result 中文/);
+  assert.match(events[0].output, /image_url content/);
+  assert.ok(!events[0].output.includes('base64'));
+  assert.equal(events[0].outputBytes, Buffer.byteLength(events[0].output));
+  assert.equal(session.turnMetrics.toolResults, 1);
+});

@@ -84,7 +84,7 @@ test('prototype exceptions are explicit and core milestone cannot be claimed ear
 });
 
 test('mutating capability tools must declare verification', () => {
-  const capabilities = require(path.join(root, 'packages/domain-skills/src/capabilities.cjs'));
+  const {capabilities} = require(path.join(root, 'packages/domain-skills/src/index.cjs'));
   const known = new Set(prototype('static-capability-registry').allowedToolIds);
   for (const capability of capabilities) for (const tool of capability.tools) {
     if (!known.has(tool.id)) assert.ok(tool.risk, `new tool ${tool.id} needs a risk declaration`);

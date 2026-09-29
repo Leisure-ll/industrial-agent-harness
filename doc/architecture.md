@@ -67,6 +67,6 @@ Harness 提供结构化的 Industrial Context，例如领域、阶段、当前�
 
 ## 仓库映射
 
-已落实的目录：`apps/desktop`、`apps/cli`、`packages/harness-core`、`packages/agent-kimi`、`packages/contracts`、`packages/domain-skills`、`packages/domain-runtime`、`packages/domain-mcp`、`packages/viewer-core`、`packages/viewer-builtin`。CLI 与桌面端共用 Broker、项目 Domain 约束、Capability Registry 和 Kimi Integration；CLI 的无模型 Scope 路径已验证，真实模型任务仍需 bench 环境验证。Viewer Core 已有初始类型契约；三组 EDA Viewer 已接入桌面端。Kimi SDK 固定为 `0.1.8`，开发环境 Kimi CLI 固定为 `1.51.0`。Domain Runtime 与 Domain MCP 目录目前主要是边界声明。`apps/desktop/viewer-host` 是桌面 Viewer 容器的结构占位。
+已落实的目录：`apps/desktop`、`apps/cli`、`packages/harness-core`、`packages/agent-kimi`、`packages/contracts`、`packages/domain-skills`、`packages/domain-runtime`、`packages/domain-mcp`、`packages/viewer-core`、`packages/viewer-builtin`。CLI 与桌面端共用 Broker、项目 Domain 约束、Capability Registry 和 Kimi Integration；CLI 的无模型 Scope 路径已验证，真实模型任务仍需 bench 环境验证。Viewer Core 已有初始类型契约；三组 EDA Viewer 已接入桌面端。Kimi SDK 固定为 `0.1.8`，开发环境 Kimi CLI 固定为 `1.51.0`。Domain Runtime 当前提供文件观察；Domain MCP 已接入 Chip Pack 的独立运行时，经共享 Scope Gateway 供两个入口调用，尚未形成完整 Core 工业状态闭环。`apps/desktop/viewer-host` 是桌面 Viewer 容器的结构占位。
 
 计划新增的职责包括完整本地控制面、Domain Pack SDK、Bridge/Verifier 扩展点、参考领域和打包流水线。桌面主进程仍包含部分项目与会话编排逻辑，后续应继续下沉到共享的无界面层；CLI 不通过这些 Electron 代码调用任务。具体拆包以实现时的依赖边界为准。

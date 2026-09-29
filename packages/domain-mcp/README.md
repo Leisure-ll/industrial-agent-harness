@@ -1,5 +1,10 @@
 # Domain MCP
 
-Exposes domain capability discovery, selected tool schemas, and calls backed by the domain runtime. Keep discovery compact and disclose detailed tools only as needed for a task.
+Exposes compact discovery, selected tool schemas, and scoped calls backed by a declared domain Runtime.
 
-当前 `src/index.cjs` 提供仓库默认服务器注册、按 Scope 与全局/项目有效禁用项筛选及 Kimi 会话 `mcp.json` 生成；尚未注册真实默认服务器。首个服务器需要明确 Domain、稳定 ID、固定版本和它实际暴露的全部 canonical Tool ID。若服务端可能返回未声明工具，需先通过 Gateway 限定工具面，再将其加入默认注册表。Settings 与项目详情页提供资源配置入口，只保存 ID 启用策略，项目支持继承、启用与禁用，不改用户全局 Kimi 配置。当前列表为空，不支持添加自定义服务器。
+默认已注册 Chip Pack EDA Harness 0.6.0：25 个 canonical Tool ID，固定源码与 Python MCP 依赖。Desktop 与 CLI 共用此注册和策略，按当前 Scope 生成独立 Kimi 会话 mcp.json。
+受控 Gateway 只披露 discovery/describe/call/result-read 四个工具，在真正调用时校验范围、项目路径和参数。普通直连 provider 仍要求全部声明工具在 Scope 内。
+
+注册数据来自仓库校验过的 Domain Pack 清单；项目只能保存稳定资源 ID 的启用策略，不能添加任意启动命令。配置 UI 提供全局默认与项目三态覆盖。缺少依赖时返回安装路径指引，不自动安装软件，不修改用户全局 Kimi 设置。
+
+共享网关、安装、分页与真实验证见 [Chip Pack MCP 接入](../../doc/domain-mcp-integration.md)。

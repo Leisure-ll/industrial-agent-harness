@@ -26,7 +26,7 @@ const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = 
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: {standard: true, secure: true, supportFetchAPI: true, corsEnabled: true}}]);
-if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--documents-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--documents-selftest', '--mcp-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
 
 if (process.argv.includes('--chat-selftest') && process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA) app.setPath('userData', process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA);
 
@@ -98,7 +98,7 @@ function observedContext() {
 function keyFile() {return path.join(configDir(), 'api-key.bin');}
 function canPersistKey() {return safeStorage.isEncryptionAvailable() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text');}
 function readApiKey() {
-  if (['--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return 'diagnostic-selftest-key';
+  if (['--mcp-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return 'diagnostic-selftest-key';
   if (sessionApiKey) return sessionApiKey;
   if (!canPersistKey() || !fs.existsSync(keyFile())) return '';
   try {return safeStorage.decryptString(fs.readFileSync(keyFile()));} catch {return '';}
@@ -254,7 +254,7 @@ function registerHandlers() {
     } finally {changingResources = false;}
   });
   ipcMain.handle('agent:status', () => {
-    if (['--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return {available:true,version:'SDK seam selftest',projectDir,configured:true};
+    if (['--mcp-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) return {available:true,version:'SDK seam selftest',projectDir,configured:true};
     const executable = kimiExecutable();
     const result = spawnSync(executable, ['--version'], {encoding: 'utf8', timeout: 3000});
     const help = result.status === 0 ? spawnSync(executable, ['--help'], {encoding: 'utf8', timeout: 3000}) : null;
@@ -475,6 +475,7 @@ function registerHandlers() {
 }
 
 async function createWindow() {
+  if (process.argv.includes('--mcp-selftest')) await require('./mcp-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--documents-selftest')) require('./documents-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--parallel-selftest')) require('./parallel-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--image-input-selftest')) require('./image-input-selftest.cjs').prepare(projectConfigDir(), configDir());
@@ -502,6 +503,7 @@ async function createWindow() {
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
+  if (process.argv.includes('--mcp-selftest')) {await require('./mcp-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--documents-selftest')) {await require('./documents-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--chat-selftest')) {
     await require('./chat-selftest.cjs').run(window, chats);

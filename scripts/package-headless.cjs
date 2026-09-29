@@ -3,22 +3,54 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {createRequire} = require('node:module');
 const {spawnSync} = require('node:child_process');
+const {capabilities, listDomains, listSkills, domainPacks} = require('../packages/domain-skills/src/index.cjs');
 
 const root = path.resolve(__dirname, '..');
-const target = path.resolve(process.argv[2] || path.join(root, 'dist', 'headless'));
-if (target === root || !target.startsWith(`${root}${path.sep}`) && !process.argv[2]) throw Error('Invalid headless output directory.');
+const argv = process.argv.slice(2);
+let output, domain;
+for (let index = 0; index < argv.length; index++) {
+  if (argv[index] === '--domain') {if (domain || !argv[index + 1]) throw Error('Provide --domain once.'); domain = argv[++index];}
+  else if (!output && !argv[index].startsWith('--')) output = argv[index];
+  else throw Error(`Unknown packaging argument: ${argv[index]}`);
+}
+if (domain && !listDomains(capabilities).some(item => item.id === domain)) throw Error('Unknown package domain.');
+const target = path.resolve(output || path.join(root, 'dist', domain ? `headless-${domain}` : 'headless'));
+if (target === root || target.startsWith(path.join(root, 'packages') + path.sep) || target.startsWith(path.join(root, 'apps') + path.sep)) throw Error('Invalid headless output directory.');
 if (fs.existsSync(target)) throw Error(`Output already exists: ${target}`);
 fs.mkdirSync(path.dirname(target), {recursive: true});
 const result = spawnSync('pnpm', ['--filter', '@industrial-agent-harness/cli', 'deploy', '--legacy', '--prod', target], {cwd: root, stdio: 'inherit'});
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status || 1);
 const entry = path.join(target, 'src', 'main.cjs');
-const skill = path.join(target, 'node_modules', '@industrial-agent-harness', 'domain-skills', 'skills', 'chip-netlist-inspect', 'SKILL.md');
 const agent = path.join(target, 'node_modules', '@industrial-agent-harness', 'agent-kimi', 'src', 'index.cjs');
-const mcp = createRequire(fs.realpathSync(agent)).resolve('@industrial-agent-harness/domain-mcp');
-const runtime = path.join(target, 'node_modules', '@industrial-agent-harness', 'domain-runtime', 'src', 'index.cjs');
-const contracts = createRequire(fs.realpathSync(runtime)).resolve('@industrial-agent-harness/contracts');
-for (const file of [entry, skill, mcp, runtime, contracts]) if (!fs.existsSync(file)) throw Error(`Incomplete headless package: ${file}`);
+const deployedRequire = createRequire(fs.realpathSync(agent));
+const skillsRoot = path.dirname(path.dirname(deployedRequire.resolve('@industrial-agent-harness/domain-skills')));
+const mcp = deployedRequire.resolve('@industrial-agent-harness/domain-mcp');
+const runtime = deployedRequire.resolve('@industrial-agent-harness/domain-runtime');
+const contracts = createRequire(runtime).resolve('@industrial-agent-harness/contracts');
+for (const file of [entry, mcp, runtime, contracts]) if (!fs.existsSync(file)) throw Error(`Incomplete headless package: ${file}`);
+
+if (domain) {
+  fs.writeFileSync(path.join(skillsRoot, 'distribution.json'), JSON.stringify({schemaVersion: 1, domain}, null, 2) + '\n');
+  const allowedSkills = new Set(listSkills(domain).map(item => item.id));
+  const {skillFile} = require('../packages/domain-skills/src/registry.cjs');
+  const directories = new Set([...allowedSkills].map(id => path.basename(path.dirname(skillFile(id)))));
+  for (const item of fs.readdirSync(path.join(skillsRoot, 'skills'))) if (!directories.has(item)) fs.rmSync(path.join(skillsRoot, 'skills', item), {recursive: true});
+  const packsDirectory = path.join(skillsRoot, 'packs');
+  for (const file of fs.readdirSync(packsDirectory)) {
+    const pack = JSON.parse(fs.readFileSync(path.join(packsDirectory, file), 'utf8'));
+    if (pack.domain !== domain) fs.unlinkSync(path.join(packsDirectory, file));
+  }
+}
+for (const pack of domainPacks.filter(pack => !domain || pack.domain === domain)) {
+  const source = path.join(root, 'domain-packs', pack.provider.packDirectory);
+  fs.cpSync(source, path.join(target, 'domain-packs', pack.provider.packDirectory), {recursive: true, filter: file => !['.venv', '.venv-kimi', '__pycache__', '.DS_Store', '.ruff_cache', '.pytest_cache'].includes(path.basename(file)) && !file.endsWith('.pyc')});
+}
+const revision = spawnSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'});
+const dirty = spawnSync('git', ['status', '--porcelain'], {cwd: root, encoding: 'utf8'});
+fs.writeFileSync(path.join(target, 'PACKAGE.json'), JSON.stringify({schemaVersion: 1, domain: domain || null, builtAt: new Date().toISOString(), sourceCommit: revision.status === 0 ? revision.stdout.trim() : null, sourceDirty: dirty.status === 0 ? Boolean(dirty.stdout.trim()) : null, providers: domainPacks.filter(pack => !domain || pack.domain === domain).map(pack => ({id: pack.provider.id, version: pack.version}))}, null, 2) + '\n');
 fs.writeFileSync(path.join(target, 'industrial-harness.cjs'), '#!/usr/bin/env node\nvoid require("./src/main.cjs").main();\n', {mode: 0o755});
-fs.writeFileSync(path.join(target, 'HEADLESS-README.txt'), 'Industrial Agent Harness headless package\n\nRun with Node.js 22.13 or newer:\n  node industrial-harness.cjs run --project-dir DIR --domain DOMAIN --task TEXT --scope-only\n  node industrial-harness.cjs bench --suite FILE --output-dir DIR\n\nAgent execution additionally needs a Kimi CLI executable and model API key in the environment. This package contains the Harness CLI, Broker, Skill files, MCP registry, Kimi SDK integration, and observed-context SQLite store. Full diagnostic JSONL is saved under ~/.industrial-agent-harness/logs by default. It does not bundle the Kimi CLI or industrial executables. The current MCP registry has no default servers.\n');
+const binding = domain ? `Bound domain: ${domain}. --domain is optional; other domains are rejected.\n` : 'Multi-domain package: --domain is required.\n';
+const chip = domainPacks.some(pack => (!domain || pack.domain === domain)) ? '\nChip Pack MCP is registered. Prepare its locked Python environment:\n  cd domain-packs/chip/eda-harness\n  uv sync --frozen --no-dev --python 3.13\n\nEngineering execution additionally needs the project runtime, EDA tool image and applicable PDK; none are downloaded automatically.\n' : '\nThis domain has no registered industrial MCP provider yet. Scope/Skill and general Kimi tests are supported; do not infer engineering execution readiness.\n';
+fs.writeFileSync(path.join(target, 'HEADLESS-README.txt'), `Industrial Agent Harness CLI test package\n\n${binding}\nUse Node.js 22.13 or newer:\n  node industrial-harness.cjs run --project-dir DIR ${domain ? '' : '--domain DOMAIN '}--task TEXT --scope-only\n  node industrial-harness.cjs run --project-dir DIR ${domain ? '' : '--domain DOMAIN '}--task TEXT\n\nAgent execution needs Kimi CLI 1.51.0 and model API credentials. Install it in a separate environment (requires uv):\n  uv venv --python 3.13 /absolute/path/harness-kimi\n  uv pip install --python /absolute/path/harness-kimi/bin/python 'kimi-cli==1.51.0'\n  export KIMI_EXECUTABLE=/absolute/path/harness-kimi/bin/kimi\n\nSet KIMI_API_KEY for the default Kimi provider; other providers use their declared key environment. Do not place keys in task text or command-line arguments.\n\nThis package includes the shared Broker, domain Skill and MCP declarations, Kimi SDK integration, chat persistence and observed-context SQLite store; no Electron or Viewer UI. PACKAGE.json records source identity and whether this is a local uncommitted test build.\n${chip}`);
 process.stdout.write(`${target}\n`);

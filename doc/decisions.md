@@ -11,13 +11,13 @@ Project、Domain 和 Session 的用户交互决定见[产品决策记录](produc
 | Electron 桌面端面向 Linux、macOS、Windows | macOS 桌面 MVP 已运行；三平台打包尚未验证 |
 | 第一阶段使用 Kimi Code，不自研 Coding Agent | `packages/agent-kimi` 精确依赖官方 SDK `0.1.8`；本地 CLI 固定 `1.51.0`，已使用真实 27B 模型验证文本、外部工具及自动压缩后取回 Checkpoint |
 | Kimi 接入尽量非侵入 | 不把上游整仓作为 submodule；优先使用公开接口 |
-| Monorepo 分离 UI、领域 Skill、领域 Runtime、MCP 等职责 | UI、Viewer、Broker、Kimi 和首批 Skill 声明已实现；Domain Runtime 只有只读观察状态与最小 Checkpoint，工业 Action/MCP 仍未实现 |
-| Skill 和 Domain MCP 均采用渐进式披露 | Broker 已披露 Skill 和 Tool Scope；Kimi 外部工具按 Scope 注册。独立 Domain MCP 服务尚未接入 |
+| Monorepo 分离 UI、领域 Skill、领域 Runtime、MCP 等职责 | UI、Viewer、Broker、Kimi 和首批 Skill 声明已实现；Domain Runtime 只有只读观察状态与最小 Checkpoint，Core 工业 Action 仍未实现；Chip Pack MCP 已经共享 Gateway 接入 |
+| Skill 和 Domain MCP 均采用渐进式披露 | Broker 已披露 Skill 和 Tool Scope；Kimi 外部工具按 Scope 注册。Chip Pack 服务已通过当前 Scope Gateway 接入 |
 | 产品支持多个工业场景，首批以 Chip 和 PCB 验证 | 有 Chip/PCB 首批 Capability 声明；PCB 真实工具尚未接入 |
 | 建立独立 Viewer 层 | KLayout、netlistsvg、Surfer 三组 Viewer 位于正式产品路径并已接入桌面 MVP |
 | 通用聊天与文件工作区 | 输入区不固定 Chip/PCB 阶段；Broker 根据任务识别上下文，右侧默认预览普通文件，专用格式启用 Viewer |
 | 桌面 UI 与 Headless CLI 分离 | `apps/desktop` 与 `apps/cli` 是两个入口；共用 Broker、Project Domain 约束、Capability Registry 和 Kimi Integration；CLI 不依赖 Electron 或 Viewer UI，供 Domain Task bench 调用 |
-| 默认 Skill/MCP 由仓库声明，Project 可禁用 | 四个检查 Skill 已作为仓库文件接入；Project 只存禁用 ID，Broker 与 Kimi 会话使用有效配置。Domain MCP 注册与会话配置入口已建立，当前尚无可用的默认服务器 |
+| 默认 Skill/MCP 由仓库声明，Project 可禁用 | 四个检查 Skill 与 Chip Pack 操作 Skill 已作为仓库文件接入；Project 只存禁用 ID，Broker 与 Kimi 会话使用有效配置。Domain MCP 注册与会话配置入口已建立，当前默认注册 Chip Pack 0.6.0 |
 
 ## ADR-001：CLI 作为独立评测入口
 
@@ -30,9 +30,9 @@ Project、Domain 和 Session 的用户交互决定见[产品决策记录](produc
 ## ADR-002：仓库默认资源与 Project 覆盖
 
 - 日期：2026-09-23
-- 状态：Skill 路径已实现；MCP 注册入口已实现，首个真实服务器待选定与验证
+- 状态：Skill 路径已实现；MCP 注册入口已实现，Chip Pack 已通过共用 Gateway 与两个入口验证
 - 决定：Skill 文件留在 `packages/domain-skills/skills/`，MCP 提供者声明留在 `packages/domain-mcp`。Project 持久化禁用 ID，CLI 使用对应参数。Broker 先按 Project 策略过滤 Skill/Tool，再解析 Scope；Kimi 会话的 `extra_skill_dirs` 只追加当前 Scope 的仓库 Skill，保留 Kimi 原有的项目/用户 Skill 搜索路径。独立会话目录中的 `mcp.json` 只写入已选中的服务器，不修改用户的 Kimi 全局配置。
-- 执行边界：MCP 声明必须绑定 Domain 和完整 canonical Tool ID 集合；一个服务器只有在其全部声明工具都处于当前 Scope 且未禁用时才能进入会话。现有 Harness 外部工具仍在处理器再次校验 Scope。对于 MCP 服务实际暴露工具超出声明的情况，直连无法提供执行级 allowlist；接入首个默认服务器前必须验证其固定工具面，或经由受控 Gateway 代理。
+- 执行边界：MCP 声明必须绑定 Domain 和完整 canonical Tool ID 集合；普通直连服务器只有在其全部声明工具都处于当前 Scope 且未禁用时才能进入会话；受控 Gateway 可只开放 Scope 内的子集。现有 Harness 外部工具仍在处理器再次校验 Scope。对于 MCP 服务实际暴露工具超出声明的情况，直连无法提供执行级 allowlist；接入首个默认服务器前必须验证其固定工具面，或经由受控 Gateway 代理。
 
 ## ADR-003：Industrial Core Vertical Slice 作为当前里程碑
 
@@ -66,3 +66,10 @@ Project、Domain 和 Session 的用户交互决定见[产品决策记录](produc
 6. 各领域哪些格式适合内置渲染？首批解析器的许可证、性能和跨平台限制是什么？
 
 上述问题应先通过探针、契约测试和真实流程记录结论，再将提案升级为正式 ADR。
+
+## ADR-005：复用 Chip Pack Runtime 的共享 MCP Gateway
+
+- 日期：2026-09-29
+- 状态：Desktop/CLI 注册与真实 MCP 路径已落实；Core Vertical Slice 仍待实现
+- 决定：复用 EDA Harness 0.6.0 已有 Runtime，通过 canonical ToolDescriptor、项目绑定 Gateway、按需 schema 和执行时 allowlist 接入。两个入口共用声明、资源策略和 Kimi 会话配置。
+- 验证：固定 Kimi CLI 和真实 stdio MCP，经受控模型响应完成审批、目标持久化与 EDA 上下文回读；越权、跨项目、参数、禁用与大结果分页均有检查。macOS 桌面实测；工业计算与其他平台未在本次验收。详见 [MCP 接入](domain-mcp-integration.md)。

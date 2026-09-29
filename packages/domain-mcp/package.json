@@ -3,5 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "main": "src/index.cjs",
-  "scripts": {"test": "node --test src/*.test.cjs"}
+  "scripts": {
+    "test": "node --test src/*.test.cjs"
+  },
+  "dependencies": {
+    "@industrial-agent-harness/domain-skills": "workspace:*"
+  }
 }

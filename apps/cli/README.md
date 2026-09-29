@@ -27,9 +27,9 @@ node dist/headless/industrial-harness.cjs bench --suite examples/bench/scope-smo
 
 `bench` 读取 JSON suite，顺序运行多个 `run` 场景，逐场保存 JSONL，并生成 `summary.json`；断言失败时返回非零退出码。Suite 中 `projectDir` 和可选的 `artifactManifest` 相对于 suite 文件定位。每个场景可设置 `scopeOnly`、`disabledSkills`、`disabledMcpServers`、`timeoutMs`，并在 `expected` 中断言 `status`、`capabilityIds`、`skills`、`tools`、`mcpServers`。请使用全新的输出目录，避免覆盖先前证据。`examples/bench/scope-smoke.json` 是当前能力基线，其中 RTL 验证请求解析为空，表明该能力链尚未实现。
 
-打包目录包含 CLI、Broker、仓库 Skill 文件、MCP 注册表、Kimi SDK 接入与只读观察状态存储；不包含 Electron、Kimi CLI 或工业可执行文件。当前默认 MCP 服务器注册表为空，所以打包只保留 MCP 接入机制，不能据此声称已能运行实际 Domain MCP Tool。真实 Agent 场景还需配置 `KIMI_EXECUTABLE` 和模型 API Key。
+打包目录包含 CLI、Broker、仓库 Skill 文件、MCP 注册表、Kimi SDK 接入与只读观察状态存储；不包含 Electron、Kimi CLI 或工业可执行文件。当前注册 Chip Pack 0.6.0，经共享 Scope Gateway 调用；需先准备固定 Python 环境。真实 Agent 场景还需配置 `KIMI_EXECUTABLE` 和模型 API Key。
 
-如需先测试完整芯片 MCP 工具集，请安装独立的 [Chip Pack Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.0-preview.1)。它与本 CLI 的 Broker Scope 尚未连接，使用和验收路径见 [Chip Pack 文档](../../domain-packs/chip/README.md)。
+如需先测试完整芯片 MCP 工具集，请安装独立的 [Chip Pack Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.0-preview.1)。它已与本 CLI 的 Broker Scope 经共享网关连接，使用和验收路径见 [Chip Pack 文档](../../domain-packs/chip/README.md)。
 
 每个 `headless-v*` Release 正文都列出该版**相比原生 Kimi Code 实际集成的 Harness 能力**及尚未集成的部分；发布时使用仓库中与标签同名的 `releases/<tag>.md`，不复用上一版说明。
 
@@ -41,7 +41,7 @@ pnpm cli run --project-dir ./examples/chip-sobel --domain chip --task 'Inspect t
 
 `--scope-only` 只输出能力 Scope 和披露 Trace，无须模型密钥。运行 Agent 时，先通过环境变量配置模型密钥及 Kimi 可执行文件：
 
-可重复传入 `--disable-skill chip.netlist.inspect` 或 `--disable-mcp SERVER_ID`，在该次 Bench 运行中应用与 Project 详情页相同的资源策略。未知资源 ID 会报错；默认 MCP 服务器列表目前为空。
+可重复传入 `--disable-skill chip.netlist.inspect` 或 `--disable-mcp SERVER_ID`，在该次 Bench 运行中应用与 Project 详情页相同的资源策略。未知资源 ID 会报错；默认注册 `chip-pack.eda`。
 
 ```bash
 KIMI_API_KEY=... KIMI_EXECUTABLE=/path/to/kimi pnpm cli run \
@@ -67,3 +67,11 @@ CLI 与 Desktop 共用 `~/.industrial-agent-harness/resource-settings.json` 的�
 ## 持久聊天
 
 真实 Agent run 默认保留聊天，在 `chat` 与 `result` JSONL 中输出 `chatId`。`chats --project-dir DIR --domain DOMAIN` 列出同一项目的聊天，`run ... --chat-id UUID` 继续最近的兼容 Kimi 会话段。Desktop/CLI 默认共用 `~/.industrial-agent-harness/chats`；`--chat-dir` 或 `INDUSTRIAL_HARNESS_CHAT_DIR` 可隔离存储。`--scope-only` 不创建聊天。模型、Scope 或 MCP 策略变化时建立新段并保留展示历史；历史读取不会执行工具。详见 [聊天持久化](../../doc/chat-persistence.md)。
+
+## Chip Pack MCP
+
+CLI 与桌面版已默认注册同一 `chip-pack.eda`，按 Chip 项目与任务范围启用。准备固定 Python 环境后，可用“检查工程状态”“运行综合任务”等任务调用。`--disable-mcp chip-pack.eda` 移除工具；全局与项目覆盖同样生效。真实 MCP 使用既有审批策略，默认拒绝。安装、运行时依赖与当前验证范围见 [共享 MCP 接入](../../doc/domain-mcp-integration.md)。
+
+## 按领域的测试包
+
+`package-headless.cjs --domain chip|pcb|godot` 生成只注册对应领域资源的 CLI 包。包内 `--domain` 可省略，其他领域会拒绝；发布工作流生成三个归档与校验文件。Chip 包包含 EDA 固定源码，PCB/Godot 包不包含；Kimi、Python 环境与工业软件按测试需求另行准备。详见 [下载与构建](../../doc/domain-cli-downloads.md)。
