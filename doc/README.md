@@ -23,6 +23,7 @@
 | [Godot Viewer V1](godot-viewer.md) | Web Export 准备、Scene Tree 与 Viewer Bridge 的当前接入边界 |
 | [共享 Chip Pack MCP](domain-mcp-integration.md) | Desktop/CLI 注册、Scope 网关、项目绑定、审批与实测 |
 | [共享 PCB Bench MCP](pcb-mcp-integration.md) | 固定外部 PCB 工具、完整 Skill、资源覆盖、协议验证与原生执行前提 |
+| [外部 MCP](external-mcp.md) | UI/CLI 共用的 stdio/HTTP/SSE 注册、渐进披露、审批、截图与配置边界 |
 | [Domain Pack](domain-pack.md) | 芯片与 PCB 等领域的扩展方式和最小契约 |
 | [早期开发计划](development-plan.md) | 两份原始 Plan 的阶段性整理；里程碑顺序以新的实施路线图为准 |
 | [产品决策记录](product-decisions.md) | 已确认的用户交互与项目模型决定，包括 Project、目录、Domain 和 Session 的关系 |
@@ -32,6 +33,7 @@
 | [聊天持久化](chat-persistence.md) | Desktop/CLI 历史聊天、Kimi 原生上下文恢复、Scope 会话段、中断与验证边界 |
 | [按领域下载 CLI](domain-cli-downloads.md) | Chip/PCB/Godot 独立包、默认领域绑定与测试依赖 |
 | [CLI 与 Bench 入口](../apps/cli/README.md) | 无界面单任务命令、JSON Lines 事件、模型与工件输入 |
+| [Computer Use 桥接包](../packages/computer-use-bridge/README.md) | GUI 横切插件：固定二进制安装、18 工具面、MCP 进程模型与已知缺口 |
 | [Agent 聊天 UI 来源](agent-ui-provenance.md) | EDA Harness demo 的思考、Todo、工具呈现如何接入实时 SDK 事件 |
 | [并行 Session](parallel-sessions.md) | 同项目与跨项目聊天并行、后台审批、停止与配置影响范围 |
 

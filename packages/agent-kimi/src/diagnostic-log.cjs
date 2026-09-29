@@ -10,7 +10,7 @@ function projectLogDirectory(projectDir, directory = defaultLogDirectory()) {
   return path.join(directory, projectKey);
 }
 
-function createDiagnosticLog(projectDir, {directory = defaultLogDirectory(), apiKey = ''} = {}) {
+function createDiagnosticLog(projectDir, {directory = defaultLogDirectory(), apiKey = '', secrets = []} = {}) {
   const projectDirectory = projectLogDirectory(projectDir, directory);
   fs.mkdirSync(projectDirectory, {recursive: true, mode: 0o700});
   fs.chmodSync(projectDirectory, 0o700);
@@ -28,7 +28,9 @@ function createDiagnosticLog(projectDir, {directory = defaultLogDirectory(), api
       const row = {schemaVersion: 1, traceId, sequence: ++sequence, at: new Date().toISOString(), type, payload};
       const json = JSON.stringify(row, (key, value) => {
         if (sensitiveKeys.test(key)) return '[REDACTED]';
-        return apiKey && typeof value === 'string' ? value.replaceAll(apiKey, '[REDACTED_API_KEY]') : value;
+        if (typeof value !== 'string') return value;
+        const text = apiKey ? value.replaceAll(apiKey, '[REDACTED_API_KEY]') : value;
+        return secrets.reduce((result, secret) => result.replaceAll(secret, '[REDACTED_MCP_CREDENTIAL]'), text);
       });
       const bytes = Buffer.from(`${json}\n`);
       let offset = 0;

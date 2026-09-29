@@ -31,7 +31,7 @@ pnpm dev
 
 无需克隆仓库即可从 [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases) 下载无 UI Harness 预发布包；安装与校验步骤见 [CLI 文档](apps/cli/README.md#github-release-安装)。开发时也可运行 `node scripts/package-headless.cjs` 生成同样的目录。仓库提供当前能力烟测和预期失败的 RTL 验证目标场景；逐场 JSONL 与汇总结果用于定位 Harness 缺口。这个打包产物包含 Broker、Skill 和已注册的 Chip Pack MCP；执行它需要单独准备固定版本的 Python 环境。Core 工业状态闭环仍未完成。
 
-CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；首版为 [headless-v0.2.0-preview.2](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.2)，历史包不自动更新。构建与使用见 [按领域下载 CLI](doc/domain-cli-downloads.md)。
+CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[headless-v0.2.0-preview.3](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.3) 增加共用外部 MCP 注册，历史包不自动更新。构建与使用见 [按领域下载 CLI](doc/domain-cli-downloads.md)。
 
 完整芯片 MCP 另以 [Chip Pack Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.0-preview.1) 独立发布，包含 EDA Harness 25 工具服务、领域 Skill 和 Kimi 适配生成器；[安装说明](domain-packs/chip/README.md)列出 uv 与工具镜像的准备步骤。它可先用于芯片场景；桌面与无 UI Core 已通过共享网关把 Chip Pack 纳入 Broker Scope；独立领域包仍保留自己的运行时。
 
@@ -45,8 +45,11 @@ CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；首�
 | --- | --- | --- | --- |
 | Chip Pack · EDA Harness 0.6.0 (`chip-pack.eda`) | 两个入口共用注册、项目策略与 Scope；Chip 项目默认启用 | 25 个上游工具，按检查、初始化、执行、历史与外部查看任务筛选；四个网关工具按需发现、描述、调用和分页读取 | 固定 Python/MCP 依赖；EDA 计算还需项目运行时、Docker/工具镜像及必要 PDK。工程验收来自 EDA Runtime，不来自 Viewer 或 Core 文件观察 |
 | PCB Bench · KiCad 10.0.6 (`pcb-bench.tools`) | 共用全局默认、Project 覆盖与 Scope；PCB 项目默认启用 | 89 个公开工具，阶段组与完整设计/修复组；完整 `pcb.design.e2e` Skill 含 references/assets | 固定外部 PCB-bench checkout、独立 gateway Python 和已准备的 KiCad 10.0.6 原生镜像。配置/协议已验证；原生编辑、ERC/DRC 与 solver 尚未实测。见 [PCB MCP 接入](doc/pcb-mcp-integration.md) |
+| 用户注册的外部 MCP (`external.<名称>`) | Desktop 与所有领域 CLI 包共用，支持全局/项目开关 | stdio / Streamable HTTP / SSE；四个外部网关入口，按需 schema、执行前 Scope/参数/快照检查、Kimi 审批、原生截图与分页 | 服务和系统权限另行准备；computer-use 可操作项目外的应用，返回是未验证观察；不自动安装、无 OAuth 登录 |
 
 本地准备 MCP：在 `domain-packs/chip/eda-harness` 运行 `uv sync --frozen --no-dev --python 3.13`。桌面 Settings 和项目详情页提供 MCP 开关；CLI 支持 `--disable-mcp chip-pack.eda`。不会自动安装软件或拉取工具镜像。安装、调用与实际验证范围见 [Chip Pack MCP 接入](doc/domain-mcp-integration.md)。
+
+外部 computer-use 等服务可在 **Settings → MCP & Skills → External MCP services** 添加，或运行 `node industrial-harness.cjs mcp add --file mcp.json` 导入标准 `mcpServers` 配置。支持列表、刷新、移除和项目禁用；截图使用视觉模型，CLI 添加 `--image-input`。详见 [外部 MCP](doc/external-mcp.md)。该入口从新版源码/发行包开始提供，preview.2 不支持。
 
 ## 已接入的 Viewer
 

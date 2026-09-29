@@ -36,3 +36,13 @@ test('model image capability is conservative in Auto and explicitly overridable'
   assert.throws(() => validateProfile({...m3, imageInput: 'true'}), /enabled or disabled/);
   assert.doesNotMatch(configToml({...m3, imageInputMode: 'disabled'}), /image_in/);
 });
+
+test('HARNESS_TRUSTED_PLAINTEXT_HOSTS allows explicit self-hosted plaintext endpoints', t => {
+  const previous = process.env.HARNESS_TRUSTED_PLAINTEXT_HOSTS;
+  t.after(() => {if (previous === undefined) delete process.env.HARNESS_TRUSTED_PLAINTEXT_HOSTS; else process.env.HARNESS_TRUSTED_PLAINTEXT_HOSTS = previous;});
+  process.env.HARNESS_TRUSTED_PLAINTEXT_HOSTS = '192.168.1.50, gpu.local:48000';
+  assert.equal(validateProfile({...defaults, endpoint: 'http://192.168.1.50:48000/v1'}).endpoint, 'http://192.168.1.50:48000/v1');
+  assert.equal(validateProfile({...defaults, endpoint: 'http://gpu.local:48000/v1'}).endpoint, 'http://gpu.local:48000/v1');
+  assert.throws(() => validateProfile({...defaults, endpoint: 'http://gpu.local:9999/v1'}), /HTTPS/);
+  assert.throws(() => validateProfile({...defaults, endpoint: 'http://example.com/v1'}), /HTTPS/);
+});

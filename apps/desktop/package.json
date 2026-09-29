@@ -17,10 +17,12 @@
     "setup:layout": "node scripts/setup-layout.cjs",
     "setup:kimi": "node scripts/setup-kimi.cjs",
     "test:chats": "node scripts/test-chats.cjs",
-    "test:mcp": "electron . --mcp-selftest"
+    "test:mcp": "electron . --mcp-selftest",
+    "test:external-mcp": "electron . --external-mcp-selftest"
   },
   "dependencies": {
     "@industrial-agent-harness/agent-kimi": "workspace:*",
+    "@industrial-agent-harness/computer-use-bridge": "workspace:*",
     "@industrial-agent-harness/domain-runtime": "workspace:*",
     "@industrial-agent-harness/harness-core": "workspace:*",
     "@industrial-agent-harness/domain-skills": "workspace:*",

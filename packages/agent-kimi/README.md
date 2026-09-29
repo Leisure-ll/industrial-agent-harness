@@ -17,3 +17,9 @@ Harness 外部工具返回最多 16 KiB UTF-8 JSON；能力详情可按 `skills`
 `KIMI_EXECUTABLE=/absolute/path/to/kimi node --test packages/agent-kimi/tests/vision-wire.test.cjs` 从仓库根目录执行真实 SDK 0.1.8 / CLI 1.51.0 的可选集成测试。它使用本地 OpenAI SSE fixture，检查实际 Provider 请求中的图片与原生历史，不使用真实 API key。CI 未安装 CLI 时明确跳过；普通测试仍检查生产 adapter 的多模态发送、能力拒绝及完整日志。桌面三种图片格式与当前 MiniMax M3 实际识图已在 macOS 验证。
 
 Desktop/CLI 通过 `resolveSession` / `sessionInitialized` 回调提供共享聊天索引中的不透明运行时身份。有效 Scope 与模型配置兼容时，把原 session ID 和持久 share directory 交给 SDK 恢复；不兼容时产生新段。已初始化的上下文丢失会报错，不默默创建空上下文。接口与验证见 [聊天持久化](../../doc/chat-persistence.md)。
+
+运行时接受有效外部 MCP 快照，经 domain-mcp 生成私有 Gateway 配置；revision、连接配置、工具 schema 和引用环境值参与会话兼容性，运行中的 adapter 也在下一轮检测变化。Industrial Context 只给发现入口，不倾倒全部 schema。真实 MCP 截图经 Kimi 原生多模态进入视觉模型；审批由固定 CLI 处理。已知外部凭据加入诊断 JSONL 脱敏，观察保持未验证。见 [外部 MCP](../../doc/external-mcp.md)。
+
+## 横切插件注入
+
+`KimiSession` 构造参数 `plugins` 接收横切插件对象（如 `computer-use-bridge` 的 `createGuiPlugin`），每项形如 `{name, enabled(), toolNames, materializeSkill(dir), toolsFactory()}`。启用的插件会把 skill 目录并入会话 `extra_skill_dirs`，并把其外部工具与 Broker 工具一起注册；本包不依赖任何具体插件，也不感知其领域属性。启用即授权：插件工具触发的 `ApprovalRequest`（按 `sender` 工具名匹配）由本包自动以 `approve_for_session` 应答，不上抛 UI；非插件工具的审批卡片保持不变。插件工具自身的执行边界校验（如会话内被禁用即拒绝）由各插件在自己的 handler 内完成。
