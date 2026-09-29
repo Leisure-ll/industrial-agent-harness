@@ -44,6 +44,7 @@ CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；首�
 | MCP | 桌面版 / CLI | 工具与入口 | 依赖与边界 |
 | --- | --- | --- | --- |
 | Chip Pack · EDA Harness 0.6.0 (`chip-pack.eda`) | 两个入口共用注册、项目策略与 Scope；Chip 项目默认启用 | 25 个上游工具，按检查、初始化、执行、历史与外部查看任务筛选；四个网关工具按需发现、描述、调用和分页读取 | 固定 Python/MCP 依赖；EDA 计算还需项目运行时、Docker/工具镜像及必要 PDK。工程验收来自 EDA Runtime，不来自 Viewer 或 Core 文件观察 |
+| PCB Bench · KiCad 10.0.6 (`pcb-bench.tools`) | 共用全局默认、Project 覆盖与 Scope；PCB 项目默认启用 | 89 个公开工具，阶段组与完整设计/修复组；完整 `pcb.design.e2e` Skill 含 references/assets | 固定外部 PCB-bench checkout、独立 gateway Python 和已准备的 KiCad 10.0.6 原生镜像。配置/协议已验证；原生编辑、ERC/DRC 与 solver 尚未实测。见 [PCB MCP 接入](doc/pcb-mcp-integration.md) |
 
 本地准备 MCP：在 `domain-packs/chip/eda-harness` 运行 `uv sync --frozen --no-dev --python 3.13`。桌面 Settings 和项目详情页提供 MCP 开关；CLI 支持 `--disable-mcp chip-pack.eda`。不会自动安装软件或拉取工具镜像。安装、调用与实际验证范围见 [Chip Pack MCP 接入](doc/domain-mcp-integration.md)。
 

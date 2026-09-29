@@ -43,6 +43,8 @@ jobs:
           echo "KIMI_EXECUTABLE=$RUNNER_TEMP/headless-kimi/bin/kimi" >> "$GITHUB_ENV"
           cd domain-packs/chip/eda-harness
           uv sync --frozen --no-dev --python 3.13
+          cd ../../pcb
+          uv sync --frozen --no-dev --python 3.13
       - name: Verify actual scoped MCP and approval behavior
         run: pnpm test:mcp
       - name: Package and smoke test extracted asset

@@ -6,7 +6,7 @@ const {gatewayConfig, providerRuntime} = require('./gateway.cjs');
 const servers = Object.freeze(domainPacks.map(pack => ({...pack.provider, toolIds: pack.provider.tools.map(tool => tool.id)})));
 
 function listMcpServers(domain) {
-  return servers.filter(item => !domain || item.domain === domain).map(({config, tools, ...item}) => ({...item, enabledByDefault: true}));
+  return servers.filter(item => !domain || item.domain === domain).map(({config, tools, sourceFiles, ...item}) => ({...item, enabledByDefault: true}));
 }
 
 function selectMcpServers(scope, disabledIds = [], registry = servers) {
@@ -16,7 +16,7 @@ function selectMcpServers(scope, disabledIds = [], registry = servers) {
 }
 
 function writeMcpConfig(shareDir, selected, options = {}) {
-  const mcpServers = Object.fromEntries(selected.map(item => [item.id, item.transport === 'gateway' ? gatewayConfig(shareDir, item, options.projectDir, options.environment) : item.config]));
+  const mcpServers = Object.fromEntries(selected.map(item => [item.id, item.transport === 'gateway' ? gatewayConfig(shareDir, item, options.projectDir, options.environment, options) : item.config]));
   const file = path.join(shareDir, 'mcp.json');
   fs.writeFileSync(file, JSON.stringify({mcpServers}, null, 2), {mode: 0o600});
   fs.chmodSync(file, 0o600);

@@ -15,4 +15,6 @@ test('every capability skill has a repository file and only scoped skills reach 
   const directory = materializeSkills({skills: ['chip.netlist.inspect']}, root);
   assert.deepEqual(fs.readdirSync(directory), ['chip-netlist-inspect']);
   assert.ok(fs.existsSync(path.join(directory, 'chip-netlist-inspect', 'SKILL.md')));
+  materializeSkills({skills: ['chip.waveform.inspect']}, root);
+  assert.deepEqual(fs.readdirSync(directory), ['chip-waveform-inspect'], 'scope replacement removes previously disclosed Skill resources');
 });

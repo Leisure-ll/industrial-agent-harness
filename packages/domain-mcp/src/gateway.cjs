@@ -17,6 +17,7 @@ function sourceHash(directory) {
 }
 
 function providerRuntime(provider, environment = process.env) {
+  if (provider.backend === 'pcb-bench') return require('./pcb-runtime.cjs').pcbRuntime(provider, environment);
   let packDir = environment[provider.directoryEnv];
   if (packDir && !path.isAbsolute(packDir)) throw Error(`${provider.directoryEnv} must be an absolute directory.`);
   if (!packDir) {
@@ -34,10 +35,11 @@ function providerRuntime(provider, environment = process.env) {
   return {python: path.normalize(python), sourceDir};
 }
 
-function gatewayConfig(directory, provider, projectDir, environment) {
+function gatewayConfig(directory, provider, projectDir, environment, options = {}) {
   if (!projectDir || !path.isAbsolute(projectDir)) throw Error('Domain MCP requires an explicit absolute project directory.');
   const project = fs.realpathSync(projectDir);
   if (!fs.statSync(project).isDirectory()) throw Error('Domain MCP project must be a directory.');
+  if (provider.backend === 'pcb-bench') return require('./pcb-runtime.cjs').pcbGatewayConfig(directory, provider, project, environment, options);
   const runtime = providerRuntime(provider, environment);
   const policyFile = path.join(directory, `mcp-${provider.id}.policy.json`);
   const policy = {schemaVersion: 1, providerId: provider.id, domain: provider.domain, version: provider.version, package: provider.package, module: provider.module, mcpVersion: provider.mcpVersion, tools: provider.tools, allowedToolIds: provider.allowedToolIds, projectDir: project, ...runtime, cacheDir: path.join(directory, `mcp-${provider.id}-results`)};

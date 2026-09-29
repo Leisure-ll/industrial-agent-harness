@@ -19,7 +19,7 @@ try {
     const args = ['run', '--project-dir', temporary, '--task', domain === 'chip' ? '检查工程状态' : domain === 'pcb' ? 'Inspect PCB board' : 'Inspect project files', '--scope-only'];
     const run = extra => execFileSync(process.execPath, [entry, ...args, ...extra], {cwd: temporary, encoding: 'utf8', env: {...process.env, INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(temporary, 'config')}}).trim().split('\n').map(JSON.parse);
     const rows = run([]); assert.equal(rows[0].scope.domain, domain); assert.equal(rows.at(-1).status, 'scoped');
-    assert.ok(rows[0].trace.find(row => row.event === 'domain.index').detail.count === (domain === 'chip' ? 8 : domain === 'pcb' ? 1 : 0));
+    assert.ok(rows[0].trace.find(row => row.event === 'domain.index').detail.count === (domain === 'chip' ? 8 : domain === 'pcb' ? 8 : 0));
     const denied = domain === 'chip' ? 'pcb' : 'chip';
     assert.throws(() => run(['--domain', denied]), error => error.stdout.includes(`fixed to the ${domain} domain`));
     const skillsRoot = fs.realpathSync(path.join(path.dirname(entry), 'node_modules/@industrial-agent-harness/domain-skills'));
@@ -31,6 +31,14 @@ try {
     assert.ok(catalog.packs.every(item => item === domain));
     if (domain === 'chip') {assert.equal(catalog.skills.length, 4); assert.equal(fs.existsSync(path.join(path.dirname(entry), 'domain-packs/chip/eda-harness/src/eda_harness/server/mcp.py')), true); assert.deepEqual(run(['--disable-mcp', 'chip-pack.eda'])[0].scope.tools, []);}
     else assert.equal(fs.existsSync(path.join(path.dirname(entry), 'domain-packs/chip')), false);
+    if (domain === 'pcb') {
+      assert.equal(catalog.skills.length, 2);
+      assert.equal(fs.existsSync(path.join(packageRoot, 'domain-packs/pcb/uv.lock')), true);
+      const pcbScope = extra => execFileSync(process.execPath, [entry, 'run', '--project-dir', temporary, '--task', 'pcb mcp', '--scope-only', ...extra], {cwd: temporary, encoding: 'utf8', env: {...process.env, INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(temporary, 'config')}}).trim().split('\n').map(JSON.parse)[0].scope;
+      assert.equal(pcbScope([]).tools.length, 89);
+      assert.deepEqual(pcbScope(['--disable-mcp', 'pcb-bench.tools']).tools, []);
+      assert.ok(!pcbScope(['--disable-skill', 'pcb.design.e2e']).skills.includes('pcb.design.e2e'));
+    }
     console.log(JSON.stringify({domain, ok: true, skills: catalog.skills.length, providers: catalog.packs.length}));
   }
 } finally {fs.rmSync(temporary, {recursive: true, force: true});}

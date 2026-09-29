@@ -2,7 +2,7 @@ const http = require('node:http');
 
 // Controlled model responses exercise the real pinned Kimi runtime and its MCP approvals.
 // They do not claim an LLM inference or an industrial signoff.
-async function startModel() {
+async function startModel(options = {}) {
   const requests = [];
   const server = http.createServer(async (request, response) => {
     let raw = ''; for await (const chunk of request) raw += chunk;
@@ -10,7 +10,7 @@ async function startModel() {
     const results = body.messages.filter(message => message.role === 'tool');
     const rejected = results.some(message => /reject|denied/i.test(JSON.stringify(message.content)));
     const index = results.length;
-    const calls = [
+    const calls = options.calls || [
       {name: 'domain_tool_describe', arguments: {toolId: 'eda.harness.create_goal'}},
       {name: 'domain_tool_call', arguments: {toolId: 'eda.harness.create_goal', arguments: {description: 'MCP_INTEGRATION_GOAL', constraints: {}, required_verification: []}}},
       {name: 'domain_tool_call', arguments: {toolId: 'eda.harness.get_operational_context', arguments: {}}},
