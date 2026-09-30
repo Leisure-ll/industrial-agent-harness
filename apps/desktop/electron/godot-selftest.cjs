@@ -72,9 +72,14 @@ async function run(window) {
     assert.equal(await evaluate(`document.querySelector('button[aria-label="Step frame"]').disabled`), false, 'stop reloads the scene paused');
     await evaluate(`document.querySelector('button[aria-label="Play"]').click()`);
     await waitFor(`document.querySelector('button[aria-label="Step frame"]').disabled`);
-    for (const [file, kind] of [['robot.png', 'IMAGE'], ['robot.sprite.json', 'SPRITE'], ['playground.tscn', 'ANIMATION']]) {
+    for (const [file, kind] of [['robot.png', 'IMAGE'], ['robot.sprite.json', 'SPRITE'], ['playground.tscn', 'ENGINEERING']]) {
       await evaluate(`document.querySelector('.ia-file-list button[title="${file}"]').click()`);
       await waitFor(`document.querySelector('.ia-viewer-footer')?.innerText.includes('${kind} · Ready')`);
+      if (kind === 'ENGINEERING') {
+        assert.ok(await evaluate(`document.querySelector('.rp-engineering')?.dataset.engineeringFormat === 'Godot scene'`));
+        await evaluate(`document.querySelector('.rp-engineering-tabs button:last-child').click()`);
+        await waitFor(`Boolean(document.querySelector('.rp-asset-canvas canvas'))`);
+      }
       // Measure rendered opaque robot pixels, rather than trusting the zoom label.
       const measureAsset = () => evaluate(`(() => {
         const canvas = document.querySelector('.rp-asset-canvas canvas');

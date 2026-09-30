@@ -15,6 +15,7 @@ Create a project bound to this folder with domain **Godot**, open the workspace 
 - `build/playground.html`: the real Godot runtime. Pause freezes the clock and robot; Step advances one display frame; Play resumes; Stop resets the scene. Select Robot to inspect it or MainCamera in the Camera selector.
 - `robot.png`: image zoom, pan and background.
 - `robot.sprite.json`: four-column sprite slicing and idle/run animation.
-- `playground.tscn`: read-only animation preview from the embedded SpriteFrames resource. This preview does not execute the scene script.
+- `playground.tscn`: scene structure, properties, references and read-only animation preview from the embedded SpriteFrames resource on the Animation tab. This preview does not execute the scene script.
+- `playground.gd` and `project.godot`: script outline/source and project settings in the same file tree.
 
 All scene code and pixel graphics in this folder are authored for this repository. Export binaries and Godot import caches are generated locally and are not checked in. Viewer controls and snapshots do not verify an engineering result.

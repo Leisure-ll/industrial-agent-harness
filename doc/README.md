@@ -2,6 +2,8 @@
 
 这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi SDK 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。Chip Pack、PCB Bench 与 Godot 本地 MCP 已通过共用网关接入 Desktop/CLI；完整 Core Domain Runtime、工业状态闭环及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
 
+Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.md)，覆盖场景、脚本、库、制造文件和部分 3D 素材；其保真范围与 macOS 验证见该文档。
+
 当前里程碑是 **Industrial Core Vertical Slice**。2026-09-23 的架构评审材料已核对并纳入以下四页；它们是现状、约束、路线和验收的主入口，旧版开发计划保留为背景资料。
 
 | 当前评审文档 | 用途 |
@@ -20,6 +22,7 @@
 | [通用文件 Viewer](document-viewers.md) | CSV/TSV、JSON、JSONL、Markdown、TXT/LOG 的只读查看、分页与文件边界 |
 | [素材 Viewer](godot-assets-viewers.md) | 图片预览、图集切分、动画播放与 Godot 文本资源支持范围 |
 | [KiCad Viewer V1](kicad-viewer.md) | PCB domain 的本地板图/原理图查看、文件边界与运行时来源 |
+| [Godot/PCB 工程文件预览](engineering-file-viewers.md) | 场景、脚本、库、制造文件与 3D 素材的只读查看、格式边界和验证 |
 | [Godot Viewer V1](godot-viewer.md) | Web Export 准备、Scene Tree 与 Viewer Bridge 的当前接入边界 |
 | [共享 Chip Pack MCP](domain-mcp-integration.md) | Desktop/CLI 注册、Scope 网关、项目绑定、审批与实测 |
 | [共享 PCB Bench MCP](pcb-mcp-integration.md) | 固定外部 PCB 工具、完整 Skill、资源覆盖、协议验证与原生执行前提 |

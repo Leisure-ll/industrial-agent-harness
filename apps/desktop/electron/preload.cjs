@@ -2,6 +2,7 @@ const {contextBridge, ipcRenderer} = require('electron');
 
 const api = {
   open: request => ipcRenderer.invoke('viewer:open', request),
+  openExternalArtifact: artifactId => ipcRenderer.invoke('viewer:external-open', {artifactId}),
   render: request => ipcRenderer.invoke('viewer:render', request),
   netlist: request => ipcRenderer.invoke('viewer:netlist', request),
   resolve: request => ipcRenderer.invoke('broker:resolve', request),

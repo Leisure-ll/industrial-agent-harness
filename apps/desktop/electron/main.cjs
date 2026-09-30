@@ -1,4 +1,4 @@
-const {app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, nativeImage} = require('electron');
+const {app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, nativeImage, shell} = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -11,6 +11,7 @@ const {initialVcdSignals} = require('../../../packages/viewer-builtin/src/wavefo
 const {GodotRuntimeManager, isGodotExport} = require('../../../packages/viewer-builtin/src/godot/runtime.cjs');
 const {createAssetPlugins} = require('../../../packages/viewer-builtin/src/assets/service.cjs');
 const {createDocumentPlugins} = require('../../../packages/viewer-builtin/src/documents/service.cjs');
+const {createEngineeringPlugins} = require('../../../packages/viewer-builtin/src/engineering/service.cjs');
 const {KiCadRuntimeManager, isKiCadFile} = require('../../../packages/viewer-builtin/src/kicad/runtime.cjs');
 const {createViewerRegistry} = require('../../../packages/viewer-core/src/registry.cjs');
 const {resolve, discloseDetail} = require('../../../packages/capability-broker/src/index.cjs');
@@ -28,7 +29,7 @@ const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = 
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: {standard: true, secure: true, supportFetchAPI: true, corsEnabled: true}}]);
-if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--documents-selftest', '--mcp-selftest', '--external-mcp-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--documents-selftest', '--engineering-selftest', '--mcp-selftest', '--external-mcp-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
 
 if (process.argv.includes('--chat-selftest') && process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA) app.setPath('userData', process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA);
 
@@ -203,6 +204,7 @@ function getRaster() {
 }
 
 const viewerRegistry = createViewerRegistry([
+  ...createEngineeringPlugins({projectRoot: () => projectDir}),
   ...createAssetPlugins({projectRoot: () => projectDir}),
   {id: 'layout', matches: file => ['.gds', '.gdsii', '.oas', '.oasis'].includes(path.extname(file).toLowerCase()), open: async ({artifact, file}) => {
     const token = crypto.randomUUID();
@@ -537,6 +539,15 @@ function registerHandlers() {
     if (!plugin) throw Error('Viewer plugin unavailable.');
     return plugin.open({artifact, file});
   });
+  ipcMain.handle('viewer:external-open', async (event, {artifactId} = {}) => {
+    if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) throw Error('External open is only available from the workspace.');
+    const {artifact, file} = await checked(artifactId);
+    if (artifact.kind !== 'engineering' || !['.res', '.obj', '.gltf', '.glb', '.step', '.stp', '.wrl'].includes(path.extname(file).toLowerCase())) throw Error('This artifact has no external viewer action.');
+    if (!projectDir || !file.startsWith(projectDir + path.sep) || fs.realpathSync(file) !== file) throw Error('Artifact is outside the selected project.');
+    const error = await shell.openPath(file);
+    if (error) throw Error(`Could not open the system application: ${error}`);
+    return {launched: true};
+  });
   ipcMain.handle('viewer:render', (_event, request) => {
     if (request?.token !== activeLayoutToken) throw Error('Layout artifact changed; reopen this view.');
     return getRaster().call({...request, op: 'render'});
@@ -557,6 +568,7 @@ async function createWindow() {
   // on every startup until it lands. Progress reaches the Settings panel.
   if (appSettings.guiPluginEnabled && !process.env.GUI_BRIDGE_BIN && guiBridgeStatus(guiBridgeDir()).state !== 'ready') void startGuiInstall();
   if (process.argv.includes('--documents-selftest')) require('./documents-selftest.cjs').prepare(projectConfigDir());
+  if (process.argv.includes('--engineering-selftest')) require('./engineering-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--parallel-selftest')) require('./parallel-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--image-input-selftest')) require('./image-input-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--chat-selftest')) require('./chat-selftest.cjs').prepare(projectConfigDir());
@@ -586,6 +598,7 @@ async function createWindow() {
   if (process.argv.includes('--mcp-selftest')) {await require('./mcp-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--external-mcp-selftest')) {await require('./external-mcp-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--documents-selftest')) {await require('./documents-selftest.cjs').run(window); app.quit(); return;}
+  if (process.argv.includes('--engineering-selftest')) {await require('./engineering-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--chat-selftest')) {
     await require('./chat-selftest.cjs').run(window, chats);
     app.quit(); return;

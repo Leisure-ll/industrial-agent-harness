@@ -22,7 +22,7 @@ export interface NetlistData {
 
 export interface ViewerArtifact {
   id: string;
-  kind: 'layout' | 'netlist' | 'waveform' | 'godot' | 'kicad' | 'image' | 'sprite' | 'animation' | DocumentKind;
+  kind: 'layout' | 'netlist' | 'waveform' | 'godot' | 'kicad' | 'engineering' | 'image' | 'sprite' | 'animation' | DocumentKind;
   name: string;
   design: string;
   sizeBytes: number;
@@ -45,6 +45,14 @@ export interface AssetImage {name: string; url: string; width: number; height: n
 export interface SpriteFrame {image: number; rect: [number, number, number, number]; duration: number}
 export interface SpriteAnimation {name: string; loop: boolean; frames: SpriteFrame[]}
 export interface AssetData {name: string; images: AssetImage[]; columns: number; rows: number; animations: SpriteAnimation[]; initialMode: 'image' | 'sprite' | 'animation'}
+export interface EngineeringSection {id: string; label: string; kind: string; line: number; properties: Record<string, string>}
+export type EngineeringDrawing =
+  | {type: 'line'; x1: number; y1: number; x2: number; y2: number; width?: number; group: string}
+  | {type: 'rect' | 'pad'; x1: number; y1: number; x2: number; y2: number; label?: string; group: string}
+  | {type: 'circle'; x: number; y: number; r: number; group: string}
+  | {type: 'polyline'; points: number[][]; group: string}
+  | {type: 'label'; x: number; y: number; label: string; group: string};
+export interface EngineeringData {name: string; sha256: string; format: string; summary: string; sections: EngineeringSection[]; drawings?: EngineeringDrawing[]; links: Array<{path: string; status: string}>; warnings: string[]; source?: string; mediaUrl?: string; animation?: AssetData; mode: 'structure' | 'source' | 'metadata' | 'media' | 'geometry'}
 export type DocumentKind = 'table' | 'json' | 'jsonl' | 'markdown' | 'text';
 export interface DocumentData {text: string; rows?: string[][]; columns?: number; ragged?: boolean; records?: number; error?: string; warning?: string}
 
@@ -54,11 +62,13 @@ export type OpenedViewer =
   | {kind: 'waveform'; artifact: ViewerArtifact; data: WaveformData}
   | {kind: 'godot'; artifact: ViewerArtifact; data: GodotData}
   | {kind: 'kicad'; artifact: ViewerArtifact; data: KiCadData}
+  | {kind: 'engineering'; artifact: ViewerArtifact; data: EngineeringData}
   | {kind: 'image' | 'sprite' | 'animation'; artifact: ViewerArtifact; data: AssetData}
   | {kind: DocumentKind; artifact: ViewerArtifact; data: DocumentData};
 
 export interface ViewerHostApi {
   open(request: {artifactId: string}): Promise<OpenedViewer>;
+  openExternalArtifact(artifactId: string): Promise<{launched: true}>;
   render(request: {token: string; box: number[]; width: number; height: number; visible: string[]; quality: string; theme?: string}): Promise<{png: string; box: number[]}>;
   netlist(request: {token: string; module: string; focus?: string}): Promise<NetlistData>;
   resolve(request: {task: string; chatId?: string; artifactKind?: string; domain?: string; stage?: string}): Promise<BrokerResult>;
