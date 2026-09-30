@@ -1,6 +1,6 @@
 # Godot Viewer V1
 
-Godot is registered as a Viewer-only project domain. Opening a Godot Web Export HTML file from the active project displays it in the workspace. The export must have matching `.html`, `.js`, `.wasm`, and `.pck` files in one directory, for example `warehouse.html`, `warehouse.js`, `warehouse.wasm`, and `warehouse.pck`. Use the single-threaded Godot 4 Web export. The project file tree does not launch the Godot editor or import a `.tscn` directly.
+Godot has a source-project MCP/Skill pack in addition to this Web Export Viewer. Opening a Godot Web Export HTML file from the active project displays it in the workspace. The export must have matching `.html`, `.js`, `.wasm`, and `.pck` files in one directory, for example `warehouse.html`, `warehouse.js`, `warehouse.wasm`, and `warehouse.pck`. Use the single-threaded Godot 4 Web export. The project file tree does not launch the Godot editor or render a `.tscn` directly. See [Godot game MCP](godot-mcp-integration.md) for scoped native source checks.
 
 ## Preparing an export
 

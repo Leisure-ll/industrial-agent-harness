@@ -18,6 +18,7 @@ function sourceHash(directory) {
 
 function providerRuntime(provider, environment = process.env) {
   if (provider.backend === 'pcb-bench') return require('./pcb-runtime.cjs').pcbRuntime(provider, environment);
+  if (provider.backend === 'godot-local') return require('./godot-runtime.cjs').godotRuntime(provider, environment);
   let packDir = environment[provider.directoryEnv];
   if (packDir && !path.isAbsolute(packDir)) throw Error(`${provider.directoryEnv} must be an absolute directory.`);
   if (!packDir) {
@@ -40,6 +41,7 @@ function gatewayConfig(directory, provider, projectDir, environment, options = {
   const project = fs.realpathSync(projectDir);
   if (!fs.statSync(project).isDirectory()) throw Error('Domain MCP project must be a directory.');
   if (provider.backend === 'pcb-bench') return require('./pcb-runtime.cjs').pcbGatewayConfig(directory, provider, project, environment, options);
+  if (provider.backend === 'godot-local') return require('./godot-runtime.cjs').godotGatewayConfig(directory, provider, project, environment);
   const runtime = providerRuntime(provider, environment);
   const policyFile = path.join(directory, `mcp-${provider.id}.policy.json`);
   const policy = {schemaVersion: 1, providerId: provider.id, domain: provider.domain, version: provider.version, package: provider.package, module: provider.module, mcpVersion: provider.mcpVersion, tools: provider.tools, allowedToolIds: provider.allowedToolIds, projectDir: project, ...runtime, cacheDir: path.join(directory, `mcp-${provider.id}-results`)};

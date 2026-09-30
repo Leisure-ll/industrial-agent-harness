@@ -10,6 +10,8 @@ const skills = Object.freeze([
   {id: 'pcb.layout.inspect', domain: 'pcb', title: 'Inspect PCB layout', directory: 'pcb-layout-inspect'},
   {id: 'chip.eda.operate', domain: 'chip', title: 'Operate Chip Pack EDA Harness', directory: 'chip-eda-operate'},
   {id: 'pcb.design.e2e', domain: 'pcb', title: 'PCB design and repair', directory: 'pcb-design-e2e', externalPack: 'pcb-bench', nativeToolPrefix: 'pcb.bench.'},
+  {id: 'godot.game.inspect', domain: 'godot', title: 'Inspect Godot game scenes', directory: 'godot-game-inspect'},
+  {id: 'godot.game.develop', domain: 'godot', title: 'Develop and verify Godot games', directory: 'godot-game-develop'},
 ]);
 
 function listSkills(domain) {
