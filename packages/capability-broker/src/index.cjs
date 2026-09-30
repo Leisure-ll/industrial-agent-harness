@@ -1,8 +1,14 @@
 const crypto = require('node:crypto');
 
 function mentionsTool(text, toolId) {
-  const escaped = toolId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^a-z0-9_])${escaped}(?=$|[^a-z0-9_])`).test(text);
+  let offset = text.indexOf(toolId);
+  while (offset !== -1) {
+    const before = text[offset - 1] || '';
+    const after = text[offset + toolId.length] || '';
+    if (!/[a-z0-9_]/.test(before) && !/[a-z0-9_]/.test(after)) return true;
+    offset = text.indexOf(toolId, offset + 1);
+  }
+  return false;
 }
 
 function resolve(request, registry, previous) {

@@ -54,5 +54,7 @@ test('explicit tool names select the smallest capability that can perform the re
   const both = resolve({domain: 'pcb', task: 'Use place_component on the board, then verify_design'}, candidates);
   assert.deepEqual(both.scope.capabilityIds, ['pcb.complete']);
   assert.match(both.trace.find(row => row.event === 'capability.resolve').detail.selected[0].reason, /pcb\.bench\.verify_design/);
+  assert.deepEqual(resolve({domain: 'pcb', task: 'Use pcb.bench.place_component'}, candidates).scope.capabilityIds, ['pcb.place']);
+  assert.deepEqual(resolve({domain: 'pcb', task: 'Inspect pcbybenchyplace_component'}, candidates).scope.capabilityIds, ['pcb.viewer']);
   assert.deepEqual(resolve({domain: 'pcb', task: 'Inspect notplace_componentX'}, candidates).scope.capabilityIds, []);
 });
