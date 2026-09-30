@@ -1,17 +1,17 @@
 # macOS / Windows 安装、Domain 补装与 OTA 规划
 
-> 状态：2026-09-30 已实现首轮代码和 macOS Apple Silicon 本地安装包烟测；签名发布、Windows 实机运行与真实版本升级仍待验收。当前交付优先级仍以 [P0–P3 实施路线](03-implementation-roadmap.md)为准。现有 `headless-v*` 是按 Domain 分发的 CLI 预览归档，不是桌面安装器，也没有 OTA。
+> 状态：2026-09-30 已实现首轮代码，并在 macOS Apple Silicon、macOS Intel、Windows x64 的 CI runner 上完成未签名打包应用的首次启动与 Domain 补装烟测。签名安装器、真实安装和旧版到新版 OTA 仍待验收。当前交付优先级仍以 [P0–P3 实施路线](03-implementation-roadmap.md)为准。现有 `headless-v*` 是按 Domain 分发的 CLI 预览归档，不是桌面安装器，也没有 OTA。
 
 ## 当前实现与使用
 
 - `packages/pack-manager` 实现签名目录验证、HTTPS 下载、摘要与文件路径检查、跨进程写锁、事务安装、运行中租约、损坏隔离和重装恢复。`scripts/build-domain-packs.cjs` 从 Chip、PCB、Godot、CAD 现有资源生成独立 `.hpack`；发布时用 `HARNESS_PACK_SIGNING_KEY_FILE` 和 `HARNESS_PACK_SIGNING_KEY_ID` 生成签名目录。
 - 打包版 Desktop 首次启动提供多选 Domain，Settings → Domains 可补装和更新。Desktop 与 CLI 从同一用户目录加载已安装包；开发模式仍使用仓库里的资源。CLI 提供 `domains list/available/install/update/remove`。包列表只接受发行公钥验证过的目录。
 - `electron-builder.config.cjs` 配置 macOS DMG/ZIP 和 Windows NSIS；主进程通过 `electron-updater` 检查并下载 Core 更新，任务空闲时允许重启安装。`HARNESS_RELEASE_BUILD=1` 要求 Pack 下载源、公钥文件、Core 更新源并强制代码签名；macOS 同时启用公证。CI 配置了三个目标平台的打包与首次启动检查。
-- 模块化安装回归覆盖真实 Chip + PCB 首装、Godot 与 macOS CAD 后补装，以及 Broker/CLI 在安装前后的 Domain 可见性。macOS Apple Silicon 的打包版界面也已通过签名测试目录和模拟下载完成同一路径；用 `node scripts/smoke-packaged-desktop.cjs --domains` 复跑。该测试验证界面和安装链，不等同于线上 HTTPS 下载源与正式发行密钥的验收。
-- 本地构建：先执行 `pnpm build`，再执行 `node scripts/stage-desktop.cjs dist/desktop-stage-local`，最后用 `apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-local --config "$PWD/electron-builder.config.cjs" --mac dmg zip --publish never`。输出在 `dist/desktop-release/`。目录名称每次须新建；本地无发布配置时界面会提示 Domain 目录不可用。
+- 模块化安装回归覆盖真实 Chip + PCB 首装、Godot 与 macOS CAD 后补装，以及 Broker/CLI 在安装前后的 Domain 可见性。[三平台 CI 打包烟测](https://github.com/Zhiman-BJ/industrial-agent-harness/actions/runs/36691521328)通过签名测试目录和模拟下载完成同一路径；用 `node scripts/smoke-packaged-desktop.cjs --domains` 复跑。该测试验证打包应用的界面和安装链，不等同于安装器、线上 HTTPS 下载源与正式发行密钥的验收。
+- 本地构建：先执行 `pnpm --filter @industrial-agent-harness/desktop build`，再执行 `node scripts/stage-desktop.cjs dist/desktop-stage-local`，最后用 `apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-local --config "$PWD/electron-builder.config.cjs" --mac dmg zip --publish never`。输出在 `dist/desktop-release/`。目录名称每次须新建；本地无发布配置时界面会提示 Domain 目录不可用。
 - `desktop-v<apps/desktop/package.json 版本>` 标签触发 `.github/workflows/release-desktop.yml`：构建 Ed25519 签名的 Domain 目录、macOS 签名公证 DMG/ZIP、Windows 签名 NSIS，并在安装包自检成功后创建同名版本 Release，再把文件上传到渠道对应的 GitHub Release 更新源。发布源固定为 `desktop-beta-feed` / `desktop-stable-feed`；先上传版本文件，最后切换 `catalog.json` 和 Core 更新元数据。需配置仓库 Secrets `HARNESS_PACK_PUBLIC_KEYS_JSON_B64`、`HARNESS_PACK_SIGNING_KEY_PEM_B64`、`MAC_CSC_LINK`、`MAC_CSC_KEY_PASSWORD`、`APPLE_API_KEY_P8_B64`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`、`WIN_CSC_LINK`、`WIN_CSC_KEY_PASSWORD`，以及变量 `HARNESS_PACK_SIGNING_KEY_ID`。签名私钥和公钥 ID 必须配对。1.0.0 使用 stable 更新源。
 
-当前可验证的是安装链代码、真实 Domain 包的选择/补装和 macOS Apple Silicon 打包版界面；仓库尚未配置发行签名凭据，也没有两个旧/新版本的真实安装包，无法完成正式发布与真实 OTA 验收。Core 安装包目前也未内置可移植的 Kimi CLI/Python 运行时；Agent 功能需要本机另行安装可用的 Kimi CLI 1.51.0。Chip MCP 的 Python 环境、EDA 工具/PDK 仍需按 Domain 健康检查补齐。Windows x64 和 macOS Intel 的 CI 结果尚未取得，不应标为已验证支持。
+当前可验证的是安装链代码、真实 Domain 包的选择/补装和三平台未签名打包应用的首次启动；仓库尚未配置发行签名凭据，也没有两个旧/新版本的真实安装包，无法完成正式发布与真实 OTA 验收。Core 安装包目前也未内置可移植的 Kimi CLI/Python 运行时；Agent 功能需要本机另行安装可用的 Kimi CLI 1.51.0。Chip MCP 的 Python 环境、EDA 工具/PDK 仍需按 Domain 健康检查补齐。三平台 CI 通过只证明打包应用可启动，不代表签名安装器与 OTA 已完成验收。
 
 ## 目标与首版范围
 
