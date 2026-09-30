@@ -10,7 +10,7 @@ if (!target.startsWith(path.join(root, 'dist') + path.sep) || target === root ||
 const built = path.join(root, 'apps', 'desktop', 'dist', 'index.html');
 if (!fs.existsSync(built)) throw Error('Build the desktop renderer first.');
 const deployed = process.platform === 'win32'
-  ? spawnSync('cmd.exe', ['/d', '/s', '/c', `pnpm --filter @industrial-agent-harness/desktop deploy --legacy --prod "${target}"`], {cwd: root, stdio: 'inherit'})
+  ? spawnSync('cmd.exe', ['/d', '/c', `pnpm --filter @industrial-agent-harness/desktop deploy --legacy --prod "${target}"`], {cwd: root, stdio: 'inherit', windowsVerbatimArguments: true})
   : spawnSync('pnpm', ['--filter', '@industrial-agent-harness/desktop', 'deploy', '--legacy', '--prod', target], {cwd: root, stdio: 'inherit'});
 if (deployed.error) throw deployed.error;
 if (deployed.status !== 0) process.exit(deployed.status || 1);
