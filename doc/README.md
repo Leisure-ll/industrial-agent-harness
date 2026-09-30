@@ -1,6 +1,6 @@
 # 文档目录
 
-这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi SDK 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。Chip Pack MCP 已通过共用网关接入 Desktop/CLI；完整 Core Domain Runtime、工业状态闭环及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
+这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi SDK 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。Chip Pack、PCB Bench 与 Godot 本地 MCP 已通过共用网关接入 Desktop/CLI；完整 Core Domain Runtime、工业状态闭环及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
 
 当前里程碑是 **Industrial Core Vertical Slice**。2026-09-23 的架构评审材料已核对并纳入以下四页；它们是现状、约束、路线和验收的主入口，旧版开发计划保留为背景资料。
 
@@ -23,6 +23,8 @@
 | [Godot Viewer V1](godot-viewer.md) | Web Export 准备、Scene Tree 与 Viewer Bridge 的当前接入边界 |
 | [共享 Chip Pack MCP](domain-mcp-integration.md) | Desktop/CLI 注册、Scope 网关、项目绑定、审批与实测 |
 | [共享 PCB Bench MCP](pcb-mcp-integration.md) | 固定外部 PCB 工具、完整 Skill、资源覆盖、协议验证与原生执行前提 |
+| [Godot game MCP](godot-mcp-integration.md) | 任务范围披露、源场景检查、原生导入与限时运行的证据边界 |
+| [Godot 与 PCB Viewer 文件优先级](game-pcb-viewer-priorities.md) | 现有支持及值得增加的工程文件查看能力 |
 | [PCB-bench 本地六题诊断](pcb-bench-local-trial-2026-09-30.md) | 六个开发集任务的原生试跑、独立验收与 Harness 缺口 |
 | [外部 MCP](external-mcp.md) | UI/CLI 共用的 stdio/HTTP/SSE 注册、渐进披露、审批、截图与配置边界 |
 | [Domain Pack](domain-pack.md) | 芯片与 PCB 等领域的扩展方式和最小契约 |
