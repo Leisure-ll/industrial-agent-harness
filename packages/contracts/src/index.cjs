@@ -26,4 +26,25 @@ const ContextCheckpointSchema = z.object({
   state: ObservedStateSchema,
 });
 
-module.exports = {ObservedArtifactSchema, ObservedStateSchema, ContextCheckpointSchema};
+const VerificationResultSchema = z.object({
+  status: z.enum(['not_run', 'passed', 'failed']),
+  verifierId: z.string().min(1).nullable(),
+  reason: z.string().min(1),
+});
+
+const ActionRecordSchema = z.object({
+  id: z.string().uuid(),
+  runId: z.string().uuid(),
+  projectId: sha256,
+  domain: z.string().min(1),
+  toolId: z.string().min(1),
+  inputs: z.record(z.string(), z.unknown()),
+  startedAt: z.string().datetime(),
+  endedAt: z.string().datetime().nullable(),
+  status: z.enum(['running', 'completed', 'failed']),
+  diagnostics: z.array(z.string()),
+  artifactIds: z.array(z.string()),
+  verification: VerificationResultSchema,
+});
+
+module.exports = {ObservedArtifactSchema, ObservedStateSchema, ContextCheckpointSchema, VerificationResultSchema, ActionRecordSchema};

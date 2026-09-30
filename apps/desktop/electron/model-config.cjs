@@ -1,1 +1,1 @@
-module.exports = require('../../../packages/agent-kimi/src/model-config.cjs');
+module.exports = require('@industrial-agent-harness/agent-kimi/src/model-config.cjs');

@@ -6,6 +6,7 @@ const {Server} = require('@modelcontextprotocol/sdk/server/index.js');
 const {StdioServerTransport} = require('@modelcontextprotocol/sdk/server/stdio.js');
 const {ListToolsRequestSchema, CallToolRequestSchema} = require('@modelcontextprotocol/sdk/types.js');
 const {validateResources} = require('@industrial-agent-harness/domain-skills');
+const {ActionJournal} = require('@industrial-agent-harness/domain-runtime');
 
 const MAX_TEXT = 16 * 1024, MAX_CACHE = 4 * 1024 * 1024, MAX_TOTAL_CACHE = 8 * 1024 * 1024;
 const string = {type: 'string'};
@@ -35,6 +36,7 @@ function createGodotGateway(policy) {
   const gatewayValidators = new Map(gatewayTools.map(item => [item.name, ajv.compile(item.inputSchema)]));
   const toolValidators = new Map([...allowed.keys()].map(id => [id, ajv.compile(schemas[id])]));
   const cache = new Map();
+  let actionJournal;
   let cacheBytes = 0;
   function checkBoundaries() {
     if (fs.realpathSync(policy.projectDir) !== project) throw Error('Bound project directory changed. Reconnect Godot tools.');
@@ -94,7 +96,11 @@ function createGodotGateway(policy) {
             'godot.game.check_project': () => runtime.checkProject(project, policy.binary, policy.receiptDir),
             'godot.game.run_scene': () => runtime.runScene(project, policy.binary, inputs.scenePath, inputs.frames, policy.receiptDir),
           };
-          result = {providerId: policy.providerId, toolId: args.toolId, projectDir: project, result: await calls[args.toolId]()};
+          if (descriptor.risk === 'mutating') {
+            actionJournal ||= new ActionJournal(project, policy.domain);
+            const native = await actionJournal.execute(args.toolId, inputs, calls[args.toolId], value => value?.importStatus !== 'FAIL' && value?.executionStatus !== 'failed');
+            result = {providerId: policy.providerId, toolId: args.toolId, projectDir: project, result: native};
+          } else result = {providerId: policy.providerId, toolId: args.toolId, projectDir: project, result: await calls[args.toolId]()};
           break;
         }
         case 'domain_tool_result_read': {

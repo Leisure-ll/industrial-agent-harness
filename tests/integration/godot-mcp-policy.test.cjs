@@ -129,7 +129,9 @@ test('Godot MCP transport enforces scope and arguments, records native actions, 
   const played = json(await fullClient.callTool({name: 'domain_tool_call', arguments: {toolId: 'godot.game.run_scene', arguments: {scenePath: 'main.tscn', frames: 2}}}));
   assert.equal(played.result.executionStatus, 'completed');
   assert.equal(played.result.engineeringAcceptance, 'not_run');
-  assert.equal(played.result.artifactSet, null);
+  assert.deepEqual(played.result.artifactSet, []);
+  assert.equal(played.result.verificationResult.status, 'not_run');
+  assert.equal(played.result.actionStatus, 'completed');
   assert.equal(played.result.artifactCoverage, 'not_enumerated');
   const receipts = fs.readdirSync(path.join(root, 'mcp-godot.local-receipts'));
   assert.equal(receipts.length, 4);

@@ -21,6 +21,7 @@ function providerRuntime(provider, environment = process.env) {
   if (provider.backend === 'godot-local') return require('./godot-runtime.cjs').godotRuntime(provider, environment);
   let packDir = environment[provider.directoryEnv];
   if (packDir && !path.isAbsolute(packDir)) throw Error(`${provider.directoryEnv} must be an absolute directory.`);
+  if (!packDir && provider.installedDirectory) packDir = provider.installedDirectory;
   if (!packDir) {
     for (let directory = __dirname; ; directory = path.dirname(directory)) {
       const candidate = path.join(directory, 'domain-packs', provider.packDirectory);

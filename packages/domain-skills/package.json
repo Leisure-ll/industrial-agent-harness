@@ -3,5 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "main": "src/index.cjs",
+  "dependencies": {"@industrial-agent-harness/pack-manager": "workspace:*"},
   "scripts": {"test": "node --test src/*.test.cjs"}
 }

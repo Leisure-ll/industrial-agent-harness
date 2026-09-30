@@ -5,7 +5,7 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const {parseArgs} = require('./args.cjs');
 const {resolveProjectTask, effectiveCapabilities, resourceCatalog, ResourceSettings, defaultResourceDirectory, ChatStore, defaultChatDirectory, ExternalMcpRegistry} = require('@industrial-agent-harness/harness-core');
-const {capabilities, listDomains, distributionDomain} = require('@industrial-agent-harness/domain-skills');
+const {loadRegistry, distributionDomain} = require('@industrial-agent-harness/domain-skills');
 const {discloseDetail} = require('@industrial-agent-harness/capability-broker');
 const {KimiSession} = require('@industrial-agent-harness/agent-kimi');
 const {createGuiPlugin, ensureInstalled} = require('@industrial-agent-harness/computer-use-bridge');
@@ -13,12 +13,15 @@ const {ObservedContextStore} = require('@industrial-agent-harness/domain-runtime
 const {runBench} = require('./bench.cjs');
 const {runMcp} = require('./mcp.cjs');
 const {main: inspectDiagnosticLog} = require('./inspect-log.cjs');
+const {runDomains} = require('./domains.cjs');
+const {PackManager} = require('@industrial-agent-harness/pack-manager');
 const {defaults, validateProfile, sessionEnv, writeCliConfig} = require('@industrial-agent-harness/agent-kimi/src/model-config.cjs');
 
 const usage = `industrial-harness run --project-dir DIR --domain DOMAIN (--task TEXT | --task-file FILE) [options]
 industrial-harness chats --project-dir DIR --domain DOMAIN [--chat-dir DIR]
 industrial-harness inspect-log --file FILE
 industrial-harness mcp --help
+industrial-harness domains list|available|install|update|remove [options]
 
 Options:
   --chat-id ID                 Continue an existing project chat
@@ -69,11 +72,13 @@ async function run(options, output = process.stdout, environment = process.env, 
 }
 
 async function runWithStore(options, output, environment, Session, chats) {
+  const registry = loadRegistry();
+  const capabilities = registry.capabilities;
   const projectDir = fs.realpathSync(path.resolve(options.projectDir));
   if (!fs.statSync(projectDir).isDirectory()) throw Error('Project path must be a directory.');
   const runId = crypto.randomUUID();
   const send = event => emit(output, {runId, ...event});
-  if (!listDomains(capabilities).some(item => item.id === options.domain)) throw Error('Choose a valid project domain.');
+  if (!registry.domains.some(item => item.id === options.domain)) throw Error('Choose a valid project domain.');
   if (options.command === 'chats') {send({type: 'chats', chats: chats.list(projectDir, options.domain)}); return 0;}
   const previous = options.chatId && chats ? chats.history(options.chatId, projectDir, options.domain).turns.at(-1)?.broker?.scope : undefined;
   const externalServers = new ExternalMcpRegistry(defaultResourceDirectory(environment)).records();
@@ -82,7 +87,7 @@ async function runWithStore(options, output, environment, Session, chats) {
   const disabled = {skills: [...new Set([...saved.skills, ...(options.disabledSkills || [])])], mcpServers: [...new Set([...saved.mcpServers, ...(options.disabledMcpServers || [])])]};
   for (const id of disabled.skills) if (!catalog.skills.some(item => item.id === id)) throw Error(`Unknown project skill: ${id}`);
   for (const id of disabled.mcpServers) if (!catalog.mcpServers.some(item => item.id === id)) throw Error(`Unknown project MCP: ${id}`);
-  const broker = resolveProjectTask(options.domain, {task: options.task}, previous, capabilities, disabled, externalServers);
+  const broker = resolveProjectTask(options.domain, {task: options.task}, previous, capabilities, disabled, externalServers, registry.domains);
   const scope = broker.scope;
   send({type: 'scope', projectDir, scope, matches: broker.matches, trace: broker.trace});
   if (options.scopeOnly) {send({type: 'result', status: 'scoped'}); return 0;}
@@ -115,6 +120,7 @@ async function runWithStore(options, output, environment, Session, chats) {
   let release;
   let guiBridge;
   const chat = options.chatId ? chats.get(options.chatId, projectDir, options.domain) : chats.create(projectDir, options.domain);
+  let releasePack;
   const onInterrupt = signal => {
     interrupted = true;
     send({type: 'interrupted', signal});
@@ -123,6 +129,7 @@ async function runWithStore(options, output, environment, Session, chats) {
   const onSigint = () => onInterrupt('SIGINT');
   const onSigterm = () => onInterrupt('SIGTERM');
   try {
+    releasePack = process.env.INDUSTRIAL_HARNESS_PACK_STORE ? new PackManager().acquireUse(options.domain) : null;
     release = chats.acquire(chat.id);
     chats.recoverInterrupted();
     turnId = chats.beginTurn(chat.id, options.task, broker);
@@ -182,7 +189,7 @@ async function runWithStore(options, output, environment, Session, chats) {
     process.removeListener('SIGTERM', onSigterm);
     try {await session?.close();} finally {
       if (turnId && (!outcome || timedOut || interrupted)) chats.finish(turnId, timedOut ? 'timeout' : interrupted ? 'interrupted' : 'error');
-      release?.(); contextStore?.close(); await guiBridge?.close?.().catch(() => {}); fs.rmSync(configDir, {recursive: true, force: true});
+      release?.(); releasePack?.(); contextStore?.close(); await guiBridge?.close?.().catch(() => {}); fs.rmSync(configDir, {recursive: true, force: true});
     }
   }
 }
@@ -190,6 +197,7 @@ async function runWithStore(options, output, environment, Session, chats) {
 async function main() {
   try {
     if (process.argv[2] === 'mcp') {process.exitCode = await runMcp(process.argv.slice(3)); return;}
+    if (process.argv[2] === 'domains') {process.exitCode = await runDomains(process.argv.slice(3)); return;}
     if (process.argv[2] === 'inspect-log') {inspectDiagnosticLog(process.argv.slice(3)); return;}
     if (process.argv[2] === 'bench') {
       process.exitCode = await runBench(process.argv.slice(3));

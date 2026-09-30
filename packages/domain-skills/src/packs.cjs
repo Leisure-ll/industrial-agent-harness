@@ -5,6 +5,7 @@ const {distributionDomain} = require('./distribution.cjs');
 // Only repository-owned declarations are loaded. Project files cannot add launch commands.
 function loadDomainPacks() {
   const directory = path.join(__dirname, '..', 'packs');
+  if (!fs.existsSync(directory) && process.env.INDUSTRIAL_HARNESS_PACK_STORE) return [];
   const packs = fs.readdirSync(directory).filter(file => file.endsWith('.json')).sort().map(file => JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8')));
   const ids = new Set();
   const toolIds = new Set();

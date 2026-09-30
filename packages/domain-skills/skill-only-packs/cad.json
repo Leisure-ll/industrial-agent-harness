@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "domain": "cad",
+  "capabilities": [
+    {
+      "id": "cad.autocad.operate",
+      "title": "Operate AutoCAD drawings",
+      "domain": "cad",
+      "stages": ["drafting"],
+      "priority": 10,
+      "keywords": ["autocad", "cad", "dwg", "dxf", "lisp", "drawing", "drafting", "图纸", "制图", "绘图"],
+      "skills": [{"id": "cad.autocad.macos", "summary": "AutoCAD for Mac operating traits: LISP entmake geometry, interactive DIMLINEAR dimensions, GUI-only save dialogs, and the platform's verified dead ends.", "reference": "Scope-limited to AutoCAD on macOS; driving the app requires the computer-use plugin. See the skill file for the platform boundary."}],
+      "tools": [],
+      "verification": ["Confirm the resulting drawing file on disk"]
+    }
+  ]
+}

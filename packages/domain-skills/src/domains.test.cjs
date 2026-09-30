@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const capabilities = require('./capabilities.cjs');
+const {capabilities} = require('./index.cjs');
 const {listDomains} = require('./domains.cjs');
 
 test('domain options include registered Viewer-only domains', () => {

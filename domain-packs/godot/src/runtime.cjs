@@ -83,11 +83,11 @@ function runProcess(binary, project, args, timeoutMs) {
 function receipt(receiptDir, kind, project, inputs, processResult, detail = {}) {
   fs.mkdirSync(receiptDir, {recursive: true, mode: 0o700});
   fs.chmodSync(receiptDir, 0o700);
-  const actionId = crypto.randomUUID();
-  const result = {actionId, kind, projectDir: project, inputs, ...processResult, ...detail,
+  const receiptId = crypto.randomUUID();
+  const result = {receiptId, kind, projectDir: project, inputs, ...processResult, ...detail,
     outputSha256: sha256(processResult.stdout + '\n' + processResult.stderr), artifactSet: null,
     artifactCoverage: 'not_enumerated', sideEffects: 'Project scripts or Godot import may write files; artifact coverage is not established.'};
-  fs.writeFileSync(path.join(receiptDir, actionId + '.json'), JSON.stringify(result, null, 2), {flag: 'wx', mode: 0o600});
+  fs.writeFileSync(path.join(receiptDir, receiptId + '.json'), JSON.stringify(result, null, 2), {flag: 'wx', mode: 0o600});
   return result;
 }
 

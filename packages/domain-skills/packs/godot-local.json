@@ -13,12 +13,12 @@
     "packDirectory": "godot",
     "sourceFiles": {
       "src/inspect_scene.gd": "89a4fc583b90af71d697692a87c32c1daff635a4453b6cd354740c9414575201",
-      "src/runtime.cjs": "91b68e884b80f4c082305323c408cde42fa1832479afa89f67dc00f4f6ccc635"
+      "src/runtime.cjs": "e6977d490ac5ac85753693a8af4db42fc58ce20f976259fa0d9ff8e220032074"
     },
     "resourceRoots": [
       "src"
     ],
-    "sourceSha256": "df29fc72669fc5310590345e773036c1685839a7f53e31504ca4c0d15f071dad",
+    "sourceSha256": "dd60d8f96a999b5386e90bd76d0424cd2075ad8d7aadab293058fd8210be60c1",
     "tools": [
       {
         "id": "godot.game.project_status",

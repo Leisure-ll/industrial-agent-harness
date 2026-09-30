@@ -14,7 +14,7 @@ jobs:
           test -f README.md
           test -f AGENTS.md
           test -f pnpm-workspace.yaml
-          for dir in apps/desktop packages/agent-kimi packages/contracts packages/domain-skills packages/domain-runtime packages/domain-mcp packages/viewer-core packages/viewer-builtin; do
+          for dir in apps/desktop packages/agent-kimi packages/contracts packages/domain-skills packages/domain-runtime packages/domain-mcp packages/pack-manager packages/viewer-core packages/viewer-builtin; do
             test -f "$dir/README.md"
             test -f "$dir/package.json"
           done
@@ -31,7 +31,7 @@ jobs:
         run: pnpm test:architecture
       - name: Build and test MVP
         run: |
-          pnpm build
+          pnpm --filter @industrial-agent-harness/desktop build
           pnpm test
           pnpm test:external-mcp
       - uses: actions/setup-python@v5

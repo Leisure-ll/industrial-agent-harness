@@ -73,6 +73,14 @@ export interface ViewerHostApi {
   netlist(request: {token: string; module: string; focus?: string}): Promise<NetlistData>;
   resolve(request: {task: string; chatId?: string; artifactKind?: string; domain?: string; stage?: string}): Promise<BrokerResult>;
   domains(): Promise<DomainOption[]>;
+  domainStatus(): Promise<{managed: boolean; installed: Array<{domain: string; version: string; label: string; emoji: string; summary?: string; prerequisites?: string[]}>; errors: Array<{domain: string; version: string; message: string}>}>;
+  domainAvailable(): Promise<Array<{domain: string; version: string; label?: string; emoji?: string; summary?: string; prerequisites?: string[]; size: number; platforms: string[]}>>;
+  domainInstall(domains: string[]): Promise<{installed: DomainOption[]}>;
+  domainRemove(domain: string): Promise<{installed: DomainOption[]}>;
+  coreUpdateStatus(): Promise<CoreUpdateState>;
+  coreUpdateCheck(): Promise<CoreUpdateState>;
+  coreUpdateInstall(): Promise<void>;
+  onCoreUpdateChanged(callback: (state: CoreUpdateState) => void): () => void;
   resourceGet(request: {projectId?: string}): Promise<ResourceSettingsSnapshot>;
   resourceSet(request: {projectId?: string; kind: 'skill' | 'mcp'; id: string; mode: ResourceMode}): Promise<ResourceSettingsSnapshot>;
   resourceCatalog(): Promise<ResourceCatalog>;
@@ -121,6 +129,7 @@ export interface ViewerHostApi {
 export interface ProjectBinding {id: string; name: string; path: string; domain?: string | null; disabledSkills?: string[]; disabledMcpServers?: string[]}
 export interface GuiPluginState {enabled: boolean; install: 'missing' | 'ready' | string; version: string | null}
 export interface DomainOption {id: string; label: string; emoji: string}
+export interface CoreUpdateState {status: 'development' | 'idle' | 'checking' | 'current' | 'available' | 'downloading' | 'ready' | 'error'; version: string | null; progress: number | null; error: string | null}
 export interface ResourceCatalog {skills: Array<{id: string; domain: string; title: string; enabledByDefault: boolean}>; mcpServers: Array<{id: string; domain: string; title: string; enabledByDefault: boolean}>}
 
 export type ResourceMode = 'inherit' | 'enabled' | 'disabled';

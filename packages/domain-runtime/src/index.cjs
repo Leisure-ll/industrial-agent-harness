@@ -117,4 +117,4 @@ class ObservedContextStore {
   close() {this.db?.close(); this.db = undefined;}
 }
 
-module.exports = {ObservedContextStore, defaultStateDirectory};
+module.exports = {ObservedContextStore, defaultStateDirectory, ...require('./actions.cjs')};

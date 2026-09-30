@@ -42,8 +42,7 @@
         "chip.rtl.netlist.inspect",
         "chip.verification.waveform.inspect",
         "chip.physical.layout.inspect",
-        "pcb.layout.inspect",
-        "cad.autocad.operate"
+        "pcb.layout.inspect"
       ],
       "allowedToolIds": [
         "eda.netlist.inspect",
