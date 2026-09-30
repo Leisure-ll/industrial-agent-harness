@@ -18,6 +18,13 @@ test('model config keeps the key out of files and passes it only to the session'
   assert.match(configToml(defaults), /capabilities = \["thinking"\]/);
 });
 
+test('the session caps requested completion tokens instead of the remaining window', () => {
+  const profile = validateProfile({...defaults, provider: 'openai_legacy', endpoint: 'http://127.0.0.1:9/v1', model: 'Qwen3.8-27B', contextSize: 262144});
+  assert.equal(sessionEnv(profile, 'secret-token').KIMI_MODEL_MAX_COMPLETION_TOKENS, '65536');
+  assert.equal(sessionEnv(defaults, 'secret-token').KIMI_MODEL_MAX_COMPLETION_TOKENS, '65536', 'both provider paths carry the cap');
+  assert.match(configToml(profile), /max_context_size = 262144/, 'the declared window stays the true model limit');
+});
+
 test('endpoint validation rejects remote plaintext and embedded credentials', () => {
   assert.throws(() => validateProfile({...defaults, endpoint: 'http://example.com/v1'}), /HTTPS/);
   assert.throws(() => validateProfile({...defaults, endpoint: 'https://key@example.com/v1'}), /credentials/);

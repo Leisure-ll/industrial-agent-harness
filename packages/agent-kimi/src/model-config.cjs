@@ -32,6 +32,16 @@ function validateProfile(value) {
   return {provider: value.provider, endpoint: endpoint.toString().replace(/\/$/, ''), model, contextSize, thinking: Boolean(value.thinking), imageInputMode, imageInput: imageInputMode === 'auto' ? knownImageModel : imageInputMode === 'enabled'};
 }
 
+// The kimi CLI (1.51.0) caps max_completion_tokens at (max_context_size minus
+// its own input estimate) with a fixed 1024-token safety margin. That estimate
+// under-counts proportionally (observed ~4.6% low on mixed tool-schema input:
+// 21320 estimated vs 22345 real), so the margin is exhausted on mid-size
+// prompts and strict OpenAI-compatible servers reject input + output > window
+// by a token. An explicit completion cap (the env equivalent of newer CLI's
+// max_output_size) keeps the request far inside the window regardless of
+// estimator drift.
+const MODEL_MAX_COMPLETION_TOKENS = 65536;
+
 function configToml(profile) {
   const value = validateProfile(profile);
   const quote = JSON.stringify;
@@ -42,9 +52,10 @@ function configToml(profile) {
 function sessionEnv(profile, apiKey) {
   const value = validateProfile(profile);
   if (!apiKey) throw Error('Set a model API key before running Kimi.');
+  const completionCap = {KIMI_MODEL_MAX_COMPLETION_TOKENS: String(MODEL_MAX_COMPLETION_TOKENS), KIMI_CLI_NO_AUTO_UPDATE: '1'};
   return value.provider === 'kimi'
-    ? {KIMI_BASE_URL: value.endpoint, KIMI_API_KEY: apiKey, KIMI_MODEL_NAME: value.model, KIMI_CLI_NO_AUTO_UPDATE: '1'}
-    : {OPENAI_BASE_URL: value.endpoint, OPENAI_API_KEY: apiKey, KIMI_CLI_NO_AUTO_UPDATE: '1'};
+    ? {KIMI_BASE_URL: value.endpoint, KIMI_API_KEY: apiKey, KIMI_MODEL_NAME: value.model, ...completionCap}
+    : {OPENAI_BASE_URL: value.endpoint, OPENAI_API_KEY: apiKey, ...completionCap};
 }
 
 function saveProfile(directory, profile) {
