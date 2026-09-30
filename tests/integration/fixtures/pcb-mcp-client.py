@@ -49,6 +49,16 @@ async def main():
                 return
             created = data(await session.call_tool("domain_tool_call", {"toolId": "pcb.bench.new_project", "arguments": {"width_mm": 20, "height_mm": 15}}))
             assert created["result"]["status"] == "MODIFIED"
+            typed = await session.call_tool("domain_tool_call", {"toolId": "pcb.bench.finalize_claims", "argumentsJson": '{"completed":true,"remaining_issues":["fixture"]}'})
+            assert not typed.isError
+            for bad in [
+                {"toolId": "pcb.bench.finalize_claims", "argumentsJson": '{"completed":"true","remaining_issues":{"item":"fixture"}}'},
+                {"toolId": "pcb.bench.finalize_claims", "argumentsJson": '[true]'},
+                {"toolId": "pcb.bench.finalize_claims", "argumentsJson": '{"completed":true,"completed":false,"remaining_issues":[]}'},
+                {"toolId": "pcb.bench.finalize_claims", "argumentsJson": '{"completed":NaN,"remaining_issues":[]}'},
+                {"toolId": "pcb.bench.finalize_claims", "arguments": {}, "argumentsJson": '{}'},
+            ]:
+                assert (await session.call_tool("domain_tool_call", bad)).isError
             observed = data(await session.call_tool("domain_tool_call", {"toolId": "pcb.bench.project_status"}))
             assert observed["result"]["spec"] == {"width_mm": 20, "height_mm": 15}
             check = await session.call_tool("domain_tool_call", {"toolId": "pcb.bench.run_drc"})

@@ -20,7 +20,9 @@ function pcbRuntime(provider, environment = process.env) {
   const requirementsPath = requirements ? fs.realpathSync(requirements) : null;
   const requirementsSha256 = requirementsPath ? crypto.createHash('sha256').update(fs.readFileSync(requirementsPath)).digest('hex') : null;
   const dockerEnvironment = Object.fromEntries(['DOCKER_HOST', 'DOCKER_CONTEXT', 'DOCKER_CONFIG'].filter(key => environment[key]).map(key => [key, environment[key]]));
-  return {python: path.normalize(python), sourceDir, docker, dockerEnvironment, imageId: provider.imageId, requirementsPath, requirementsSha256};
+  const developmentImageId = environment.INDUSTRIAL_HARNESS_PCB_DEV_IMAGE_ID;
+  if (developmentImageId && !/^sha256:[0-9a-f]{64}$/.test(developmentImageId)) throw Error('INDUSTRIAL_HARNESS_PCB_DEV_IMAGE_ID must be an immutable Docker image ID.');
+  return {python: path.normalize(python), sourceDir, docker, dockerEnvironment, imageId: developmentImageId || provider.imageId, requirementsPath, requirementsSha256};
 }
 
 function pcbGatewayConfig(directory, provider, project, environment, options = {}) {

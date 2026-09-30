@@ -25,6 +25,7 @@ MAX_ARGUMENTS = 64 * 1024
 MAX_TEXT = 16 * 1024
 MAX_CACHE = 4 * 1024 * 1024
 CALL_TIMEOUT = 45  # Harness transport policy; not copied from benchmark budgets.
+STARTUP_TIMEOUT = 120  # A cold amd64 image can start slowly on an arm64 development host.
 
 
 def backend_parameters(policy, policy_file):
@@ -49,7 +50,7 @@ def schema(name, properties, required=()):
     return types.Tool(name=name, description={
         "domain_tool_list": "Discover a page of allowed canonical PCB tools; load a selected schema separately.",
         "domain_tool_describe": "Read one allowed native PCB schema. The project and runtime are bound by the Harness.",
-        "domain_tool_call": "Call an allowed PCB Domain Runtime tool. Mutations require MCP approval. Execution success is not acceptance; do not retry an ambiguous mutation.",
+        "domain_tool_call": "Call an allowed PCB Domain Runtime tool. Supply arguments as an object, or use argumentsJson containing a JSON object when your model cannot express nested booleans or arrays. Mutations require MCP approval. Execution success is not acceptance; do not retry an ambiguous mutation.",
         "domain_tool_result_read": "Read a page of a large response retained by this gateway session.",
     }[name], inputSchema={"type": "object", "properties": properties, "required": list(required), "additionalProperties": False})
 
@@ -57,7 +58,7 @@ def schema(name, properties, required=()):
 SURFACE = [
     schema("domain_tool_list", {"offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 30}}),
     schema("domain_tool_describe", {"toolId": {"type": "string"}}, ("toolId",)),
-    schema("domain_tool_call", {"toolId": {"type": "string"}, "arguments": {"type": "object"}}, ("toolId",)),
+    schema("domain_tool_call", {"toolId": {"type": "string"}, "arguments": {"type": "object"}, "argumentsJson": {"type": "string"}}, ("toolId",)),
     schema("domain_tool_result_read", {"responseId": {"type": "string"}, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 4000}}, ("responseId",)),
 ]
 
@@ -116,7 +117,7 @@ def create_gateway(policy, policy_file):
         if importlib.metadata.version("mcp") != policy["mcpVersion"]:
             raise RuntimeError("PCB gateway MCP SDK differs from the declared lock.")
         async with stdio_client(backend_parameters(policy, policy_file)) as (read, write):
-            async with ClientSession(read, write, read_timeout_seconds=timedelta(seconds=CALL_TIMEOUT)) as client:
+            async with ClientSession(read, write, read_timeout_seconds=timedelta(seconds=STARTUP_TIMEOUT)) as client:
                 initialized = await client.initialize()
                 if initialized.serverInfo.name != "pcb-atomic-tools" or initialized.serverInfo.version != "1.0.0":
                     raise RuntimeError("PCB upstream server identity differs from the registered backend.")
@@ -171,7 +172,29 @@ def create_gateway(policy, policy_file):
             if name == "domain_tool_describe":
                 return output(bounded({"toolId": item["id"], "nativeName": item["name"], "risk": item["risk"],
                                        "description": native.description, "inputSchema": native.inputSchema}))
-            supplied = arguments.get("arguments", {})
+            if "arguments" in arguments and "argumentsJson" in arguments:
+                raise ValueError("Supply either arguments or argumentsJson, not both.")
+            if "argumentsJson" in arguments:
+                raw = arguments["argumentsJson"]
+                if len(raw.encode()) > MAX_ARGUMENTS:
+                    raise ValueError("PCB tool arguments exceed the gateway limit.")
+                def unique_object(pairs):
+                    result = {}
+                    for key, value in pairs:
+                        if key in result:
+                            raise ValueError("argumentsJson contains a duplicate key.")
+                        result[key] = value
+                    return result
+                def reject_constant(value):
+                    raise ValueError("argumentsJson contains a non-JSON number: " + value)
+                try:
+                    supplied = json.loads(raw, object_pairs_hook=unique_object, parse_constant=reject_constant)
+                except ValueError as error:
+                    raise ValueError("argumentsJson must contain a JSON object.") from error
+                if not isinstance(supplied, dict):
+                    raise ValueError("argumentsJson must contain a JSON object.")
+            else:
+                supplied = arguments.get("arguments", {})
             if len(json.dumps(supplied, ensure_ascii=False).encode()) > MAX_ARGUMENTS:
                 raise ValueError("PCB tool arguments exceed the gateway limit.")
             Draft202012Validator(native.inputSchema).validate(supplied)
