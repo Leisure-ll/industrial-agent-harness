@@ -53,7 +53,7 @@ CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[head
 
 ## 已接入的 Viewer
 
-当前已有 8 种领域与素材 Viewer，以及 5 种不依赖 Domain 的通用文件 Viewer。打开当前 Project 文件树中的受支持文件会自动选择对应 Viewer；其他文件继续显示源码。
+当前已有领域与素材 Viewer、工程文件预览，以及 5 种不依赖 Domain 的通用文件 Viewer。打开当前 Project 文件树中的受支持文件会自动选择对应 Viewer；其他文件继续显示源码。
 
 | Viewer | 支持的输入 | 查看能力与依赖 |
 | --- | --- | --- |
@@ -65,13 +65,15 @@ CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[head
 | [Sprite 图集](doc/godot-assets-viewers.md) | `.sprite.json` 与项目内配套图片；图片预览也可切换图集模式 | 网格切分、选帧和裁剪预览；无需 Godot |
 | [动画](doc/godot-assets-viewers.md) | 受支持的 Godot `.tres` / `.tscn` 动画文本资源；图集动作也可在素材预览中播放 | SpriteFrames 与单个 Sprite2D 的离散 `frame` 轨道，动作选择、播放、暂停、逐帧与时间轴；受限解析，不启动 Godot 引擎 |
 | [KiCad 板图与原理图](doc/kicad-viewer.md) | `.kicad_pcb`、`.kicad_sch`，包括项目内引用的原理图子页 | 内置本地 KiCanvas，支持图层、网络、封装、符号与属性查看；无需安装 KiCad 或联网，V1 为只读 2D 预览 |
+| [Godot 工程文件](doc/engineering-file-viewers.md) | `.tscn`、`.tres`、`.gd`、`project.godot`、`.res`、`.wav`、`.ogg`、`.mp3`、`.obj`、`.gltf`、`.glb`、`.wrl` | 场景/资源结构、脚本与配置、音频播放和有限 3D 预览；受支持动画保留 Animation 标签；无需 Godot，二进制/3D 格式可显式交给系统应用，不能替代引擎渲染 |
+| [PCB 工程与制造文件](doc/engineering-file-viewers.md) | `.kicad_sym`、`.kicad_mod`、`.kicad_dru`、`.kicad_pro`、Gerber 常见扩展名、`.drl`/`.xln`/`.exc`、`.step`/`.stp`/`.wrl` | 库/规则/配置、制造层与钻孔叠加、STEP 点位或 VRML 线框；无需 KiCad，复杂几何与 CAM 语义是受限预览，不能用于制造验收 |
 | [CSV/TSV 表格](doc/document-viewers.md) | `.csv`、`.tsv` | 首行表头开关、全文筛选、分页、原文入口；保留文本值，不执行公式 |
 | [JSON 结构](doc/document-viewers.md) | 普通 `.json`；Yosys 网表和 `.sprite.json` 保留专用 Viewer | 对象/数组折叠、类型与数量、分支分页、原文入口；解析错误明确显示 |
 | [JSON Lines](doc/document-viewers.md) | `.jsonl`、`.ndjson` | 按源行号查看记录、分页、JSON 结构和原文入口；错误指出出错行 |
 | [Markdown 文档](doc/document-viewers.md) | `.md`、`.markdown` | 标题、列表、引用、代码块、表格和任务列表；保留原文，不执行 HTML 或加载嵌入资源 |
 | [文本与日志](doc/document-viewers.md) | `.txt`、`.log` | 行号、全文行筛选、换行开关和分页；无需领域软件 |
 
-所有 Viewer 共用标题栏的缩小、放大、Fit（适配视图）和全屏按钮，Esc 退出全屏，并支持画布内滚轮或触控板捏合缩放。波形缩放时间轴；Godot 缩放已挂载的运行预览并保留运行状态；KiCad 默认适配电路内容，Whole page 查看完整图纸；通用文档 Fit 恢复 100% 阅读比例，Shift+滚轮用于滚动。查看操作不修改工程文件或验证结论。通用文档只读 UTF-8，单文件上限 4 MiB，Markdown 为 256 KiB，另有行数、节点与单元格限制；具体格式和平台验证范围见各 Viewer 文档。
+所有 Viewer 共用标题栏的缩小、放大、Fit（适配视图）和全屏按钮，Esc 退出全屏，并支持画布内滚轮或触控板捏合缩放。波形缩放时间轴；Godot 缩放已挂载的运行预览并保留运行状态；KiCad 默认适配电路内容，Whole page 查看完整图纸；通用文档 Fit 恢复 100% 阅读比例，Shift+滚轮用于滚动。查看操作不修改工程文件或验证结论。工程文件文本上限 4 MiB，媒体/符号库 16 MiB，复杂几何需在专业软件中核对。通用文档只读 UTF-8，单文件上限 4 MiB，Markdown 为 256 KiB，另有行数、节点与单元格限制；具体格式和平台验证范围见各 Viewer 文档。
 
 新增或扩展 Viewer 时，必须在同一次变更中更新本节的支持格式、查看能力、依赖与限制，并遵守 [Viewer 接入规则](AGENTS.md#viewer-integration-contract)。
 
@@ -81,13 +83,13 @@ CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[head
 
 | 示例文件夹 | Domain | 打开文件 |
 | --- | --- | --- |
-| [LED 电路板](examples/pcb-led/README.md) | PCB | `led.kicad_pcb` 查看板图，`led.kicad_sch` 查看原理图；本地 KiCanvas 运行时无需安装 KiCad |
-| [Godot Playground](examples/godot-viewer/README.md) | Godot | `build/playground.html` 运行场景；`robot.png`、`robot.sprite.json` 和 `playground.tscn` 查看图片、图集和动画 |
+| [LED 电路板](examples/pcb-led/README.md) | PCB | `led.kicad_pcb` 查看板图、`led.kicad_sch` 查看原理图、`led.kicad_pro` 查看项目配置；本地 KiCanvas 运行时无需安装 KiCad |
+| [Godot Playground](examples/godot-viewer/README.md) | Godot | `build/playground.html` 运行场景；`robot.png`、`robot.sprite.json`、`playground.tscn`、`playground.gd` 和 `project.godot` 查看素材、动画、场景结构、脚本及配置 |
 | [通用文件](examples/document-viewers/README.md) | 任意已有 Domain | CSV/TSV 表格、JSON/JSONL、Markdown、TXT/LOG；无需领域软件 |
 
 Godot 场景先安装 Godot 4 及匹配的 Web 导出模板，在仓库根目录运行 `node examples/godot-viewer/export.cjs`。导出脚本使用当前 Viewer Bridge 并生成单线程 Web 运行时，较大的导出文件仅在本地生成。
 
-macOS 已实测这两个示例的真实渲染，以及 Godot 暂停、单步、相机选择、节点检查、素材预览与 Viewer 全屏。示例用于查看和交互演示，不代表工业验证结果。
+macOS 已实测这两个示例的真实渲染，以及 Godot 暂停、单步、相机选择、节点检查、素材与工程文件预览、Viewer 全屏。示例用于查看和交互演示，不代表工业验证结果。
 
 ## 文档
 

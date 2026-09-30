@@ -16,7 +16,7 @@
 
 - `.tres` / `.tscn` 中单个 SpriteFrames：支持项目内 Texture2D、AtlasTexture 的整数 region、动作名称、speed、loop 和帧 duration；支持多张图片。
 - `.tscn` 中 AnimationPlayer：支持单个 Sprite2D 的 `:frame` 离散值轨道，以及 hframes / vframes、AnimationLibrary 动作名称与关键帧时间。关键帧必须从零开始。
-- V1 不模拟骨骼、物理、着色器、场景变换、混合动画、AtlasTexture margin、Sprite2D region clipping、多个 Sprite2D 轨道、ping-pong 轨道、外部 AnimationLibrary 或外部 SpriteFrames 资源引用。被识别但超出范围的资源明确报告错误；普通场景继续显示源码。
+- V1 不模拟骨骼、物理、着色器、场景变换、混合动画、AtlasTexture margin、Sprite2D region clipping、多个 Sprite2D 轨道、ping-pong 轨道、外部 AnimationLibrary 或外部 SpriteFrames 资源引用。被识别但超出范围的动画明确报告错误；普通 `.tscn` / `.tres` 场景和资源现在显示结构与源码，支持的动画在同一文件的 Animation 标签查看，详见 [工程文件预览](engineering-file-viewers.md)。
 
 官方格式语义参考：[Sprite2D 动画](https://docs.godotengine.org/en/stable/tutorials/2d/2d_sprite_animation.html)、[SpriteFrames](https://docs.godotengine.org/en/4.7/classes/class_spriteframes.html)。
 

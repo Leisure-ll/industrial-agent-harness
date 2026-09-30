@@ -32,7 +32,7 @@ flowchart LR
 - **Domain Pack** 声明本领域的产物类型、配套输入和 Viewer 贡献，但不能向 Electron Renderer 注入任意 HTML 或脚本。
 - **Bridge** 负责连接正在运行的专业软件；外部应用启动也是受控动作。两者均不被内置 Viewer 隐式执行。
 
-`packages/viewer-core` 已有初始类型契约和最小 Plugin Registry，`packages/viewer-builtin/src` 提供 EDA、Godot、KiCad、素材与通用文件 Viewer。通用文件插件不绑定 Domain，作为专用识别后的格式回退；CSV/TSV、JSON、JSONL、Markdown 和 TXT/LOG 的支持范围与上限见 [通用文件 Viewer](document-viewers.md)。Electron 主进程负责受控文件访问和插件打开，桌面 UI 在文件画布中展示 Viewer。具体 API 会在真实产物链路中继续稳定。
+`packages/viewer-core` 已有初始类型契约和最小 Plugin Registry，`packages/viewer-builtin/src` 提供 EDA、Godot、KiCad、素材、[Godot/PCB 工程文件预览](engineering-file-viewers.md)与通用文件 Viewer。通用文件插件不绑定 Domain，作为专用识别后的格式回退；CSV/TSV、JSON、JSONL、Markdown 和 TXT/LOG 的支持范围与上限见 [通用文件 Viewer](document-viewers.md)。Electron 主进程负责受控文件访问和插件打开，桌面 UI 在文件画布中展示 Viewer。具体 API 会在真实产物链路中继续稳定。
 
 ## 最小查看契约
 

@@ -10,7 +10,7 @@ The shared workspace toolbar provides zoom out/in, Fit and fullscreen. The canva
 
 Create or select a project with the PCB domain, open the workspace and file tree, then select a board or schematic. The board viewer provides pan/zoom, front/back view, layer visibility, footprints, nets, and selected-object properties. Schematics provide pan/zoom, symbols, and properties. Referenced schematic sheets in the same document directory or its subdirectories are included and accessible from KiCanvas's project panel.
 
-This is a read-only 2D preview. Editing, routing, DRC/ERC, manufacturing exports, 3D models, and connection to a running native KiCad editor are outside this integration. `.kicad_pro` settings and legacy `.brd`/`.sch` files retain ordinary file preview. KiCad 6+ S-expression inputs are recognized; KiCanvas is an alpha parser, so recognition does not guarantee all features of later KiCad formats render correctly. Custom fonts and embedded 3D assets are not rendered.
+This is a read-only 2D preview. Editing, routing, DRC/ERC, manufacturing exports, 3D models, and connection to a running native KiCad editor are outside this integration. `.kicad_pro` settings, symbol/footprint libraries, Gerber/drill and limited 3D source previews are handled by the separate [engineering-file Viewer](engineering-file-viewers.md); legacy `.brd`/`.sch` files retain ordinary file preview. KiCad 6+ S-expression inputs are recognized; KiCanvas is an alpha parser, so recognition does not guarantee all features of later KiCad formats render correctly. Custom fonts and embedded 3D assets are not rendered.
 
 ## Boundaries
 
