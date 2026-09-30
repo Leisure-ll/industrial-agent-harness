@@ -31,6 +31,7 @@
 | [27B 上下文评测结果](27b-evaluation-results.md) | 真实模型的合成检索、SDK 工具调用与压缩后续接证据 |
 | [聊天持久化](chat-persistence.md) | Desktop/CLI 历史聊天、Kimi 原生上下文恢复、Scope 会话段、中断与验证边界 |
 | [按领域下载 CLI](domain-cli-downloads.md) | Chip/PCB/Godot 独立包、默认领域绑定与测试依赖 |
+| [安装、补装与 OTA 规划](installation-and-ota-plan.md) | macOS/Windows 桌面安装、多选 Domain、后续补装与 Core/Pack 更新的 P3 提案 |
 | [CLI 与 Bench 入口](../apps/cli/README.md) | 无界面单任务命令、JSON Lines 事件、模型与工件输入 |
 | [Agent 聊天 UI 来源](agent-ui-provenance.md) | EDA Harness demo 的思考、Todo、工具呈现如何接入实时 SDK 事件 |
 | [并行 Session](parallel-sessions.md) | 同项目与跨项目聊天并行、后台审批、停止与配置影响范围 |

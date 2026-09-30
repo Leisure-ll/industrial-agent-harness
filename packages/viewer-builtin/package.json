@@ -20,7 +20,15 @@
     "./kicad": "./src/kicad/KiCadViewport.tsx",
     "./canvas": "./src/ViewerCanvas.tsx",
     "./styles.css": "./src/viewer-styles.css",
-    "./api": "./src/api.ts"
+    "./api": "./src/api.ts",
+    "./runtime/layout": "./src/layout/raster.cjs",
+    "./runtime/netlist": "./src/netlist/netlist.cjs",
+    "./runtime/waveform-protocol": "./src/waveform/protocol.cjs",
+    "./runtime/waveform-signals": "./src/waveform/signals.cjs",
+    "./runtime/godot": "./src/godot/runtime.cjs",
+    "./runtime/assets": "./src/assets/service.cjs",
+    "./runtime/documents": "./src/documents/service.cjs",
+    "./runtime/kicad": "./src/kicad/runtime.cjs"
   },
   "devDependencies": {
     "@types/react": "19.2.18",

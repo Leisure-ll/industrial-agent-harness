@@ -352,6 +352,8 @@ trajectory_events
 
 # P3：产品化安装
 
+macOS/Windows 安装流程、Domain 多选与补装、Core/Pack OTA、事务恢复和验收矩阵详见[安装、补装与 OTA 规划](installation-and-ota-plan.md)。本阶段依赖 P1.3 的可安装 Domain Pack Loader；当前按领域 CLI 归档不等于桌面安装器。
+
 ## P3.1 Runtime Bundle
 
 Core installer 自带：

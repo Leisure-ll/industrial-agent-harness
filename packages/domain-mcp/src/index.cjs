@@ -1,18 +1,18 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const {domainPacks} = require('@industrial-agent-harness/domain-skills');
+const {loadRegistry} = require('@industrial-agent-harness/domain-skills');
 const {gatewayConfig, providerRuntime} = require('./gateway.cjs');
 const {ExternalMcpRegistry, publicServer} = require('./external-registry.cjs');
 const {writeExternalGateway} = require('./external-gateway.cjs');
 const {hash, externalSecrets} = require('./external-client.cjs');
 
-const servers = Object.freeze(domainPacks.map(pack => ({...pack.provider, toolIds: pack.provider.tools.map(tool => tool.id)})));
+function servers() {return loadRegistry().providerPacks.map(pack => ({...pack.provider, toolIds: pack.provider.tools.map(tool => tool.id)}));}
 
 function listMcpServers(domain, external = []) {
-  return [...servers.filter(item => !domain || item.domain === domain).map(({config, tools, ...item}) => ({...item, enabledByDefault: true})), ...external.map(server => ({...publicServer(server), toolIds: server.tools.map(tool => tool.id)}))];
+  return [...servers().filter(item => !domain || item.domain === domain).map(({config, tools, ...item}) => ({...item, enabledByDefault: true})), ...external.map(server => ({...publicServer(server), toolIds: server.tools.map(tool => tool.id)}))];
 }
 
-function selectMcpServers(scope, disabledIds = [], registry = servers, external = []) {
+function selectMcpServers(scope, disabledIds = [], registry = servers(), external = []) {
   const disabled = new Set(disabledIds);
   return registry.filter(item => item.domain === scope.domain && !disabled.has(item.id) && item.toolIds.length > 0 && (item.transport === 'gateway' ? item.toolIds.some(id => scope.tools.includes(id)) : item.toolIds.every(id => scope.tools.includes(id))))
     .map(item => item.transport === 'gateway' ? {...item, allowedToolIds: item.toolIds.filter(id => scope.tools.includes(id))} : item)

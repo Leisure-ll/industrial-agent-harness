@@ -3,34 +3,68 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
+const {PackManager, defaultPackDirectory} = require('@industrial-agent-harness/pack-manager');
+if (app.isPackaged && !process.env.INDUSTRIAL_HARNESS_PACK_STORE) process.env.INDUSTRIAL_HARNESS_PACK_STORE = defaultPackDirectory();
+if (process.argv.includes('--packaged-smoke')) process.env.INDUSTRIAL_HARNESS_PACK_STORE = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-packs-smoke-'));
+if (process.argv.includes('--packaged-smoke') && process.env.HARNESS_PACKAGED_SMOKE_FEED_DIR) {
+  const fixture = process.env.HARNESS_PACKAGED_SMOKE_FEED_DIR;
+  global.fetch = async url => {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'updates.example' || parsed.pathname.split('/').length !== 2) throw Error('Unexpected Pack smoke URL.');
+    return new Response(fs.readFileSync(path.join(fixture, path.basename(parsed.pathname))));
+  };
+}
 const {spawnSync} = require('node:child_process');
-const {RasterService} = require('../../../packages/viewer-builtin/src/layout/raster.cjs');
-const {renderNetlist, isYosysNetlist} = require('../../../packages/viewer-builtin/src/netlist/netlist.cjs');
-const {createViewerProtocol} = require('../../../packages/viewer-builtin/src/waveform/protocol.cjs');
-const {initialVcdSignals} = require('../../../packages/viewer-builtin/src/waveform/signals.cjs');
-const {GodotRuntimeManager, isGodotExport} = require('../../../packages/viewer-builtin/src/godot/runtime.cjs');
-const {createAssetPlugins} = require('../../../packages/viewer-builtin/src/assets/service.cjs');
-const {createDocumentPlugins} = require('../../../packages/viewer-builtin/src/documents/service.cjs');
-const {KiCadRuntimeManager, isKiCadFile} = require('../../../packages/viewer-builtin/src/kicad/runtime.cjs');
-const {createViewerRegistry} = require('../../../packages/viewer-core/src/registry.cjs');
-const {resolve, discloseDetail} = require('../../../packages/capability-broker/src/index.cjs');
+const {RasterService} = require('@industrial-agent-harness/viewer-builtin/runtime/layout');
+const {renderNetlist, isYosysNetlist} = require('@industrial-agent-harness/viewer-builtin/runtime/netlist');
+const {createViewerProtocol} = require('@industrial-agent-harness/viewer-builtin/runtime/waveform-protocol');
+const {initialVcdSignals} = require('@industrial-agent-harness/viewer-builtin/runtime/waveform-signals');
+const {GodotRuntimeManager, isGodotExport} = require('@industrial-agent-harness/viewer-builtin/runtime/godot');
+const {createAssetPlugins} = require('@industrial-agent-harness/viewer-builtin/runtime/assets');
+const {createDocumentPlugins} = require('@industrial-agent-harness/viewer-builtin/runtime/documents');
+const {KiCadRuntimeManager, isKiCadFile} = require('@industrial-agent-harness/viewer-builtin/runtime/kicad');
+const {createViewerRegistry} = require('@industrial-agent-harness/viewer-core/registry');
+const {resolve, discloseDetail} = require('@industrial-agent-harness/capability-broker');
 const {resolveProjectTask, effectiveCapabilities, resourceCatalog: baseResourceCatalog, ResourceSettings, ChatStore, defaultChatDirectory, ExternalMcpRegistry} = require('@industrial-agent-harness/harness-core');
-const {capabilities, listDomains} = require('@industrial-agent-harness/domain-skills');
-const {validatePromptImages} = require('../../../packages/agent-kimi/src/image-input.cjs');
-const {DiagnosticReader} = require('../../../packages/agent-kimi/src/diagnostic-reader.cjs');
-const {defaultLogDirectory} = require('../../../packages/agent-kimi/src/diagnostic-log.cjs');
+const {loadRegistry} = require('@industrial-agent-harness/domain-skills');
+const {validatePromptImages} = require('@industrial-agent-harness/agent-kimi/src/image-input.cjs');
+const {DiagnosticReader} = require('@industrial-agent-harness/agent-kimi/src/diagnostic-reader.cjs');
+const {defaultLogDirectory} = require('@industrial-agent-harness/agent-kimi/src/diagnostic-log.cjs');
 const {SessionManager} = require('./session-manager.cjs');
-const {KimiSession} = require('../../../packages/agent-kimi/src/index.cjs');
+const {CoreUpdater} = require('./updater.cjs');
+const {KimiSession} = require('@industrial-agent-harness/agent-kimi');
 const {ObservedContextStore} = require('@industrial-agent-harness/domain-runtime');
 const {readProfile, saveProfile, validateProfile, writeCliConfig, sessionEnv} = require('./model-config.cjs');
 const {readBindings, addBinding, saveBindings} = require('./project-bindings.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: {standard: true, secure: true, supportFetchAPI: true, corsEnabled: true}}]);
-if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--documents-selftest', '--mcp-selftest', '--external-mcp-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (['--viewer-selftest', '--kicad-selftest', '--godot-selftest', '--documents-selftest', '--mcp-selftest', '--external-mcp-selftest', '--agent-log-selftest', '--chat-selftest', '--parallel-selftest', '--image-input-selftest', '--packaged-smoke'].some(flag => process.argv.includes(flag))) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
 
 if (process.argv.includes('--chat-selftest') && process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA) app.setPath('userData', process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA);
 
 const desktopRoot = path.resolve(__dirname, '..');
+const packManager = new PackManager();
+const managedPacks = Boolean(process.env.INDUSTRIAL_HARNESS_PACK_STORE);
+function releaseConfig() {
+  const file = process.env.INDUSTRIAL_HARNESS_PACK_FEED_FILE || path.join(process.resourcesPath, 'pack-feed.json');
+  return fs.statSync(file, {throwIfNoEntry: false})?.isFile() ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+}
+function packFeed() {
+  const config = releaseConfig();
+  const url = process.env.INDUSTRIAL_HARNESS_PACK_CATALOG_URL || config.catalogUrl;
+  const keysFile = process.env.INDUSTRIAL_HARNESS_PACK_KEYS_FILE;
+  const keys = keysFile ? JSON.parse(fs.readFileSync(keysFile, 'utf8')) : config.publicKeys;
+  if (!url || !keys || typeof keys !== 'object' || !Object.keys(keys).length) throw Error('Domain download feed is not configured.');
+  return {url, keys, channel: config.channel || 'stable'};
+}
+function currentRegistry() {return loadRegistry();}
+function installedDomains() {return currentRegistry().domains;}
+async function availablePacks() {
+  const feed = packFeed();
+  const manager = new PackManager({directory: packManager.directory, keys: feed.keys, channel: feed.channel});
+  const catalog = await manager.catalog(feed.url);
+  return {manager, packs: catalog.packs.filter(item => item.platforms.includes(`${process.platform}-${process.arch}`))};
+}
 const artifacts = new Map();
 const netlistSessions = new Map();
 let activeLayoutToken;
@@ -43,6 +77,7 @@ let contextStore;
 let projectDir;
 let projectBindings = {projects: [], activeId: null};
 let mainWindow;
+const coreUpdater = new CoreUpdater({updater: app.isPackaged ? require('electron-updater').autoUpdater : null, packaged: app.isPackaged, channel: app.isPackaged ? releaseConfig().channel || 'stable' : 'stable', onChange: state => {if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('update:changed', state);}, canInstall: () => sessions.assertIdle()});
 let sessionApiKey = '';
 let modelRevision = 0;
 const chats = new ChatStore(process.argv.some(flag => flag.endsWith('-selftest')) ? path.join(app.getPath('userData'), 'chats') : defaultChatDirectory());
@@ -210,7 +245,32 @@ function registerHandlers() {
   ipcMain.handle('agent:log-view', (event, request) => diagnosticRequest('view', event, request));
   ipcMain.handle('agent:log-detail', (event, request) => diagnosticRequest('detail', event, request));
   ipcMain.handle('agent:log-record', (event, request) => diagnosticRequest('record', event, request));
-  ipcMain.handle('broker:domains', () => listDomains(capabilities));
+  ipcMain.handle('broker:domains', () => installedDomains());
+  ipcMain.handle('update:status', () => coreUpdater.snapshot());
+  ipcMain.handle('update:check', () => coreUpdater.check());
+  ipcMain.handle('update:install', () => coreUpdater.install());
+  ipcMain.handle('domains:status', () => ({managed: managedPacks, installed: managedPacks ? packManager.list().map(({location, ...item}) => ({domain: item.domain, version: item.version, label: item.label, emoji: item.emoji, summary: item.summary, prerequisites: item.prerequisites})) : installedDomains().map(item => ({domain: item.id, version: 'development', label: item.label, emoji: item.emoji})), errors: managedPacks ? packManager.scan().errors : []}));
+  ipcMain.handle('domains:available', async () => {
+    if (!managedPacks) return [];
+    const {packs} = await availablePacks();
+    return packs.map(({domain, label, emoji, summary, prerequisites, version, size, platforms}) => ({domain, label, emoji, summary, prerequisites, version, size, platforms}));
+  });
+  ipcMain.handle('domains:install', async (_event, request) => {
+    if (!managedPacks) throw Error('Domain installation is available in managed builds.');
+    if (!Array.isArray(request?.domains) || !request.domains.length || request.domains.length > 20 || new Set(request.domains).size !== request.domains.length || request.domains.some(id => typeof id !== 'string')) throw Error('Choose one or more distinct Domains.');
+    sessions.assertIdle();
+    const {manager, packs} = await availablePacks();
+    const selected = request.domains.map(id => {const item = packs.find(pack => pack.domain === id); if (!item) throw Error(`Domain is unavailable for this platform: ${id}`); return item;});
+    for (const item of selected) await manager.install(item);
+    return {installed: installedDomains()};
+  });
+  ipcMain.handle('domains:remove', (_event, request) => {
+    if (!managedPacks || typeof request?.domain !== 'string') throw Error('Invalid Domain removal.');
+    sessions.assertIdle();
+    if (projectBindings.projects.some(project => project.domain === request.domain)) throw Error('A Project still uses this Domain.');
+    packManager.remove(request.domain);
+    return {installed: installedDomains()};
+  });
   ipcMain.handle('resource:catalog', () => resourceCatalog(activeProject()?.domain));
   ipcMain.handle('broker:resolve', (event, request) => {
     chatRequest(event);
@@ -219,14 +279,15 @@ function registerHandlers() {
     const entry = selectedSession();
     if (sessions.busy(entry)) throw Error('This chat is already running.');
     entry.externalServers = externalRegistry.records();
-    const result = resolveProjectTask(entry.project.domain, request, entry.scope, capabilities, projectResourcePolicy(entry.project), entry.externalServers);
+    const registry = currentRegistry();
+    const result = resolveProjectTask(entry.project.domain, request, entry.scope, registry.capabilities, projectResourcePolicy(entry.project), entry.externalServers, registry.domains);
     entry.resolvedRequest = {...request}; result.request = entry.resolvedRequest;
     entry.scope = result.scope; entry.trace = result.trace;
     entry.preparedTurn = {id: chats.beginTurn(entry.id, request.task, result, false), task: request.task, broker: result};
     notifySessions(); return {...result, chatId: entry.id, turnId: entry.preparedTurn.id};
   });
   function loadDetail(capabilityId, entry = selectedSession()) {
-    const detail = discloseDetail(entry.scope, effectiveCapabilities(capabilities, projectResourcePolicy(entry.project)), capabilityId);
+    const detail = discloseDetail(entry.scope, effectiveCapabilities(currentRegistry().capabilities, projectResourcePolicy(entry.project)), capabilityId);
     entry.trace.push({level: 'L3', event: 'detail.load', detail: {capabilityId, skills: detail.skills.map(item => item.id), tools: detail.tools.map(item => item.id)}});
     return detail;
   }
@@ -267,7 +328,7 @@ function registerHandlers() {
   ipcMain.handle('project:bindings', () => projectSnapshot());
   ipcMain.handle('project:set-domain', async (_event, request) => {
     const {id, domain} = request || {};
-    if (!listDomains(capabilities).some(item => item.id === domain)) throw Error('Unknown domain.');
+    if (!installedDomains().some(item => item.id === domain)) throw Error('Unknown domain.');
     const project = projectBindings.projects.find(item => item.id === id);
     if (!project) throw Error('Unknown project.');
     if (id !== projectBindings.activeId) throw Error('Open this project before changing its domain.');
@@ -341,7 +402,7 @@ function registerHandlers() {
     return result.canceled ? null : fs.realpathSync(result.filePaths[0]);
   });
   ipcMain.handle('project:create', async (_event, request) => {
-    if (!request || !listDomains(capabilities).some(item => item.id === request.domain)) throw Error('Choose a valid project domain.');
+    if (!request || !installedDomains().some(item => item.id === request.domain)) throw Error('Choose a valid project domain.');
     if (typeof request.directory !== 'string' || typeof request.name !== 'string') throw Error('Invalid project details.');
     const next = addBinding(projectBindings, request.directory, request.domain, request.name);
     projectBindings = next;
@@ -435,11 +496,13 @@ function registerHandlers() {
     if (typeof task !== 'string' || !task.trim() || Buffer.byteLength(task, 'utf8') > 128 * 1024) throw Error('Describe the task first.');
     if (!entry.scope || entry.resolvedRequest?.task !== task) throw Error('Resolve this task in the current chat first.');
     if (sessions.busy(entry)) throw Error('This chat is already running.');
-    entry.release = chats.acquire(entry.id);
+    entry.releasePack = managedPacks ? packManager.acquireUse(entry.project.domain) : null;
     try {
+      entry.release = chats.acquire(entry.id);
       chats.recoverInterrupted();
       entry.externalServers = externalRegistry.records();
-      const current = resolveProjectTask(entry.project.domain, {...entry.resolvedRequest, task}, entry.scope, capabilities, projectResourcePolicy(entry.project), entry.externalServers);
+      const registry = currentRegistry();
+      const current = resolveProjectTask(entry.project.domain, {...entry.resolvedRequest, task}, entry.scope, registry.capabilities, projectResourcePolicy(entry.project), entry.externalServers, registry.domains);
       current.request = entry.resolvedRequest; entry.scope = current.scope; entry.trace = current.trace;
       const turnId = entry.preparedTurn?.task === task ? entry.preparedTurn.id : chats.beginTurn(entry.id, task, current, false);
       chats.updateBroker(turnId, current); entry.preparedTurn = undefined;
@@ -460,10 +523,11 @@ function registerHandlers() {
       void entry.agent.run(task, images).catch(error => emit({type: 'error', message: String(error)})).finally(() => {
         chats.finish(turnId, outcome);
         const release = entry.release; entry.release = undefined; release?.();
+        const releasePack = entry.releasePack; entry.releasePack = undefined; releasePack?.();
         notifySessions();
       });
       notifySessions(); return {started: true, chatId: entry.id, turnId};
-    } catch (error) {entry.release?.(); entry.release = undefined; throw error;}
+    } catch (error) {entry.release?.(); entry.release = undefined; entry.releasePack?.(); entry.releasePack = undefined; throw error;}
   });
   ipcMain.handle('agent:approve', (event, {id, response, chatId}) => {
     chatRequest(event);
@@ -523,6 +587,46 @@ async function createWindow() {
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
+  if (process.argv.includes('--packaged-smoke')) {
+    if (!app.isPackaged) throw Error('Packaged smoke requires an installed app.');
+    async function waitFor(script) {
+      const end = Date.now() + 15000;
+      while (Date.now() < end) {
+        let ready;
+        try {ready = await window.webContents.executeJavaScript(script);}
+        catch (error) {throw Error(`Packaged Domain smoke script failed: ${script}: ${error}`);}
+        if (ready) return;
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      throw Error(`Packaged Domain smoke timed out: ${script}`);
+    }
+    async function click(script) {
+      const error = await window.webContents.executeJavaScript(`(() => {try {${script}; return null;} catch (error) {return String(error);}})()`);
+      if (error) throw Error(`Packaged Domain smoke click failed: ${script}: ${error}`);
+    }
+    await waitFor(`Boolean(document.querySelector('.ia-domains-modal')) && window.viewerHost.domainStatus().then(status => status.managed && status.installed.length === 0)`);
+    if (process.env.HARNESS_PACKAGED_SMOKE_FEED_DIR) {
+      await waitFor(`document.querySelectorAll('.ia-domain-install-row').length === 3`);
+      await click(`for (const name of ['Chip', 'PCB']) Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes(name)).querySelector('input').click()`);
+      await waitFor(`document.querySelector('.ia-domains-primary')?.textContent.includes('2') && !document.querySelector('.ia-domains-primary').disabled`);
+      await click(`document.querySelector('.ia-domains-primary').click()`);
+      await waitFor(`window.viewerHost.domainStatus().then(status => status.installed.length === 2 && !document.querySelector('.ia-domains-modal'))`);
+      await click(`document.querySelector('.ia-settings-button').click()`);
+      await waitFor(`Boolean(document.querySelector('.ia-settings-row'))`);
+      await click(`Array.from(document.querySelectorAll('.ia-settings-row')).find(row => row.textContent.includes('Domains')).querySelector('button').click()`);
+      await waitFor(`Array.from(document.querySelectorAll('.ia-domain-install-row')).some(row => row.textContent.includes('Godot'))`);
+      await click(`Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes('Godot')).querySelector('input').click()`);
+      await waitFor(`document.querySelector('.ia-domains-primary')?.textContent.includes('1') && !document.querySelector('.ia-domains-primary').disabled`);
+      await click(`document.querySelector('.ia-domains-primary').click()`);
+      await waitFor(`window.viewerHost.domainStatus().then(status => status.installed.length === 3)`);
+      const domains = await window.webContents.executeJavaScript(`window.viewerHost.domains().then(items => items.map(item => item.id).sort())`);
+      if (JSON.stringify(domains) !== JSON.stringify(['chip', 'godot', 'pcb'])) throw Error('Installed Domains did not reach the registry.');
+    }
+    const screenshot = process.env.HARNESS_PACKAGED_SMOKE_SCREENSHOT;
+    if (screenshot) fs.writeFileSync(screenshot, (await window.webContents.capturePage()).toPNG());
+    app.quit(); return;
+  }
+  if (app.isPackaged) {setTimeout(() => void coreUpdater.check(), 15000).unref(); setInterval(() => void coreUpdater.check(), 24 * 60 * 60 * 1000).unref();}
   if (process.argv.includes('--mcp-selftest')) {await require('./mcp-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--external-mcp-selftest')) {await require('./external-mcp-selftest.cjs').run(window); app.quit(); return;}
   if (process.argv.includes('--documents-selftest')) {await require('./documents-selftest.cjs').run(window); app.quit(); return;}

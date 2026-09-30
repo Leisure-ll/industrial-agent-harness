@@ -15,8 +15,8 @@ function effectiveCapabilities(registry, disabled = {}) {
   });
 }
 
-function resolveProjectTask(domain, request, previous, registry = capabilities, disabled = {}, external = []) {
-  if (!listDomains(registry).some(item => item.id === domain)) throw Error('Choose a valid project domain.');
+function resolveProjectTask(domain, request, previous, registry = capabilities, disabled = {}, external = [], validDomains = listDomains(registry)) {
+  if (!validDomains.some(item => item.id === domain)) throw Error('Choose a valid project domain.');
   if (request?.domain && request.domain !== domain) throw Error(`This project is fixed to the ${domain} domain.`);
   const result = resolve({...request, domain}, effectiveCapabilities(registry, disabled), previous);
   const extensions = external.filter(server => !(disabled.mcpServers || []).includes(server.id));

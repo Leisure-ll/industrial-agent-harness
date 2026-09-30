@@ -1,0 +1,7 @@
+{
+  "name": "@industrial-agent-harness/pack-manager",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.cjs",
+  "scripts": {"test": "node --test src/*.test.cjs"}
+}

@@ -1,0 +1,64 @@
+name: Desktop install smoke
+
+on:
+  push:
+    paths:
+      - '.github/workflows/desktop-package.yml'
+      - 'apps/desktop/**'
+      - 'packages/**'
+      - 'scripts/stage-desktop.cjs'
+      - 'scripts/smoke-packaged-desktop.cjs'
+      - 'electron-builder.config.cjs'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    paths:
+      - '.github/workflows/desktop-package.yml'
+      - 'apps/desktop/**'
+      - 'packages/**'
+      - 'scripts/stage-desktop.cjs'
+      - 'scripts/smoke-packaged-desktop.cjs'
+      - 'electron-builder.config.cjs'
+      - 'pnpm-lock.yaml'
+
+jobs:
+  packaged-first-run:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            platform: mac
+          - runner: macos-15-intel
+            platform: mac
+          - runner: windows-2025
+            platform: windows
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        shell: bash
+        run: |
+          npm install -g pnpm@11.1.3
+          pnpm install --frozen-lockfile
+      - name: Build Desktop and stage installable application
+        shell: bash
+        run: |
+          pnpm --filter @industrial-agent-harness/desktop build
+          node scripts/stage-desktop.cjs dist/desktop-stage-ci
+      - name: Package macOS application
+        if: matrix.platform == 'mac'
+        shell: bash
+        run: |
+          ./apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-ci --config "$GITHUB_WORKSPACE/electron-builder.config.cjs" --mac dir --publish never
+      - name: Package Windows application
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          & .\apps\desktop\node_modules\.bin\electron-builder.cmd --projectDir dist/desktop-stage-ci --config "$env:GITHUB_WORKSPACE\electron-builder.config.cjs" --win dir --publish never
+      - name: Verify installed application first run
+        run: |
+          node scripts/smoke-packaged-desktop.cjs
+          node scripts/smoke-packaged-desktop.cjs --domains
