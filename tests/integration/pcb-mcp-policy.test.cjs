@@ -45,3 +45,22 @@ test('real CLI scopes the PCB provider and accepts its resource disable IDs with
   assert.deepEqual(disabled.find(row => row.type === 'scope').scope.tools, []);
   assert.deepEqual(disabled.find(row => row.type === 'scope').scope.skills, []);
 });
+
+test('a PCB verification follow-up can submit the native final claims', () => {
+  const {scope} = resolveProjectTask('pcb', {task: 'Inspect project_status and verify_design, then finalize the CAD-prototype claims.'});
+  assert.ok(scope.capabilityIds.includes('pcb.bench.verification'));
+  assert.ok(scope.tools.includes('pcb.bench.verify_design'));
+  assert.ok(scope.tools.includes('pcb.bench.finalize_claims'));
+  assert.ok(selectMcpServers(scope)[0].allowedToolIds.includes('pcb.bench.finalize_claims'));
+});
+
+test('KiCad design and repair requests receive the full PCB runtime', () => {
+  for (const task of [
+    'Design a KiCad project. Choose footprints, placement and routing. Deliver spec.json and board.kicad_pcb.',
+    'Repair the supplied KiCad project. Deliver spec.json and board.kicad_pcb.',
+  ]) {
+    const {scope} = resolveProjectTask('pcb', {task});
+    assert.deepEqual(scope.capabilityIds, ['pcb.bench.operate']);
+    assert.equal(scope.tools.length, 89);
+  }
+});

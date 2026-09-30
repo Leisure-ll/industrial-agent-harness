@@ -3,6 +3,8 @@
 固定的外部后端是 `Zhiman-BJ/PCB-bench@f64692bcfdd74ac6d95051df1adac598cf21105a`。
 注册 88 个命名 PCB 工具和一个受限 Python 工具；共享 Registry 使用 `pcb.bench.*` canonical ID。
 设计 Skill ID 是 `pcb.design.e2e`，会话加载完整 `pcb-design-e2e`，包括 9 个 references 和 constraints asset。
+`domain_tool_call` 接受 `arguments` 对象；若模型的嵌套工具参数把布尔值或数组错误序列化，可改用
+`argumentsJson` 字符串提交严格 JSON 对象。两种输入互斥，解析后仍按原生 schema 与 Broker Scope 校验。
 
 此目录只提供本仓库自己的桥接环境与安装说明，不携带上游私有源码、Skill 正文、任务或参考答案。
 来源与再分发范围见 [PROVENANCE.md](PROVENANCE.md)；接入范围及验证见 [PCB MCP 接入](../../doc/pcb-mcp-integration.md)。
@@ -39,6 +41,25 @@ sha256:fcf2cc3e465e0314049a7ce1a6dc16605113af8a515fcec2c22e1d8a5a61ecb2
 
 这些是可信应用启动环境，不从 Project 文件或模型参数接受启动命令。
 原生 KiCad/solver Python 使用镜像中的系统环境；gateway 的 Python/MCP 依赖不覆盖它。
+
+## 本地开发镜像（诊断用途）
+
+若拿不到上述固定镜像，可以用有权访问的固定 PCB-bench checkout 作为 build context，
+在本机制作一个含 KiCad 10.0.6、系统 Python、ngspice、Java 25 与固定 FreeRouting JAR 的开发镜像：
+
+```sh
+docker build --platform linux/amd64 \
+  -f /absolute/industrial-agent-harness/domain-packs/pcb/Dockerfile.local-dev \
+  -t pcb-bench-local-dev /absolute/PCB-bench
+export INDUSTRIAL_HARNESS_PCB_DEV_IMAGE_ID="$(docker image inspect pcb-bench-local-dev --format '{{.Id}}')"
+```
+
+只接受不可变的 `sha256:` image ID，不接受浮动 tag；它会写入候选工程的运行时身份记录。
+原有源码摘要、89 个工具 schema、KiCad CLI/pcbnew 和四个 KiCad 包版本检查仍在容器启动时执行。
+该镜像没有上游固定镜像的完整原生回归和实验资格凭据，不能替代正式 PCB-bench 评分镜像。
+Mac 上运行 `linux/amd64` 采用仿真，首次并行冷启动可能较慢。
+若本机网络代理使容器无法验证 Ubuntu/Launchpad 的 TLS 证书，可仅在本地诊断构建时传入
+`--build-arg PCB_DEV_INSECURE_APT_TLS=1`；APT 包索引签名与 FreeRouting SHA-256 仍会校验。
 
 ## 使用
 

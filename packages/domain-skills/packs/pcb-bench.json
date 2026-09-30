@@ -1587,7 +1587,7 @@
       ],
       "priority": 20,
       "keywords": [
-        "kicad",
+        "kicad pcb edit",
         "inspect_board",
         "pcb edit",
         "add_track",
@@ -2045,6 +2045,15 @@
           "verification": [
             "Preserve controller action receipts and rerun affected native checks; execution is not acceptance."
           ]
+        },
+        {
+          "id": "pcb.bench.finalize_claims",
+          "name": "finalize_claims",
+          "risk": "mutating",
+          "summary": "finalize claims",
+          "verification": [
+            "Preserve controller action receipts and rerun affected native checks; execution is not acceptance."
+          ]
         }
       ],
       "verification": [
@@ -2207,6 +2216,10 @@
         "pcb design",
         "修复pcb",
         "repair pcb",
+        "design a kicad project",
+        "repair the supplied kicad project",
+        "design kicad",
+        "repair kicad",
         "end-to-end pcb",
         "完整pcb"
       ],

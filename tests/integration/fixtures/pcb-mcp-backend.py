@@ -16,6 +16,7 @@ DEFINITIONS = [
     {"type": "function", "function": {"name": "run_drc", "description": "Return a controlled failed check", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}}},
     {"type": "function", "function": {"name": "view_design", "description": "Return a controlled image", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}}},
     {"type": "function", "function": {"name": "inspect_tool", "description": "Return a controlled large contract", "parameters": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"], "additionalProperties": False}}},
+    {"type": "function", "function": {"name": "finalize_claims", "description": "Accept typed fixture claims", "parameters": {"type": "object", "properties": {"completed": {"type": "boolean"}, "remaining_issues": {"type": "array", "items": {"type": "string"}}}, "required": ["completed", "remaining_issues"], "additionalProperties": False}}},
 ]
 
 

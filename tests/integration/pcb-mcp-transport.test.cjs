@@ -39,7 +39,10 @@ test('official MCP transport rejects scope/argument escapes, preserves check FAI
     assert.equal(JSON.parse(stdout).ok, true);
   }
   const calls = fs.readFileSync(path.join(fixture.project, 'fixture-actions.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
-  assert.equal(calls.length, 10, 'rejected requests never reach the backend');
+  assert.equal(calls.length, 12, 'rejected requests never reach the backend');
+  for (const call of calls.filter(call => call.name === 'finalize_claims')) {
+    assert.deepEqual(call.arguments, {completed: true, remaining_issues: ['fixture']});
+  }
   assert.ok(!calls.some(call => call.name === 'run_python'));
 });
 

@@ -33,3 +33,12 @@ test('automatic context resolves from task or selected artifact', () => {
   assert.deepEqual(unknown.scope.capabilityIds, []);
   assert.equal(unknown.scope.domain, null);
 });
+
+test('specific action phrase outranks multiple generic domain terms', () => {
+  const candidates = [
+    {id: 'pcb.inspect', domain: 'pcb', title: 'Inspect', stages: ['layout'], priority: 20, keywords: ['pcb', 'board'], skills: [], tools: []},
+    {id: 'pcb.design', domain: 'pcb', title: 'Design', stages: ['requirements'], priority: 20, keywords: ['design a kicad project'], skills: [], tools: []},
+  ];
+  const result = resolve({domain: 'pcb', task: 'Design a KiCad project and deliver a PCB board'}, candidates);
+  assert.deepEqual(result.scope.capabilityIds, ['pcb.design']);
+});

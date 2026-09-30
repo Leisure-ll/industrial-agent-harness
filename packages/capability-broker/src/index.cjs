@@ -18,7 +18,9 @@ function resolve(request, registry, previous) {
     const hits = item.keywords.filter(word => text.includes(word.toLowerCase()));
     const artifactMatch = Boolean(artifactKind && item.keywords.some(word => word.toLowerCase() === artifactKind));
     const domainMention = text.includes(item.domain.toLowerCase());
-    return {item, hits, artifactMatch, score: hits.length * 10 + (hits.length && domainMention ? 5 : 0) + (artifactMatch ? 3 : 0)};
+    // A concrete action phrase should outrank several generic domain words.
+    const specificity = hits.reduce((total, word) => total + 10 + Math.min(word.trim().length, 20), 0);
+    return {item, hits, artifactMatch, score: specificity + (hits.length && domainMention ? 5 : 0) + (artifactMatch ? 3 : 0)};
   });
   const selected = scored.filter(({score}) => score > 0).sort((a, b) => b.score - a.score || b.item.priority - a.item.priority || a.item.id.localeCompare(b.item.id)).slice(0, requestedDomain && requestedStage ? 3 : 1);
   record('L1', 'capability.resolve', {selected: selected.map(({item, hits, artifactMatch}) => ({id: item.id, reason: `task: ${hits.join(', ') || 'none'}; artifact: ${artifactMatch ? artifactKind : 'none'}`})), excluded: scored.filter(({score}) => !score).map(({item}) => ({id: item.id, reason: 'no task or artifact match'}))});

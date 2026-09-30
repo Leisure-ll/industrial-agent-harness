@@ -19,7 +19,7 @@ test('PCB launch policy binds a canonical candidate and external requirements wi
   }
   const python = path.join(root, 'python'), docker = path.join(root, 'docker');
   fs.writeFileSync(python, 'fixture executable never launched'); fs.writeFileSync(docker, 'fixture executable never launched');
-  const provider = {id: 'fixture', title: 'Fixture', backend: 'pcb-bench', packDirectory: 'pcb', directoryEnv: 'FIXTURE_SOURCE', pythonEnv: 'FIXTURE_PYTHON', resourceRoots: ['pcb-agent', 'skills/pcb-design-e2e'], sourceFiles, sourceSha256: crypto.createHash('sha256').update(JSON.stringify(sourceFiles)).digest('hex'), tools: [], allowedToolIds: []};
+  const provider = {id: 'fixture', title: 'Fixture', backend: 'pcb-bench', packDirectory: 'pcb', directoryEnv: 'FIXTURE_SOURCE', pythonEnv: 'FIXTURE_PYTHON', imageId: `sha256:${'a'.repeat(64)}`, resourceRoots: ['pcb-agent', 'skills/pcb-design-e2e'], sourceFiles, sourceSha256: crypto.createHash('sha256').update(JSON.stringify(sourceFiles)).digest('hex'), tools: [], allowedToolIds: []};
   const requirements = path.join(root, 'requirements.json'); fs.writeFileSync(requirements, '{"controlled":true}');
   const environment = {FIXTURE_SOURCE: source, FIXTURE_PYTHON: python, INDUSTRIAL_HARNESS_PCB_DOCKER: docker, INDUSTRIAL_HARNESS_PCB_REQUIREMENTS: requirements, DOCKER_CONTEXT: 'controlled-context', KIMI_API_KEY: 'fixture-secret-not-forwarded'};
   const config = gatewayConfig(root, provider, project, environment, {imageInput: true});
@@ -28,6 +28,7 @@ test('PCB launch policy binds a canonical candidate and external requirements wi
   assert.equal(policy.requirementsPath, fs.realpathSync(requirements));
   assert.equal(policy.requirementsSha256, crypto.createHash('sha256').update(fs.readFileSync(requirements)).digest('hex'));
   assert.equal(policy.imageInput, true);
+  assert.equal(policy.imageId, provider.imageId);
   assert.equal(config.env.DOCKER_CONTEXT, 'controlled-context');
   assert.ok(!JSON.stringify({config, policy}).includes('fixture-secret-not-forwarded'));
   assert.equal(fs.statSync(config.args[1]).mode & 0o777, 0o600);
@@ -36,6 +37,10 @@ test('PCB launch policy binds a canonical candidate and external requirements wi
   const alias = path.join(root, 'requirements-alias.json'); fs.symlinkSync(internal, alias);
   assert.throws(() => gatewayConfig(root, provider, project, {...environment, INDUSTRIAL_HARNESS_PCB_REQUIREMENTS: alias}), /outside the writable candidate/);
   assert.throws(() => gatewayConfig(root, provider, project, {...environment, INDUSTRIAL_HARNESS_PCB_DOCKER: 'relative'}), /absolute Docker executable/);
+  const developmentImageId = `sha256:${'b'.repeat(64)}`;
+  const development = gatewayConfig(root, provider, project, {...environment, INDUSTRIAL_HARNESS_PCB_DEV_IMAGE_ID: developmentImageId});
+  assert.equal(JSON.parse(fs.readFileSync(development.args[1])).imageId, developmentImageId);
+  assert.throws(() => gatewayConfig(root, provider, project, {...environment, INDUSTRIAL_HARNESS_PCB_DEV_IMAGE_ID: 'pcb-bench:latest'}), /immutable Docker image ID/);
   const comma = path.join(root, 'comma,candidate'); fs.mkdirSync(comma);
   assert.throws(() => gatewayConfig(root, provider, comma, environment), /cannot contain commas/);
 });
