@@ -4,10 +4,10 @@
 
 ## 当前实现与使用
 
-- `packages/pack-manager` 实现签名目录验证、HTTPS 下载、摘要与文件路径检查、跨进程写锁、事务安装、运行中租约、损坏隔离和重装恢复。`scripts/build-domain-packs.cjs` 从 Chip、PCB、Godot 现有资源生成独立 `.hpack`；发布时用 `HARNESS_PACK_SIGNING_KEY_FILE` 和 `HARNESS_PACK_SIGNING_KEY_ID` 生成签名目录。
+- `packages/pack-manager` 实现签名目录验证、HTTPS 下载、摘要与文件路径检查、跨进程写锁、事务安装、运行中租约、损坏隔离和重装恢复。`scripts/build-domain-packs.cjs` 从 Chip、PCB、Godot、CAD 现有资源生成独立 `.hpack`；发布时用 `HARNESS_PACK_SIGNING_KEY_FILE` 和 `HARNESS_PACK_SIGNING_KEY_ID` 生成签名目录。
 - 打包版 Desktop 首次启动提供多选 Domain，Settings → Domains 可补装和更新。Desktop 与 CLI 从同一用户目录加载已安装包；开发模式仍使用仓库里的资源。CLI 提供 `domains list/available/install/update/remove`。包列表只接受发行公钥验证过的目录。
 - `electron-builder.config.cjs` 配置 macOS DMG/ZIP 和 Windows NSIS；主进程通过 `electron-updater` 检查并下载 Core 更新，任务空闲时允许重启安装。`HARNESS_RELEASE_BUILD=1` 要求 Pack 下载源、公钥文件、Core 更新源并强制代码签名；macOS 同时启用公证。CI 配置了三个目标平台的打包与首次启动检查。
-- 模块化安装回归覆盖真实 Chip + PCB 首装、Godot 后补装，以及 Broker/CLI 在安装前后的 Domain 可见性。macOS Apple Silicon 的打包版界面也已通过签名测试目录和模拟下载完成同一路径；用 `node scripts/smoke-packaged-desktop.cjs --domains` 复跑。该测试验证界面和安装链，不等同于线上 HTTPS 下载源与正式发行密钥的验收。
+- 模块化安装回归覆盖真实 Chip + PCB 首装、Godot 与 macOS CAD 后补装，以及 Broker/CLI 在安装前后的 Domain 可见性。macOS Apple Silicon 的打包版界面也已通过签名测试目录和模拟下载完成同一路径；用 `node scripts/smoke-packaged-desktop.cjs --domains` 复跑。该测试验证界面和安装链，不等同于线上 HTTPS 下载源与正式发行密钥的验收。
 - 本地构建：先执行 `pnpm build`，再执行 `node scripts/stage-desktop.cjs dist/desktop-stage-local`，最后用 `apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-local --config "$PWD/electron-builder.config.cjs" --mac dmg zip --publish never`。输出在 `dist/desktop-release/`。目录名称每次须新建；本地无发布配置时界面会提示 Domain 目录不可用。
 - `desktop-v<apps/desktop/package.json 版本>` 标签触发 `.github/workflows/release-desktop.yml`：构建 Ed25519 签名的 Domain 目录、macOS 签名公证 DMG/ZIP、Windows 签名 NSIS，并在安装包自检成功后创建同名版本 Release，再把文件上传到渠道对应的 GitHub Release 更新源。发布源固定为 `desktop-beta-feed` / `desktop-stable-feed`；先上传版本文件，最后切换 `catalog.json` 和 Core 更新元数据。需配置仓库 Secrets `HARNESS_PACK_PUBLIC_KEYS_JSON_B64`、`HARNESS_PACK_SIGNING_KEY_PEM_B64`、`MAC_CSC_LINK`、`MAC_CSC_KEY_PASSWORD`、`APPLE_API_KEY_P8_B64`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`、`WIN_CSC_LINK`、`WIN_CSC_KEY_PASSWORD`，以及变量 `HARNESS_PACK_SIGNING_KEY_ID`。签名私钥和公钥 ID 必须配对。1.0.0 使用 stable 更新源。
 
@@ -79,7 +79,7 @@ Pack 能声明依赖和冲突，但执行时仍由 Broker Scope 与 Domain Runti
 ## 实施顺序与验收
 
 1. **前置：P1.3 Loader 与 Pack 契约。** 把静态 Domain 注册迁到可安装目录，保持 Desktop/CLI 一致；用 Test Domain 证明安装和卸载不改 Core 源码，错误 Pack 被隔离。不要跳过当前 Industrial Core Vertical Slice 门槛去先做 UI。
-2. **P3-A：单平台最小安装链。** Core 与一个小型测试 Pack 分离打包；完成 Pack Manager 的事务、兼容判定、持久安装状态和首次多选流程。可补装 Chip/PCB/Godot，项目列表与 Broker 真实反映已安装集合。
+2. **P3-A：单平台最小安装链。** Core 与一个小型测试 Pack 分离打包；完成 Pack Manager 的事务、兼容判定、持久安装状态和首次多选流程。可补装 Chip/PCB/Godot/CAD，项目列表与 Broker 真实反映已安装集合。
 3. **P3-B：macOS / Windows 发行。** 两个平台分别完成安装、签名、首次运行、卸载与用户数据保留、CLI 共用 Pack、依赖健康检查；Apple Silicon/Intel 与 Windows x64 各用实体或目标架构虚拟机验证。
 4. **P3-C：OTA。** 完成 beta/stable 渠道、Core 与 Pack 更新、兼容计划、正在运行的 Session 延迟激活、失败恢复与版本回退；用本地更新源和真实已安装应用做旧版 → 新版测试。
 

@@ -33,7 +33,7 @@ function godotRuntime(provider, environment = process.env) {
   return {packDir, binary, binaryVersion, sourceSha256: provider.sourceSha256};
 }
 
-function godotGatewayConfig(directory, provider, project, environment) {
+function godotGatewayConfig(directory, provider, project, environment = process.env) {
   const runtime = godotRuntime(provider, environment);
   const policyFile = path.join(directory, `mcp-${provider.id}.policy.json`);
   const policy = {schemaVersion: 1, providerId: provider.id, domain: provider.domain, version: provider.version, projectDir: project,
@@ -41,7 +41,7 @@ function godotGatewayConfig(directory, provider, project, environment) {
     ...runtime, receiptDir: path.join(directory, `mcp-${provider.id}-receipts`), cacheDir: path.join(directory, `mcp-${provider.id}-results`)};
   fs.writeFileSync(policyFile, JSON.stringify(policy, null, 2), {mode: 0o600});
   fs.chmodSync(policyFile, 0o600);
-  return {command: process.execPath, args: [path.join(__dirname, 'godot-gateway.cjs'), policyFile], env: {ELECTRON_RUN_AS_NODE: '1'}};
+  return {command: process.execPath, args: [path.join(__dirname, 'godot-gateway.cjs'), policyFile], env: {ELECTRON_RUN_AS_NODE: '1', ...(environment.INDUSTRIAL_HARNESS_ACTION_DIR ? {INDUSTRIAL_HARNESS_ACTION_DIR: environment.INDUSTRIAL_HARNESS_ACTION_DIR} : {})}};
 }
 
 module.exports = {godotRuntime, godotGatewayConfig};

@@ -5,7 +5,7 @@ const path = require('node:path');
 const {DatabaseSync} = require('node:sqlite');
 const {ActionRecordSchema} = require('@industrial-agent-harness/contracts');
 
-function defaultActionDirectory() {return path.join(os.homedir(), '.industrial-agent-harness', 'state', 'actions');}
+function defaultActionDirectory(environment = process.env) {return environment.INDUSTRIAL_HARNESS_ACTION_DIR || path.join(os.homedir(), '.industrial-agent-harness', 'state', 'actions');}
 
 class ActionJournal {
   constructor(projectDir, domain, {directory = defaultActionDirectory()} = {}) {

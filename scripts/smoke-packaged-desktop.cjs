@@ -42,4 +42,4 @@ if (result.error || result.status !== 0 || !fs.statSync(screenshot, {throwIfNoEn
   process.stderr.write(result.stderr || '');
   throw result.error || Error(`Packaged Desktop first-run smoke failed: ${result.status}`);
 }
-process.stdout.write(`${process.argv.includes('--domains') ? 'Chip + PCB first install and Godot add-on passed' : 'First-run Domain selection passed'}: ${screenshot}\n`);
+process.stdout.write(`${process.argv.includes('--domains') ? 'Chip + PCB first install and Godot/CAD add-on passed' : 'First-run Domain selection passed'}: ${screenshot}\n`);

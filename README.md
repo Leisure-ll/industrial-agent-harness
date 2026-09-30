@@ -27,7 +27,7 @@ pnpm dev
 
 版图 Viewer 需要 KLayout Python；也可通过 `KLAYOUT_PYTHON` 指向已有环境。启动后选择工程目录，在设置中填写模型 API 信息，再发送任务。执行 `pnpm build && pnpm start` 可运行构建后的桌面应用。现阶段桌面链路在 macOS 实测，Linux 与 Windows 发行包仍在开发中。
 
-桌面 1.0.0 的安装链支持 macOS 与 Windows 打包配置：首次启动可多选 Domain，安装后可在 Settings → Domains 补装；Core 与 Domain Pack 分别检查更新。已在 macOS Apple Silicon 打包应用中验证 Chip + PCB 首装及 Godot 后补装；CAD Skill Pack 仅面向 macOS。签名发行、Windows 原生安装和真实旧版到新版 OTA 仍须完成验收，详见[安装与 OTA](doc/installation-and-ota-plan.md)。
+桌面 1.0.0 的安装链支持 macOS 与 Windows 打包配置：首次启动可多选 Domain，安装后可在 Settings → Domains 补装；Core 与 Domain Pack 分别检查更新。已在 macOS Apple Silicon 打包应用中验证 Chip + PCB 首装及 Godot 与 CAD 后补装；CAD Skill Pack 仅面向 macOS。签名发行、Windows 原生安装和真实旧版到新版 OTA 仍须完成验收，详见[安装与 OTA](doc/installation-and-ota-plan.md)。
 
 无界面任务入口可先用 `pnpm cli run --project-dir ./examples/chip-sobel --domain chip --task 'Inspect netlist signals' --scope-only` 查看能力 Scope 与披露 Trace；Agent 执行参数及 JSON Lines 输出见 [CLI 文档](apps/cli/README.md)。
 

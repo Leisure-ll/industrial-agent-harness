@@ -11,6 +11,7 @@ const {StdioClientTransport} = mcpRequire('@modelcontextprotocol/sdk/client/stdi
 const {resolveProjectTask, resourceCatalog, ResourceSettings} = require('../../packages/harness-core/src/index.cjs');
 const {selectMcpServers, writeMcpConfig} = require('../../packages/domain-mcp/src/index.cjs');
 const {materializeSkills} = require('../../packages/domain-skills/src/index.cjs');
+const {ActionJournal} = require('../../packages/domain-runtime/src/index.cjs');
 const {prepareSessionFiles} = require('../../packages/agent-kimi/src/index.cjs');
 const repo = path.resolve(__dirname, '../..');
 const json = result => {assert.equal(result.isError, undefined, JSON.stringify(result)); return JSON.parse(result.content[0].text);};
@@ -23,7 +24,7 @@ function fakeGodot(dir) {
 }
 
 async function connect(t, root, project, scope) {
-  const configFile = writeMcpConfig(root, selectMcpServers(scope), {projectDir: project, environment: {...process.env, INDUSTRIAL_HARNESS_GODOT_BIN: fakeGodot(root)}});
+  const configFile = writeMcpConfig(root, selectMcpServers(scope), {projectDir: project, environment: {...process.env, INDUSTRIAL_HARNESS_GODOT_BIN: fakeGodot(root), INDUSTRIAL_HARNESS_ACTION_DIR: path.join(root, 'actions')}});
   const config = JSON.parse(fs.readFileSync(configFile)).mcpServers['godot.local'];
   const client = new Client({name: 'godot-policy-test', version: '1.0.0'});
   t.after(() => client.close());
@@ -136,6 +137,9 @@ test('Godot MCP transport enforces scope and arguments, records native actions, 
   const receipts = fs.readdirSync(path.join(root, 'mcp-godot.local-receipts'));
   assert.equal(receipts.length, 4);
   assert.ok(receipts.every(file => (fs.statSync(path.join(root, 'mcp-godot.local-receipts', file)).mode & 0o777) === 0o600));
+  const journal = new ActionJournal(project, 'godot', {directory: path.join(root, 'actions')});
+  assert.deepEqual(journal.list().map(item => item.status), ['completed', 'completed', 'failed', 'completed']);
+  journal.close();
 });
 
 test('real Godot 4 can import and inspect a bounded game scene', {skip: !fs.existsSync('/tmp/godot-4.4.1/Godot.app/Contents/MacOS/Godot'), timeout: 90000}, async t => {

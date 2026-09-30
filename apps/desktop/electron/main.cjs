@@ -670,7 +670,8 @@ async function createWindow() {
         if (ready) return;
         await new Promise(resolve => setTimeout(resolve, 200));
       }
-      throw Error(`Packaged Domain smoke timed out: ${script}`);
+      const state = await window.webContents.executeJavaScript(`JSON.stringify({rows: Array.from(document.querySelectorAll('.ia-domain-install-row')).map(row => ({text: row.textContent, checked: row.querySelector('input')?.checked, disabled: row.querySelector('input')?.disabled})), primary: document.querySelector('.ia-domains-primary')?.textContent, primaryDisabled: document.querySelector('.ia-domains-primary')?.disabled, errors: Array.from(document.querySelectorAll('[role="alert"]')).map(node => node.textContent)})`);
+      throw Error(`Packaged Domain smoke timed out: ${script}; state=${state}`);
     }
     async function click(script) {
       const error = await window.webContents.executeJavaScript(`(() => {try {${script}; return null;} catch (error) {return String(error);}})()`);
@@ -678,7 +679,7 @@ async function createWindow() {
     }
     await waitFor(`Boolean(document.querySelector('.ia-domains-modal')) && window.viewerHost.domainStatus().then(status => status.managed && status.installed.length === 0)`);
     if (process.env.HARNESS_PACKAGED_SMOKE_FEED_DIR) {
-      await waitFor(`document.querySelectorAll('.ia-domain-install-row').length === 3`);
+      await waitFor(`document.querySelectorAll('.ia-domain-install-row').length >= 3`);
       await click(`for (const name of ['Chip', 'PCB']) Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes(name)).querySelector('input').click()`);
       await waitFor(`document.querySelector('.ia-domains-primary')?.textContent.includes('2') && !document.querySelector('.ia-domains-primary').disabled`);
       await click(`document.querySelector('.ia-domains-primary').click()`);
@@ -691,8 +692,16 @@ async function createWindow() {
       await waitFor(`document.querySelector('.ia-domains-primary')?.textContent.includes('1') && !document.querySelector('.ia-domains-primary').disabled`);
       await click(`document.querySelector('.ia-domains-primary').click()`);
       await waitFor(`window.viewerHost.domainStatus().then(status => status.installed.length === 3)`);
+      const cadAvailable = await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.ia-domain-install-row')).some(row => row.textContent.includes('CAD'))`);
+      if (cadAvailable) {
+        await waitFor(`!Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes('CAD'))?.querySelector('input').disabled`);
+        await click(`Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes('CAD')).querySelector('input').click()`);
+        await waitFor(`document.querySelector('.ia-domains-primary')?.textContent.includes('1') && !document.querySelector('.ia-domains-primary').disabled`);
+        await click(`document.querySelector('.ia-domains-primary').click()`);
+        await waitFor(`window.viewerHost.domainStatus().then(status => status.installed.length === 4)`);
+      }
       const domains = await window.webContents.executeJavaScript(`window.viewerHost.domains().then(items => items.map(item => item.id).sort())`);
-      if (JSON.stringify(domains) !== JSON.stringify(['chip', 'godot', 'pcb'])) throw Error('Installed Domains did not reach the registry.');
+      if (JSON.stringify(domains) !== JSON.stringify(cadAvailable ? ['cad', 'chip', 'godot', 'pcb'] : ['chip', 'godot', 'pcb'])) throw Error('Installed Domains did not reach the registry.');
     }
     const screenshot = process.env.HARNESS_PACKAGED_SMOKE_SCREENSHOT;
     if (screenshot) fs.writeFileSync(screenshot, (await window.webContents.capturePage()).toPNG());
