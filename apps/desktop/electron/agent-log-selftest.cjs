@@ -42,13 +42,16 @@ function createSession() {
       await new Promise(resolve=>setTimeout(resolve,250));
       if(id==='approve-live'&&++attempts===1)throw Error('Approval transport test failure');
       resume(response);
-    },cancel:async()=>{},async *[Symbol.asyncIterator](){
+    },respondQuestion:async(rpcId,questionId,answers)=>{assert.equal(rpcId,questionId);assert.deepEqual(answers,{'Which layer?':'Bottom'});resume(answers);},cancel:async()=>{},async *[Symbol.asyncIterator](){
       yield {type:'StatusUpdate',payload:{context_usage:.65,token_usage:{output:10}}};
       let pending=approval();
       yield {type:'ApprovalRequest',payload:{id:'approve-live',tool_call_id:'live-call',action:'run command',description:'Approval lifecycle test'}};
       await pending;
       pending=approval();
       yield {type:'ApprovalRequest',payload:{id:'reject-live',tool_call_id:'reject-call',action:'write file',description:'Reject lifecycle test'}};
+      await pending;
+      pending=approval();
+      yield {type:'QuestionRequest',payload:{id:'question-live',tool_call_id:'question-call',questions:[{question:'Which layer?',header:'Layout',options:[{label:'Top',description:'Upper layer'},{label:'Bottom',description:'Lower layer'}]}]}};
       await pending;
       yield {type:'ApprovalRequest',payload:{id:'expire-live',tool_call_id:'expire-call',action:'unused request',description:'Expires at turn completion'}};
       await new Promise(resolve=>setTimeout(resolve,3500));
@@ -138,6 +141,14 @@ async function run(window) {
     await wait(`Array.from(document.querySelectorAll('.ia-approval')).some(card=>card.innerText.includes('Reject lifecycle'))`);
     await evaluate(`Array.from(document.querySelectorAll('.ia-approval')).find(card=>card.innerText.includes('Reject lifecycle')).querySelectorAll('button')[1].click()`);
     await wait(`Array.from(document.querySelectorAll('.ia-approval-resolved summary')).some(row=>row.innerText.includes('Rejected'))`);
+    await wait(`document.querySelector('.ia-question legend')?.innerText.includes('Which layer?')`);
+    assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').disabled`),true,'composer stays busy while the agent asks');
+    fs.writeFileSync(path.join(evidence,'agent-question.png'),(await window.webContents.capturePage()).toPNG());
+    await evaluate(`Array.from(document.querySelectorAll('.ia-question label')).find(label=>label.innerText.includes('Bottom')).querySelector('input').click()`);
+    await wait(`!document.querySelector('.ia-question button[type="submit"]').disabled`);
+    await evaluate(`document.querySelector('.ia-question button[type="submit"]').click()`);
+    await wait(`document.querySelector('.ia-question-resolved summary')?.innerText.includes('Question answered')`);
+    assert.equal(await evaluate(`document.querySelectorAll('.ia-question button').length`),0,'answered question no longer has buttons');
     assert.equal(await evaluate(`Array.from(document.querySelectorAll('.ia-approval')).some(card=>card.innerText.includes('Approval lifecycle'))`),false,'resolved approval removes action buttons');
     await wait(`Boolean(document.querySelector('.ia-agent-flow .ia-log-link'))`);
     await evaluate(`document.querySelector('.ia-agent-flow .ia-log-link').click()`);
@@ -154,7 +165,12 @@ async function run(window) {
     fs.writeFileSync(path.join(evidence,'agent-log-live.png'),(await window.webContents.capturePage()).toPNG());
     assert.ok(!requests.some(url=>/^https?:/.test(url)));
     assert.ok(fs.readdirSync(path.join(evidence,'state')).some(file=>file.endsWith('.sqlite')), 'self-test project observations stay in isolated user data');
-    console.log(JSON.stringify({ok:true,history:true,resourceSettings:true,projectChatHierarchy:true,approvalLifecycle:true,toolPayload:true,payloadParts:parts,compaction:true,liveUpdates:true,projectBoundary:true,externalRequests:0,evidence}));
+    await evaluate(`document.querySelector('.ia-settings-button').click()`);
+    await wait(`Boolean(document.querySelector('select[aria-label="Approval mode"]'))`);
+    await evaluate(`(() => {const select=document.querySelector('select[aria-label="Approval mode"]');select.value='auto';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+    await wait(`document.querySelector('select[aria-label="Approval mode"]')?.value==='auto'`);
+    assert.equal(await evaluate(`window.viewerHost.approvalMode()`),'auto');
+    console.log(JSON.stringify({ok:true,history:true,resourceSettings:true,projectChatHierarchy:true,approvalLifecycle:true,questionLifecycle:true,approvalMode:true,toolPayload:true,payloadParts:parts,compaction:true,liveUpdates:true,projectBoundary:true,externalRequests:0,evidence}));
   } catch(error){fs.writeFileSync(path.join(evidence,'agent-log-failure.png'),(await window.webContents.capturePage()).toPNG());console.error('Agent log UI evidence:',evidence);throw error;}
   finally {window.webContents.session.webRequest.onBeforeRequest(null);}
 }

@@ -60,7 +60,7 @@ KIMI_API_KEY=... KIMI_EXECUTABLE=/path/to/kimi pnpm cli run \
   --approval reject --timeout-ms 600000
 ```
 
-输出为 JSON Lines，每条含 `schemaVersion` 和 `runId`。首条 `scope` 带 Broker Scope、匹配能力及 L0–L3 披露 Trace；后续为 `agent_event`、按需 `disclosure` 和最终 `result`。`--approval` 可选 `reject`、`approve`、`approve_for_session`，默认拒绝。密钥只从环境变量读取，不作为命令行参数传入。
+输出为 JSON Lines，每条含 `schemaVersion` 和 `runId`。首条 `scope` 带 Broker Scope、匹配能力及 L0–L3 披露 Trace；后续为 `agent_event`、按需 `disclosure` 和最终 `result`。`--approval` 可选 `reject`、`approve`、`approve_for_session`、`auto`，默认拒绝；`auto` 启用原生 Kimi 自动审批。无交互输入的 CLI 遇到 `AskUserQuestion` 时会明确跳过并记录事件，避免挂起。密钥只从环境变量读取，不作为命令行参数传入。
 
 可用 `--artifact-manifest FILE` 提供 Viewer 之外的工件元数据。文件为 `{id, kind, path}` 对象数组，路径必须位于项目目录内；CLI 记录内容哈希，并在工具调用时重新核验。CLI 的读取不代表工程验证通过。
 

@@ -47,11 +47,11 @@ let projectBindings = {projects: [], activeId: null};
 let mainWindow;
 let sessionApiKey = '';
 let modelRevision = 0;
-let appSettings = {guiPluginEnabled: false};
+let appSettings = {guiPluginEnabled: false, approvalMode: 'ask'};
 let guiBridge;
 const chats = new ChatStore(process.argv.some(flag => flag.endsWith('-selftest')) ? path.join(app.getPath('userData'), 'chats') : defaultChatDirectory());
 let activeChatId;
-function chatList() {return {chats: activeProject()?.domain ? chats.list(projectDir, activeProject().domain).map(chat => ({...chat, running: sessions.busy(sessions.get(activeProject(), chat.id)), awaitingApproval: Boolean(sessions.get(activeProject(), chat.id).agent?.pendingApprovals.size)})) : [], activeId: activeChatId || null, sessions: sessions.snapshots()};}
+function chatList() {return {chats: activeProject()?.domain ? chats.list(projectDir, activeProject().domain).map(chat => ({...chat, running: sessions.busy(sessions.get(activeProject(), chat.id)), awaitingApproval: Boolean(sessions.get(activeProject(), chat.id).agent?.pendingApprovals.size), awaitingQuestion: Boolean(sessions.get(activeProject(), chat.id).agent?.pendingQuestions.size)})) : [], activeId: activeChatId || null, sessions: sessions.snapshots()};}
 function ensureChat() {
   if (!activeChatId) activeChatId = chats.create(projectDir, activeProject()?.domain).id;
   chats.get(activeChatId, projectDir, activeProject()?.domain);
@@ -145,7 +145,7 @@ function startGuiInstall() {
 function runtimeConfig(project = activeProject(), externalServers = externalRegistry.records()) {
   const profile = readProfile(configDir());
   const apiKey = readApiKey();
-  return {profile, apiKey, revision: modelRevision, executable: kimiExecutable(), shareDir: writeCliConfig(configDir(), profile), env: sessionEnv(profile, apiKey), disabledMcpServers: projectResourcePolicy(project).mcpServers, externalServers};
+  return {profile, apiKey, revision: modelRevision, executable: kimiExecutable(), shareDir: writeCliConfig(configDir(), profile), env: sessionEnv(profile, apiKey), disabledMcpServers: projectResourcePolicy(project).mcpServers, externalServers, approvalMode: appSettings.approvalMode};
 }
 
 function kindFor(file) {
@@ -265,6 +265,14 @@ function registerHandlers() {
   ipcMain.handle('broker:trace', () => selectedSession().trace);
   ipcMain.handle('model:get', () => modelStatus());
   ipcMain.handle('settings:gui-state', () => guiBridgeState());
+  ipcMain.handle('settings:approval-mode', () => appSettings.approvalMode);
+  ipcMain.handle('settings:set-approval-mode', (event, mode) => {
+    if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) throw Error('Settings require the main app window.');
+    if (!['ask', 'auto'].includes(mode)) throw Error('Invalid approval mode.');
+    appSettings = {...appSettings, approvalMode: mode};
+    saveSettings(configDir(), appSettings);
+    return mode;
+  });
   ipcMain.handle('settings:set-gui', (_event, {enabled}) => {
     appSettings = {...appSettings, guiPluginEnabled: Boolean(enabled)};
     saveSettings(configDir(), appSettings);
@@ -491,7 +499,7 @@ function registerHandlers() {
         if (event.type === 'done') outcome = event.result.status;
         if (event.type === 'error') outcome = 'error';
         if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send('agent:event', {...event, chatId: entry.id, projectId: entry.project.id, turnId});
-        if (['approval', 'approval-resolved', 'done', 'error'].includes(event.type)) notifySessions();
+        if (['approval', 'approval-resolved', 'question', 'question-resolved', 'done', 'error'].includes(event.type)) notifySessions();
       };
       entry.agent ||= new KimiSession(entry.project.path, () => entry.scope, id => sessionContext(entry).readArtifact(id), id => loadDetail(id, entry), emit, () => runtimeConfig(entry.project, entry.externalServers),
         process.argv.includes('--parallel-selftest') ? require('./parallel-selftest.cjs').createSession : process.argv.includes('--image-input-selftest') ? require('./image-input-selftest.cjs').createSession : process.argv.includes('--agent-log-selftest') ? require('./agent-log-selftest.cjs').createSession : process.argv.includes('--chat-selftest') ? require('./chat-selftest.cjs').createSession : undefined,
@@ -511,6 +519,13 @@ function registerHandlers() {
     if (chatId && chatId !== activeChatId) throw Error('Open the chat that requested approval.');
     const entry = selectedSession();
     if (!entry.agent) throw Error('No active approval.'); return entry.agent.approve(id, response);
+  });
+  ipcMain.handle('agent:answer-question', (event, {id, answers, chatId}) => {
+    chatRequest(event);
+    if (chatId && chatId !== activeChatId) throw Error('Open the chat that asked this question.');
+    const entry = selectedSession();
+    if (!entry.agent) throw Error('No active question.');
+    return entry.agent.answerQuestion(id, answers);
   });
   ipcMain.handle('agent:interrupt', (event, request) => {
     chatRequest(event);

@@ -7,9 +7,9 @@ function settingsFile(directory) {return path.join(directory, 'harness-settings.
 function readSettings(directory) {
   try {
     const value = JSON.parse(fs.readFileSync(settingsFile(directory), 'utf8'));
-    return {guiPluginEnabled: Boolean(value.guiPluginEnabled)};
+    return {guiPluginEnabled: Boolean(value.guiPluginEnabled), approvalMode: value.approvalMode === 'auto' ? 'auto' : 'ask'};
   } catch {
-    return {guiPluginEnabled: false};
+    return {guiPluginEnabled: false, approvalMode: 'ask'};
   }
 }
 

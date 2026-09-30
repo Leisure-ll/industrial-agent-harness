@@ -49,10 +49,11 @@ function projectEvents(records, snapshots = new Map()) {
       if (value.display?.length) call.fields.push(field('display', '补充展示', value.display, false));
     }
     if (row.type === 'sdk.event' && event.type === 'StatusUpdate' && step) {step.usage = p.token_usage; step.contextUsage = p.context_usage; step.sequences.push(row.sequence);}
-    if (row.type === 'sdk.event' && ['CompactionBegin','CompactionEnd','ApprovalRequest','ApprovalResponse'].includes(event.type)) {
-      message = null; add(row, event.type.startsWith('Compaction') ? 'compaction' : 'approval', {CompactionBegin:'上下文压缩开始',CompactionEnd:'上下文压缩完成',ApprovalRequest:'请求审批',ApprovalResponse:'审批结果'}[event.type], [field('detail','记录内容', p)]);
+    if (row.type === 'sdk.event' && ['CompactionBegin','CompactionEnd','ApprovalRequest','ApprovalResponse','QuestionRequest'].includes(event.type)) {
+      message = null; add(row, event.type.startsWith('Compaction') ? 'compaction' : event.type === 'QuestionRequest' ? 'question' : 'approval', {CompactionBegin:'上下文压缩开始',CompactionEnd:'上下文压缩完成',ApprovalRequest:'请求审批',ApprovalResponse:'审批结果',QuestionRequest:'询问用户'}[event.type], [field('detail','记录内容', p)]);
     }
     if (row.type === 'approval.response') add(row, 'approval', '审批决定', [field('detail', '记录内容', event)]);
+    if (row.type === 'question.response') add(row, 'question', '用户回答', [field('detail', '记录内容', event)]);
     if (row.type === 'turn.interrupt' || row.type === 'harness.event' && event.type === 'error') {message = null; add(row, 'error', row.type === 'turn.interrupt' ? '任务中断' : '运行错误', [field('detail','记录内容',event)]);}
     if (row.type === 'run.end') {
       ended = true; message = null;

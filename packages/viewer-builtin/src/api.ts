@@ -101,6 +101,9 @@ export interface ViewerHostApi {
   validateImages(request: {projectId: string; images: PromptImage[]}): Promise<PromptImage[]>;
   runAgent(task: string | {task: string; chatId?: string; projectId?: string; images?: PromptImage[]}, chatId?: string): Promise<{started: boolean}>;
   approveAgent(id: string, response: 'approve' | 'approve_for_session' | 'reject', chatId?: string): Promise<void>;
+  answerAgentQuestion(id: string, answers: Record<string, string>, chatId?: string): Promise<void>;
+  approvalMode(): Promise<'ask' | 'auto'>;
+  setApprovalMode(mode: 'ask' | 'auto'): Promise<'ask' | 'auto'>;
   interruptAgent(chatId?: string): Promise<void>;
   onAgentEvent(callback: (event: AgentEvent) => void): () => void;
 }
@@ -123,6 +126,8 @@ export type AgentEvent = ({chatId?: string; projectId?: string; turnId?: string}
   | {type: 'thinking'; text: string}
   | {type: 'approval'; id: string; description: string; action: string}
   | {type: 'approval-resolved'; id: string; decision: 'approve' | 'approve_for_session' | 'reject' | 'expired'}
+  | {type: 'question'; id: string; toolCallId: string; questions: Array<{question: string; header?: string; options: Array<{label: string; description?: string}>; multi_select?: boolean}>}
+  | {type: 'question-resolved'; id: string; decision: 'answered' | 'skipped' | 'expired'; answers?: Record<string, string>}
   | {type: 'tool'; id: string; name: string; arguments: string}
   | {type: 'tool-result'; id: string; error: boolean; message: string; output: string; outputBytes?: number; outputTruncated?: boolean; imageCount?: number}
   | {type: 'todo'; items: Array<{title: string; status: 'pending' | 'in_progress' | 'done'}>}
@@ -164,8 +169,8 @@ export interface DiagnosticRecord {sequence: number; at: string; type: string; e
 export interface DiagnosticPage {records: DiagnosticRecord[]; nextOffset: number | null; total: number; totalRecords: number; counts: Record<DiagnosticCategory, number>; pending: boolean}
 export interface DiagnosticContent {text: string; offset: number; nextOffset: number | null; totalBytes: number}
 
-export interface SessionStatus {chatId: string; projectId: string; running: boolean; awaitingApproval: boolean}
-export interface ChatSummary {id: string; running?: boolean; awaitingApproval?: boolean; title: string; domain: string; createdAt: string; updatedAt: string; archived: boolean}
+export interface SessionStatus {chatId: string; projectId: string; running: boolean; awaitingApproval: boolean; awaitingQuestion?: boolean}
+export interface ChatSummary {id: string; running?: boolean; awaitingApproval?: boolean; awaitingQuestion?: boolean; title: string; domain: string; createdAt: string; updatedAt: string; archived: boolean}
 export interface ChatTurn {id: string; task: string; broker: BrokerResult | null; status: string; createdAt: string; events: AgentEvent[]}
 export interface ChatHistory {executing?: boolean; chat: ChatSummary; turns: ChatTurn[]; hasMore: boolean; before: string | null}
 

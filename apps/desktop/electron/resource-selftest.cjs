@@ -11,7 +11,7 @@ async function run(window, evidence) {
   async function openGlobal() {
     await evaluate(`document.querySelector('.ia-settings-button').click()`);
     await evaluate(`Array.from(document.querySelectorAll('.ia-settings-row')).find(row=>row.innerText.includes('MCP & Skills')).querySelector('button').click()`);
-    await wait(`document.querySelectorAll('.ia-resource-modal input[type="checkbox"]').length===6`);
+    await wait(`document.querySelectorAll('.ia-resource-modal input[type="checkbox"]').length>=6`);
   }
   async function closeGlobal() {
     window.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'});window.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});

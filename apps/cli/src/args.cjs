@@ -31,7 +31,7 @@ function parseArgs(argv) {
   if (Boolean(options.task) === Boolean(options.taskFile)) throw Error('Provide exactly one of --task or --task-file.');
   if (options.taskFile) options.task = fs.readFileSync(path.resolve(options.taskFile), 'utf8');
   if (!options.task.trim()) throw Error('Task text is empty.');
-  if (options.approval && !['reject', 'approve', 'approve_for_session'].includes(options.approval)) throw Error('Invalid --approval policy.');
+  if (options.approval && !['reject', 'approve', 'approve_for_session', 'auto'].includes(options.approval)) throw Error('Invalid --approval policy.');
   if (options.apiKeyEnv && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(options.apiKeyEnv)) throw Error('Invalid --api-key-env name.');
   if (options.timeoutMs && (!Number.isInteger(Number(options.timeoutMs)) || Number(options.timeoutMs) < 1000 || Number(options.timeoutMs) > 7200000)) throw Error('--timeout-ms must be between 1000 and 7200000.');
   return options;
