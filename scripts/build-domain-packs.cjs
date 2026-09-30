@@ -24,6 +24,8 @@ const providerPacks = loadDomainPacks();
 const skillOnlyPacks = loadSkillOnlyPacks();
 const entries = [];
 for (const [domain, [label, emoji]] of Object.entries(labels)) {
+  const platforms = (process.env.HARNESS_PACK_PLATFORMS || `${process.platform}-${process.arch}`).split(',').filter(platform => domain !== 'cad' || platform.startsWith('darwin-'));
+  if (!platforms.length) continue;
   const directory = path.join(output, domain);
   fs.mkdirSync(directory, {recursive: true});
   const providers = providerPacks.filter(pack => pack.domain === domain);
@@ -44,7 +46,7 @@ for (const [domain, [label, emoji]] of Object.entries(labels)) {
   const archive = createArchive(directory);
   const file = `${domain}-${version}.hpack`;
   fs.writeFileSync(path.join(output, file), archive);
-  entries.push({domain, label, emoji, version, summary: bundle.summary, prerequisites: bundle.prerequisites, sha256: digest(archive), size: archive.length, url: file, platforms: (process.env.HARNESS_PACK_PLATFORMS || `${process.platform}-${process.arch}`).split(',').filter(platform => domain !== 'cad' || platform.startsWith('darwin-'))});
+  entries.push({domain, label, emoji, version, summary: bundle.summary, prerequisites: bundle.prerequisites, sha256: digest(archive), size: archive.length, url: file, platforms});
 }
 const payload = {schemaVersion: 1, channel, generatedAt: new Date().toISOString(), packs: entries};
 const keyFile = process.env.HARNESS_PACK_SIGNING_KEY_FILE;

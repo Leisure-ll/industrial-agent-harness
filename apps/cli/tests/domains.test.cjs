@@ -89,3 +89,15 @@ test('real Chip and PCB Packs install first; Godot can be added later without lo
     assert.ok(JSON.parse(sink.text.split('\n')[0]).scope.capabilityIds.includes('cad.autocad.operate'));
   }
 });
+
+test('a platform-only Pack is omitted from other platform catalogs', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-platform-packs-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const output = path.join(root, 'feed');
+  const built = spawnSync(process.execPath, [path.resolve(__dirname, '../../../scripts/build-domain-packs.cjs'), output],
+    {encoding: 'utf8', env: {...process.env, INDUSTRIAL_HARNESS_PACK_STORE: '', HARNESS_PACK_PLATFORMS: 'linux-x64'}});
+  assert.equal(built.status, 0, built.stderr);
+  const catalog = JSON.parse(fs.readFileSync(path.join(output, 'catalog.unsigned.json'), 'utf8'));
+  assert.deepEqual(catalog.packs.map(item => item.domain).sort(), ['chip', 'godot', 'pcb']);
+  assert.ok(catalog.packs.every(item => item.platforms.length > 0));
+});
