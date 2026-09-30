@@ -42,3 +42,17 @@ test('specific action phrase outranks multiple generic domain terms', () => {
   const result = resolve({domain: 'pcb', task: 'Design a KiCad project and deliver a PCB board'}, candidates);
   assert.deepEqual(result.scope.capabilityIds, ['pcb.design']);
 });
+
+test('explicit tool names select the smallest capability that can perform the requested actions', () => {
+  const candidates = [
+    {id: 'pcb.viewer', domain: 'pcb', title: 'Viewer', stages: ['layout'], priority: 10, keywords: ['pcb', 'board', 'route'], skills: [], tools: []},
+    {id: 'pcb.place', domain: 'pcb', title: 'Place', stages: ['layout'], priority: 20, keywords: [], skills: [], tools: [{id: 'pcb.bench.place_component'}]},
+    {id: 'pcb.complete', domain: 'pcb', title: 'Complete', stages: ['layout'], priority: 25, keywords: [], skills: [], tools: [{id: 'pcb.bench.place_component'}, {id: 'pcb.bench.verify_design'}]},
+  ];
+  const one = resolve({domain: 'pcb', task: 'Use place_component on the board'}, candidates);
+  assert.deepEqual(one.scope.capabilityIds, ['pcb.place']);
+  const both = resolve({domain: 'pcb', task: 'Use place_component on the board, then verify_design'}, candidates);
+  assert.deepEqual(both.scope.capabilityIds, ['pcb.complete']);
+  assert.match(both.trace.find(row => row.event === 'capability.resolve').detail.selected[0].reason, /pcb\.bench\.verify_design/);
+  assert.deepEqual(resolve({domain: 'pcb', task: 'Inspect notplace_componentX'}, candidates).scope.capabilityIds, []);
+});

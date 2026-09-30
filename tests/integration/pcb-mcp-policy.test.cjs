@@ -64,3 +64,11 @@ test('KiCad design and repair requests receive the full PCB runtime', () => {
     assert.equal(scope.tools.length, 89);
   }
 });
+
+test('a named multi-tool PCB follow-up retains the editing and verification runtime', () => {
+  const {scope} = resolveProjectTask('pcb', {task: 'Inspect the board, use place_component for J1 and J2, rerun verify_design, then finalize_claims.'});
+  assert.deepEqual(scope.capabilityIds, ['pcb.bench.operate']);
+  assert.ok(scope.tools.includes('pcb.bench.place_component'));
+  assert.ok(scope.tools.includes('pcb.bench.verify_design'));
+  assert.ok(scope.tools.includes('pcb.bench.finalize_claims'));
+});
