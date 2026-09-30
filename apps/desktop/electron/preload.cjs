@@ -23,6 +23,8 @@ const api = {
   agentStatus: () => ipcRenderer.invoke('agent:status'),
   guiState: () => ipcRenderer.invoke('settings:gui-state'),
   setGuiPlugin: enabled => ipcRenderer.invoke('settings:set-gui', {enabled}),
+  approvalMode: () => ipcRenderer.invoke('settings:approval-mode'),
+  setApprovalMode: mode => ipcRenderer.invoke('settings:set-approval-mode', mode),
   onGuiProgress: callback => {const listener = (_event, value) => callback(value); ipcRenderer.on('settings:gui-progress', listener); return () => ipcRenderer.removeListener('settings:gui-progress', listener);},
   modelGet: () => ipcRenderer.invoke('model:get'),
   modelSave: request => ipcRenderer.invoke('model:save', request),
@@ -44,6 +46,7 @@ const api = {
   validateImages: request => ipcRenderer.invoke('agent:validate-images', request),
   runAgent: (task, chatId) => ipcRenderer.invoke('agent:run', typeof task === 'string' && chatId ? {task, chatId} : task),
   approveAgent: (id, response, chatId) => ipcRenderer.invoke('agent:approve', {id, response, chatId}),
+  answerAgentQuestion: (id, answers, chatId) => ipcRenderer.invoke('agent:answer-question', {id, answers, chatId}),
   interruptAgent: chatId => ipcRenderer.invoke('agent:interrupt', {chatId}),
   onAgentEvent: callback => {const listener = (_event, value) => callback(value); ipcRenderer.on('agent:event', listener); return () => ipcRenderer.removeListener('agent:event', listener);},
 };

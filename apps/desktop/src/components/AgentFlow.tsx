@@ -19,10 +19,32 @@ function ApprovalCard({event, decision, approve}: {event: Extract<AgentEvent, {t
   return <div className="ia-approval"><b>Approval requested · {event.action}</b><p>{event.description}</p><button disabled={busy} onClick={() => void respond('approve')}>{busy ? 'Submitting…' : 'Approve'}</button><button disabled={busy} onClick={() => void respond('reject')}>Reject</button>{error && <p role="alert" className="ia-flow-error">{error}</p>}</div>;
 }
 
-export function AgentFlow({events, running, debug, approve, onLog}: {events: AgentEvent[]; running: boolean; debug: boolean; approve: (id: string, decision: 'approve' | 'reject') => Promise<void>; onLog?: (traceId?: string) => void}) {
+function QuestionCard({event, resolved, answer}: {event: Extract<AgentEvent, {type: 'question'}>; resolved?: Extract<AgentEvent, {type: 'question-resolved'}>; answer: (id: string, answers: Record<string, string>) => Promise<void>}) {
+  const submitting = useRef(false);
+  const [selected, setSelected] = useState<Record<string, string[]>>({});
+  const [other, setOther] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  if (resolved) return <details className="ia-agent-tool ia-question-resolved"><summary>{resolved.decision === 'expired' ? 'Question expired' : resolved.decision === 'skipped' ? 'Question skipped' : 'Question answered'}</summary>{event.questions.map(item => <p key={item.question}>{item.question} {resolved.answers?.[item.question] || ''}</p>)}</details>;
+  const values = event.questions.map(item => {
+    const choices = selected[item.question] || [];
+    return choices.map(label => label === '__other__' ? other[item.question]?.trim() || '' : label).filter(Boolean).join(', ');
+  });
+  async function submit() {
+    if (submitting.current || values.some(value => !value)) return;
+    submitting.current = true; setBusy(true); setError('');
+    try {await answer(event.id, Object.fromEntries(event.questions.map((item, index) => [item.question, values[index]])));}
+    catch (reason) {setError(String(reason));}
+    finally {submitting.current = false; setBusy(false);}
+  }
+  return <form className="ia-question" onSubmit={event => {event.preventDefault(); void submit();}}><b>Agent asks you</b>{event.questions.map((item, index) => <fieldset key={index}><legend>{item.header && <small>{item.header} · </small>}{item.question}</legend>{item.options.map(option => <label key={option.label}><input type={item.multi_select ? 'checkbox' : 'radio'} name={`${event.id}-${index}`} checked={(selected[item.question] || []).includes(option.label)} onChange={() => setSelected(current => {const values = current[item.question] || []; return {...current, [item.question]: item.multi_select ? values.includes(option.label) ? values.filter(value => value !== option.label) : [...values, option.label] : [option.label]};})}/><span>{option.label}{option.description && <small>{option.description}</small>}</span></label>)}<label><input type={item.multi_select ? 'checkbox' : 'radio'} name={`${event.id}-${index}`} checked={(selected[item.question] || []).includes('__other__')} onChange={() => setSelected(current => {const values = current[item.question] || []; return {...current, [item.question]: item.multi_select ? values.includes('__other__') ? values.filter(value => value !== '__other__') : [...values, '__other__'] : ['__other__']};})}/><span>Other</span></label>{(selected[item.question] || []).includes('__other__') && <input aria-label={`Other answer for ${item.question}`} value={other[item.question] || ''} onChange={change => setOther(current => ({...current, [item.question]: change.target.value}))} maxLength={4096}/>}</fieldset>)}<button type="submit" disabled={busy || values.some(value => !value)}>{busy ? 'Submitting…' : 'Send answer'}</button><button type="button" disabled={busy} onClick={() => {if (submitting.current) return; submitting.current = true; setBusy(true); setError(''); void answer(event.id, {}).catch(reason => setError(String(reason))).finally(() => {submitting.current = false; setBusy(false);});}}>Skip</button>{error && <p role="alert" className="ia-flow-error">{error}</p>}</form>;
+}
+
+export function AgentFlow({events, running, debug, approve, answer, onLog}: {events: AgentEvent[]; running: boolean; debug: boolean; approve: (id: string, decision: 'approve' | 'reject') => Promise<void>; answer: (id: string, answers: Record<string, string>) => Promise<void>; onLog?: (traceId?: string) => void}) {
   const results = new Map<string, ToolResult>();
   const toolIds = new Set<string>();
   const decisions = new Map<string, string>();
+  const answered = new Map<string, Extract<AgentEvent, {type: 'question-resolved'}>>();
   // A tool call can emit more than one 'tool' event under the same id: the
   // initial frame has empty arguments, then a later frame arrives once the
   // streamed ToolCallPart arguments are assembled. Render only the last one
@@ -32,10 +54,11 @@ export function AgentFlow({events, running, debug, approve, onLog}: {events: Age
     if (event.type === 'tool') {toolIds.add(event.id); lastToolIndex.set(event.id, index);}
     if (event.type === 'tool-result') results.set(event.id, event);
     if (event.type === 'approval-resolved') decisions.set(event.id, event.decision);
+    if (event.type === 'question-resolved') answered.set(event.id, event);
   }
   let lastActivity = -1;
   for (let index = events.length - 1; index >= 0; index--) {
-    if (['thinking', 'text', 'tool', 'tool-result', 'approval', 'done', 'error'].includes(events[index].type)) {lastActivity = index; break;}
+    if (['thinking', 'text', 'tool', 'tool-result', 'approval', 'question', 'done', 'error'].includes(events[index].type)) {lastActivity = index; break;}
   }
 
   return <section className="ia-agent-flow">{events.map((event, index) => {
@@ -44,6 +67,7 @@ export function AgentFlow({events, running, debug, approve, onLog}: {events: Age
     if (event.type === 'text') return <article className="ia-agent-text" key={index}><p>{event.text}</p></article>;
     if (event.type === 'thinking') return <ThinkingPreview key={index} text={event.text} active={running && index === lastActivity}/>;
     if (event.type === 'approval') return <ApprovalCard key={index} event={event} decision={decisions.get(event.id) || (!running ? 'expired' : undefined)} approve={approve}/>;
+    if (event.type === 'question') return <QuestionCard key={index} event={event} resolved={answered.get(event.id) || (!running ? {type: 'question-resolved', id: event.id, decision: 'expired'} : undefined)} answer={answer}/>;
     if (event.type === 'tool') {
       if (lastToolIndex.get(event.id) !== index) return null;
       const result = results.get(event.id);

@@ -23,3 +23,5 @@ Desktop/CLI 通过 `resolveSession` / `sessionInitialized` 回调提供共享聊
 ## 横切插件注入
 
 `KimiSession` 构造参数 `plugins` 接收横切插件对象（如 `computer-use-bridge` 的 `createGuiPlugin`），每项形如 `{name, enabled(), toolNames, materializeSkill(dir), toolsFactory()}`。启用的插件会把 skill 目录并入会话 `extra_skill_dirs`，并把其外部工具与 Broker 工具一起注册；本包不依赖任何具体插件，也不感知其领域属性。启用即授权：插件工具触发的 `ApprovalRequest`（按 `sender` 工具名匹配）由本包自动以 `approve_for_session` 应答，不上抛 UI；非插件工具的审批卡片保持不变。插件工具自身的执行边界校验（如会话内被禁用即拒绝）由各插件在自己的 handler 内完成。
+
+Kimi Wire `QuestionRequest` 进入当前会话的待答状态，`answerQuestion` 调用固定 SDK 的 `respondQuestion`，支持重试、跳过和完成后的过期处理。固定 Kimi CLI 1.51.0 将问题 ID 同时用作 RPC 请求 ID；真实 Wire 回答链路已验证。`approvalMode=auto` 传给 SDK 的 `yoloMode`，不改变问题需要用户作答的语义。

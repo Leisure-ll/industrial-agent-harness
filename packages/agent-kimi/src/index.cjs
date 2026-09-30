@@ -153,6 +153,7 @@ class KimiSession {
     this.toolNames = new Map();
     this.lastToolCall = null;
     this.pendingApprovals = new Map();
+    this.pendingQuestions = new Map();
   }
   async run(task, attachments = []) {
     if (this.running || this.turn) throw Error('A Kimi turn is already running.');
@@ -160,6 +161,8 @@ class KimiSession {
     if (!scope) throw Error('Resolve capabilities before starting the agent.');
     const runtime = this.getRuntime();
     if (!runtime.apiKey) throw Error('Set a model API key before running Kimi.');
+    const approvalMode = runtime.approvalMode || 'ask';
+    if (!['ask', 'auto'].includes(approvalMode)) throw Error('Invalid approval mode.');
     const images = validatePromptImages(attachments);
     if (images.length && !runtime.profile.imageInput) throw Error('Enable Image input in Model API settings for a model that supports images.');
     const currentScopeKey = scopeKey(scope);
@@ -175,19 +178,19 @@ class KimiSession {
     const emitMetrics = () => {if (!metricsEmitted) {metricsEmitted = true; this.emitAgent({type: 'context-metrics', ...this.turnMetrics});}};
     let outcome = 'error';
     try {
-      log.record('run.start', {projectDir: this.workDir, previousSessionId: this.session?.sessionId || null, scope, brokerTrace: this.diagnostics.getBrokerTrace?.() || [], model: {provider: runtime.profile.provider, model: runtime.profile.model, contextSize: runtime.profile.contextSize, thinking: runtime.profile.thinking, imageInput: Boolean(runtime.profile.imageInput)}, runtimeRevision: runtime.revision});
+      log.record('run.start', {projectDir: this.workDir, previousSessionId: this.session?.sessionId || null, scope, brokerTrace: this.diagnostics.getBrokerTrace?.() || [], model: {provider: runtime.profile.provider, model: runtime.profile.model, contextSize: runtime.profile.contextSize, thinking: runtime.profile.thinking, imageInput: Boolean(runtime.profile.imageInput)}, approvalMode, runtimeRevision: runtime.revision});
       this.emitAgent({type: 'diagnostic-log', traceId: log.traceId, path: log.file});
       const anchor = await this.diagnostics.getContextAnchor?.();
       const context = industrialContext(scope, anchor, runtime.externalServers);
       if (anchor) log.record('context.anchor', anchor);
-      const resetReason = !this.session ? 'new' : this.currentScopeKey !== currentScopeKey ? 'scope_changed' : this.runtimeRevision !== runtime.revision ? 'model_changed' : this.lastPluginKey !== pluginKey ? 'plugins_changed' : this.currentMcpKey !== currentMcpKey ? 'mcp_changed' : null;
+      const resetReason = !this.session ? 'new' : this.currentScopeKey !== currentScopeKey ? 'scope_changed' : this.runtimeRevision !== runtime.revision ? 'model_changed' : this.lastApprovalMode !== approvalMode ? 'approval_mode_changed' : this.lastPluginKey !== pluginKey ? 'plugins_changed' : this.currentMcpKey !== currentMcpKey ? 'mcp_changed' : null;
       if (resetReason) {
         log.record('session.create', {reason: resetReason, previousScopeKey: this.currentScopeKey || null, currentScopeKey});
         if (this.session) this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
         await this.session?.close();
         this.session = undefined;
         if (this.sessionConfigDir && !this.persistentSession) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true});
-        const compatibilityKey = crypto.createHash('sha256').update(JSON.stringify({scope: currentScopeKey, profile: runtime.profile, executable: runtime.executable || 'kimi', disabledMcpServers: runtime.disabledMcpServers || [], mcpRuntime, plugins: pluginKey})).digest('hex');
+        const compatibilityKey = crypto.createHash('sha256').update(JSON.stringify({scope: currentScopeKey, profile: runtime.profile, executable: runtime.executable || 'kimi', disabledMcpServers: runtime.disabledMcpServers || [], mcpRuntime, plugins: pluginKey, approvalMode})).digest('hex');
         this.persistentSession = this.diagnostics.resolveSession?.(compatibilityKey);
         const stored = this.persistentSession;
         if (stored?.initialized) {
@@ -203,7 +206,7 @@ class KimiSession {
           model: 'industrial',
           thinking: runtime.profile.thinking,
           env: runtime.env,
-          yoloMode: false,
+          yoloMode: approvalMode === 'auto',
           externalTools: [...externalTools(this.getScope, this.lookupArtifact, this.disclose, this.diagnostics.readContextPage), ...enabledPlugins(this.plugins).flatMap(plugin => plugin.toolsFactory(this.diagnostics.pluginLog).map(tool => createExternalTool(tool)))],
           clientInfo: {name: 'industrial-agent-harness', version: '0.0.0'},
         });
@@ -211,6 +214,7 @@ class KimiSession {
         this.currentMcpKey = currentMcpKey;
         this.runtimeRevision = runtime.revision;
         this.lastPluginKey = pluginKey;
+        this.lastApprovalMode = approvalMode;
         if (this.persistentSession?.replaced && !this.persistentSession.reused) this.emitAgent({type: 'context-reset', message: 'Tools or model changed. A new context started; earlier messages remain available above.'});
         log.record('session.ready', {sessionId: this.session.sessionId || null, currentScopeKey});
       } else log.record('session.reuse', {sessionId: this.session.sessionId || null, currentScopeKey});
@@ -231,6 +235,7 @@ class KimiSession {
       this.toolNames.clear();
       this.lastToolCall = null;
       for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
+      for (const [id, question] of this.pendingQuestions) if (question.state === 'pending') this.resolveQuestion(id, 'expired');
       try {
         this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
         if (this.persistentSession && this.sessionConfigDir && fs.existsSync(path.join(createKimiPaths(this.sessionConfigDir).sessionDir(this.workDir, this.persistentSession.id), 'context.jsonl'))) this.diagnostics.sessionInitialized?.(this.persistentSession.id);
@@ -261,12 +266,17 @@ class KimiSession {
       else if (event.payload.type === 'think') this.emitAgent({type: 'thinking', text: event.payload.think});
     } else if (event.type === 'ApprovalRequest') {
       this.pendingApprovals.set(event.payload.id, 'pending');
-      if (this.activePluginTools?.has(event.payload.sender)) {
+      if (this.lastApprovalMode === 'auto' || this.activePluginTools?.has(event.payload.sender)) {
         // Enabling the plugin is the authorization: auto-approve its tool
         // approvals for this session instead of surfacing them to the user.
-        this.log?.record('plugin.auto-approve', {sender: event.payload.sender, id: event.payload.id});
+        this.log?.record('approval.auto', {sender: event.payload.sender, id: event.payload.id, reason: this.lastApprovalMode === 'auto' ? 'user_mode' : 'enabled_plugin'});
         this.approve(event.payload.id, 'approve_for_session').catch(error => this.emitAgent({type: 'approval_error', id: event.payload.id, message: String(error)}));
       } else this.emitAgent({type: 'approval', id: event.payload.id, description: event.payload.description, action: event.payload.action});
+    }
+    else if (event.type === 'QuestionRequest') {
+      const {id, tool_call_id, questions} = event.payload;
+      this.pendingQuestions.set(id, {state: 'pending', questions});
+      this.emitAgent({type: 'question', id, toolCallId: tool_call_id, questions});
     }
     else if (event.type === 'ApprovalResponse') this.resolveApproval(event.payload.request_id, event.payload.response);
     else if (event.type === 'ToolCall') {
@@ -322,6 +332,31 @@ class KimiSession {
     if (!this.pendingApprovals.has(id)) return;
     this.pendingApprovals.delete(id);
     this.emitAgent({type: 'approval-resolved', id, decision});
+  }
+  resolveQuestion(id, decision, answers) {
+    if (!this.pendingQuestions.has(id)) return;
+    this.pendingQuestions.delete(id);
+    this.emitAgent({type: 'question-resolved', id, decision, ...(answers ? {answers} : {})});
+  }
+  async answerQuestion(id, answers) {
+    const pending = this.pendingQuestions.get(id);
+    if (!this.turn || pending?.state !== 'pending') throw Error('This question is no longer pending.');
+    if (!answers || typeof answers !== 'object' || Array.isArray(answers)) throw Error('Provide answers for the pending questions.');
+    const skipped = Object.keys(answers).length === 0;
+    if (!skipped && (Object.keys(answers).length !== pending.questions.length || pending.questions.some(item => typeof answers[item.question] !== 'string' || !answers[item.question].trim() || answers[item.question].length > 4096))) throw Error('Answer every question before continuing.');
+    this.pendingQuestions.set(id, {...pending, state: 'submitting'});
+    try {
+      // Kimi CLI 1.51.0 uses QuestionRequest.id as its Wire RPC id.
+      await this.turn.respondQuestion(id, id, answers);
+      this.log?.record('question.response', {id, answers});
+      this.resolveQuestion(id, skipped ? 'skipped' : 'answered', answers);
+    } catch (error) {
+      if (this.pendingQuestions.has(id)) {
+        if (this.turn) this.pendingQuestions.set(id, pending);
+        else this.resolveQuestion(id, 'expired');
+      }
+      throw error;
+    }
   }
   async approve(id, response) {
     if (!['approve', 'approve_for_session', 'reject'].includes(response)) throw Error('Invalid approval decision.');

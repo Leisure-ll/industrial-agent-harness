@@ -32,7 +32,7 @@ Options:
   --image-input                Enable model image input for screenshot services
   --api-key-env NAME           Environment variable containing the API key
   --kimi-executable PATH       Kimi CLI executable (or set KIMI_EXECUTABLE)
-  --approval POLICY            reject (default), approve, approve_for_session
+  --approval POLICY            reject (default), approve, approve_for_session, auto
   --enable-gui                 Enable the computer-use plugin (installs the engine on first use)
   --artifact-manifest FILE     JSON array of {id, kind, path} inside the project
   --state-dir DIR             Durable observed-context database directory
@@ -129,7 +129,7 @@ async function runWithStore(options, output, environment, Session, chats) {
     send({type: 'chat', chatId: chat.id});
     contextStore = new ObservedContextStore(projectDir, options.domain, {directory: options.stateDir || environment.INDUSTRIAL_HARNESS_STATE_DIR});
     for (const [id, item] of artifacts) await contextStore.observeArtifact({id, kind: item.metadata.kind, file: item.file});
-    const runtime = {profile, apiKey, revision: 0, executable: options.kimiExecutable || environment.KIMI_EXECUTABLE || 'kimi', shareDir: writeCliConfig(configDir, profile), env: sessionEnv(profile, apiKey), disabledMcpServers: disabled.mcpServers, environment, externalServers};
+    const runtime = {profile, apiKey, revision: 0, executable: options.kimiExecutable || environment.KIMI_EXECUTABLE || 'kimi', shareDir: writeCliConfig(configDir, profile), env: sessionEnv(profile, apiKey), disabledMcpServers: disabled.mcpServers, environment, externalServers, approvalMode: options.approval === 'auto' ? 'auto' : 'ask'};
     if (options.enableGui) {
       const guiDir = environment.GUI_BRIDGE_DIR || path.join(os.homedir(), '.industrial-agent-harness', 'gui-bridge');
       send({type: 'gui_install', phase: 'checking'});
@@ -161,6 +161,11 @@ async function runWithStore(options, output, environment, Session, chats) {
         const decision = options.approval || 'reject';
         send({type: 'approval_decision', id: event.id, decision});
         queueMicrotask(() => {Promise.resolve().then(() => session.approve(event.id, decision)).catch(error => send({type: 'approval_error', id: event.id, message: String(error)}));});
+      }
+      if (event.type === 'question') {
+        // The JSONL CLI has no interactive input channel. Return an explicit
+        // empty answer so Kimi can continue and decide how to proceed.
+        queueMicrotask(() => {Promise.resolve().then(() => session.answerQuestion(event.id, {})).catch(error => send({type: 'question_error', id: event.id, message: String(error)}));});
       }
     }, () => runtime, undefined, {directory: options.logDir || environment.INDUSTRIAL_HARNESS_LOG_DIR, getBrokerTrace: () => broker.trace, getContextAnchor: () => contextStore.anchor(), readContextPage: (checkpointId, offset, limit) => contextStore.readPage(checkpointId, offset, limit), resolveSession: key => chats.runtimeSession(chat.id, key), sessionInitialized: id => chats.initialized(id)}, plugins);
     process.once('SIGINT', onSigint);

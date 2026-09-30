@@ -28,7 +28,7 @@ class SessionManager {
     try {await entry.agent?.close(); entry.context?.close(); this.entries.delete(chatId);}
     finally {entry.removing = false;}
   }
-  snapshots() {return this.matching().map(entry => ({chatId: entry.id, projectId: entry.project.id, running: this.busy(entry), awaitingApproval: Boolean(entry.agent?.pendingApprovals?.size)}));}
+  snapshots() {return this.matching().map(entry => ({chatId: entry.id, projectId: entry.project.id, running: this.busy(entry), awaitingApproval: Boolean(entry.agent?.pendingApprovals?.size), awaitingQuestion: Boolean(entry.agent?.pendingQuestions?.size)}));}
   async close() {try {await Promise.all(this.matching().map(async entry => {try {await entry.agent?.close();} finally {entry.release?.(); entry.context?.close();}}));} finally {this.entries.clear();}}
 }
 module.exports = {SessionManager};

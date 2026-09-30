@@ -13,10 +13,10 @@ function category(row) {
   if (row.type === 'sdk.event') {
     if (event.startsWith('Tool')) return 'tools';
     if (event.startsWith('Compaction') || event === 'StatusUpdate') return 'context';
-    if (event.startsWith('Approval')) return 'approvals';
+    if (event.startsWith('Approval') || event.startsWith('Question')) return 'approvals';
     if (event === 'ContentPart' && row.payload.payload?.type === 'think') return 'thinking';
   }
-  if (row.type === 'approval.response') return 'approvals';
+  if (row.type === 'approval.response' || row.type === 'question.response') return 'approvals';
   if (row.type.startsWith('context.') || row.type.startsWith('kimi.snapshot')) return 'context';
   return 'run';
 }
