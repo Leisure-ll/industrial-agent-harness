@@ -1,6 +1,6 @@
 const {distributionDomain} = require('./distribution.cjs');
-const labels = {chip: 'Chip', pcb: 'PCB', godot: 'Godot'};
-const emojis = {chip: '💠', pcb: '🔌', godot: '🎮'};
+const labels = {cad: 'CAD', chip: 'Chip', pcb: 'PCB', godot: 'Godot'};
+const emojis = {cad: '📐', chip: '💠', pcb: '🔌', godot: '🎮'};
 
 function listDomains(capabilities) {
   return [...new Set(distributionDomain ? [distributionDomain] : [...capabilities.map(item => item.domain).filter(Boolean), 'godot'])]

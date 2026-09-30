@@ -12,6 +12,7 @@ const skills = Object.freeze([
   {id: 'pcb.design.e2e', domain: 'pcb', title: 'PCB design and repair', directory: 'pcb-design-e2e', externalPack: 'pcb-bench', nativeToolPrefix: 'pcb.bench.'},
   {id: 'godot.game.inspect', domain: 'godot', title: 'Inspect Godot game scenes', directory: 'godot-game-inspect'},
   {id: 'godot.game.develop', domain: 'godot', title: 'Develop and verify Godot games', directory: 'godot-game-develop'},
+  {id: 'cad.autocad.macos', domain: 'cad', title: 'Operate AutoCAD on macOS', directory: 'cad-autocad-macos'},
 ]);
 
 function listSkills(domain) {
