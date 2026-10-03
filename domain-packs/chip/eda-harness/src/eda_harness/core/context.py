@@ -58,6 +58,12 @@ def execution_diagnostics(run, limit):
     steps = [s for s in run.get("steps", []) if s["status"] in {"FAILED", "TIMEOUT", "CANCELLED"}]
     if not steps:
         steps = [{}]
+    detailed = [
+        {**diagnostic, "details": {**diagnostic.get("details", {}), "run_id": run["id"], "status": run["status"]}}
+        for step in steps for diagnostic in step.get("diagnostics", [])
+    ]
+    if detailed:
+        return detailed[:limit]
     return [
         {
             "category": "execution",

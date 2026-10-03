@@ -1,0 +1,16 @@
+✔ provider resolution pins source and requires explicit absolute runtime overrides (8.506375ms)
+✔ a server is withheld unless every declared tool is in scope and it is enabled (3.772417ms)
+✔ registered gateway intersects the current scope while direct providers retain all-or-nothing disclosure (17.548167ms)
+✔ PCB launch policy binds a canonical candidate and external requirements without model credentials (15.778583ms)
+✔ domain options include registered Viewer-only domains (12.830708ms)
+✔ PCB declarations cover all native tools and keep the complete design Skill separate from maintenance (0.702792ms)
+✔ external resources reject changed, missing, extra or symlinked files before a session can load them (6.485541ms)
+✔ every capability skill has a repository file and only scoped skills reach Kimi (13.547834ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 274.544417

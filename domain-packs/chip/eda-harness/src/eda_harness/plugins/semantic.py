@@ -14,7 +14,7 @@ from eda_harness.core.models import Project
 from eda_harness.core.parameters import InputRef, Parameters
 from eda_harness.core.workflow import action_input_categories, project_input_categories
 from eda_harness.core.workspace import safe_path
-from eda_harness.plugins import advanced
+from eda_harness.plugins import advanced, equivalence
 
 SUPPORT = {
     "floorplan": ["openroad"],
@@ -25,6 +25,7 @@ SUPPORT = {
     "lint": ["verilator"],
     "simulate": ["verilator"],
     "synthesize": ["yosys"],
+    "equivalence": ["yosys"],
     "extract": ["magic"],
     "lvs": ["netgen", "klayout"],
     "drc": ["klayout"],
@@ -63,6 +64,8 @@ def capabilities():
 
 
 def output_types(parameters):
+    if parameters.operation == "equivalence":
+        return {"report.equivalence"}
     if parameters.operation in advanced.YOSYS | advanced.OPENROAD:
         return advanced.output_types(parameters)
     outputs = {
@@ -184,6 +187,8 @@ def prepare(action, project, snapshot, paths, work):
         return name
 
     op = p.operation
+    if op == "equivalence":
+        return equivalence.prepare(p, ref, script)
     if op == "lint":
         return Prepared(
             [
@@ -236,6 +241,12 @@ int main(int argc, char** argv) {{
             "--build",
             "--timing",
             "--assert",
+            "-j",
+            str((project.actions[action].runtime or project.runtime).resources.build_jobs),
+            "--output-split",
+            str(p.output_split),
+            "--output-split-cfuncs",
+            str(p.output_split_cfuncs),
             "--top-module",
             p.top,
             "-CFLAGS",
@@ -484,6 +495,8 @@ def observe(action, project, work, log, artifacts):
         passed, summary = not (errors or warnings), f"Verilator: {errors} errors, {warnings} warnings"
     elif op == "synthesize" or op in advanced.YOSYS | advanced.OPENROAD:
         passed, summary, details = advanced.observe(p, read, metric)
+    elif op == "equivalence":
+        passed, summary, details = equivalence.observe(p, read("report.equivalence"))
     elif op == "simulate":
         passed = "EDA_SIMULATION_FINISHED" in text and "%Error" not in text
         summary = (

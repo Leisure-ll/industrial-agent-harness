@@ -1,4 +1,4 @@
-# Chip Pack: EDA Harness 0.6.0
+# Chip Pack: EDA Harness 0.6.1
 
 This is a separate, no UI domain release. It contains the full EDA Harness MCP server (25 tools), its `eda-core` Skill, a project-bound Kimi adapter generator, and a Dockerfile for the EDA tool image. Industrial Agent Harness Desktop and CLI now register it through their shared scoped gateway; standalone usage remains supported.
 
@@ -12,7 +12,7 @@ cd chip-pack
 sh ./install.sh
 ```
 
-Installation needs `uv`, network access to the pinned Python dependencies, and Python 3.13 managed by uv. It creates separate environments for EDA Harness 0.6.0 and Kimi CLI 1.51.0 inside this directory; it does not modify global Kimi settings. Check the live MCP surface with `./eda-harness/.venv/bin/python scripts/mcp-smoke.py`.
+Installation needs `uv`, network access to the pinned Python dependencies, and Python 3.13 managed by uv. It creates separate environments for EDA Harness 0.6.1 and Kimi CLI 1.51.0 inside this directory; it does not modify global Kimi settings. Check the live MCP surface with `./eda-harness/.venv/bin/python scripts/mcp-smoke.py`.
 
 The archive itself contains the EDA MCP source and Skill, not prebuilt Python environments. The installer downloads Python packages, including Kimi CLI; the installed environments occupy substantially more disk space than the archive. This keeps the Release portable across supported Python platforms while preserving the EDA dependency lock.
 
@@ -41,6 +41,16 @@ docker build --platform linux/amd64 -f eda-harness/Dockerfile.tools -t eda-harne
 ```
 
 The image contains Verilator, Yosys, OpenROAD, KLayout, Magic, Netgen LVS, and GTKWave. Building it downloads large upstream images and may require platform emulation outside Linux/amd64. Project inputs, PDK, constraints, and acceptance rules are supplied by the project. MCP `run_action`/`run_until` submit work through EDA Harness's persistent runtime; `get_run` and acceptance evidence must be checked separately.
+
+This patch defaults to one managed action per Docker daemon and serial compilation,
+checks actual VM capacity, preserves Docker OOM/exit evidence, and confirms container
+cleanup after client failure or timeout. The rebuilt image fixes the ORFS CTS LEC
+callback and IHP export; Python updates alone do not fix an existing tool image.
+Use `eda-harness-tools:cli-fix-20261003` for the locally validated image, or rebuild
+the recipe as `:dev` before using a project configured for that tag. Structured
+mapped-memory equivalence supports Yosys/EQY with bounded strategies and complete
+proof requirements. Native-memory SMT remains a project-specific verified script.
+Migration, scope and limits are in [runtime reliability](eda-harness/docs/runtime-reliability.md).
 
 ## Boundary with Core
 

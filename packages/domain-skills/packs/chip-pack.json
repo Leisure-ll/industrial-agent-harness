@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "id": "chip-pack",
   "domain": "chip",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "provider": {
     "id": "chip-pack.eda",
-    "title": "Chip Pack · EDA Harness 0.6.0",
+    "title": "Chip Pack · EDA Harness 0.6.1",
     "domain": "chip",
-    "version": "0.6.0",
+    "version": "0.6.1",
     "transport": "gateway",
     "packDirectory": "chip",
     "directoryEnv": "INDUSTRIAL_HARNESS_CHIP_PACK_DIR",
@@ -194,16 +194,14 @@
         ]
       }
     ],
-    "sourceSha256": "dc00b05fa5fe0513231e62e96090ce9dd7704ea04e590efe24598d78e9fe0c77"
+    "sourceSha256": "8825d43d9a8a81667ad8f58c29627fccb489b696f7b2b075e829a5d6c450b0ad"
   },
   "capabilities": [
     {
       "id": "chip.eda.inspect",
       "title": "Inspect EDA project and environment",
       "domain": "chip",
-      "stages": [
-        "engineering"
-      ],
+      "stages": ["engineering"],
       "priority": 20,
       "keywords": [
         "eda",
@@ -334,16 +332,9 @@
       "id": "chip.eda.setup",
       "title": "Initialize an EDA project",
       "domain": "chip",
-      "stages": [
-        "engineering"
-      ],
+      "stages": ["engineering"],
       "priority": 20,
-      "keywords": [
-        "initialize project",
-        "初始化工程",
-        "初始化芯片",
-        "eda setup"
-      ],
+      "keywords": ["initialize project", "初始化工程", "初始化芯片", "eda setup"],
       "skills": [
         {
           "id": "chip.eda.operate",
@@ -465,9 +456,7 @@
       "id": "chip.eda.run",
       "title": "Run EDA actions",
       "domain": "chip",
-      "stages": [
-        "engineering"
-      ],
+      "stages": ["engineering"],
       "priority": 20,
       "keywords": [
         "run_action",
@@ -664,9 +653,7 @@
       "id": "chip.eda.history",
       "title": "Manage EDA goals and historical states",
       "domain": "chip",
-      "stages": [
-        "engineering"
-      ],
+      "stages": ["engineering"],
       "priority": 20,
       "keywords": [
         "checkout state",
@@ -818,15 +805,9 @@
       "id": "chip.eda.viewer",
       "title": "Launch EDA external viewer",
       "domain": "chip",
-      "stages": [
-        "engineering"
-      ],
+      "stages": ["engineering"],
       "priority": 20,
-      "keywords": [
-        "open_viewer",
-        "launch viewer",
-        "打开外部查看器"
-      ],
+      "keywords": ["open_viewer", "launch viewer", "打开外部查看器"],
       "skills": [
         {
           "id": "chip.eda.operate",

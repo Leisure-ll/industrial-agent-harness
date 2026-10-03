@@ -6,11 +6,13 @@
 
 [headless-v0.2.0-preview.3](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.3) 在所有包中加入 [外部 MCP 注册](external-mcp.md)：`node industrial-harness.cjs mcp add --file mcp.json`，与 Desktop 共用 stdio/HTTP/SSE 服务、项目策略和 Kimi 审批。截图任务使用视觉模型及 `--image-input`。外部服务不受领域分包排除，软件与系统授权仍需单独准备；preview.2 不提供此入口。
 
+[headless-v0.2.0-preview.4](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.4) 更新 Chip Pack 至 0.6.1，增加 EDA 资源保护、容器清理与等价验证修复。Chip 使用者需同步重建工具镜像并更新工程配置，见 [迁移说明](../domain-packs/chip/eda-harness/docs/runtime-reliability.md)。旧归档和旧镜像不会自动更新。
+
 | 包 | 默认领域 | 当前能力与测试依赖 |
 | --- | --- | --- |
 | Chip | chip | 三个原有检查 Skill、EDA 操作 Skill、25 工具的 MCP Gateway 与 EDA Harness 固定源码；先准备 Python，工业计算再准备镜像/PDK/工程 |
-| PCB | pcb | PCB 检查 Skill、Broker、普通 Kimi 项目任务；没有真实 PCB MCP/工业运行时 |
-| Godot | godot | 普通 Kimi 项目任务；不携带 Electron/Viewer，没有 Godot MCP |
+| PCB | pcb | 89 工具的受范围约束 MCP 与完整设计 Skill 的加载声明；实际使用需另行准备固定 PCB-bench 源码、Skill 与匹配 KiCad 镜像，见 [PCB 接入](pcb-mcp-integration.md) |
+| Godot | godot | 5 个受范围约束的场景检查、导入和限时运行工具，以及两份 Skill；原生动作需注册 Godot 4 可执行文件，见 [Godot 接入](godot-mcp-integration.md) |
 
 下载、校验并解压对应包：
 

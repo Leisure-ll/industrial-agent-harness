@@ -16,7 +16,7 @@ claude plugin marketplace add Zhiman-BJ/eda-harness && claude plugin install eda
 
 **安装插件不会安装 EDA 工具镜像或 PDK。** 项目初始化、镜像构建、只读接入和 Kimi 接入见 [安装与接入](docs/installation.md)。
 
-插件 v0.6.0 绑定 Harness 0.6.0 的固定源码提交，包含工具级扩展、服务身份诊断、显式项目路径、Docker 默认初始化，Verilator timing 仿真的 C++20 编译修复，Agent 可查询的项目 Schema 与输入类别契约，以及以 Yosys show/viz 为默认后端的网表查看器。Python 与间接依赖的锁定方式见 [依赖锁定](docs/dependency-locking.md)。
+本地运行时修复版 `0.6.1` 在 0.6.0 基础上加入容器退出后的强制清理、共享资源预算、串行编译默认值、CTS 等价检查替代实现和结构化形式等价操作。使用方式和边界见 [运行时修复](docs/runtime-reliability.md)。Python 与间接依赖的锁定方式见 [依赖锁定](docs/dependency-locking.md)。
 
 ## Agent 如何使用
 

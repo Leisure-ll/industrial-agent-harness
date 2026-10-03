@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eda-harness"
-version = "0.6.0"
+version = "0.6.1"
 description = "Persistent design state and deterministic execution for agentic EDA"
 requires-python = ">=3.11"
 dependencies = ["pydantic>=2.10,<3", "PyYAML>=6,<7", "mcp>=1.12,<2"]

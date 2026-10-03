@@ -3,6 +3,8 @@
 import json
 import subprocess
 
+from eda_harness.runtimes.execution import run_probe
+
 
 def inspect_tools(image):
     inspection = subprocess.run(
@@ -15,7 +17,7 @@ def inspect_tools(image):
         raise ValueError(f"Tool image unavailable: {image}; build Dockerfile.tools first")
     metadata = json.loads(inspection.stdout)
     platform = f"{metadata['Os']}/{metadata['Architecture']}"
-    process = subprocess.run(
+    process = run_probe(
         [
             "docker",
             "run",

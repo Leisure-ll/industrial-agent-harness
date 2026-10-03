@@ -58,6 +58,31 @@ Execution `SUCCESS` means the process ran successfully. It can accompany design 
 Acceptance `INCOMPLETE` means evidence is missing or has incompatible units, not success.
 Claim completion only for the configured goal when current-working-copy acceptance is `PASS`.
 A setup timing pass does not imply hold closure, DRC/LVS clearance, equivalence, or foundry signoff.
+
+## Bounded execution and proof failures
+
+These patch features require server version 0.6.1 and the rebuilt image.
+Inspect get_server_info and get_tool_capabilities first; do not assume an older pinned
+remote plugin exposes these parameters.
+
+Submit native computation through run_action/run_until, including custom project scripts.
+Raw shell/Docker execution bypasses runtime resource accounting, cleanup and verification.
+Use build_jobs: 1 for large generated C++; a CPU quota alone does not cap make workers.
+The patched image caps make/Verilator jobs, and the runtime records actual Docker capacity.
+Do not overlap resource-heavy retries or infer OOM from Error 247 without saved Docker evidence.
+
+Inspect report.execution and log.tool after SIGILL, compiler failure, timeout or formal failure.
+If cleanup_pending is set, restore Docker and recover_runs before resubmitting. A transport
+timeout can leave an asynchronous worker running; look up the existing run first.
+Do not skip timing repair, LEC or memory checks to claim acceptance. The patched ORFS image
+uses a real Yosys LEC callback and keeps functional IHP cells in the exported proof netlists.
+
+Use structured operation: equivalence with both gold/gate sources and real cell_models or
+cell_liberties. memory_mode: map supports SAT. Native-memory SMT flows require a separately verified
+custom script and real matching memory models; they are not a structured adapter mode. EQY collects matched nets together to
+avoid unsafe memory cutpoints, runs one worker, and applies strategy plus action deadlines.
+A partial, empty, crashed or timed-out proof is never PASS. Check get_tool_capabilities for
+the exact project schema and require full proof evidence before updating design conclusions.
 Inspect the exact required checks and rule coverage before describing the result.
 
 

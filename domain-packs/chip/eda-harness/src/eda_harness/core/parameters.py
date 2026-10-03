@@ -80,7 +80,22 @@ class SimulationParameters(ParameterModel):
     sources: list[InputRef] = Field(min_length=1)
     top: str
     trace: bool = True
+    output_split: int = Field(default=10000, ge=100)
+    output_split_cfuncs: int = Field(default=500, ge=10)
 
+
+class EquivalenceParameters(ParameterModel):
+    operation: Literal["equivalence"]
+    gold_sources: list[InputRef] = Field(min_length=1)
+    gate_sources: list[InputRef] = Field(min_length=1)
+    cell_models: list[InputRef] = Field(default_factory=list)
+    cell_liberties: list[InputRef] = Field(default_factory=list)
+    top: str
+    engine: Literal["yosys", "eqy"] = "yosys"
+    memory_mode: Literal["map"] = "map"
+    depth: int = Field(default=10, ge=1, le=100)
+    partition_timeout_seconds: int = Field(default=60, ge=1)
+    solver: Literal["z3", "cvc5", "boolector"] = "z3"
 
 class ExtractionParameters(ParameterModel):
     operation: Literal["extract"]
@@ -336,6 +351,7 @@ Parameters = Annotated[
     LintParameters
     | SynthesisParameters
     | SimulationParameters
+    | EquivalenceParameters
     | ExtractionParameters
     | LVSParameters
     | DRCParameters

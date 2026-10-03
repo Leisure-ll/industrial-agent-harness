@@ -44,6 +44,7 @@ jobs:
           python -m pip install uv==0.11.6
           cd domain-packs/chip/eda-harness
           uv sync --frozen --no-dev --python 3.13
+          uv run --frozen python -m pytest -q
           cd ../../..
           cd domain-packs/pcb
           uv sync --frozen --no-dev --python 3.13

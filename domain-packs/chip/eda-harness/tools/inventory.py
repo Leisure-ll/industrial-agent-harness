@@ -9,6 +9,7 @@ from pathlib import Path
 COMMANDS = {
     "verilator": ["--version"],
     "yosys": ["-V"],
+    "eda-orfs-lec": ["--version"],
     "dot": ["-V"],
     "openroad": ["-version"],
     "klayout": ["-v"],

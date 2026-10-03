@@ -37,7 +37,7 @@ async def main():
             context = data(await session.call_tool('domain_tool_call', {'toolId': 'eda.harness.get_operational_context', 'arguments': {}}))
             assert context['projectDir'] == available['projectDir']
             info = data(await session.call_tool('domain_tool_call', {'toolId': 'eda.harness.get_server_info', 'arguments': {}}))
-            assert info['result']['package']['version'] == '0.6.0'
+            assert info['result']['package']['version'] == '0.6.1'
             descriptor = data(await session.call_tool('domain_tool_describe', {'toolId': 'eda.harness.get_run'}))
             assert 'project_path' not in descriptor['inputSchema']['properties']
             guide = data(await session.call_tool('domain_tool_call', {'toolId': 'eda.harness.get_tool_guide', 'arguments': {'tool': 'get_operational_context'}}))

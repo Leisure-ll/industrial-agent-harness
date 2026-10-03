@@ -3,6 +3,7 @@
 import subprocess
 
 from eda_harness.plugins.advanced import OPENROAD, YOSYS
+from eda_harness.runtimes.execution import run_probe
 
 
 def requirements(tool, parameters):
@@ -12,6 +13,11 @@ def requirements(tool, parameters):
     commands = []
     executables = [tool]
     if tool == "yosys":
+        if op == "equivalence":
+            commands = ["read_verilog", "prep", "async2sync", "dffunmap", "memory_map", "equiv_make", "equiv_induct", "equiv_status"]
+            if parameters.engine == "eqy":
+                executables += ["eqy", "sby", parameters.solver]
+            return {"commands": commands, "executables": executables, "scope": "presence only; real positive and negative proofs establish compatibility"}
         if parameters.frontend == "slang" or op == "prepare_lvs_reference":
             executables.append("python3")
         commands = ["read_slang" if parameters.frontend == "slang" else "read_verilog", "hierarchy", "check"]
@@ -83,7 +89,7 @@ def probe(runtime, tool, parameters):
 
     def run(argv, stdin=None):
         actual = [*prefix, argv[0], image, *argv[1:]] if prefix else argv
-        result = subprocess.run(actual, input=stdin, capture_output=True, text=True, timeout=20)
+        result = run_probe(actual, input=stdin, capture_output=True, text=True, timeout=20)
         if result.returncode:
             raise ValueError((result.stderr or result.stdout)[-2000:])
         return result.stdout + result.stderr

@@ -20,7 +20,9 @@ from eda_harness.core.workspace import (
     snapshot,
 )
 from eda_harness.plugins.tools import PLUGINS
-from eda_harness.runtimes.execution import Runtime, identity
+from eda_harness.runtimes.diagnostics import diagnose
+from eda_harness.runtimes.execution import Runtime, cleanup_container, identity
+from eda_harness.runtimes.resources import release as release_resources
 
 TERMINAL = {"SUCCESS", "FAILED", "TIMEOUT", "CANCELLED"}
 
@@ -45,7 +47,7 @@ class Harness:
         return self.store.get("state", state_id) if state_id else None
 
     def _active(self):
-        return [r for r in self.store.list("run") if r["status"] not in TERMINAL]
+        return [r for r in self.store.list("run") if r["status"] not in TERMINAL or r.get("cleanup_pending")]
 
     def _runtime(self, project, action):
         cfg = project.actions.get(action, ActionConfig())
@@ -59,11 +61,16 @@ class Harness:
                     raise ValueError(f"Action removed from workflow: {action}")
                 continue
             runtime = self._runtime(project, action)
-            key = (runtime.kind, runtime.image, catalog(project.workflow)[action].tool)
+            key = (runtime.kind, runtime.image, runtime.require_native, catalog(project.workflow)[action].tool)
             try:
                 if key not in memo:
                     memo[key] = identity(runtime, catalog(project.workflow)[action].tool)
-                identities[action] = memo[key]
+                identities[action] = dict(memo[key])
+                parameters = project.actions.get(action, ActionConfig()).parameters
+                if runtime.kind == "local" and getattr(parameters, "engine", None) == "eqy":
+                    identities[action]["dependencies"] = {
+                        name: identity(runtime, name) for name in ("eqy", "sby", parameters.solver)
+                    }
             except (ValueError, OSError, subprocess.SubprocessError) as error:
                 if strict:
                     raise
@@ -305,9 +312,25 @@ class Harness:
         try:
             self._execute(run)
         except Exception as error:
-            steps = self.store.get("run", run_id)["steps"]
+            failed_run = self.store.get("run", run_id)
+            steps = failed_run["steps"]
             if steps and steps[-1]["status"] not in TERMINAL:
                 steps[-1]["status"] = "FAILED"
+                steps[-1].setdefault("artifacts", [])
+                steps[-1]["verification"] = {
+                    "action": steps[-1]["action"], "status": "UNKNOWN",
+                    "summary": f"Execution/collection exception: {type(error).__name__}: {error}",
+                    "evidence": steps[-1]["artifacts"],
+                }
+                steps[-1]["diagnostics"] = [{
+                    "category": "execution", "severity": "high", "summary": str(error),
+                    "evidence": steps[-1]["artifacts"],
+                    "details": {"code": "RUNTIME_EXCEPTION", "action": steps[-1]["action"]},
+                }]
+            cleanup = cleanup_container(failed_run["container_name"]) if failed_run.get("container_name") else {}
+            pending = bool(cleanup and not cleanup["confirmed"])
+            if cleanup and cleanup["confirmed"]:
+                release_resources(failed_run["container_name"])
             self._update(
                 run_id,
                 status="FAILED",
@@ -315,7 +338,9 @@ class Harness:
                 steps=steps,
                 finished_at=now(),
                 process_pid=None,
-                container_name=None,
+                container_name=failed_run.get("container_name") if pending else None,
+                cleanup_pending=pending,
+                cleanup=cleanup,
             )
 
     def _execute(self, run):
@@ -396,7 +421,10 @@ class Harness:
                 }
                 executions = []
                 for command in prepared.commands:
-                    self._update(run_id, status="RUNNING")
+                    self._update(
+                        run_id, status="RUNNING",
+                        container_name=runtime.token if runtime.config.kind == "docker" else None,
+                    )
                     execution = runtime.execute(
                         command,
                         env,
@@ -409,7 +437,13 @@ class Harness:
                     executions.append(execution.__dict__)
                     if execution.status != "SUCCESS":
                         break
-                self._update(run_id, status="COLLECTING", process_pid=None, container_name=None)
+                pending = bool(execution.cleanup and not execution.cleanup["confirmed"])
+                self._update(
+                    run_id, status="COLLECTING", process_pid=None,
+                    container_name=runtime.token if pending else None, cleanup_pending=pending,
+                )
+                (work / "execution.json").write_text(json.dumps(executions, indent=2) + "\n")
+                outputs["report.execution"] = "execution.json"
                 outputs["log.tool"] = "tool.log"
                 artifacts = []
                 missing = []
@@ -436,12 +470,20 @@ class Harness:
                 step.update(executions=executions, artifacts=[a["id"] for a in artifacts])
                 if execution.status != "SUCCESS":
                     step["status"] = execution.status
+                    diagnostics = diagnose(execution, log.read_text(errors="replace")[-65536:], action)
+                    for diagnostic in diagnostics:
+                        diagnostic["evidence"] = [a["id"] for type_ in ("log.tool", "report.execution")
+                                                  for a in artifacts if a["type"] == type_]
+                    step.update(
+                        diagnostics=diagnostics,
+                        verification={"action": action, "status": "UNKNOWN", "summary": "Execution failed; no engineering acceptance", "evidence": [a["id"] for a in artifacts]},
+                    )
                     self._update(
                         run_id,
                         status=execution.status,
                         steps=steps,
                         finished_at=now(),
-                        error=f"{action} exited with {execution.returncode}; see tool log",
+                        error=f"{action}: " + "; ".join(d["summary"] for d in diagnostics),
                     )
                     return
                 self._update(run_id, steps=steps)
@@ -547,28 +589,37 @@ class Harness:
 
     def recover_runs(self):
         recovered = []
+        pending = []
         with project_lock(self.store):
             for run in self._active():
                 pid = run["worker_pid"]
                 try:
-                    if pid:
+                    if pid and not run.get("cleanup_pending"):
                         os.kill(pid, 0)
                         continue
                 except ProcessLookupError:
                     pass
                 if run.get("container_name"):
-                    subprocess.run(
-                        ["docker", "rm", "-f", run["container_name"]], capture_output=True, timeout=20
-                    )
+                    cleanup = cleanup_container(run["container_name"])
+                    run["cleanup"] = cleanup
+                    if not cleanup["confirmed"]:
+                        run.update(cleanup_pending=True, updated_at=now())
+                        self.store.put("run", run["id"], run, mutable=True)
+                        pending.append(run["id"])
+                        continue
+                    release_resources(run["container_name"])
                 run.update(
                     status="FAILED",
                     error="Worker lost; resubmit to reuse completed states",
                     finished_at=now(),
                     updated_at=now(),
+                    cleanup_pending=False,
+                    container_name=None,
+                    process_pid=None,
                 )
                 self.store.put("run", run["id"], run, mutable=True)
                 recovered.append(run["id"])
-        return {"recovered": recovered}
+        return {"recovered": recovered, "cleanup_pending": pending}
 
     def get_metrics(self, state_id=None):
         state = self.state(state_id)
