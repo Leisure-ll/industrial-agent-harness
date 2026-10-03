@@ -20,6 +20,15 @@ identifies an asynchronous run; inspect eda.harness.get_run and acceptance evide
 The MCP transport can close while an EDA run continues. On submission timeout, inspect existing
 runs before retrying; the gateway never automatically retries mutations.
 
+The patched runtime defaults to one managed action per Docker daemon and build_jobs: 1.
+Do not launch raw EDA tools or Docker containers in shell to bypass that boundary.
+After failures, inspect report.execution and log.tool. Error 247 alone does not establish
+OOM. A cleanup_pending run retains its container and budget; restore Docker and recover_runs
+before resubmitting. Do not skip CTS repair, LEC, memory modeling or failed partitions to
+claim PASS. Structured equivalence supports mapped memories, real functional models,
+bounded single-worker EQY and complete proof; native-memory SMT requires a separately
+verified custom flow. Query the actual server schema before configuring an action.
+
 Use metrics, diagnostics and artifact IDs from that project's EDA state. read_artifact supports
 bounded pagination. Large gateway responses are retained in a session-local response cache and
 returned as paged text; use domain_tool_result_read with the returned responseId and offset.

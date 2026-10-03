@@ -45,6 +45,8 @@ jobs:
             ./eda-harness/.venv/bin/python scripts/mcp-smoke.py --mcp-config "$RUNNER_TEMP/chip-kimi-adapter/mcp.project.json"
             ./chip-harness.sh --project "$PWD/eda-harness/examples/counter" actions > "$RUNNER_TEMP/chip-actions.json"
           )
+          uv run --directory "$RUNNER_TEMP/chip-pack-smoke/chip-pack/eda-harness" --frozen python -m pytest -q
+          "$RUNNER_TEMP/chip-pack-smoke/chip-pack/eda-harness/.venv/bin/python" tests/integration/fixtures/chip-runtime-reliability.py
           (
             cd release
             sha256sum "$asset" > "$asset.sha256"

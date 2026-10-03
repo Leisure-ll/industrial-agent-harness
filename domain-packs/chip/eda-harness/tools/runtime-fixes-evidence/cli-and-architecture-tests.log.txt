@@ -1,0 +1,36 @@
+{"type":"scenario","id":"matched","passed":true,"failures":[],"outputFile":"/var/folders/z0/8fqzv4jn6zb32j82pxz8mw2r0000gn/T/industrial-bench-test-jjRJGD/results/matched.jsonl"}
+{"type":"scenario","id":"gap","passed":false,"failures":["capabilityIds: []"],"outputFile":"/var/folders/z0/8fqzv4jn6zb32j82pxz8mw2r0000gn/T/industrial-bench-test-jjRJGD/results/gap.jsonl"}
+✔ bench keeps per-scenario evidence and fails on a wrong capability expectation (63.222833ms)
+✔ bench rejects duplicate scenario IDs before writing results (0.740708ms)
+✔ headless CLI resolves a domain task as JSON Lines without Electron or a model key (22.80175ms)
+✔ CLI requires one task source and a known domain (4.743166ms)
+✔ CLI disable flag removes a repository skill from the resolved scope (13.452917ms)
+✔ artifact manifest cannot reference files outside its project (1.116458ms)
+✔ headless CLI runs a task and emits agent and approval events (21.671875ms)
+✔ CLI uses the same persisted global and per-project policy as Desktop (19.473791ms)
+✔ CLI lists shared project chats without a model key and validates resume ownership (6.831417ms)
+✔ CLI installs a signed new Domain, loads its Broker scope, then removes it (53.393584ms)
+✔ real Chip and PCB Packs install first; Godot can be added later without losing either (248.67175ms)
+✔ a platform-only Pack is omitted from other platform catalogs (161.536833ms)
+✔ log inspector reports full tool bytes and detects missing records (4.260041ms)
+✔ packaged headless entry runs outside the workspace with Broker and Skill resources (6265.505541ms)
+✔ core, contracts and runtime cannot depend on Kimi or Electron (8.099791ms)
+✔ core packages cannot grow concrete domain IDs (3.263ms)
+✔ Broker cannot import concrete runtimes, domains or viewers (0.443708ms)
+✔ known agent domain mapping is frozen until ToolDescriptor replaces it (2.888834ms)
+✔ Desktop and CLI cannot directly spawn industrial executables (9.133375ms)
+✔ Viewer dispatch uses a registry and static Capability IDs cannot expand (2.2305ms)
+✔ prototype exceptions are explicit and core milestone cannot be claimed early (1.289792ms)
+✔ mutating capability tools must declare verification (9.371041ms)
+✔ a stale scoped Agent tool call is rejected at its handler (119.385709ms)
+✔ unscoped direct Domain MCP servers cannot be added before a Gateway (10.543416ms)
+✔ the computer-use plugin tool surface is frozen (1.378042ms)
+✔ the computer-use binary is only referenced by the bridge package source (19.546292ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6370.426

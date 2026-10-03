@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-03",
+  "patch_version": "0.6.1",
+  "base_source_commit": "9842ba787230e7bee2de37056594d567ee925d31",
+  "image": {
+    "kind": "docker",
+    "image_id": "sha256:3ec494165c53b52b8fed0cf0686e04798ad648bd8282730b5be7d43a9bdb78fe",
+    "platform": "linux/amd64",
+    "daemon_id": "308a7490-d8c4-47e7-93e8-4a99ca2861e1",
+    "daemon_arch": "arm64",
+    "daemon_cpu": 10,
+    "daemon_memory_gb": 7.7501983642578125,
+    "emulated": true,
+    "tag": "eda-harness-tools:cli-fix-20261003"
+  },
+  "host": "macOS arm64; Docker Desktop linux/arm64 daemon; linux/amd64 image under emulation",
+  "python_regression": {
+    "passed": 198,
+    "skipped": 1,
+    "evidence": "all-tests-final.log.txt",
+    "skipped_reason": "Optional locked netlistsvg renderer not enabled; Docker lifecycle and Yosys/EQY tests ran."
+  },
+  "native_docker": {
+    "cases": [
+      "normal exit",
+      "timeout",
+      "client SIGKILL",
+      "OOM kill"
+    ],
+    "confirmed_cleanup": true,
+    "evidence": "all-tests-final.log.txt"
+  },
+  "ihp_gcd": {
+    "configuration": "original bundled ihp-sg13g2/gcd, hierarchical mode unchanged",
+    "timing_repair": "enabled",
+    "cts_lec": "nonempty complete Yosys proof",
+    "detailed_route_drc": 0,
+    "managed_run_status": "SUCCESS",
+    "resources": {
+      "cpu": 2,
+      "memory_gb": 4.0,
+      "timeout_seconds": 180,
+      "build_jobs": 1,
+      "pids": 256
+    },
+    "cleanup": {
+      "confirmed": true,
+      "attempts": 1,
+      "errors": []
+    },
+    "requested_script_jobs": 64,
+    "requested_orfs_threads": 64,
+    "bounded_build_jobs": 1,
+    "bounded_orfs_threads": 2,
+    "evidence": "ihp-route.log.gz",
+    "route_db_sha256": "40906103a5ce3a4bdd85c029a6c75ba0593113c34bcc37a4238711bec934861f",
+    "execution_evidence": "ihp-execution.json",
+    "proven_equivalence_cells": 1719,
+    "cts_lec_evidence": "cts-lec.log.gz"
+  },
+  "formal": {
+    "engines": [
+      "native Yosys",
+      "pinned image EQY"
+    ],
+    "fixtures": "real mapped RAM and async reset; mutated RAM write rejected",
+    "eqy_policy": "single worker, collect matched nets, unroll SMT, retain X propagation",
+    "native_memory_smt": "not supported by structured adapter; trial not proven",
+    "evidence": "all-tests-final.log.txt"
+  },
+  "verilator": {
+    "version": "5.026",
+    "fixtures": [
+      "timed SV with trace",
+      "timed SV without trace",
+      "assertion failure rejected"
+    ],
+    "default_build_jobs": 1,
+    "large_original_mcu": "not retested",
+    "cases": [
+      {
+        "trace": true,
+        "assertion_failure": false,
+        "status": "SUCCESS",
+        "acceptance": "PASS",
+        "tool_identity": {
+          "rtl.simulate": {
+            "daemon_arch": "arm64",
+            "daemon_cpu": 10,
+            "daemon_id": "308a7490-d8c4-47e7-93e8-4a99ca2861e1",
+            "daemon_memory_gb": 7.7501983642578125,
+            "emulated": true,
+            "image_id": "sha256:3ec494165c53b52b8fed0cf0686e04798ad648bd8282730b5be7d43a9bdb78fe",
+            "kind": "docker",
+            "platform": "linux/amd64"
+          }
+        },
+        "run_id": "Raf578ee65e444173"
+      },
+      {
+        "trace": false,
+        "assertion_failure": false,
+        "status": "SUCCESS",
+        "acceptance": "PASS",
+        "tool_identity": {
+          "rtl.simulate": {
+            "daemon_arch": "arm64",
+            "daemon_cpu": 10,
+            "daemon_id": "308a7490-d8c4-47e7-93e8-4a99ca2861e1",
+            "daemon_memory_gb": 7.7501983642578125,
+            "emulated": true,
+            "image_id": "sha256:3ec494165c53b52b8fed0cf0686e04798ad648bd8282730b5be7d43a9bdb78fe",
+            "kind": "docker",
+            "platform": "linux/amd64"
+          }
+        },
+        "run_id": "R3bbd4613aa174d18"
+      },
+      {
+        "trace": false,
+        "assertion_failure": true,
+        "status": "FAILED",
+        "acceptance": null,
+        "tool_identity": {
+          "rtl.simulate": {
+            "daemon_arch": "arm64",
+            "daemon_cpu": 10,
+            "daemon_id": "308a7490-d8c4-47e7-93e8-4a99ca2861e1",
+            "daemon_memory_gb": 7.7501983642578125,
+            "emulated": true,
+            "image_id": "sha256:3ec494165c53b52b8fed0cf0686e04798ad648bd8282730b5be7d43a9bdb78fe",
+            "kind": "docker",
+            "platform": "linux/amd64"
+          }
+        },
+        "run_id": "Rb875b23bb4534e05"
+      }
+    ],
+    "evidence": "verilator-timing-final.log.txt"
+  },
+  "image_acceptance": {
+    "status": "PASS",
+    "concurrency": 2,
+    "evidence": "image-contract-final.log.txt",
+    "artifacts": "Validated locally; not shipped with the MCP source archive."
+  },
+  "cli_packaged_integration": {
+    "passed": 3,
+    "failed": 0,
+    "evidence": "packaged-tests.log.txt"
+  },
+  "architecture": {
+    "passed": 12,
+    "failed": 0,
+    "evidence": "cli-and-architecture-tests.log.txt"
+  },
+  "domain_units": {
+    "passed": 8,
+    "failed": 0,
+    "evidence": "domain-unit-tests.log.txt"
+  },
+  "limitations": [
+    "Original G01 complete MCU/PDK absent from trajectory snapshot.",
+    "Error 247 alone does not establish OOM; the patch adds resource protection and daemon evidence.",
+    "Raw shell/docker bypasses the managed runtime.",
+    "No Linux-native host or Windows CLI qualification, tool image not published to a registry."
+  ],
+  "source_sha256": "8825d43d9a8a81667ad8f58c29627fccb489b696f7b2b075e829a5d6c450b0ad",
+  "cli_and_architecture": {
+    "passed": 26,
+    "failed": 0,
+    "evidence": "cli-and-architecture-tests.log.txt"
+  },
+  "package_portability": {
+    "passed": 1,
+    "failed": 0,
+    "evidence": "package-portability-tests.log.txt",
+    "checks": [
+      "internal dependency links",
+      "standalone entry outside workspace"
+    ]
+  },
+  "evidence_directory": "tools/runtime-fixes-evidence/",
+  "record_kind": "Local pre-release qualification; release source identity comes from HARNESS-PACKAGE.json",
+  "vendored_runtime_regression": {
+    "passed": 35,
+    "skipped": 0,
+    "evidence": "release-vendored-runtime-tests.log.txt",
+    "image": "eda-harness-tools:cli-fix-20261003"
+  },
+  "repository_regression": {
+    "passed": 176,
+    "skipped": 4,
+    "failed": 0,
+    "architecture_passed": 12,
+    "mcp_passed": 10,
+    "mcp_skipped": 2,
+    "external_mcp_passed": 5,
+    "desktop_build": "passed"
+  },
+  "raw_log_sha256": {
+    "cts-lec.log.gz": "e497368bbd074385e17fa2fc008d134271eb9aac366e0f6fee96e0a765b39f20",
+    "ihp-route.log.gz": "6a9486206a75275ffc70049c6aaada2008549e175c48b8762948594b2c517a43"
+  }
+}

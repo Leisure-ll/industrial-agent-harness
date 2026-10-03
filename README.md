@@ -33,9 +33,9 @@ pnpm dev
 
 无需克隆仓库即可从 [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases) 下载无 UI Harness 预发布包；安装与校验步骤见 [CLI 文档](apps/cli/README.md#github-release-安装)。开发时也可运行 `node scripts/package-headless.cjs` 生成同样的目录。仓库提供当前能力烟测和预期失败的 RTL 验证目标场景；逐场 JSONL 与汇总结果用于定位 Harness 缺口。这个打包产物包含 Broker、Skill 和已注册的 Chip Pack MCP；执行它需要单独准备固定版本的 Python 环境。Core 工业状态闭环仍未完成。
 
-CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[headless-v0.2.0-preview.3](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.3) 增加共用外部 MCP 注册，历史包不自动更新。构建与使用见 [按领域下载 CLI](doc/domain-cli-downloads.md)。
+CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[headless-v0.2.0-preview.4](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.4) 包含共用外部 MCP 注册及 Chip 0.6.1 的资源、容器清理与等价修复，历史包不自动更新。构建与使用见 [按领域下载 CLI](doc/domain-cli-downloads.md)。
 
-完整芯片 MCP 另以 [Chip Pack Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.0-preview.1) 独立发布，包含 EDA Harness 25 工具服务、领域 Skill 和 Kimi 适配生成器；[安装说明](domain-packs/chip/README.md)列出 uv 与工具镜像的准备步骤。它可先用于芯片场景；桌面与无 UI Core 已通过共享网关把 Chip Pack 纳入 Broker Scope；独立领域包仍保留自己的运行时。
+完整芯片 MCP 另以 [Chip Pack 0.6.1 Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.1-preview.1) 独立发布，包含 EDA Harness 25 工具服务、领域 Skill 和 Kimi 适配生成器；[安装说明](domain-packs/chip/README.md)列出 uv 与工具镜像的准备步骤。它可用于芯片场景；桌面与无 UI Core 已通过共享网关把 Chip Pack 纳入 Broker Scope；独立领域包保留自己的运行时。采用运行时修复需同时重建 EDA 工具镜像，见 [迁移与验证范围](domain-packs/chip/eda-harness/docs/runtime-reliability.md)。
 
 左侧 Projects 可绑定多个本地目录；首次启动会显示从 EDA Harness demo 提取的精简 Sobel 芯片示例。右侧工作区和其中的文件树默认收起，按需打开；文件树随当前项目切换。点击普通文件预览源码，点击项目内的 GDS、Yosys JSON 或 VCD 等工程产物会自动打开对应 Viewer。Sobel 示例中附有同一设计的网表、波形和版图产物。
 
@@ -45,7 +45,7 @@ CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[head
 
 | MCP | 桌面版 / CLI | 工具与入口 | 依赖与边界 |
 | --- | --- | --- | --- |
-| Chip Pack · EDA Harness 0.6.0 (`chip-pack.eda`) | 两个入口共用注册、项目策略与 Scope；Chip 项目默认启用 | 25 个上游工具，按检查、初始化、执行、历史与外部查看任务筛选；四个网关工具按需发现、描述、调用和分页读取 | 固定 Python/MCP 依赖；EDA 计算还需项目运行时、Docker/工具镜像及必要 PDK。工程验收来自 EDA Runtime，不来自 Viewer 或 Core 文件观察 |
+| Chip Pack · EDA Harness 0.6.1 (`chip-pack.eda`) | 两个入口共用注册、项目策略与 Scope；Chip 项目默认启用 | 25 个上游工具，按检查、初始化、执行、历史与外部查看任务筛选；四个网关工具按需发现、描述、调用和分页读取 | 固定 Python/MCP 依赖；EDA 计算还需项目运行时、重建的 Docker/工具镜像及必要 PDK。工程验收来自 EDA Runtime，不来自 Viewer 或 Core 文件观察 |
 | PCB Bench · KiCad 10.0.6 (`pcb-bench.tools`) | 共用全局默认、Project 覆盖与 Scope；PCB 项目默认启用 | 89 个公开工具，阶段组与完整设计/修复组；完整 `pcb.design.e2e` Skill 含 references/assets | 固定外部 PCB-bench checkout、独立 gateway Python 和已准备的 KiCad 10.0.6 原生镜像。配置/协议已验证；原生编辑、ERC/DRC 与 solver 尚未实测。见 [PCB MCP 接入](doc/pcb-mcp-integration.md) |
 | 用户注册的外部 MCP (`external.<名称>`) | Desktop 与所有领域 CLI 包共用，支持全局/项目开关 | stdio / Streamable HTTP / SSE；四个外部网关入口，按需 schema、执行前 Scope/参数/快照检查、Kimi 审批、原生截图与分页 | 服务和系统权限另行准备；computer-use 可操作项目外的应用，返回是未验证观察；不自动安装、无 OAuth 登录 |
 

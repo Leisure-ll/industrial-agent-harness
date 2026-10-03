@@ -1,6 +1,8 @@
 # Chip Pack MCP：Desktop 与 CLI 共享接入
 
-2026-09-29 已注册 `chip-pack.eda`，固定 EDA Harness 0.6.0 与 Python MCP SDK 1.29.1。
+2026-09-29 已注册 `chip-pack.eda`；2026-10-03 更新为 EDA Harness 0.6.1，Python MCP SDK 固定为 1.29.1。
+2026-10-03 本地修复包升级为 `0.6.1`，Python MCP SDK 仍为 1.29.1。
+Chip 源码摘要同步更新；容器清理、资源预算、编译与证明边界见 [运行时修复](../domain-packs/chip/eda-harness/docs/runtime-reliability.md)。
 注册清单位于 `packages/domain-skills/packs/chip-pack.json`，包含完整 25 工具映射、风险、验证要求和五组 Capability。
 原有四个只读 Viewer 检查 Capability 保持原范围；新领域包声明通过校验后合入共享 Registry。
 

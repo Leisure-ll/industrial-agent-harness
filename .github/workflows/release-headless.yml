@@ -43,6 +43,7 @@ jobs:
           echo "KIMI_EXECUTABLE=$RUNNER_TEMP/headless-kimi/bin/kimi" >> "$GITHUB_ENV"
           cd domain-packs/chip/eda-harness
           uv sync --frozen --no-dev --python 3.13
+          uv run --frozen python -m pytest -q
           cd ../../pcb
           uv sync --frozen --no-dev --python 3.13
       - name: Verify actual scoped MCP and approval behavior
@@ -71,8 +72,9 @@ jobs:
             uv sync --frozen --no-dev --python 3.13
           )
           INDUSTRIAL_HARNESS_TEST_CLI=/tmp/industrial-headless-release-smoke/headless-chip/industrial-harness.cjs \
+          INDUSTRIAL_HARNESS_CHIP_PACK_DIR=/tmp/industrial-headless-release-smoke/headless-chip/domain-packs/chip \
           INDUSTRIAL_HARNESS_EDA_PYTHON=/tmp/industrial-headless-release-smoke/headless-chip/domain-packs/chip/eda-harness/.venv/bin/python \
-            node --test tests/integration/domain-mcp-kimi.test.cjs
+            node --test tests/integration/domain-mcp-kimi.test.cjs tests/integration/domain-mcp-scope.test.cjs tests/integration/chip-runtime-reliability.test.cjs
           INDUSTRIAL_HARNESS_TEST_CLI=/tmp/industrial-headless-release-smoke/headless-chip/industrial-harness.cjs \
             node --test tests/integration/external-mcp-kimi.test.cjs
           tar -xzf "release/$asset" -C /tmp/industrial-headless-release-smoke

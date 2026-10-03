@@ -10,7 +10,7 @@ from eda_harness.core.models import ActionConfig
 from eda_harness.core.workflow import catalog, plan
 from eda_harness.core.workspace import load_project, scan
 from eda_harness.plugins.semantic import preflight
-from eda_harness.runtimes.execution import identity
+from eda_harness.runtimes.execution import identity, run_probe
 from eda_harness.tool_inventory import inspect_tools
 from eda_harness.viewers import viewer_capabilities
 
@@ -23,7 +23,7 @@ def check_environment(root, target=None, image=None, probe_capabilities=False):
         checks.append(dict(component=component, code=code, ready=ready, detail=detail, next_step=next_step))
 
     def probe(args):
-        result = subprocess.run(args, capture_output=True, text=True, timeout=15)
+        result = run_probe(args, capture_output=True, text=True, timeout=15)
         if result.returncode:
             raise ValueError((result.stderr or result.stdout or "Probe failed")[-2000:])
         return result.stdout.strip()

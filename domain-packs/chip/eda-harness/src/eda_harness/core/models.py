@@ -13,12 +13,23 @@ class Resources(Model):
     cpu: int = Field(default=2, ge=1)
     memory_gb: float = Field(default=4, gt=0)
     timeout_seconds: int = Field(default=600, ge=1)
+    build_jobs: int = Field(default=1, ge=1)
+    pids: int = Field(default=256, ge=16)
+
+    @model_validator(mode="after")
+    def bounded_build_jobs(self):
+        if self.build_jobs > self.cpu:
+            raise ValueError("build_jobs must not exceed the runtime CPU allocation")
+        if self.build_jobs > max(1, int(self.memory_gb // 2)):
+            raise ValueError("Reserve at least 2 GiB per parallel compiler; use build_jobs: 1 for large netlists")
+        return self
 
 
 class RuntimeConfig(Model):
     kind: Literal["local", "docker"] = "docker"
     image: str | None = None
     resources: Resources = Field(default_factory=Resources)
+    require_native: bool = False
 
     @model_validator(mode="after")
     def check_image(self):

@@ -16,6 +16,14 @@ uv run eda --project /tmp/eda-counter run-until drc --wait
 The original tool versions are Verilator **5.026**, Yosys **0.68**, OpenROAD
 **26Q3-1867-g84e3ff1eb2**, and KLayout **0.30.7**.
 
+The `0.6.1` recipe retains those versions, adds Z3 **4.8.12-1**,
+caps make/Verilator worker counts under the managed task budget, replaces the
+nonportable ORFS Kepler LEC callback with a real bounded Yosys proof, and corrects
+IHP's overbroad LEC cell-removal pattern. Rebuild as `eda-harness-tools:cli-fix-20261003`.
+See [runtime fixes and limits](../docs/runtime-reliability.md). Updating Python alone
+does not update a previously built image. The callback is qualified for ORFS's
+two-netlist/Liberty interface, not other Kepler commands.
+
 The first pull is large: the official ORFS image includes its toolchain, flow scripts, and platforms.
 Subsequent builds reuse the pinned layers. The compiler and `make` are intentionally retained because
 Verilator simulation compiles generated C++ at execution time. The added tools use fixed Ubuntu package versions. The package index and transitive runtime

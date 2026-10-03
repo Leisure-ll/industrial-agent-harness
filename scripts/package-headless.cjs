@@ -40,6 +40,20 @@ const result = spawnSync(
 );
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status || 1);
+// pnpm legacy deploy can leave its root package linked to the source checkout.
+// Resolve that package inside the portable bundle instead.
+const selfLink = path.join(
+  target,
+  'node_modules',
+  '.pnpm',
+  'node_modules',
+  '@industrial-agent-harness',
+  'cli',
+);
+if (fs.lstatSync(selfLink, { throwIfNoEntry: false })?.isSymbolicLink()) {
+  fs.unlinkSync(selfLink);
+  fs.symlinkSync(path.relative(path.dirname(selfLink), target), selfLink, 'dir');
+}
 const entry = path.join(target, 'src', 'main.cjs');
 const agent = path.join(
   target,

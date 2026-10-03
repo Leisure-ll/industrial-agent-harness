@@ -16,6 +16,19 @@ test('packaged headless entry runs outside the workspace with Broker and Skill r
     { cwd: root, encoding: 'utf8' },
   );
   assert.equal(built.status, 0, built.stderr || built.stdout);
+  const checkLinks = directory => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const file = path.join(directory, entry.name);
+      if (entry.isSymbolicLink())
+        assert.ok(
+          fs.realpathSync(file).startsWith(fs.realpathSync(target) + path.sep) ||
+            fs.realpathSync(file) === fs.realpathSync(target),
+          `Bundle dependency still points outside the package: ${file}`,
+        );
+      else if (entry.isDirectory()) checkLinks(file);
+    }
+  };
+  checkLinks(path.join(target, 'node_modules'));
   const suite = path.join(root, 'examples/bench/scope-smoke.json');
   const outputDir = path.join(directory, 'results');
   const executed = spawnSync(
