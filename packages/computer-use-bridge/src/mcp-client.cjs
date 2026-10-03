@@ -1,6 +1,6 @@
-const {spawn} = require('node:child_process');
+const { spawn } = require('node:child_process');
 const path = require('node:path');
-const {StringDecoder} = require('node:string_decoder');
+const { StringDecoder } = require('node:string_decoder');
 
 const MAX_TOOL_OUTPUT_BYTES = 16 * 1024;
 // Base64 ceiling for one image block. A 1400px-wide PNG is far below this;
@@ -22,10 +22,13 @@ function resolveBinary(installedDir, env = process.env) {
 }
 
 class McpClient {
-  constructor(bin, {env = {}, onSpawn, spawner = spawn} = {}) {
+  constructor(bin, { env = {}, onSpawn, spawner = spawn } = {}) {
     this.bin = bin;
     this.env = env;
-    this.child = spawner(bin, [], {env: {...process.env, COMPUTER_USE_BROWSER: '0', ...env}, stdio: ['pipe', 'pipe', 'pipe']});
+    this.child = spawner(bin, [], {
+      env: { ...process.env, COMPUTER_USE_BROWSER: '0', ...env },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
     this.buffer = '';
     // Pipes deliver arbitrary byte boundaries; a multi-byte UTF-8 character
     // (CJK labels are common here) split across chunks must not be decoded
@@ -37,13 +40,20 @@ class McpClient {
     this.closed = false;
     this.stderrTail = '';
     this.child.stdout.on('data', chunk => this.onData(chunk));
-    this.child.stdout.on('end', () => {this.buffer += this.decoder.end(); this.drainBuffer();});
-    this.child.stderr.on('data', chunk => {this.stderrTail = `${this.stderrTail}${chunk.toString('utf8')}`.slice(-4000);});
+    this.child.stdout.on('end', () => {
+      this.buffer += this.decoder.end();
+      this.drainBuffer();
+    });
+    this.child.stderr.on('data', chunk => {
+      this.stderrTail = `${this.stderrTail}${chunk.toString('utf8')}`.slice(-4000);
+    });
     this.child.on('error', error => this.die(error));
     this.child.on('exit', () => this.die(new Error('Computer use server exited.')));
     if (onSpawn) onSpawn(this.child);
   }
-  get stderr() {return this.stderrTail;}
+  get stderr() {
+    return this.stderrTail;
+  }
   onData(chunk) {
     this.buffer += this.decoder.write(chunk);
     this.drainBuffer();
@@ -55,12 +65,17 @@ class McpClient {
       this.buffer = this.buffer.slice(newline + 1);
       if (!line) continue;
       let message;
-      try {message = JSON.parse(line);} catch {continue;}
+      try {
+        message = JSON.parse(line);
+      } catch {
+        continue;
+      }
       if (message.id !== undefined && this.pending.has(message.id)) {
-        const {resolve, reject, timer} = this.pending.get(message.id);
+        const { resolve, reject, timer } = this.pending.get(message.id);
         this.pending.delete(message.id);
         clearTimeout(timer);
-        if (message.error) reject(new Error(message.error.message || 'Computer use tool call failed.'));
+        if (message.error)
+          reject(new Error(message.error.message || 'Computer use tool call failed.'));
         else resolve(message.result);
       }
     }
@@ -73,20 +88,29 @@ class McpClient {
         this.pending.delete(id);
         reject(new Error(`Computer use call ${method} timed out after ${CALL_TIMEOUT_MS}ms.`));
       }, CALL_TIMEOUT_MS);
-      this.pending.set(id, {resolve, reject, timer});
-      this.child.stdin.write(`${JSON.stringify({jsonrpc: '2.0', id, method, params})}\n`);
+      this.pending.set(id, { resolve, reject, timer });
+      this.child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`);
     });
   }
   async initialize() {
-    const result = await this.rpc('initialize', {protocolVersion: '2024-11-05', capabilities: {}, clientInfo: {name: 'industrial-agent-harness', version: '0.0.0'}});
-    this.child.stdin.write(`${JSON.stringify({jsonrpc: '2.0', method: 'notifications/initialized'})}\n`);
+    const result = await this.rpc('initialize', {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: 'industrial-agent-harness', version: '0.0.0' },
+    });
+    this.child.stdin.write(
+      `${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`,
+    );
     return result;
   }
   // Returns {output, isError, needsSystemPermission, truncated, outputBytes, images}
   async call(tool, args = {}) {
-    const result = await this.rpc('tools/call', {name: tool, arguments: args});
+    const result = await this.rpc('tools/call', { name: tool, arguments: args });
     const blocks = result?.content || [];
-    const raw = blocks.filter(block => block.type === 'text').map(block => block.text).join('\n');
+    const raw = blocks
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('\n');
     // MCP image blocks carry the screenshot as base64. Without forwarding them
     // the model only sees the coordinate-mapping text and hallucinates the content.
     const images = [];
@@ -94,10 +118,14 @@ class McpClient {
     for (const block of blocks) {
       if (block.type !== 'image' || typeof block.data !== 'string') continue;
       if (block.data.length > MAX_IMAGE_BASE64_CHARS) {
-        imageNote = '\n[image_unavailable: base64 payload exceeds the bridge limit; re-run with a smaller max_width]';
+        imageNote =
+          '\n[image_unavailable: base64 payload exceeds the bridge limit; re-run with a smaller max_width]';
         continue;
       }
-      images.push({data: block.data, mimeType: typeof block.mimeType === 'string' ? block.mimeType : 'image/png'});
+      images.push({
+        data: block.data,
+        mimeType: typeof block.mimeType === 'string' ? block.mimeType : 'image/png',
+      });
     }
     const bytes = Buffer.byteLength(raw, 'utf8');
     const truncated = bytes > MAX_TOOL_OUTPUT_BYTES;
@@ -114,14 +142,17 @@ class McpClient {
       const data = Buffer.from(raw, 'utf8');
       const reserve = Buffer.byteLength(prefix + imageNote, 'utf8') + 48;
       let cut = Math.max(0, MAX_TOOL_OUTPUT_BYTES - reserve);
-      while (cut > 0 && (data[cut] & 0xC0) === 0x80) cut--;
+      while (cut > 0 && (data[cut] & 0xc0) === 0x80) cut--;
       output = `${prefix}${data.subarray(0, cut).toString('utf8')}\n[truncated ${bytes - cut} bytes]${imageNote}`;
     }
-    return {output, isError, needsSystemPermission, truncated, outputBytes: bytes, images};
+    return { output, isError, needsSystemPermission, truncated, outputBytes: bytes, images };
   }
   failAll(error) {
     if (this.closed) return;
-    for (const {reject, timer} of this.pending.values()) {clearTimeout(timer); reject(error);}
+    for (const { reject, timer } of this.pending.values()) {
+      clearTimeout(timer);
+      reject(error);
+    }
     this.pending.clear();
   }
   // A dead server must not be reused: fail pending calls first, then mark
@@ -138,4 +169,4 @@ class McpClient {
   }
 }
 
-module.exports = {McpClient, resolveBinary, MAX_TOOL_OUTPUT_BYTES};
+module.exports = { McpClient, resolveBinary, MAX_TOOL_OUTPUT_BYTES };

@@ -1,77 +1,192 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const {execFile} = require('node:child_process');
-const {promisify} = require('node:util');
-const {ExternalMcpRegistry} = require('@industrial-agent-harness/harness-core');
-const {startModel} = require('../../../tests/integration/fixtures/domain-mcp-model.cjs');
-const {saveBindings} = require('./project-bindings.cjs');
-const {saveProfile, defaults} = require('./model-config.cjs');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const { ExternalMcpRegistry } = require('@industrial-agent-harness/harness-core');
+const { startModel } = require('../../../tests/integration/fixtures/domain-mcp-model.cjs');
+const { saveBindings } = require('./project-bindings.cjs');
+const { saveProfile, defaults } = require('./model-config.cjs');
 let fixture, evidence, settings, marker, configuration;
 const calls = [];
 async function prepare(config, modelDirectory, resources) {
-  fixture = await startModel({calls, success: 'EXTERNAL_MCP_CONFIRMED'});
-  settings = resources; evidence = path.dirname(config); marker = path.join(evidence, 'host-click.json');
-  const directory = path.join(config, 'external-project'); fs.mkdirSync(directory, {recursive: true});
-  saveBindings(config, {activeId: 'external-chip', projects: [{id: 'external-chip', name: 'External MCP test', path: fs.realpathSync(directory), domain: 'chip'}]});
-  saveProfile(modelDirectory, {...defaults, provider: 'openai_legacy', endpoint: fixture.endpoint, model: 'controlled-external', thinking: false, imageInput: true, imageInputMode: 'enabled'});
-  configuration = JSON.stringify({mcpServers: {'computer-use': {command: process.execPath, args: [path.resolve(__dirname, '../../../tests/integration/fixtures/external-mcp-server.cjs')], env: {ELECTRON_RUN_AS_NODE: '1', FIXTURE_CLICK_MARKER: marker, FIXTURE_SECRET: 'selftest-private-credential'}}}});
+  fixture = await startModel({ calls, success: 'EXTERNAL_MCP_CONFIRMED' });
+  settings = resources;
+  evidence = path.dirname(config);
+  marker = path.join(evidence, 'host-click.json');
+  const directory = path.join(config, 'external-project');
+  fs.mkdirSync(directory, { recursive: true });
+  saveBindings(config, {
+    activeId: 'external-chip',
+    projects: [
+      {
+        id: 'external-chip',
+        name: 'External MCP test',
+        path: fs.realpathSync(directory),
+        domain: 'chip',
+      },
+    ],
+  });
+  saveProfile(modelDirectory, {
+    ...defaults,
+    provider: 'openai_legacy',
+    endpoint: fixture.endpoint,
+    model: 'controlled-external',
+    thinking: false,
+    imageInput: true,
+    imageInputMode: 'enabled',
+  });
+  configuration = JSON.stringify({
+    mcpServers: {
+      'computer-use': {
+        command: process.execPath,
+        args: [
+          path.resolve(__dirname, '../../../tests/integration/fixtures/external-mcp-server.cjs'),
+        ],
+        env: {
+          ELECTRON_RUN_AS_NODE: '1',
+          FIXTURE_CLICK_MARKER: marker,
+          FIXTURE_SECRET: 'selftest-private-credential',
+        },
+      },
+    },
+  });
 }
 async function run(window) {
   const evaluate = script => window.webContents.executeJavaScript(script, true);
-  async function wait(script) {const deadline = Date.now() + 30000; while (Date.now() < deadline) {if (await evaluate(script)) return; await new Promise(resolve => setTimeout(resolve, 100));} throw Error(`External MCP UI timed out: ${script}\n${await evaluate('document.body.innerText')}`);}
+  async function wait(script) {
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+      if (await evaluate(script)) return;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    throw Error(
+      `External MCP UI timed out: ${script}\n${await evaluate('document.body.innerText')}`,
+    );
+  }
   async function settingsPage() {
     await evaluate(`document.querySelector('.ia-settings-button').click()`);
-    await evaluate(`Array.from(document.querySelectorAll('.ia-settings-row')).find(row=>row.innerText.includes('MCP & Skills')).querySelector('button').click()`);
+    await evaluate(
+      `Array.from(document.querySelectorAll('.ia-settings-row')).find(row=>row.innerText.includes('MCP & Skills')).querySelector('button').click()`,
+    );
     await wait(`Boolean(document.querySelector('.ia-external-mcp form button:not(:disabled)'))`);
   }
   try {
     await wait(`Boolean(document.querySelector('.ia-project-row'))`);
     await settingsPage();
-    await evaluate(`(() => {const select=document.querySelector('.ia-external-mcp select');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'import');select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+    await evaluate(
+      `(() => {const select=document.querySelector('.ia-external-mcp select');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'import');select.dispatchEvent(new Event('change',{bubbles:true}));})()`,
+    );
     await wait(`Boolean(document.querySelector('.ia-external-mcp textarea'))`);
-    await evaluate(`(() => {const area=document.querySelector('.ia-external-mcp textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,${JSON.stringify(configuration)});area.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+    await evaluate(
+      `(() => {const area=document.querySelector('.ia-external-mcp textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,${JSON.stringify(configuration)});area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+    );
     await evaluate(`document.querySelector('.ia-external-mcp form button').click()`);
     await wait(`document.querySelector('.ia-external-server')?.innerText.includes('3 tools')`);
-    assert.ok(!(await evaluate(`document.querySelector('.ia-resource-modal').innerText`)).includes('selftest-private-credential'));
-    const summary = await evaluate(`window.viewerHost.externalMcpList()`); assert.equal(summary[0].id, 'external.computer-use'); assert.ok(!JSON.stringify(summary).includes('credential'));
+    assert.ok(
+      !(await evaluate(`document.querySelector('.ia-resource-modal').innerText`)).includes(
+        'selftest-private-credential',
+      ),
+    );
+    const summary = await evaluate(`window.viewerHost.externalMcpList()`);
+    assert.equal(summary[0].id, 'external.computer-use');
+    assert.ok(!JSON.stringify(summary).includes('credential'));
     const cli = path.resolve(__dirname, '../../cli/src/main.cjs');
-    const listed = await promisify(execFile)(process.execPath, [cli, 'mcp', 'list'], {env: {...process.env, ELECTRON_RUN_AS_NODE: '1', INDUSTRIAL_HARNESS_CONFIG_DIR: settings}});
+    const listed = await promisify(execFile)(process.execPath, [cli, 'mcp', 'list'], {
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', INDUSTRIAL_HARNESS_CONFIG_DIR: settings },
+    });
     assert.equal(JSON.parse(listed.stdout).servers[0].id, 'external.computer-use');
-    const registry = new ExternalMcpRegistry(settings), tools = registry.records()[0].tools;
-    const screenshot = tools.find(tool => tool.name === 'screenshot').id, click = tools.find(tool => tool.name === 'click').id;
-    calls.push({name: 'external_tool_list', arguments: {}}, {name: 'external_tool_describe', arguments: {toolId: screenshot}}, {name: 'external_tool_call', arguments: {toolId: screenshot, arguments: {}}}, {name: 'external_tool_describe', arguments: {toolId: click}}, {name: 'external_tool_call', arguments: {toolId: click, arguments: {x: 40, y: 60}}});
-    fs.writeFileSync(path.join(evidence, 'external-mcp-settings.png'), (await window.webContents.capturePage()).toPNG());
-    await evaluate(`document.querySelector('button[aria-label="Close resource settings"]').click()`);
+    const registry = new ExternalMcpRegistry(settings),
+      tools = registry.records()[0].tools;
+    const screenshot = tools.find(tool => tool.name === 'screenshot').id,
+      click = tools.find(tool => tool.name === 'click').id;
+    calls.push(
+      { name: 'external_tool_list', arguments: {} },
+      { name: 'external_tool_describe', arguments: { toolId: screenshot } },
+      { name: 'external_tool_call', arguments: { toolId: screenshot, arguments: {} } },
+      { name: 'external_tool_describe', arguments: { toolId: click } },
+      { name: 'external_tool_call', arguments: { toolId: click, arguments: { x: 40, y: 60 } } },
+    );
+    fs.writeFileSync(
+      path.join(evidence, 'external-mcp-settings.png'),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    await evaluate(
+      `document.querySelector('button[aria-label="Close resource settings"]').click()`,
+    );
     await evaluate(`document.querySelector('.ia-project-row').click()`);
-    await wait(`document.querySelector('.ia-project-resources')?.innerText.includes('computer-use')`);
-    await evaluate(`window.viewerHost.resourceSet({projectId:'external-chip',kind:'mcp',id:'external.computer-use',mode:'disabled'})`);
-    assert.ok(!(await evaluate(`window.viewerHost.resolve({task:'Use the host screenshot'}).then(result=>result.scope.tools)`)).some(id => id.startsWith('external.')));
-    await evaluate(`window.viewerHost.resourceSet({projectId:'external-chip',kind:'mcp',id:'external.computer-use',mode:'inherit'})`);
+    await wait(
+      `document.querySelector('.ia-project-resources')?.innerText.includes('computer-use')`,
+    );
+    await evaluate(
+      `window.viewerHost.resourceSet({projectId:'external-chip',kind:'mcp',id:'external.computer-use',mode:'disabled'})`,
+    );
+    assert.ok(
+      !(
+        await evaluate(
+          `window.viewerHost.resolve({task:'Use the host screenshot'}).then(result=>result.scope.tools)`,
+        )
+      ).some(id => id.startsWith('external.')),
+    );
+    await evaluate(
+      `window.viewerHost.resourceSet({projectId:'external-chip',kind:'mcp',id:'external.computer-use',mode:'inherit'})`,
+    );
     await evaluate(`document.querySelector('.ia-project-start').click()`);
     await wait(`Boolean(document.querySelector('.ia-composer textarea'))`);
-    await evaluate(`(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'Use the host screenshot and click');area.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+    await evaluate(
+      `(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'Use the host screenshot and click');area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+    );
     await evaluate(`document.querySelector('.ia-send').click()`);
     for (let index = 0; index < calls.length; index++) {
       await wait(`Boolean(document.querySelector('.ia-approval button'))`);
       if (index === 0) {
-        const rejected = await evaluate(`window.viewerHost.externalMcpRemove('external.computer-use').then(()=>false,error=>String(error))`);
+        const rejected = await evaluate(
+          `window.viewerHost.externalMcpRemove('external.computer-use').then(()=>false,error=>String(error))`,
+        );
         assert.match(rejected, /running|active|stop|busy/i);
       }
       await evaluate(`document.querySelector('.ia-approval button').click()`);
       await wait(`!document.querySelector('.ia-approval')`);
     }
-    await wait(`document.querySelector('.ia-agent-flow')?.innerText.includes('EXTERNAL_MCP_CONFIRMED')&&!document.querySelector('button[title="Stop agent"]')`);
-    assert.deepEqual(JSON.parse(fs.readFileSync(marker)).arguments, {x: 40, y: 60});
-    assert.ok(fixture.requests.some(request => JSON.stringify(request.messages).includes('data:image/png;base64,')));
-    fs.writeFileSync(path.join(evidence, 'external-mcp-chat.png'), (await window.webContents.capturePage()).toPNG());
-    await settingsPage(); const revision = registry.records()[0].revision;
-    await evaluate(`document.querySelector('button[aria-label="Refresh computer-use tools"]').click()`);
-    await wait(`document.querySelector('.ia-external-mcp [role="status"]')?.innerText.includes('refreshed')`);
+    await wait(
+      `document.querySelector('.ia-agent-flow')?.innerText.includes('EXTERNAL_MCP_CONFIRMED')&&!document.querySelector('button[title="Stop agent"]')`,
+    );
+    assert.deepEqual(JSON.parse(fs.readFileSync(marker)).arguments, { x: 40, y: 60 });
+    assert.ok(
+      fixture.requests.some(request =>
+        JSON.stringify(request.messages).includes('data:image/png;base64,'),
+      ),
+    );
+    fs.writeFileSync(
+      path.join(evidence, 'external-mcp-chat.png'),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    await settingsPage();
+    const revision = registry.records()[0].revision;
+    await evaluate(
+      `document.querySelector('button[aria-label="Refresh computer-use tools"]').click()`,
+    );
+    await wait(
+      `document.querySelector('.ia-external-mcp [role="status"]')?.innerText.includes('refreshed')`,
+    );
     assert.notEqual(registry.records()[0].revision, revision);
     await evaluate(`document.querySelector('button[aria-label="Remove computer-use"]').click()`);
-    await wait(`!document.querySelector('.ia-external-server')`); assert.deepEqual(registry.list(), []);
-    console.log(JSON.stringify({ok: true, desktop: true, cliShared: true, pinnedKimi: true, approvals: calls.length, nativeImage: true, busyChangeRejected: true, screenshotDirectory: evidence}));
-  } finally {fixture.close();}
+    await wait(`!document.querySelector('.ia-external-server')`);
+    assert.deepEqual(registry.list(), []);
+    console.log(
+      JSON.stringify({
+        ok: true,
+        desktop: true,
+        cliShared: true,
+        pinnedKimi: true,
+        approvals: calls.length,
+        nativeImage: true,
+        busyChangeRejected: true,
+        screenshotDirectory: evidence,
+      }),
+    );
+  } finally {
+    fixture.close();
+  }
 }
-module.exports = {prepare, run};
+module.exports = { prepare, run };

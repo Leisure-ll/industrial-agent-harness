@@ -12,6 +12,10 @@ Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择�
 
 ## Agent 行为日志
 
+Desktop 与同一配置目录的 CLI 默认共用 4 个执行额度、6 个常驻会话额度。超额执行明确拒绝，常驻位置优先让最久未使用的空闲会话释放；空闲 5 分钟回收并在下次执行恢复 Kimi 原生上下文。运行中、等待审批/回答的会话不自动回收。关闭应用等待进程与额度清理。配置和压测见[多会话资源保护](../../doc/session-resource-guards.md)。
+
+渲染器将普通流式展示事件按约 16 ms 合批；审批、提问、结束和错误立即刷新，主进程仍逐个持久化原始事件。合批时再次检查当前聊天，旧轮次保持引用，避免高频文字更新重渲染全部历史。项目文件访问集中在 `electron/project-files.cjs`，展示事件合并集中在 `src/agent-events.ts`；完整评审与基准见[全仓分析与优化](../../doc/repository-optimization.md)。
+
 聊天标题栏的 **Logs** 和每轮 **View agent log** 打开当前项目日志。默认 **时间线** 按模型步骤合并完整回复，工具调用与结果配对，不重复 SDK/UI 文字。**工具调用** 展示调用名、参数、完整返回、结果说明、状态和耗时；未返回或缺失请求单独标注。**上下文** 展示送入 SDK 的完整提示、Broker 范围、项目观察及 Kimi 原生会话快照中的系统指令、历史消息和工具结果。原生快照的路径、大小及 SHA-256 经校验；没有压缩且提示与全部 Checkpoint 边界完整时，可按模型步骤查看保存的上下文。快照不包含完整 HTTP 请求及全部工具定义，缺失边界不会重建猜测。步骤和工具可跳转到对应上下文、工具视图和时间线。
 
 **原始事件** 保留事件类型与摘要过滤、JSON 及关联事件入口。较大的正文和原始记录使用 Previous/Next part 按 UTF-8 分段阅读；运行中自动刷新，结束时补齐尾部记录，Esc 关闭。
@@ -44,3 +48,5 @@ Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择�
 外部服务注册与 CLI 共用，详情见 [外部 MCP](../../doc/external-mcp.md)。`test:external-mcp` 在隔离用户目录运行真实 UI 添加/刷新/移除、项目禁用、运行中拒绝修改及固定 Kimi 审批/截图路径。需要服务自行安装并获得系统授权，GUI 不自动申请这些权限。
 
 Chip 项目默认注册 `chip-pack.eda`，在全局 MCP & Skills 与项目详情页可查看和禁用。准备固定 Python 依赖后，工程任务通过共用 Broker 和项目绑定网关调用 EDA Runtime；沿用聊天审批、工具结果和日志。macOS 真实 Kimi/Electron 路径由 `test:mcp` 验证。见 [共享 MCP 接入](../../doc/domain-mcp-integration.md)。
+
+`INDUSTRIAL_HARNESS_SESSION_IDLE_MS=100 pnpm --filter @industrial-agent-harness/desktop test:parallel` 还覆盖 200 次聊天/项目切换、160 次同帧双击、4 个后台任务与第 5 个拒绝、重载后问题恢复、重复 Stop、延迟历史与实时结束交错，以及带活动审批退出。SDK 会话可控，Renderer、IPC、持久化和资源管理使用生产路径；真实 Kimi 强杀/停止/恢复另由 `pnpm test:session-chaos` 检查。行为与边界见[验证报告](../../doc/session-resource-guards.md)。

@@ -1,13 +1,22 @@
-const {createSession, createExternalTool, createKimiPaths} = require('@moonshot-ai/kimi-agent-sdk');
-const {z} = require('zod');
+const {
+  createSession,
+  createExternalTool,
+  createKimiPaths,
+} = require('@moonshot-ai/kimi-agent-sdk');
+const { z } = require('zod');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
-const {materializeSkills} = require('@industrial-agent-harness/domain-skills');
-const {selectMcpServers, writeMcpConfig, selectedRuntimeKey, externalSecrets} = require('@industrial-agent-harness/domain-mcp');
-const {validatePromptImages, imageContent} = require('./image-input.cjs');
-const {createDiagnosticLog} = require('./diagnostic-log.cjs');
+const { materializeSkills } = require('@industrial-agent-harness/domain-skills');
+const {
+  selectMcpServers,
+  writeMcpConfig,
+  selectedRuntimeKey,
+  externalSecrets,
+} = require('@industrial-agent-harness/domain-mcp');
+const { validatePromptImages, imageContent } = require('./image-input.cjs');
+const { createDiagnosticLog } = require('./diagnostic-log.cjs');
 
 const canonicalNames = {
   'eda.netlist.inspect': 'eda_netlist_inspect',
@@ -23,44 +32,92 @@ function boundedJson(value, resource) {
   const output = JSON.stringify(value);
   if (typeof output !== 'string') throw Error(`${resource} has no serializable result.`);
   const bytes = Buffer.byteLength(output, 'utf8');
-  if (bytes > MAX_TOOL_OUTPUT_BYTES) throw Error(`${resource} result is ${bytes} bytes, above the ${MAX_TOOL_OUTPUT_BYTES}-byte limit. Request a narrower capability section or artifact.`);
+  if (bytes > MAX_TOOL_OUTPUT_BYTES)
+    throw Error(
+      `${resource} result is ${bytes} bytes, above the ${MAX_TOOL_OUTPUT_BYTES}-byte limit. Request a narrower capability section or artifact.`,
+    );
   return output;
 }
 
 function scopeKey(scope) {
-  return JSON.stringify({domain: scope.domain, stage: scope.stage, capabilityIds: scope.capabilityIds, skills: scope.skills, tools: scope.tools});
+  return JSON.stringify({
+    domain: scope.domain,
+    stage: scope.stage,
+    capabilityIds: scope.capabilityIds,
+    skills: scope.skills,
+    tools: scope.tools,
+  });
 }
 
 function industrialContext(scope, anchor = null, externalServers = []) {
   const externalIds = new Set(externalServers.flatMap(server => server.tools.map(tool => tool.id)));
-  const displayScope = {...scope, tools: scope.tools.filter(id => !externalIds.has(id))};
+  const displayScope = { ...scope, tools: scope.tools.filter(id => !externalIds.has(id)) };
   let context = scope.capabilityIds.length
     ? `Industrial Context (current Broker scope): ${scopeKey(displayScope)}. Use industrial_capability_detail to load details when needed. Artifact metadata tools are read-only. Treat viewer output as inspection, not engineering verification.`
     : 'No industrial capability was selected for this task. Work within the chosen project using standard Kimi tools.';
-  if (selectMcpServers(scope).length) context += '\nA project-bound Domain MCP is available. Use domain_tool_list for allowed canonical IDs, domain_tool_describe for a selected schema, and domain_tool_call to recover persisted domain context before engineering work. Core file observations are separate from domain execution and acceptance evidence.';
-  if (scope.tools.some(id => externalIds.has(id))) context += '\nUser-registered external MCP tools are available. Use external_tool_list, external_tool_describe, then external_tool_call. Screenshots are returned as images. These host services may control applications outside the project; roots are context, not an OS sandbox. Caller approval remains required. Treat their outputs as unverified observations; submit industrial actions through Domain Runtime and inspect engineering acceptance separately. Never automatically repeat an uncertain external mutation.';
-  const readHint = scope.capabilityIds.length ? 'Use industrial_context_read for more registered artifacts or after compaction.' : 'Select an industrial capability to enable checkpoint detail tools.';
-  const withAnchor = value => `${context}\nObserved project checkpoint: ${JSON.stringify(value)}. These are file observations with content hashes, not engineering verification. ${readHint}`;
+  if (selectMcpServers(scope).length)
+    context +=
+      '\nA project-bound Domain MCP is available. Use domain_tool_list for allowed canonical IDs, domain_tool_describe for a selected schema, and domain_tool_call to recover persisted domain context before engineering work. Core file observations are separate from domain execution and acceptance evidence.';
+  if (scope.tools.some(id => externalIds.has(id)))
+    context +=
+      '\nUser-registered external MCP tools are available. Use external_tool_list, external_tool_describe, then external_tool_call. Screenshots are returned as images. These host services may control applications outside the project; roots are context, not an OS sandbox. Caller approval remains required. Treat their outputs as unverified observations; submit industrial actions through Domain Runtime and inspect engineering acceptance separately. Never automatically repeat an uncertain external mutation.';
+  const readHint = scope.capabilityIds.length
+    ? 'Use industrial_context_read for more registered artifacts or after compaction.'
+    : 'Select an industrial capability to enable checkpoint detail tools.';
+  const withAnchor = value =>
+    `${context}\nObserved project checkpoint: ${JSON.stringify(value)}. These are file observations with content hashes, not engineering verification. ${readHint}`;
   let complete = anchor ? withAnchor(anchor) : context;
   if (anchor && Buffer.byteLength(complete, 'utf8') > MAX_INDUSTRIAL_CONTEXT_BYTES) {
-    complete = withAnchor({checkpointId: anchor.checkpointId, stateHash: anchor.stateHash, domain: anchor.domain, artifactCount: anchor.artifactCount, staleArtifactCount: anchor.staleArtifactCount ?? anchor.staleArtifactIds?.length ?? 0, verificationStatus: 'not_run', hasMore: true});
+    complete = withAnchor({
+      checkpointId: anchor.checkpointId,
+      stateHash: anchor.stateHash,
+      domain: anchor.domain,
+      artifactCount: anchor.artifactCount,
+      staleArtifactCount: anchor.staleArtifactCount ?? anchor.staleArtifactIds?.length ?? 0,
+      verificationStatus: 'not_run',
+      hasMore: true,
+    });
   }
-  if (Buffer.byteLength(complete, 'utf8') > MAX_INDUSTRIAL_CONTEXT_BYTES) throw Error('Broker scope exceeds the Industrial Context limit; narrow the selected capabilities before starting Kimi.');
+  if (Buffer.byteLength(complete, 'utf8') > MAX_INDUSTRIAL_CONTEXT_BYTES)
+    throw Error(
+      'Broker scope exceeds the Industrial Context limit; narrow the selected capabilities before starting Kimi.',
+    );
   return complete;
 }
 
 function prepareSessionFiles(scope, runtime, persistentDirectory, projectDir, plugins = []) {
-  const directory = persistentDirectory || fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-session-'));
-  fs.mkdirSync(directory, {recursive: true, mode: 0o700});
+  const directory =
+    persistentDirectory || fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-session-'));
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   fs.chmodSync(directory, 0o700);
   try {
     const skillsDir = materializeSkills(scope, directory, runtime.environment);
-    const skillDirs = [...new Set([skillsDir, ...enabledPlugins(plugins).map(plugin => plugin.materializeSkill(directory))])];
+    const skillDirs = [
+      ...new Set([
+        skillsDir,
+        ...enabledPlugins(plugins).map(plugin => plugin.materializeSkill(directory)),
+      ]),
+    ];
     const modelConfig = fs.readFileSync(path.join(runtime.shareDir, 'config.toml'), 'utf8');
-    fs.writeFileSync(path.join(directory, 'config.toml'), `extra_skill_dirs = [${skillDirs.map(dir => JSON.stringify(dir)).join(',')}]\n${modelConfig}`, {mode: 0o600});
-    writeMcpConfig(directory, selectMcpServers(scope, runtime.disabledMcpServers, undefined, runtime.externalServers), {projectDir, environment: runtime.environment, imageInput: Boolean(runtime.profile?.imageInput)});
+    fs.writeFileSync(
+      path.join(directory, 'config.toml'),
+      `extra_skill_dirs = [${skillDirs.map(dir => JSON.stringify(dir)).join(',')}]\n${modelConfig}`,
+      { mode: 0o600 },
+    );
+    writeMcpConfig(
+      directory,
+      selectMcpServers(scope, runtime.disabledMcpServers, undefined, runtime.externalServers),
+      {
+        projectDir,
+        environment: runtime.environment,
+        imageInput: Boolean(runtime.profile?.imageInput),
+      },
+    );
     return directory;
-  } catch (error) {if (!persistentDirectory) fs.rmSync(directory, {recursive: true, force: true}); throw error;}
+  } catch (error) {
+    if (!persistentDirectory) fs.rmSync(directory, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 function enabledPlugins(plugins) {
@@ -77,11 +134,19 @@ function redactImagePayloads(event) {
   const output = value.output.map(part => {
     if (part?.type === 'image_url' && typeof part.image_url?.url === 'string') {
       redacted = true;
-      return {...part, image_url: {...part.image_url, url: `[image redacted, ${part.image_url.url.length} chars]`}};
+      return {
+        ...part,
+        image_url: {
+          ...part.image_url,
+          url: `[image redacted, ${part.image_url.url.length} chars]`,
+        },
+      };
     }
     return part;
   });
-  return redacted ? {...event, payload: {...event.payload, return_value: {...value, output}}} : event;
+  return redacted
+    ? { ...event, payload: { ...event.payload, return_value: { ...value, output } } }
+    : event;
 }
 
 // The native CLI history (context/wire snapshots) embeds tool-result images as
@@ -89,52 +154,102 @@ function redactImagePayloads(event) {
 // event log must also stay out of the copied files.
 const DATA_URI_PATTERN = /(data:image\/[a-zA-Z0-9.+-]+;base64,)([A-Za-z0-9+/=]+)/g;
 function redactSnapshotText(text) {
-  return text.replace(DATA_URI_PATTERN, (match, prefix, payload) => `${prefix}[image redacted, ${payload.length} chars]`);
+  return text.replace(
+    DATA_URI_PATTERN,
+    (match, prefix, payload) => `${prefix}[image redacted, ${payload.length} chars]`,
+  );
 }
 
 function externalTools(getScope, lookupArtifact, disclose, readContextPage) {
   const scope = getScope();
   if (!scope?.capabilityIds.length) return [];
-  const tools = [createExternalTool({
-    name: 'industrial_capability_detail',
-    description: 'Read a selected industrial capability. Use section to request only skills, tools, or verification when the full detail is large.',
-    parameters: z.object({capabilityId: z.string(), section: z.enum(['all', 'skills', 'tools', 'verification']).optional()}),
-    handler: async ({capabilityId, section = 'all'}) => {
-      if (!getScope()?.capabilityIds.includes(capabilityId)) throw Error('Capability is outside the current Broker scope.');
-      const detail = disclose(capabilityId);
-      const selected = section === 'all' ? detail : {capability: detail.capability, [section]: detail[section]};
-      return {output: boundedJson(selected, `Capability ${capabilityId} ${section}`), message: 'Capability detail disclosed'};
-    },
-  })];
-  if (readContextPage) tools.push(createExternalTool({
-    name: 'industrial_context_read',
-    description: 'Read a page of registered project-file observations from a durable checkpoint. This does not assert engineering verification.',
-    parameters: z.object({checkpointId: z.string().uuid(), offset: z.number().int().nonnegative().optional(), limit: z.number().int().min(1).max(20).optional()}),
-    handler: async ({checkpointId, offset = 0, limit = 12}) => {
-      if (!getScope()?.capabilityIds.length) throw Error('No current Broker capability scope.');
-      return {output: boundedJson(await readContextPage(checkpointId, offset, limit), `Checkpoint ${checkpointId}`), message: 'Observed context read'};
-    },
-  }));
+  const tools = [
+    createExternalTool({
+      name: 'industrial_capability_detail',
+      description:
+        'Read a selected industrial capability. Use section to request only skills, tools, or verification when the full detail is large.',
+      parameters: z.object({
+        capabilityId: z.string(),
+        section: z.enum(['all', 'skills', 'tools', 'verification']).optional(),
+      }),
+      handler: async ({ capabilityId, section = 'all' }) => {
+        if (!getScope()?.capabilityIds.includes(capabilityId))
+          throw Error('Capability is outside the current Broker scope.');
+        const detail = disclose(capabilityId);
+        const selected =
+          section === 'all'
+            ? detail
+            : { capability: detail.capability, [section]: detail[section] };
+        return {
+          output: boundedJson(selected, `Capability ${capabilityId} ${section}`),
+          message: 'Capability detail disclosed',
+        };
+      },
+    }),
+  ];
+  if (readContextPage)
+    tools.push(
+      createExternalTool({
+        name: 'industrial_context_read',
+        description:
+          'Read a page of registered project-file observations from a durable checkpoint. This does not assert engineering verification.',
+        parameters: z.object({
+          checkpointId: z.string().uuid(),
+          offset: z.number().int().nonnegative().optional(),
+          limit: z.number().int().min(1).max(20).optional(),
+        }),
+        handler: async ({ checkpointId, offset = 0, limit = 12 }) => {
+          if (!getScope()?.capabilityIds.length) throw Error('No current Broker capability scope.');
+          return {
+            output: boundedJson(
+              await readContextPage(checkpointId, offset, limit),
+              `Checkpoint ${checkpointId}`,
+            ),
+            message: 'Observed context read',
+          };
+        },
+      }),
+    );
   for (const canonicalId of scope.tools) {
     const name = canonicalNames[canonicalId];
     if (!name) continue;
-    tools.push(createExternalTool({
-      name,
-      description: `Read metadata for an artifact through ${canonicalId}. This does not modify or verify the design.`,
-      parameters: z.object({artifactId: z.string()}),
-      handler: async ({artifactId}) => {
-        if (!getScope()?.tools.includes(canonicalId)) throw Error('Tool is outside the current Broker scope.');
-        const artifact = await lookupArtifact(artifactId);
-        if (!artifact || (canonicalId.startsWith('eda.') && artifact.kind !== canonicalId.split('.')[1])) throw Error('Artifact is unavailable for this tool.');
-        return {output: boundedJson(artifact, `Artifact ${artifactId}`), message: 'Artifact metadata read'};
-      },
-    }));
+    tools.push(
+      createExternalTool({
+        name,
+        description: `Read metadata for an artifact through ${canonicalId}. This does not modify or verify the design.`,
+        parameters: z.object({ artifactId: z.string() }),
+        handler: async ({ artifactId }) => {
+          if (!getScope()?.tools.includes(canonicalId))
+            throw Error('Tool is outside the current Broker scope.');
+          const artifact = await lookupArtifact(artifactId);
+          if (
+            !artifact ||
+            (canonicalId.startsWith('eda.') && artifact.kind !== canonicalId.split('.')[1])
+          )
+            throw Error('Artifact is unavailable for this tool.');
+          return {
+            output: boundedJson(artifact, `Artifact ${artifactId}`),
+            message: 'Artifact metadata read',
+          };
+        },
+      }),
+    );
   }
   return tools;
 }
 
 class KimiSession {
-  constructor(workDir, getScope, lookupArtifact, disclose, emit, getRuntime, sessionFactory = createSession, diagnostics = {}, plugins = []) {
+  constructor(
+    workDir,
+    getScope,
+    lookupArtifact,
+    disclose,
+    emit,
+    getRuntime,
+    sessionFactory = createSession,
+    diagnostics = {},
+    plugins = [],
+  ) {
     this.workDir = workDir;
     this.getScope = getScope;
     this.lookupArtifact = lookupArtifact;
@@ -143,6 +258,13 @@ class KimiSession {
     this.getRuntime = getRuntime;
     this.sessionFactory = sessionFactory;
     this.diagnostics = diagnostics;
+    if (
+      diagnostics.resources &&
+      (typeof diagnostics.resolveSession !== 'function' ||
+        typeof diagnostics.sessionInitialized !== 'function')
+    )
+      throw Error('Managed session resources require persistent native session callbacks.');
+    this.resourceId = crypto.randomUUID();
     this.plugins = plugins;
     // ToolCall arrives with arguments:null; the real arguments stream in as
     // ToolCallPart frames (carrying no id) before the ToolResult lands. Track
@@ -164,138 +286,366 @@ class KimiSession {
     const approvalMode = runtime.approvalMode || 'ask';
     if (!['ask', 'auto'].includes(approvalMode)) throw Error('Invalid approval mode.');
     const images = validatePromptImages(attachments);
-    if (images.length && !runtime.profile.imageInput) throw Error('Enable Image input in Model API settings for a model that supports images.');
+    if (images.length && !runtime.profile.imageInput)
+      throw Error('Enable Image input in Model API settings for a model that supports images.');
     const currentScopeKey = scopeKey(scope);
-    const mcpRuntime = selectedRuntimeKey(scope, runtime.disabledMcpServers, runtime.environment, runtime.externalServers);
+    const mcpRuntime = selectedRuntimeKey(
+      scope,
+      runtime.disabledMcpServers,
+      runtime.environment,
+      runtime.externalServers,
+    );
     const currentMcpKey = JSON.stringify(mcpRuntime);
     const pluginKey = JSON.stringify(enabledPlugins(this.plugins).map(plugin => plugin.name));
-    this.activePluginTools = new Set(enabledPlugins(this.plugins).flatMap(plugin => plugin.toolNames || []));
-    const log = createDiagnosticLog(this.workDir, {directory: this.diagnostics.directory, apiKey: runtime.apiKey, secrets: externalSecrets(runtime.externalServers || [], runtime.environment)});
+    this.activePluginTools = new Set(
+      enabledPlugins(this.plugins).flatMap(plugin => plugin.toolNames || []),
+    );
+    const log = createDiagnosticLog(this.workDir, {
+      directory: this.diagnostics.directory,
+      apiKey: runtime.apiKey,
+      secrets: externalSecrets(runtime.externalServers || [], runtime.environment),
+    });
     this.log = log;
+    this.interruptRequested = false;
+    this.stopPromise = undefined;
+    let finishTurn;
+    this.turnFinished = new Promise(resolve => {
+      finishTurn = resolve;
+    });
+    const forcedCancellation = new Promise(resolve => {
+      this.cancelTurn = resolve;
+    });
     this.running = true;
-    this.turnMetrics = {peakContextUsage: null, lastContextUsage: null, compactions: 0, toolResults: 0, peakToolResultBytes: 0};
+    this.turnMetrics = {
+      peakContextUsage: null,
+      lastContextUsage: null,
+      compactions: 0,
+      toolResults: 0,
+      peakToolResultBytes: 0,
+    };
     let metricsEmitted = false;
-    const emitMetrics = () => {if (!metricsEmitted) {metricsEmitted = true; this.emitAgent({type: 'context-metrics', ...this.turnMetrics});}};
+    const emitMetrics = () => {
+      if (!metricsEmitted) {
+        metricsEmitted = true;
+        this.emitAgent({ type: 'context-metrics', ...this.turnMetrics });
+      }
+    };
     let outcome = 'error';
+    let releaseResources;
     try {
-      log.record('run.start', {projectDir: this.workDir, previousSessionId: this.session?.sessionId || null, scope, brokerTrace: this.diagnostics.getBrokerTrace?.() || [], model: {provider: runtime.profile.provider, model: runtime.profile.model, contextSize: runtime.profile.contextSize, thinking: runtime.profile.thinking, imageInput: Boolean(runtime.profile.imageInput)}, approvalMode, runtimeRevision: runtime.revision});
-      this.emitAgent({type: 'diagnostic-log', traceId: log.traceId, path: log.file});
+      releaseResources = await this.diagnostics.resources?.acquire(this.resourceId, {
+        dispose: async () => {
+          await this.closeNative();
+          this.diagnostics.onIdleRelease?.();
+        },
+        isBusy: () =>
+          Boolean(
+            this.running || this.turn || this.pendingApprovals.size || this.pendingQuestions.size,
+          ),
+      });
+      if (this.interruptRequested) {
+        outcome = 'cancelled';
+        this.emitAgent({ type: 'done', result: { status: outcome } });
+        return;
+      }
+      log.record('run.start', {
+        projectDir: this.workDir,
+        previousSessionId: this.session?.sessionId || null,
+        scope,
+        brokerTrace: this.diagnostics.getBrokerTrace?.() || [],
+        model: {
+          provider: runtime.profile.provider,
+          model: runtime.profile.model,
+          contextSize: runtime.profile.contextSize,
+          thinking: runtime.profile.thinking,
+          imageInput: Boolean(runtime.profile.imageInput),
+        },
+        approvalMode,
+        runtimeRevision: runtime.revision,
+      });
+      this.emitAgent({ type: 'diagnostic-log', traceId: log.traceId, path: log.file });
       const anchor = await this.diagnostics.getContextAnchor?.();
       const context = industrialContext(scope, anchor, runtime.externalServers);
       if (anchor) log.record('context.anchor', anchor);
-      const resetReason = !this.session ? 'new' : this.currentScopeKey !== currentScopeKey ? 'scope_changed' : this.runtimeRevision !== runtime.revision ? 'model_changed' : this.lastApprovalMode !== approvalMode ? 'approval_mode_changed' : this.lastPluginKey !== pluginKey ? 'plugins_changed' : this.currentMcpKey !== currentMcpKey ? 'mcp_changed' : null;
+      const resetReason = !this.session
+        ? 'new'
+        : this.currentScopeKey !== currentScopeKey
+          ? 'scope_changed'
+          : this.runtimeRevision !== runtime.revision
+            ? 'model_changed'
+            : this.lastApprovalMode !== approvalMode
+              ? 'approval_mode_changed'
+              : this.lastPluginKey !== pluginKey
+                ? 'plugins_changed'
+                : this.currentMcpKey !== currentMcpKey
+                  ? 'mcp_changed'
+                  : null;
       if (resetReason) {
-        log.record('session.create', {reason: resetReason, previousScopeKey: this.currentScopeKey || null, currentScopeKey});
+        log.record('session.create', {
+          reason: resetReason,
+          previousScopeKey: this.currentScopeKey || null,
+          currentScopeKey,
+        });
         if (this.session) this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
         await this.session?.close();
         this.session = undefined;
-        if (this.sessionConfigDir && !this.persistentSession) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true});
-        const compatibilityKey = crypto.createHash('sha256').update(JSON.stringify({scope: currentScopeKey, profile: runtime.profile, executable: runtime.executable || 'kimi', disabledMcpServers: runtime.disabledMcpServers || [], mcpRuntime, plugins: pluginKey, approvalMode})).digest('hex');
+        if (this.sessionConfigDir && !this.persistentSession)
+          fs.rmSync(this.sessionConfigDir, { recursive: true, force: true });
+        const compatibilityKey = crypto
+          .createHash('sha256')
+          .update(
+            JSON.stringify({
+              scope: currentScopeKey,
+              profile: runtime.profile,
+              executable: runtime.executable || 'kimi',
+              disabledMcpServers: runtime.disabledMcpServers || [],
+              mcpRuntime,
+              plugins: pluginKey,
+              approvalMode,
+            }),
+          )
+          .digest('hex');
         this.persistentSession = this.diagnostics.resolveSession?.(compatibilityKey);
         const stored = this.persistentSession;
         if (stored?.initialized) {
-          const context = path.join(createKimiPaths(stored.shareDir).sessionDir(this.workDir, stored.id), 'context.jsonl');
-          if (!fs.existsSync(context) || !fs.statSync(context).size) throw Error('Saved agent context is missing. Open a new chat; the existing history is preserved.');
+          const context = path.join(
+            createKimiPaths(stored.shareDir).sessionDir(this.workDir, stored.id),
+            'context.jsonl',
+          );
+          if (!fs.existsSync(context) || !fs.statSync(context).size)
+            throw Error(
+              'Saved agent context is missing. Open a new chat; the existing history is preserved.',
+            );
         }
-        this.sessionConfigDir = prepareSessionFiles(scope, runtime, stored?.shareDir, this.workDir, this.plugins);
+        this.sessionConfigDir = prepareSessionFiles(
+          scope,
+          runtime,
+          stored?.shareDir,
+          this.workDir,
+          this.plugins,
+        );
         this.session = this.sessionFactory({
           workDir: this.workDir,
-          ...(this.persistentSession ? {sessionId: this.persistentSession.id} : {}),
+          ...(this.persistentSession ? { sessionId: this.persistentSession.id } : {}),
           executable: runtime.executable,
           shareDir: this.sessionConfigDir,
           model: 'industrial',
           thinking: runtime.profile.thinking,
           env: runtime.env,
           yoloMode: approvalMode === 'auto',
-          externalTools: [...externalTools(this.getScope, this.lookupArtifact, this.disclose, this.diagnostics.readContextPage), ...enabledPlugins(this.plugins).flatMap(plugin => plugin.toolsFactory(this.diagnostics.pluginLog).map(tool => createExternalTool(tool)))],
-          clientInfo: {name: 'industrial-agent-harness', version: '0.0.0'},
+          externalTools: [
+            ...externalTools(
+              this.getScope,
+              this.lookupArtifact,
+              this.disclose,
+              this.diagnostics.readContextPage,
+            ),
+            ...enabledPlugins(this.plugins).flatMap(plugin =>
+              plugin.toolsFactory(this.diagnostics.pluginLog).map(tool => createExternalTool(tool)),
+            ),
+          ],
+          clientInfo: { name: 'industrial-agent-harness', version: '0.0.0' },
         });
         this.currentScopeKey = currentScopeKey;
         this.currentMcpKey = currentMcpKey;
         this.runtimeRevision = runtime.revision;
         this.lastPluginKey = pluginKey;
         this.lastApprovalMode = approvalMode;
-        if (this.persistentSession?.replaced && !this.persistentSession.reused) this.emitAgent({type: 'context-reset', message: 'Tools or model changed. A new context started; earlier messages remain available above.'});
-        log.record('session.ready', {sessionId: this.session.sessionId || null, currentScopeKey});
-      } else log.record('session.reuse', {sessionId: this.session.sessionId || null, currentScopeKey});
+        if (this.persistentSession?.replaced && !this.persistentSession.reused)
+          this.emitAgent({
+            type: 'context-reset',
+            message:
+              'Tools or model changed. A new context started; earlier messages remain available above.',
+          });
+        log.record('session.ready', { sessionId: this.session.sessionId || null, currentScopeKey });
+      } else
+        log.record('session.reuse', { sessionId: this.session.sessionId || null, currentScopeKey });
       const prompt = `${context}\n\nUser task: ${task}${images.length ? '\nAttached images are user-provided visual references, not engineering verification.' : ''}`;
       const content = imageContent(prompt, images, runtime.profile.imageInput);
-      log.record('prompt', {text: prompt, ...(images.length ? {images: images.map(({dataUrl, ...metadata}) => metadata), content} : {})});
+      log.record('prompt', {
+        text: prompt,
+        ...(images.length
+          ? { images: images.map(({ dataUrl, ...metadata }) => metadata), content }
+          : {}),
+      });
+      if (this.interruptRequested) {
+        outcome = 'cancelled';
+        this.emitAgent({ type: 'done', result: { status: outcome } });
+        return;
+      }
       const turn = this.session.prompt(content);
       this.turn = turn;
-      for await (const event of turn) {log.record('sdk.event', redactImagePayloads(event)); this.emitEvent(event);}
-      const result = await turn.result;
+      const consume = async () => {
+        for await (const event of turn) {
+          if (this.turn !== turn) return { status: 'cancelled' };
+          log.record('sdk.event', redactImagePayloads(event));
+          this.emitEvent(event);
+        }
+        return await turn.result;
+      };
+      const result = await Promise.race([consume(), forcedCancellation]);
       emitMetrics();
       outcome = result.status;
-      this.emitAgent({type: 'done', result});
-    } catch (error) {emitMetrics(); this.emitAgent({type: 'error', message: String(error)});}
-    finally {
-      this.turn = undefined;
-      this.pendingToolArgs.clear();
-      this.toolNames.clear();
-      this.lastToolCall = null;
-      for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
-      for (const [id, question] of this.pendingQuestions) if (question.state === 'pending') this.resolveQuestion(id, 'expired');
-      try {
-        this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
-        if (this.persistentSession && this.sessionConfigDir && fs.existsSync(path.join(createKimiPaths(this.sessionConfigDir).sessionDir(this.workDir, this.persistentSession.id), 'context.jsonl'))) this.diagnostics.sessionInitialized?.(this.persistentSession.id);
-        log.record('run.end', {status: outcome, sessionId: this.session?.sessionId || null, metrics: this.turnMetrics, brokerTrace: this.diagnostics.getBrokerTrace?.() || []});
+      this.emitAgent({ type: 'done', result });
+    } catch (error) {
+      if (this.turn) {
+        this.interruptRequested = true;
+        try {
+          await this.closeNative();
+        } catch (closeError) {
+          error = new AggregateError(
+            [error, closeError],
+            `${error.message}; ${closeError.message}`,
+          );
+        }
       }
-      finally {log.close(); this.log = undefined; this.running = false;}
+      emitMetrics();
+      this.emitAgent({ type: 'error', message: String(error) });
+    } finally {
+      try {
+        this.turn = undefined;
+        this.pendingToolArgs.clear();
+        this.toolNames.clear();
+        this.lastToolCall = null;
+        for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
+        for (const [id, question] of this.pendingQuestions)
+          if (question.state === 'pending') this.resolveQuestion(id, 'expired');
+        this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
+        if (
+          this.persistentSession &&
+          this.sessionConfigDir &&
+          fs.existsSync(
+            path.join(
+              createKimiPaths(this.sessionConfigDir).sessionDir(
+                this.workDir,
+                this.persistentSession.id,
+              ),
+              'context.jsonl',
+            ),
+          )
+        )
+          this.diagnostics.sessionInitialized?.(this.persistentSession.id);
+        log.record('run.end', {
+          status: outcome,
+          sessionId: this.session?.sessionId || null,
+          metrics: this.turnMetrics,
+          brokerTrace: this.diagnostics.getBrokerTrace?.() || [],
+        });
+      } finally {
+        try {
+          log.close();
+        } finally {
+          this.log = undefined;
+          this.running = false;
+          this.cancelTurn = undefined;
+          finishTurn();
+          releaseResources?.();
+        }
+      }
     }
   }
   captureKimiSnapshot(log, phase, apiKey) {
     if (!this.sessionConfigDir || !this.session?.sessionId) return;
-    const sessionDir = path.join(createKimiPaths(this.sessionConfigDir).sessionsDir(this.workDir), this.session.sessionId);
+    const sessionDir = path.join(
+      createKimiPaths(this.sessionConfigDir).sessionsDir(this.workDir),
+      this.session.sessionId,
+    );
     for (const kind of ['context', 'wire']) {
       const source = path.join(sessionDir, `${kind}.jsonl`);
       try {
         if (!fs.existsSync(source)) continue;
         const raw = fs.readFileSync(source, 'utf8');
-        const content = redactSnapshotText(apiKey ? raw.replaceAll(apiKey, '[REDACTED_API_KEY]') : raw);
+        const content = redactSnapshotText(
+          apiKey ? raw.replaceAll(apiKey, '[REDACTED_API_KEY]') : raw,
+        );
         const target = path.join(path.dirname(log.file), `${log.traceId}.${phase}.${kind}.jsonl`);
-        fs.writeFileSync(target, content, {flag: 'wx', mode: 0o600});
-        log.record('kimi.snapshot', {phase, kind, path: target, bytes: Buffer.byteLength(content, 'utf8'), sha256: crypto.createHash('sha256').update(content).digest('hex')});
-      } catch (error) {log.record('kimi.snapshot_error', {phase, kind, message: String(error)});}
+        fs.writeFileSync(target, content, { flag: 'wx', mode: 0o600 });
+        log.record('kimi.snapshot', {
+          phase,
+          kind,
+          path: target,
+          bytes: Buffer.byteLength(content, 'utf8'),
+          sha256: crypto.createHash('sha256').update(content).digest('hex'),
+        });
+      } catch (error) {
+        log.record('kimi.snapshot_error', { phase, kind, message: String(error) });
+      }
     }
   }
-  emitAgent(event) {this.log?.record('harness.event', event); this.emit(event);}
+  emitAgent(event) {
+    this.log?.record('harness.event', event);
+    this.emit(event);
+  }
   emitEvent(event) {
     if (event.type === 'ContentPart') {
-      if (event.payload.type === 'text') this.emitAgent({type: 'text', text: event.payload.text});
-      else if (event.payload.type === 'think') this.emitAgent({type: 'thinking', text: event.payload.think});
+      if (event.payload.type === 'text') this.emitAgent({ type: 'text', text: event.payload.text });
+      else if (event.payload.type === 'think')
+        this.emitAgent({ type: 'thinking', text: event.payload.think });
     } else if (event.type === 'ApprovalRequest') {
       this.pendingApprovals.set(event.payload.id, 'pending');
       if (this.lastApprovalMode === 'auto' || this.activePluginTools?.has(event.payload.sender)) {
         // Enabling the plugin is the authorization: auto-approve its tool
         // approvals for this session instead of surfacing them to the user.
-        this.log?.record('approval.auto', {sender: event.payload.sender, id: event.payload.id, reason: this.lastApprovalMode === 'auto' ? 'user_mode' : 'enabled_plugin'});
-        this.approve(event.payload.id, 'approve_for_session').catch(error => this.emitAgent({type: 'approval_error', id: event.payload.id, message: String(error)}));
-      } else this.emitAgent({type: 'approval', id: event.payload.id, description: event.payload.description, action: event.payload.action});
-    }
-    else if (event.type === 'QuestionRequest') {
-      const {id, tool_call_id, questions} = event.payload;
-      this.pendingQuestions.set(id, {state: 'pending', questions});
-      this.emitAgent({type: 'question', id, toolCallId: tool_call_id, questions});
-    }
-    else if (event.type === 'ApprovalResponse') this.resolveApproval(event.payload.request_id, event.payload.response);
+        this.log?.record('approval.auto', {
+          sender: event.payload.sender,
+          id: event.payload.id,
+          reason: this.lastApprovalMode === 'auto' ? 'user_mode' : 'enabled_plugin',
+        });
+        this.approve(event.payload.id, 'approve_for_session').catch(error =>
+          this.emitAgent({ type: 'approval_error', id: event.payload.id, message: String(error) }),
+        );
+      } else
+        this.emitAgent({
+          type: 'approval',
+          id: event.payload.id,
+          description: event.payload.description,
+          action: event.payload.action,
+        });
+    } else if (event.type === 'QuestionRequest') {
+      const { id, tool_call_id, questions } = event.payload;
+      this.pendingQuestions.set(id, { state: 'pending', questions });
+      this.emitAgent({ type: 'question', id, toolCallId: tool_call_id, questions });
+    } else if (event.type === 'ApprovalResponse')
+      this.resolveApproval(event.payload.request_id, event.payload.response);
     else if (event.type === 'ToolCall') {
       if (this.lastToolCall && this.pendingToolArgs.has(this.lastToolCall.id)) {
-        this.emitAgent({type: 'tool', id: this.lastToolCall.id, name: this.toolNames.get(this.lastToolCall.id) || this.lastToolCall.name, arguments: this.pendingToolArgs.get(this.lastToolCall.id)});
+        this.emitAgent({
+          type: 'tool',
+          id: this.lastToolCall.id,
+          name: this.toolNames.get(this.lastToolCall.id) || this.lastToolCall.name,
+          arguments: this.pendingToolArgs.get(this.lastToolCall.id),
+        });
       }
       this.pendingToolArgs.set(event.payload.id, '');
       this.toolNames.set(event.payload.id, event.payload.function.name);
-      this.lastToolCall = {id: event.payload.id, name: event.payload.function.name};
-      this.emitAgent({type: 'tool', id: event.payload.id, name: event.payload.function.name, arguments: event.payload.function.arguments || ''});
+      this.lastToolCall = { id: event.payload.id, name: event.payload.function.name };
+      this.emitAgent({
+        type: 'tool',
+        id: event.payload.id,
+        name: event.payload.function.name,
+        arguments: event.payload.function.arguments || '',
+      });
     } else if (event.type === 'ToolCallPart') {
-      if (this.lastToolCall) this.pendingToolArgs.set(this.lastToolCall.id, (this.pendingToolArgs.get(this.lastToolCall.id) || '') + (event.payload.arguments_part || ''));
+      if (this.lastToolCall)
+        this.pendingToolArgs.set(
+          this.lastToolCall.id,
+          (this.pendingToolArgs.get(this.lastToolCall.id) || '') +
+            (event.payload.arguments_part || ''),
+        );
     } else if (event.type === 'ToolResult') {
       const value = event.payload.return_value;
       const rawArgs = this.pendingToolArgs.get(event.payload.tool_call_id) || '';
       if (rawArgs) {
         let args = rawArgs;
-        try {args = JSON.stringify(JSON.parse(rawArgs), null, 2);} catch {}
-        this.emitAgent({type: 'tool', id: event.payload.tool_call_id, name: this.toolNames.get(event.payload.tool_call_id) || '', arguments: args});
+        try {
+          args = JSON.stringify(JSON.parse(rawArgs), null, 2);
+        } catch {}
+        this.emitAgent({
+          type: 'tool',
+          id: event.payload.tool_call_id,
+          name: this.toolNames.get(event.payload.tool_call_id) || '',
+          arguments: args,
+        });
       }
       this.pendingToolArgs.delete(event.payload.tool_call_id);
       this.toolNames.delete(event.payload.tool_call_id);
@@ -310,45 +660,80 @@ class KimiSession {
       else {
         const parts = Array.isArray(value.output) ? value.output : [];
         imageCount = parts.filter(part => part?.type === 'image_url').length;
-        output = parts.filter(part => part?.type === 'text').map(part => part.text).join('\n');
+        output = parts
+          .filter(part => part?.type === 'text')
+          .map(part => part.text)
+          .join('\n');
       }
       const outputBytes = Buffer.byteLength(output, 'utf8');
-      this.turnMetrics.peakToolResultBytes = Math.max(this.turnMetrics.peakToolResultBytes, outputBytes);
-      this.emitAgent({type: 'tool-result', id: event.payload.tool_call_id, error: value.is_error, message: value.message, output: output.slice(0, 12000), outputBytes, outputTruncated: output.length > 12000, imageCount});
-      for (const block of value.display || []) if (block.type === 'todo' && Array.isArray(block.items)) this.emitAgent({type: 'todo', items: block.items});
-    } else if (event.type === 'StepBegin') this.emitAgent({type: 'step', number: event.payload.n});
+      this.turnMetrics.peakToolResultBytes = Math.max(
+        this.turnMetrics.peakToolResultBytes,
+        outputBytes,
+      );
+      this.emitAgent({
+        type: 'tool-result',
+        id: event.payload.tool_call_id,
+        error: value.is_error,
+        message: value.message,
+        output: output.slice(0, 12000),
+        outputBytes,
+        outputTruncated: output.length > 12000,
+        imageCount,
+      });
+      for (const block of value.display || [])
+        if (block.type === 'todo' && Array.isArray(block.items))
+          this.emitAgent({ type: 'todo', items: block.items });
+    } else if (event.type === 'StepBegin')
+      this.emitAgent({ type: 'step', number: event.payload.n });
     else if (event.type === 'StatusUpdate') {
       const usage = event.payload.context_usage;
       if (typeof usage === 'number' && Number.isFinite(usage)) {
         this.turnMetrics.lastContextUsage = usage;
         this.turnMetrics.peakContextUsage = Math.max(this.turnMetrics.peakContextUsage ?? 0, usage);
       }
-      this.emitAgent({type: 'status', contextUsage: usage ?? null, tokenUsage: event.payload.token_usage ?? null});
-    }
-    else if (event.type === 'CompactionBegin') {this.turnMetrics.compactions++; this.emitAgent({type: 'compaction', state: 'begin'});}
-    else if (event.type === 'CompactionEnd') this.emitAgent({type: 'compaction', state: 'end'});
+      this.emitAgent({
+        type: 'status',
+        contextUsage: usage ?? null,
+        tokenUsage: event.payload.token_usage ?? null,
+      });
+    } else if (event.type === 'CompactionBegin') {
+      this.turnMetrics.compactions++;
+      this.emitAgent({ type: 'compaction', state: 'begin' });
+    } else if (event.type === 'CompactionEnd') this.emitAgent({ type: 'compaction', state: 'end' });
   }
   resolveApproval(id, decision) {
     if (!this.pendingApprovals.has(id)) return;
     this.pendingApprovals.delete(id);
-    this.emitAgent({type: 'approval-resolved', id, decision});
+    this.emitAgent({ type: 'approval-resolved', id, decision });
   }
   resolveQuestion(id, decision, answers) {
     if (!this.pendingQuestions.has(id)) return;
     this.pendingQuestions.delete(id);
-    this.emitAgent({type: 'question-resolved', id, decision, ...(answers ? {answers} : {})});
+    this.emitAgent({ type: 'question-resolved', id, decision, ...(answers ? { answers } : {}) });
   }
   async answerQuestion(id, answers) {
     const pending = this.pendingQuestions.get(id);
-    if (!this.turn || pending?.state !== 'pending') throw Error('This question is no longer pending.');
-    if (!answers || typeof answers !== 'object' || Array.isArray(answers)) throw Error('Provide answers for the pending questions.');
+    if (!this.turn || pending?.state !== 'pending')
+      throw Error('This question is no longer pending.');
+    if (!answers || typeof answers !== 'object' || Array.isArray(answers))
+      throw Error('Provide answers for the pending questions.');
     const skipped = Object.keys(answers).length === 0;
-    if (!skipped && (Object.keys(answers).length !== pending.questions.length || pending.questions.some(item => typeof answers[item.question] !== 'string' || !answers[item.question].trim() || answers[item.question].length > 4096))) throw Error('Answer every question before continuing.');
-    this.pendingQuestions.set(id, {...pending, state: 'submitting'});
+    if (
+      !skipped &&
+      (Object.keys(answers).length !== pending.questions.length ||
+        pending.questions.some(
+          item =>
+            typeof answers[item.question] !== 'string' ||
+            !answers[item.question].trim() ||
+            answers[item.question].length > 4096,
+        ))
+    )
+      throw Error('Answer every question before continuing.');
+    this.pendingQuestions.set(id, { ...pending, state: 'submitting' });
     try {
       // Kimi CLI 1.51.0 uses QuestionRequest.id as its Wire RPC id.
       await this.turn.respondQuestion(id, id, answers);
-      this.log?.record('question.response', {id, answers});
+      this.log?.record('question.response', { id, answers });
       this.resolveQuestion(id, skipped ? 'skipped' : 'answered', answers);
     } catch (error) {
       if (this.pendingQuestions.has(id)) {
@@ -359,20 +744,73 @@ class KimiSession {
     }
   }
   async approve(id, response) {
-    if (!['approve', 'approve_for_session', 'reject'].includes(response)) throw Error('Invalid approval decision.');
-    if (!this.turn || this.pendingApprovals.get(id) !== 'pending') throw Error('This approval is no longer pending.');
+    if (!['approve', 'approve_for_session', 'reject'].includes(response))
+      throw Error('Invalid approval decision.');
+    if (!this.turn || this.pendingApprovals.get(id) !== 'pending')
+      throw Error('This approval is no longer pending.');
     this.pendingApprovals.set(id, 'submitting');
     try {
       await this.turn.approve(id, response);
-      this.log?.record('approval.response', {id, response});
+      this.log?.record('approval.response', { id, response });
       this.resolveApproval(id, response);
     } catch (error) {
       if (this.pendingApprovals.has(id)) this.pendingApprovals.set(id, 'pending');
       throw error;
     }
   }
-  interrupt() {this.log?.record('turn.interrupt', {}); return this.turn?.interrupt();}
-  async close() {await this.session?.close(); this.session = undefined; if (this.sessionConfigDir && !this.persistentSession) fs.rmSync(this.sessionConfigDir, {recursive: true, force: true}); this.sessionConfigDir = undefined;}
+  interrupt() {
+    if (this.running) this.interruptRequested = true;
+    this.log?.record('turn.interrupt', {});
+    const turn = this.turn;
+    if (!turn) return;
+    if (this.stopPromise) return this.stopPromise;
+    const turnFinished = this.turnFinished;
+    // The pinned SDK can leave turn.result pending after a signal-killed CLI.
+    // Give native cancellation a grace period, then close only this actor.
+    let timer;
+    const fallback = new Promise((resolve, reject) => {
+      timer = setTimeout(() => {
+        if (this.turn !== turn) return resolve();
+        this.closeNative().then(resolve, reject);
+      }, this.diagnostics.interruptGraceMs ?? 3000);
+    });
+    const requested = Promise.resolve()
+      .then(() => turn.interrupt())
+      .catch(() => {});
+    const stopPromise = Promise.race([requested.then(() => turnFinished), fallback]).finally(() => {
+      clearTimeout(timer);
+      if (this.stopPromise === stopPromise) this.stopPromise = undefined;
+    });
+    this.stopPromise = stopPromise;
+    return stopPromise;
+  }
+  async close() {
+    if (this.running) this.interruptRequested = true;
+    await this.diagnostics.resources?.remove(this.resourceId);
+    await this.closeNative();
+  }
+  async closeNative() {
+    if (this.closing) return this.closing;
+    this.closing = this.disposeNative().finally(() => {
+      this.closing = undefined;
+    });
+    return this.closing;
+  }
+  async disposeNative() {
+    await this.session?.close();
+    if (this.interruptRequested && this.turn) this.cancelTurn?.({ status: 'cancelled' });
+    this.session = undefined;
+    if (this.sessionConfigDir && !this.persistentSession)
+      fs.rmSync(this.sessionConfigDir, { recursive: true, force: true });
+    this.sessionConfigDir = undefined;
+  }
 }
 
-module.exports = {KimiSession, externalTools, prepareSessionFiles, boundedJson, industrialContext, scopeKey};
+module.exports = {
+  KimiSession,
+  externalTools,
+  prepareSessionFiles,
+  boundedJson,
+  industrialContext,
+  scopeKey,
+};

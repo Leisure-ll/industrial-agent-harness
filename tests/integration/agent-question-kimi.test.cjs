@@ -3,42 +3,114 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {KimiSession} = require('../../packages/agent-kimi/src/index.cjs');
-const {DiagnosticReader} = require('../../packages/agent-kimi/src/diagnostic-reader.cjs');
-const {writeCliConfig, validateProfile, sessionEnv} = require('../../packages/agent-kimi/src/model-config.cjs');
-const {startModel} = require('./fixtures/domain-mcp-model.cjs');
+const { KimiSession } = require('../../packages/agent-kimi/src/index.cjs');
+const { DiagnosticReader } = require('../../packages/agent-kimi/src/diagnostic-reader.cjs');
+const {
+  writeCliConfig,
+  validateProfile,
+  sessionEnv,
+} = require('../../packages/agent-kimi/src/model-config.cjs');
+const { startModel } = require('./fixtures/domain-mcp-model.cjs');
 const root = path.resolve(__dirname, '../..');
 const kimi = process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
 
-test('pinned Kimi Wire question reaches the user and resumes after the answer in native auto-approval mode', {timeout: 45000, skip: !fs.existsSync(kimi)}, async t => {
-  let asked = false;
-  const fixture = await startModel({success: 'QUESTION_ANSWERED', calls: () => asked ? [] : (asked = true, [{name: 'AskUserQuestion', arguments: {questions: [{question: 'Which layer?', header: 'Layout', options: [{label: 'Top', description: 'Upper layer'}, {label: 'Bottom', description: 'Lower layer'}], multi_select: false}]}}])});
-  t.after(fixture.close);
-  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-kimi-question-'));
-  t.after(() => fs.rmSync(project, {recursive: true, force: true}));
-  const profile = validateProfile({provider: 'openai_legacy', endpoint: fixture.endpoint, model: 'controlled-question', contextSize: 32768, thinking: false});
-  const runtime = {apiKey: 'controlled-question-key', profile, revision: 0, executable: kimi, shareDir: writeCliConfig(project, profile), env: sessionEnv(profile, 'controlled-question-key'), approvalMode: 'auto'};
-  const scope = {domain: 'godot', stage: null, capabilityIds: [], skills: [], tools: []};
-  const events = [];
-  let session;
-  session = new KimiSession(project, () => scope, () => null, () => null, event => {
-    events.push(event);
-    if (event.type === 'question') queueMicrotask(() => {void session.answerQuestion(event.id, {'Which layer?': 'Bottom'});});
-  }, () => runtime, undefined, {directory: path.join(project, 'logs')});
-  t.after(() => session.close());
-  await session.run('Ask me which layer, then continue');
-  assert.equal(events.filter(event => event.type === 'question').length, 1, JSON.stringify(events));
-  assert.equal(events.find(event => event.type === 'question-resolved')?.decision, 'answered');
-  assert.equal(events.find(event => event.type === 'done')?.result.status, 'finished', JSON.stringify(events));
-  assert.ok(fixture.requests[0].tools.some(tool => tool.function.name === 'AskUserQuestion'));
-  assert.ok(fixture.requests.length >= 2, 'Kimi should resume the model after the question is answered');
-  assert.ok(events.some(event => event.type === 'tool-result' && event.output.includes('Bottom')), 'Kimi should return the selected answer through the native tool result');
-  const reader = new DiagnosticReader(path.join(project, 'logs'));
-  const {runs} = await reader.list(project);
-  const page = await reader.page(project, {runId: runs[0].runId, category: 'approvals'});
-  assert.ok(page.records.some(record => record.event === 'QuestionRequest'));
-  assert.ok(page.records.some(record => record.type === 'question.response'));
-  const timeline = await reader.view(project, {runId: runs[0].runId});
-  assert.ok(timeline.entries.some(entry => entry.title === '询问用户'));
-  assert.ok(timeline.entries.some(entry => entry.title === '用户回答'));
-});
+test(
+  'pinned Kimi Wire question reaches the user and resumes after the answer in native auto-approval mode',
+  { timeout: 45000, skip: !fs.existsSync(kimi) },
+  async t => {
+    let asked = false;
+    const fixture = await startModel({
+      success: 'QUESTION_ANSWERED',
+      calls: () =>
+        asked
+          ? []
+          : ((asked = true),
+            [
+              {
+                name: 'AskUserQuestion',
+                arguments: {
+                  questions: [
+                    {
+                      question: 'Which layer?',
+                      header: 'Layout',
+                      options: [
+                        { label: 'Top', description: 'Upper layer' },
+                        { label: 'Bottom', description: 'Lower layer' },
+                      ],
+                      multi_select: false,
+                    },
+                  ],
+                },
+              },
+            ]),
+    });
+    t.after(fixture.close);
+    const project = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-kimi-question-'));
+    t.after(() => fs.rmSync(project, { recursive: true, force: true }));
+    const profile = validateProfile({
+      provider: 'openai_legacy',
+      endpoint: fixture.endpoint,
+      model: 'controlled-question',
+      contextSize: 32768,
+      thinking: false,
+    });
+    const runtime = {
+      apiKey: 'controlled-question-key',
+      profile,
+      revision: 0,
+      executable: kimi,
+      shareDir: writeCliConfig(project, profile),
+      env: sessionEnv(profile, 'controlled-question-key'),
+      approvalMode: 'auto',
+    };
+    const scope = { domain: 'godot', stage: null, capabilityIds: [], skills: [], tools: [] };
+    const events = [];
+    let session;
+    session = new KimiSession(
+      project,
+      () => scope,
+      () => null,
+      () => null,
+      event => {
+        events.push(event);
+        if (event.type === 'question')
+          queueMicrotask(() => {
+            void session.answerQuestion(event.id, { 'Which layer?': 'Bottom' });
+          });
+      },
+      () => runtime,
+      undefined,
+      { directory: path.join(project, 'logs') },
+    );
+    t.after(() => session.close());
+    await session.run('Ask me which layer, then continue');
+    assert.equal(
+      events.filter(event => event.type === 'question').length,
+      1,
+      JSON.stringify(events),
+    );
+    assert.equal(events.find(event => event.type === 'question-resolved')?.decision, 'answered');
+    assert.equal(
+      events.find(event => event.type === 'done')?.result.status,
+      'finished',
+      JSON.stringify(events),
+    );
+    assert.ok(fixture.requests[0].tools.some(tool => tool.function.name === 'AskUserQuestion'));
+    assert.ok(
+      fixture.requests.length >= 2,
+      'Kimi should resume the model after the question is answered',
+    );
+    assert.ok(
+      events.some(event => event.type === 'tool-result' && event.output.includes('Bottom')),
+      'Kimi should return the selected answer through the native tool result',
+    );
+    const reader = new DiagnosticReader(path.join(project, 'logs'));
+    const { runs } = await reader.list(project);
+    const page = await reader.page(project, { runId: runs[0].runId, category: 'approvals' });
+    assert.ok(page.records.some(record => record.event === 'QuestionRequest'));
+    assert.ok(page.records.some(record => record.type === 'question.response'));
+    const timeline = await reader.view(project, { runId: runs[0].runId });
+    assert.ok(timeline.entries.some(entry => entry.title === '询问用户'));
+    assert.ok(timeline.entries.some(entry => entry.title === '用户回答'));
+  },
+);

@@ -38,8 +38,10 @@ MCP server 子进程在**首次工具调用**时懒启动,进程生命周期内�
 `agent-kimi` 的 `MAX_TOOL_OUTPUT_BYTES` 一致);server 报权限缺失时返回
 `{isError, needsSystemPermission: true}`,由 adapter 引导用户去系统设置授权。
 
+物理桌面调用按 FIFO 串行执行。排队调用超时只结束该调用的等待，不提前释放仍在运行的前序动作；后续调用必须等前序动作完成，避免多个会话同时操纵同一桌面。
+
 ## 已知缺口(登记于 prototype-register)
 
-GUI 动作不进 Domain Runtime 的 Run/Action/Verification(现有 Runtime 只有 ObservedContextStore,
-无 Action 层);调用证据目前只在 diagnostic log。替换目标:Domain Runtime Action 层统一承接
+GUI 动作不进 Domain Runtime 的 Run/Action/Verification；现有 Runtime 已有供 Godot 网关使用的
+ActionJournal，GUI 尚未接入。GUI 调用证据目前只在 diagnostic log。替换目标:Domain Runtime Action 层统一承接
 插件调用与 Verification。

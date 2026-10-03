@@ -1,0 +1,52 @@
+{
+  "recordedAt": "2026-10-03T01:08:28.168Z",
+  "node": "v25.9.0",
+  "platform": "darwin-arm64",
+  "totalMemoryGiB": 16,
+  "initialAvailableMemoryGiB": 4.02,
+  "limits": {
+    "maxConcurrent": 4,
+    "maxResident": 6,
+    "idleMs": 750,
+    "minFreeMemoryBytes": 268435456
+  },
+  "method": "Real fixed Kimi CLI; two independent Node hosts; local controlled model. Approximate ps samples every 150 ms. RSS is resident memory, not total footprint; ps CPU is a smoothed estimate, with 100% representing one logical core. Baseline burst is deliberately smaller to preserve host headroom. Idle TTL accelerated to 750 ms.",
+  "baseline": {
+    "mode": "baseline-without-resource-manager",
+    "hosts": 2,
+    "burstAttempts": 12,
+    "burstAccepted": 12,
+    "burstRejected": 0,
+    "sequentialTurns": 12,
+    "idleNativeProcesses": 12,
+    "contextResumeVerified": true,
+    "evictions": 0,
+    "durationMs": 10603,
+    "peakNativeProcesses": 12,
+    "peakNativeRssMiB": 1629.7,
+    "peakTreeRssMiB": 1738.75,
+    "peakCpuPercent": 650.6,
+    "peakReservedActive": 0,
+    "peakReservedResident": 0,
+    "samples": 35
+  },
+  "protected": {
+    "mode": "protected",
+    "hosts": 2,
+    "burstAttempts": 64,
+    "burstAccepted": 4,
+    "burstRejected": 60,
+    "sequentialTurns": 12,
+    "idleNativeProcesses": 0,
+    "contextResumeVerified": true,
+    "evictions": 12,
+    "durationMs": 12498,
+    "peakNativeProcesses": 6,
+    "peakNativeRssMiB": 842.89,
+    "peakTreeRssMiB": 1023.48,
+    "peakCpuPercent": 390.4,
+    "peakReservedActive": 4,
+    "peakReservedResident": 6,
+    "samples": 69
+  }
+}

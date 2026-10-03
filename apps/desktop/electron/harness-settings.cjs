@@ -2,23 +2,28 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 // App-level (global) settings, separate from per-project bindings and the model profile.
-function settingsFile(directory) {return path.join(directory, 'harness-settings.json');}
+function settingsFile(directory) {
+  return path.join(directory, 'harness-settings.json');
+}
 
 function readSettings(directory) {
   try {
     const value = JSON.parse(fs.readFileSync(settingsFile(directory), 'utf8'));
-    return {guiPluginEnabled: Boolean(value.guiPluginEnabled), approvalMode: value.approvalMode === 'auto' ? 'auto' : 'ask'};
+    return {
+      guiPluginEnabled: Boolean(value.guiPluginEnabled),
+      approvalMode: value.approvalMode === 'auto' ? 'auto' : 'ask',
+    };
   } catch {
-    return {guiPluginEnabled: false, approvalMode: 'ask'};
+    return { guiPluginEnabled: false, approvalMode: 'ask' };
   }
 }
 
 function saveSettings(directory, settings) {
-  fs.mkdirSync(directory, {recursive: true, mode: 0o700});
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const file = settingsFile(directory);
-  fs.writeFileSync(file, JSON.stringify(settings, null, 2), {mode: 0o600});
+  fs.writeFileSync(file, JSON.stringify(settings, null, 2), { mode: 0o600 });
   fs.chmodSync(file, 0o600);
   return settings;
 }
 
-module.exports = {readSettings, saveSettings};
+module.exports = { readSettings, saveSettings };

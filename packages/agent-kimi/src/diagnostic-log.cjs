@@ -3,19 +3,31 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-function defaultLogDirectory() {return path.join(os.homedir(), '.industrial-agent-harness', 'logs');}
+function defaultLogDirectory() {
+  return path.join(os.homedir(), '.industrial-agent-harness', 'logs');
+}
 
 function projectLogDirectory(projectDir, directory = defaultLogDirectory()) {
-  const projectKey = crypto.createHash('sha256').update(path.resolve(projectDir)).digest('hex').slice(0, 16);
+  const projectKey = crypto
+    .createHash('sha256')
+    .update(path.resolve(projectDir))
+    .digest('hex')
+    .slice(0, 16);
   return path.join(directory, projectKey);
 }
 
-function createDiagnosticLog(projectDir, {directory = defaultLogDirectory(), apiKey = '', secrets = []} = {}) {
+function createDiagnosticLog(
+  projectDir,
+  { directory = defaultLogDirectory(), apiKey = '', secrets = [] } = {},
+) {
   const projectDirectory = projectLogDirectory(projectDir, directory);
-  fs.mkdirSync(projectDirectory, {recursive: true, mode: 0o700});
+  fs.mkdirSync(projectDirectory, { recursive: true, mode: 0o700 });
   fs.chmodSync(projectDirectory, 0o700);
   const traceId = crypto.randomUUID();
-  const file = path.join(projectDirectory, `${new Date().toISOString().replace(/[:.]/g, '-')}-${traceId}.jsonl`);
+  const file = path.join(
+    projectDirectory,
+    `${new Date().toISOString().replace(/[:.]/g, '-')}-${traceId}.jsonl`,
+  );
   const fd = fs.openSync(file, 'wx', 0o600);
   let sequence = 0;
   let closed = false;
@@ -25,12 +37,22 @@ function createDiagnosticLog(projectDir, {directory = defaultLogDirectory(), api
     file,
     record(type, payload) {
       if (closed) throw Error('Diagnostic log is closed.');
-      const row = {schemaVersion: 1, traceId, sequence: ++sequence, at: new Date().toISOString(), type, payload};
+      const row = {
+        schemaVersion: 1,
+        traceId,
+        sequence: ++sequence,
+        at: new Date().toISOString(),
+        type,
+        payload,
+      };
       const json = JSON.stringify(row, (key, value) => {
         if (sensitiveKeys.test(key)) return '[REDACTED]';
         if (typeof value !== 'string') return value;
         const text = apiKey ? value.replaceAll(apiKey, '[REDACTED_API_KEY]') : value;
-        return secrets.reduce((result, secret) => result.replaceAll(secret, '[REDACTED_MCP_CREDENTIAL]'), text);
+        return secrets.reduce(
+          (result, secret) => result.replaceAll(secret, '[REDACTED_MCP_CREDENTIAL]'),
+          text,
+        );
       });
       const bytes = Buffer.from(`${json}\n`);
       let offset = 0;
@@ -40,8 +62,17 @@ function createDiagnosticLog(projectDir, {directory = defaultLogDirectory(), api
         offset += written;
       }
     },
-    close() {if (!closed) {closed = true; try {fs.fsyncSync(fd);} finally {fs.closeSync(fd);}}},
+    close() {
+      if (!closed) {
+        closed = true;
+        try {
+          fs.fsyncSync(fd);
+        } finally {
+          fs.closeSync(fd);
+        }
+      }
+    },
   };
 }
 
-module.exports = {createDiagnosticLog, defaultLogDirectory, projectLogDirectory};
+module.exports = { createDiagnosticLog, defaultLogDirectory, projectLogDirectory };

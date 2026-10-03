@@ -79,6 +79,8 @@ CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[head
 
 新增或扩展 Viewer 时，必须在同一次变更中更新本节的支持格式、查看能力、依赖与限制，并遵守 [Viewer 接入规则](AGENTS.md#viewer-integration-contract)。
 
+Viewer 在首次打开时按需加载；加载期间显示状态并禁用缩放。切换文件仅挂载与当前 Artifact 对应的视图，避免沿用上一文件的就绪状态。全屏保留当前视图的运行状态。
+
 ## Viewer 示例项目
 
 无需配置模型即可查看这些示例。点击 Projects 旁的「＋」绑定相应文件夹，选择 Domain，再打开右侧工作区和文件树。
@@ -96,5 +98,11 @@ macOS 已实测这两个示例的真实渲染，以及 Godot 暂停、单步、�
 ## 文档
 
 从 [文档目录](doc/README.md) 开始阅读架构、Capability Broker、Viewer 层、领域扩展和开发阶段。仓库开发规则见 [AGENTS.md](AGENTS.md)。
+
+源码格式检查运行 `pnpm format:check`，自动整理运行 `pnpm format`。[全仓分析与优化](doc/repository-optimization.md)记录维护改动、性能对比、验证范围和后续优化优先级。
+
+多聊天执行默认受共用额度保护：最多 4 个同时执行、6 个常驻 Kimi 会话，空闲 5 分钟后回收并在下次执行恢复原生上下文。达到执行上限或内存保留边界时明确拒绝新任务。配置与真实进程压测见[多会话资源保护](doc/session-resource-guards.md)。
+
+切换聊天时后台任务继续执行，历史数量不受执行额度限制。切换连点、迟到的历史结果、重复 Stop 和异常清理已有防护；Stop 在原生取消 3 秒仍未结束时关闭目标会话。200 次桌面交错切换及真实 Kimi 强杀后恢复的验证与范围见同一报告。
 
 Viewer 代码源自 [Silicon Lens demo](https://github.com/Zhiman-BJ/silicon-lens-harness)；聊天区的思考与 Todo 呈现参考了带轨迹回放的 [EDA Harness demo](https://github.com/Zhiman-BJ/eda-harness-demo)，产品使用实时 SDK 事件。

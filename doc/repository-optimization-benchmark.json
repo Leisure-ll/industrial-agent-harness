@@ -1,0 +1,54 @@
+{
+  "recordedAt": "2026-10-03",
+  "baselineCommit": "587b75d",
+  "method": "Synthetic maintenance paths; five repetitions, median wall-clock duration. Copy volume counts cumulative Buffer.concat bytes, not peak memory.",
+  "before": {
+    "node": "v25.9.0",
+    "platform": "darwin-arm64",
+    "repetitions": 5,
+    "diagnostic": {
+      "fileBytes": 8389164,
+      "medianMs": 41.13,
+      "copiedBytesPerRead": 549435692
+    },
+    "capabilityPolicy": {
+      "capabilities": 200,
+      "resolutions": 10,
+      "medianMs": 1085.78
+    },
+    "chatStream": {
+      "chunks": 1000,
+      "medianMs": 54.56
+    }
+  },
+  "after": {
+    "node": "v25.9.0",
+    "platform": "darwin-arm64",
+    "repetitions": 5,
+    "diagnostic": {
+      "fileBytes": 8389164,
+      "medianMs": 6.38,
+      "copiedBytesPerRead": 8388853
+    },
+    "capabilityPolicy": {
+      "capabilities": 200,
+      "resolutions": 10,
+      "medianMs": 7.98
+    },
+    "chatStream": {
+      "chunks": 1000,
+      "medianMs": 51.61
+    }
+  },
+  "desktopInitialJavaScript": {
+    "before": {
+      "kB": 322.0,
+      "gzipKB": 97.77
+    },
+    "after": {
+      "kB": 277.05,
+      "gzipKB": 85.05
+    },
+    "scope": "Initial main JS chunk, not the total size of all lazy chunks."
+  }
+}

@@ -1,35 +1,73 @@
-import {useEffect, useLayoutEffect, useRef, useState} from 'react';
-import {Activity, Bug, ChevronDown, ChevronRight, Cpu, File, FilePlus2, Folder, FolderOpen, Maximize, Minimize, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Play, Plus, Settings2, Square, Sun, Trash2, X} from 'lucide-react';
-import {ViewerCanvas, type ViewNavigation} from '@industrial-agent-harness/viewer-builtin/canvas';
-import type {AgentEvent, ChatHistory, ChatSummary, SessionStatus, ChatTurn, BrokerResult, CapabilityDetail, DomainOption, OpenedViewer, ProjectBinding, PromptImage, ViewerArtifact} from '@industrial-agent-harness/viewer-builtin/api';
-import {useImageAttachments, ImageAttachButton, ImageThumbnails} from './components/ImageAttachments';
-import {AgentLogPanel} from './components/AgentLogPanel';
-import {AgentFlow} from './components/AgentFlow';
-import {BrokerCall} from './components/BrokerCall';
-import {TodoList} from './components/TodoList';
-import {GlobalResourceSettings} from './components/ResourceSettings';
-import {DomainManager} from './components/DomainManager';
-import {CoreUpdatePanel} from './components/CoreUpdatePanel';
-import {ModelSettings} from './components/ModelSettings';
-import {ProjectDetails} from './components/ProjectDetails';
-import {CreateProjectModal} from './components/CreateProjectModal';
-import {DomainPill} from './components/DomainPill';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  Activity,
+  Bug,
+  ChevronDown,
+  ChevronRight,
+  Cpu,
+  File,
+  FilePlus2,
+  Folder,
+  FolderOpen,
+  Maximize,
+  Minimize,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Play,
+  Plus,
+  Settings2,
+  Square,
+  Sun,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { ViewerCanvas, type ViewNavigation } from '@industrial-agent-harness/viewer-builtin/canvas';
+import type {
+  AgentEvent,
+  ChatHistory,
+  ChatSummary,
+  SessionStatus,
+  ChatTurn,
+  BrokerResult,
+  CapabilityDetail,
+  DomainOption,
+  OpenedViewer,
+  ProjectBinding,
+  PromptImage,
+  ViewerArtifact,
+} from '@industrial-agent-harness/viewer-builtin/api';
+import {
+  useImageAttachments,
+  ImageAttachButton,
+  ImageThumbnails,
+} from './components/ImageAttachments';
+import { AgentLogPanel } from './components/AgentLogPanel';
+import { AgentFlow } from './components/AgentFlow';
+import { BrokerCall } from './components/BrokerCall';
+import { TodoList } from './components/TodoList';
+import { GlobalResourceSettings } from './components/ResourceSettings';
+import { DomainManager } from './components/DomainManager';
+import { CoreUpdatePanel } from './components/CoreUpdatePanel';
+import { ModelSettings } from './components/ModelSettings';
+import { ProjectDetails } from './components/ProjectDetails';
+import { CreateProjectModal } from './components/CreateProjectModal';
+import { DomainPill } from './components/DomainPill';
+import { appendDisplayEvents, latestEvent } from './agent-events';
+import { mergeHistoryEvents } from './chat-history';
 
 type Theme = 'light' | 'dark';
-type ProjectFile = {path: string; name: string; depth: number; directory: boolean};
-function appendDisplayEvent(current: AgentEvent[], event: AgentEvent): AgentEvent[] {
-  if (event.type === 'text' || event.type === 'thinking') {
-    let index = current.length - 1;
-    while (index >= 0 && (current[index].type === 'status' || current[index].type === 'step')) index--;
-    const previous = current[index];
-    if ((previous?.type === 'text' && event.type === 'text') || (previous?.type === 'thinking' && event.type === 'thinking')) {
-      const updated = [...current]; updated[index] = {...previous, text: previous.text + event.text}; return updated;
-    }
-  }
-  return [...current, event];
-}
+type ProjectFile = { path: string; name: string; depth: number; directory: boolean };
 
-type SourceFile = {path: string; name: string; sizeBytes: number; content: string | null; truncated: boolean};
+type SourceFile = {
+  path: string;
+  name: string;
+  sizeBytes: number;
+  content: string | null;
+  truncated: boolean;
+};
 
 export function App() {
   const [artifacts, setArtifacts] = useState<ViewerArtifact[]>([]);
@@ -43,15 +81,19 @@ export function App() {
   const sentImages = useRef(new Map<string, PromptImage[]>());
   const sentTasks = useRef(new Map<string, string>());
   const [page, setPage] = useState<'chat' | 'project'>('chat');
-  const [projectDraft, setProjectDraft] = useState<{directory: string; name: string; domain: string} | null>(null);
+  const [projectDraft, setProjectDraft] = useState<{
+    directory: string;
+    name: string;
+    domain: string;
+  } | null>(null);
   const [projectError, setProjectError] = useState('');
-  const [selectedId, setSelectedId] = useState('');
+  const [selectedArtifactId, setSelectedArtifactId] = useState('');
   const [selectedProjectFile, setSelectedProjectFile] = useState('');
   const [sourceFile, setSourceFile] = useState<SourceFile>();
-  const [opened, setOpened] = useState<OpenedViewer>();
+  const [openedViewer, setOpenedViewer] = useState<OpenedViewer>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [ready, setReady] = useState(false);
+  const [isViewerReady, setViewerReady] = useState(false);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(false);
   const [fileTreeOpen, setFileTreeOpen] = useState(false);
@@ -66,17 +108,29 @@ export function App() {
   const [coreUpdateOpen, setCoreUpdateOpen] = useState(false);
   const [domainFirstRun, setDomainFirstRun] = useState(false);
   const [resourceRevision, setResourceRevision] = useState(0);
-  const [theme, setTheme] = useState<Theme>(() => localStorage.getItem('ia-theme') === 'dark' ? 'dark' : 'light');
+  const [theme, setTheme] = useState<Theme>(() =>
+    localStorage.getItem('ia-theme') === 'dark' ? 'dark' : 'light',
+  );
   const [debug, setDebug] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [logTrace, setLogTrace] = useState<string>();
-  function showAgentLog(traceId?: string) {setLogTrace(traceId); setLogOpen(true);}
+  const showAgentLog = useCallback((traceId?: string) => {
+    setLogTrace(traceId);
+    setLogOpen(true);
+  }, []);
+  const viewerReady = useCallback(() => setViewerReady(true), []);
   const [task, setTask] = useState('');
   const [submittedTask, setSubmittedTask] = useState('');
   const [broker, setBroker] = useState<BrokerResult>();
-  const [detail, setDetail] = useState<CapabilityDetail>();
+  const [capabilityDetail, setCapabilityDetail] = useState<CapabilityDetail>();
   const [brokerError, setBrokerError] = useState('');
-  const [agentStatus, setAgentStatus] = useState<{available: boolean; version: string; projectDir: string | null; configured: boolean; gui?: {enabled: boolean; install: string; version: string | null}}>();
+  const [agentStatus, setAgentStatus] = useState<{
+    available: boolean;
+    version: string;
+    projectDir: string | null;
+    configured: boolean;
+    gui?: { enabled: boolean; install: string; version: string | null };
+  }>();
   const [agentEvents, setAgentEvents] = useState<AgentEvent[]>([]);
   const [agentBusy, setAgentBusy] = useState(false);
   const [approvalMode, setApprovalMode] = useState<'ask' | 'auto'>('ask');
@@ -86,7 +140,13 @@ export function App() {
   const [chatList, setChatList] = useState<ChatSummary[]>([]);
   const [runningSessions, setRunningSessions] = useState<SessionStatus[]>([]);
   const [navigating, setNavigating] = useState(false);
-  const creatingChat = useRef(false);
+  const navigationPending = useRef(false);
+  const navigationRevision = useRef(0);
+  const listRevision = useRef(0);
+  const historyRevision = useRef(0);
+  const displayRevision = useRef(0);
+  const historyReads = useRef(new Set<{ events: AgentEvent[]; overflow: boolean }>());
+  const startingAgent = useRef(false);
   const projectIdRef = useRef<string | null>(null);
   projectIdRef.current = activeProjectId;
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -102,143 +162,416 @@ export function App() {
   useLayoutEffect(() => {
     const element = chatScroll.current;
     if (!element) return;
-    if (prependHeight.current !== null) {element.scrollTop += element.scrollHeight - prependHeight.current; prependHeight.current = null;}
-    else if (followMessages.current) element.scrollTop = element.scrollHeight;
+    if (prependHeight.current !== null) {
+      element.scrollTop += element.scrollHeight - prependHeight.current;
+      prependHeight.current = null;
+    } else if (followMessages.current) element.scrollTop = element.scrollHeight;
   }, [turns, page]);
+  function beginNavigation() {
+    if (navigationPending.current || submitting.current || startingAgent.current) return false;
+    navigationPending.current = true;
+    navigationRevision.current++;
+    setNavigating(true);
+    return true;
+  }
+  function endNavigation() {
+    navigationPending.current = false;
+    setNavigating(false);
+  }
+  const approveAgent = useCallback(
+    (id: string, decision: 'approve' | 'reject') =>
+      navigationPending.current
+        ? Promise.reject(Error('Wait for the chat to open.'))
+        : window.viewerHost!.approveAgent(id, decision, activeChatId || undefined),
+    [activeChatId],
+  );
+  const answerAgent = useCallback(
+    (id: string, answers: Record<string, string>) =>
+      navigationPending.current
+        ? Promise.reject(Error('Wait for the chat to open.'))
+        : window.viewerHost!.answerAgentQuestion(id, answers, activeChatId || undefined),
+    [activeChatId],
+  );
+  async function readHistory(read: () => Promise<ChatHistory>): Promise<ChatHistory> {
+    const pending = { events: [] as AgentEvent[], overflow: false };
+    historyReads.current.add(pending);
+    try {
+      const history = await read();
+      if (pending.overflow)
+        return await readHistory(() => window.viewerHost!.chatHistory({ id: history.chat.id }));
+      return mergeHistoryEvents(history, pending.events);
+    } finally {
+      historyReads.current.delete(pending);
+    }
+  }
   function applyHistory(history: ChatHistory) {
-    if (chatIdRef.current !== history.chat.id) {followMessages.current = true; prependHeight.current = null;}
-    chatIdRef.current = history.chat.id; setActiveChatId(history.chat.id);
-    setTurns(history.turns); setHistoryBefore(history.before); setHasEarlier(history.hasMore);
+    displayRevision.current = history.eventRevision ?? 0;
+    if (chatIdRef.current !== history.chat.id) {
+      followMessages.current = true;
+      prependHeight.current = null;
+    }
+    chatIdRef.current = history.chat.id;
+    setActiveChatId(history.chat.id);
+    setTurns(history.turns);
+    setHistoryBefore(history.before);
+    setHasEarlier(history.hasMore);
     const last = history.turns.at(-1);
-    setSubmittedTask(last?.task || ''); setBroker(last?.broker || undefined); setAgentEvents(last?.events || []);
-    setAgentBusy(last?.status === 'running'); setAgentOwned(Boolean(history.executing)); setDetail(undefined);
+    setSubmittedTask(last?.task || '');
+    setBroker(last?.broker || undefined);
+    setAgentEvents(last?.events || []);
+    setAgentBusy(last?.status === 'running');
+    setAgentOwned(Boolean(history.executing));
+    setCapabilityDetail(undefined);
     attachments.clear();
-    if (last && ['error', 'cancelled'].includes(last.status)) {const images = last.events.find(event => (event.type === 'user-images' || event.type === 'input-images')); if (images && (images.type === 'user-images' || images.type === 'input-images')) attachments.restore(images.images); setTask(last.task);}
+    if (last && ['error', 'cancelled'].includes(last.status)) {
+      const images = last.events.find(
+        event => event.type === 'user-images' || event.type === 'input-images',
+      );
+      if (images && (images.type === 'user-images' || images.type === 'input-images'))
+        attachments.restore(images.images);
+      setTask(last.task);
+    }
   }
   async function refreshChats(openSelected = false) {
     const projectId = projectIdRef.current;
+    const navigation = navigationRevision.current;
+    const request = openSelected ? ++historyRevision.current : ++listRevision.current;
     const list = await window.viewerHost!.chats();
-    if (projectId !== projectIdRef.current) return;
-    setChatList(list.chats); setRunningSessions(list.sessions);
+    if (
+      projectId !== projectIdRef.current ||
+      navigation !== navigationRevision.current ||
+      request !== (openSelected ? historyRevision.current : listRevision.current)
+    )
+      return;
+    setChatList(list.chats);
+    setRunningSessions(list.sessions);
     if (openSelected && list.activeId) {
-      const selectedId = chatIdRef.current;
-      const history = await window.viewerHost!.chatHistory({id: list.activeId});
-      if (projectId === projectIdRef.current && selectedId === chatIdRef.current) applyHistory(history);
+      const selectedChatId = chatIdRef.current;
+      const history = await readHistory(() =>
+        window.viewerHost!.chatHistory({ id: list.activeId! }),
+      );
+      if (
+        projectId === projectIdRef.current &&
+        selectedChatId === chatIdRef.current &&
+        navigation === navigationRevision.current &&
+        request === historyRevision.current
+      )
+        applyHistory(history);
+    } else if (openSelected) {
+      chatIdRef.current = null;
+      setActiveChatId(null);
+      setTurns([]);
+      setHasEarlier(false);
     }
-    else if (openSelected) {chatIdRef.current = null; setActiveChatId(null); setTurns([]); setHasEarlier(false);}
   }
   async function openChat(id: string) {
-    setNavigating(true);
-    try {const history = await window.viewerHost!.selectChat(id); setTask(''); applyHistory(history); setPage('chat'); setBrokerError('');}
-    catch (reason) {setError(String(reason));}
-    finally {setNavigating(false);}
+    if (!beginNavigation()) return;
+    try {
+      const history = await readHistory(() => window.viewerHost!.selectChat(id));
+      setTask('');
+      applyHistory(history);
+      setPage('chat');
+      setBrokerError('');
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      endNavigation();
+    }
   }
   async function deleteChat(id: string) {
-    setNavigating(true);
+    if (!beginNavigation()) return;
     try {
-      const list = await window.viewerHost!.deleteChat(id); setChatList(list.chats);
-      if (id === activeChatId) {chatIdRef.current = null; setActiveChatId(null); setTurns([]); setHasEarlier(false); setSubmittedTask(''); setBroker(undefined); setAgentEvents([]); setTask('');}
-    } catch (reason) {setError(String(reason));}
-    finally {setNavigating(false);}
+      const list = await window.viewerHost!.deleteChat(id);
+      setChatList(list.chats);
+      if (id === chatIdRef.current) {
+        chatIdRef.current = null;
+        setActiveChatId(null);
+        setTurns([]);
+        setHasEarlier(false);
+        setSubmittedTask('');
+        setBroker(undefined);
+        setAgentEvents([]);
+        setTask('');
+      }
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      endNavigation();
+    }
   }
   async function loadEarlier() {
     if (!activeChatId || !historyBefore || historyLoading) return;
     setHistoryLoading(true);
     const chatId = activeChatId;
-    try {const history = await window.viewerHost!.chatHistory({id: chatId, before: historyBefore}); if (chatId !== chatIdRef.current) return; prependHeight.current = chatScroll.current?.scrollHeight || null; setTurns(current => [...history.turns, ...current]); setHistoryBefore(history.before); setHasEarlier(history.hasMore);}
-    catch (reason) {setError(String(reason));}
-    finally {setHistoryLoading(false);}
+    try {
+      const history = await window.viewerHost!.chatHistory({ id: chatId, before: historyBefore });
+      if (chatId !== chatIdRef.current) return;
+      prependHeight.current = chatScroll.current?.scrollHeight || null;
+      setTurns(current => [...history.turns, ...current]);
+      setHistoryBefore(history.before);
+      setHasEarlier(history.hasMore);
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setHistoryLoading(false);
+    }
   }
   useEffect(() => {
     if (!agentBusy || agentOwned) return;
-    const timer = window.setInterval(() => {void refreshChats(true).catch(reason => setError(String(reason)));}, 2000);
+    const timer = window.setInterval(() => {
+      void refreshChats(true).catch(reason => setError(String(reason)));
+    }, 2000);
     return () => window.clearInterval(timer);
   }, [agentBusy, agentOwned, activeChatId]);
 
-  useEffect(() => {localStorage.setItem('ia-theme', theme);}, [theme]);
   useEffect(() => {
-    const changed = () => setViewerFullscreen(Boolean(workspace.current && document.fullscreenElement === workspace.current));
+    localStorage.setItem('ia-theme', theme);
+  }, [theme]);
+  useEffect(() => {
+    const changed = () =>
+      setViewerFullscreen(
+        Boolean(workspace.current && document.fullscreenElement === workspace.current),
+      );
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && document.fullscreenElement === workspace.current) {
-        void document.exitFullscreen().catch(() => setFullscreenError('Use the exit fullscreen button to restore the workspace.'));
+        void document
+          .exitFullscreen()
+          .catch(() =>
+            setFullscreenError('Use the exit fullscreen button to restore the workspace.'),
+          );
       }
     };
     document.addEventListener('fullscreenchange', changed);
     window.addEventListener('keydown', escape);
-    return () => {document.removeEventListener('fullscreenchange', changed); window.removeEventListener('keydown', escape);};
+    return () => {
+      document.removeEventListener('fullscreenchange', changed);
+      window.removeEventListener('keydown', escape);
+    };
   }, []);
   async function toggleViewerFullscreen() {
     setFullscreenError('');
     try {
       if (document.fullscreenElement === workspace.current) await document.exitFullscreen();
       else await workspace.current?.requestFullscreen();
-    } catch {setFullscreenError('Unable to enter fullscreen. Please try again.');}
+    } catch {
+      setFullscreenError('Unable to enter fullscreen. Please try again.');
+    }
   }
   useEffect(() => {
-    if (!window.viewerHost) {setError('Open the Electron desktop app to inspect local files.'); return;}
-    void window.viewerHost.modelGet().then(profile => setModelImageInput(profile.imageInput)).catch(reason => setError(String(reason)));
-    void window.viewerHost.approvalMode().then(setApprovalMode).catch(reason => setError(String(reason)));
-    void window.viewerHost.domains().then(setDomains).catch(reason => setError(String(reason)));
-    void window.viewerHost.domainStatus().then(status => {
-      if (status.managed && !status.installed.length && localStorage.getItem('ia-domain-onboarding-skipped') !== 'true') {setDomainFirstRun(true); setDomainManagerOpen(true);}
-    }).catch(reason => setError(String(reason)));
-    void Promise.all([window.viewerHost.agentStatus(), window.viewerHost.projectBindings()]).then(([status, bindings]) => {
-      setAgentStatus(status); setProjects(bindings.projects); setActiveProjectId(bindings.activeId); projectIdRef.current = bindings.activeId;
-      if (bindings.projects.find(item => item.id === bindings.activeId && !item.domain)) setPage('project');
-      if (status.projectDir) void window.viewerHost!.projectFiles().then(setProjectFiles);
-      if (bindings.projects.find(item => item.id === bindings.activeId)?.domain) void refreshChats(true).catch(reason => setError(String(reason)));
-    });
+    if (!window.viewerHost) {
+      setError('Open the Electron desktop app to inspect local files.');
+      return;
+    }
+    void window.viewerHost
+      .modelGet()
+      .then(profile => setModelImageInput(profile.imageInput))
+      .catch(reason => setError(String(reason)));
+    void window.viewerHost
+      .approvalMode()
+      .then(setApprovalMode)
+      .catch(reason => setError(String(reason)));
+    void window.viewerHost
+      .domains()
+      .then(setDomains)
+      .catch(reason => setError(String(reason)));
+    void window.viewerHost
+      .domainStatus()
+      .then(status => {
+        if (
+          status.managed &&
+          !status.installed.length &&
+          localStorage.getItem('ia-domain-onboarding-skipped') !== 'true'
+        ) {
+          setDomainFirstRun(true);
+          setDomainManagerOpen(true);
+        }
+      })
+      .catch(reason => setError(String(reason)));
+    void Promise.all([window.viewerHost.agentStatus(), window.viewerHost.projectBindings()])
+      .then(([status, bindings]) => {
+        setAgentStatus(status);
+        setProjects(bindings.projects);
+        setActiveProjectId(bindings.activeId);
+        projectIdRef.current = bindings.activeId;
+        if (bindings.projects.find(item => item.id === bindings.activeId && !item.domain))
+          setPage('project');
+        if (status.projectDir)
+          void window
+            .viewerHost!.projectFiles()
+            .then(setProjectFiles)
+            .catch(reason => setError(String(reason)));
+        if (bindings.projects.find(item => item.id === bindings.activeId)?.domain)
+          void refreshChats(true).catch(reason => setError(String(reason)));
+      })
+      .catch(reason => setError(String(reason)));
+    let pendingEvents: AgentEvent[] = [];
+    let eventTimer: ReturnType<typeof setTimeout> | undefined;
+    function flushEvents() {
+      clearTimeout(eventTimer);
+      eventTimer = undefined;
+      const batch = pendingEvents.filter(
+        event =>
+          (!event.chatId || event.chatId === chatIdRef.current) &&
+          (event.eventRevision === undefined || event.eventRevision > displayRevision.current),
+      );
+      pendingEvents = [];
+      if (!batch.length) return;
+      displayRevision.current = Math.max(
+        displayRevision.current,
+        ...batch.map(event => event.eventRevision ?? 0),
+      );
+      setAgentEvents(current => appendDisplayEvents(current, batch));
+      setTurns(current =>
+        current.map((turn, index) => {
+          const events = batch.filter(event =>
+            event.turnId ? event.turnId === turn.id : index === current.length - 1,
+          );
+          if (!events.length) return turn;
+          let status = turn.status;
+          for (const event of events) {
+            if (event.type === 'done') status = event.result.status;
+            else if (event.type === 'error') status = 'error';
+          }
+          return { ...turn, events: appendDisplayEvents(turn.events, events), status };
+        }),
+      );
+    }
     const removeEvents = window.viewerHost.onAgentEvent(event => {
+      for (const pending of historyReads.current) {
+        if (pending.overflow) continue;
+        if (pending.events.length >= 4096) {
+          pending.events = [];
+          pending.overflow = true;
+        } else pending.events.push(event);
+      }
       const chatId = event.chatId || '';
       const images = sentImages.current.get(chatId) || [];
       const prompt = sentTasks.current.get(chatId) || '';
-      if (event.type === 'done' || event.type === 'error') {sentImages.current.delete(chatId); sentTasks.current.delete(chatId);}
+      if (event.type === 'done' || event.type === 'error') {
+        sentImages.current.delete(chatId);
+        sentTasks.current.delete(chatId);
+      }
       if (event.chatId && event.chatId !== chatIdRef.current) return;
       setAgentOwned(true);
-      setAgentEvents(current => appendDisplayEvent(current, event));
-      setTurns(current => current.map((turn, index) => event.turnId ? turn.id === event.turnId ? {...turn, events: appendDisplayEvent(turn.events, event), status: event.type === 'done' ? event.result.status : event.type === 'error' ? 'error' : turn.status} : turn : index === current.length - 1 ? {...turn, events: appendDisplayEvent(turn.events, event)} : turn));
-      if (event.type === 'tool-result') void window.viewerHost!.brokerTrace().then(trace => {if (chatId === chatIdRef.current) setBroker(current => current ? {...current, trace} : current);});
+      pendingEvents.push(event);
+      if (['done', 'error', 'approval', 'question'].includes(event.type)) flushEvents();
+      else if (!eventTimer) eventTimer = setTimeout(flushEvents, 16);
+      if (event.type === 'tool-result')
+        void window
+          .viewerHost!.brokerTrace()
+          .then(trace => {
+            if (chatId === chatIdRef.current)
+              setBroker(current => (current ? { ...current, trace } : current));
+          })
+          .catch(reason => {
+            if (chatId === chatIdRef.current) setBrokerError(String(reason));
+          });
       if (event.type === 'done' || event.type === 'error') setAgentBusy(false);
-      if (event.type === 'error' || (event.type === 'done' && event.result.status === 'cancelled')) {attachments.restore(images); setTask(prompt);}
+      if (
+        event.type === 'error' ||
+        (event.type === 'done' && event.result.status === 'cancelled')
+      ) {
+        attachments.restore(images);
+        setTask(prompt);
+      }
     });
-    const removeUpdated = window.viewerHost.onChatUpdated(() => {void refreshChats().catch(reason => setError(String(reason)));});
-    return () => {removeEvents(); removeUpdated();};
+    const removeUpdated = window.viewerHost.onChatUpdated(() => {
+      void refreshChats().catch(reason => setError(String(reason)));
+    });
+    return () => {
+      clearTimeout(eventTimer);
+      removeEvents();
+      removeUpdated();
+    };
   }, []);
   useEffect(() => {
     setViewNavigation(null);
-    if (!selectedId) {setOpened(undefined); setLoading(false); return;}
+    if (!selectedArtifactId) {
+      setOpenedViewer(undefined);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
-    setLoading(true); setReady(false); setError(''); setOpened(undefined);
-    window.viewerHost!.open({artifactId: selectedId}).then(view => {if (!cancelled) {setOpened(view); setLoading(false);}}).catch(reason => {if (!cancelled) {setError(String(reason)); setLoading(false);}});
-    return () => {cancelled = true;};
-  }, [selectedId]);
+    setLoading(true);
+    setViewerReady(false);
+    setError('');
+    setOpenedViewer(undefined);
+    window
+      .viewerHost!.open({ artifactId: selectedArtifactId })
+      .then(view => {
+        if (!cancelled) {
+          setOpenedViewer(view);
+          setLoading(false);
+        }
+      })
+      .catch(reason => {
+        if (!cancelled) {
+          setError(String(reason));
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedArtifactId]);
 
   useEffect(() => {
     if (!window.viewerHost) return;
     return window.viewerHost!.onGuiProgress(event => {
       if (event.phase === 'downloading' || event.phase === 'verified') setGuiInstall(event.phase);
-      else if (event.phase === 'ready') {setGuiInstall(''); void window.viewerHost!.guiState().then(() => window.viewerHost!.agentStatus().then(setAgentStatus));}
-      else if (event.phase === 'error') {setGuiInstall(`install failed · ${event.error}`); void window.viewerHost!.agentStatus().then(setAgentStatus);}
+      else if (event.phase === 'ready') {
+        setGuiInstall('');
+        void window
+          .viewerHost!.guiState()
+          .then(() => window.viewerHost!.agentStatus().then(setAgentStatus));
+      } else if (event.phase === 'error') {
+        setGuiInstall(`install failed · ${event.error}`);
+        void window.viewerHost!.agentStatus().then(setAgentStatus);
+      }
     });
   }, []);
-  const selected = artifacts.find(item => item.id === selectedId);
+  const selectedArtifact = artifacts.find(item => item.id === selectedArtifactId);
+  // Effects clear the previous Viewer after rendering. Bind display readiness
+  // immediately so a file switch cannot remount an old Viewer under a new ID.
+  const activeViewer = openedViewer?.artifact.id === selectedArtifactId ? openedViewer : undefined;
   const activeProject = projects.find(item => item.id === activeProjectId);
   const projectName = activeProject?.name || 'No project selected';
   const fixedDomain = activeProject?.domain || null;
   const selectedDomain = fixedDomain;
   const domainFor = (id?: string | null) => domains.find(item => item.id === id);
-  const activeName = sourceFile?.name || selected?.name;
-  const todo = [...agentEvents].reverse().find(event => event.type === 'todo');
-  const visibleProjectFiles = projectFiles.filter(item => ![...collapsedDirs].some(dir => item.path.replaceAll('\\', '/').startsWith(`${dir}/`)));
+  const activeFileName = sourceFile?.name || selectedArtifact?.name;
+  const todo = latestEvent(agentEvents, 'todo');
+  const visibleProjectFiles = useMemo(() => {
+    const hidden = [...collapsedDirs];
+    return projectFiles.filter(item => {
+      const relative = item.path.replaceAll('\\', '/');
+      return !hidden.some(directory => relative.startsWith(`${directory}/`));
+    });
+  }, [projectFiles, collapsedDirs]);
+  const runningByProject = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const session of runningSessions)
+      if (session.running) counts.set(session.projectId, (counts.get(session.projectId) || 0) + 1);
+    return counts;
+  }, [runningSessions]);
   function toggleDirectory(relative: string) {
     const key = relative.replaceAll('\\', '/');
-    setCollapsedDirs(current => {const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next;});
+    setCollapsedDirs(current => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
-  function selectArtifact(id: string) {setSourceFile(undefined); setSelectedId(id); setRightOpen(true);}
+  function selectArtifact(id: string) {
+    setSourceFile(undefined);
+    setSelectedArtifactId(id);
+    setRightOpen(true);
+  }
   function chooseProject() {
     setProjectError('');
-    setProjectDraft({directory: '', name: '', domain: ''});
+    setProjectDraft({ directory: '', name: '', domain: '' });
   }
   async function chooseProjectDirectory() {
     setProjectError('');
@@ -246,44 +579,96 @@ export function App() {
       const directory = await window.viewerHost!.chooseProjectDirectory();
       if (!directory) return;
       const existing = projects.find(item => item.path === directory);
-      if (existing) {setProjectDraft(null); await selectProject(existing.id); return;}
-      setProjectDraft(current => current ? {...current, directory, name: current.name || directory.split(/[\\/]/).at(-1) || 'New project'} : current);
-    } catch (reason) {setProjectError(String(reason));}
+      if (existing) {
+        setProjectDraft(null);
+        await selectProject(existing.id);
+        return;
+      }
+      setProjectDraft(current =>
+        current
+          ? {
+              ...current,
+              directory,
+              name: current.name || directory.split(/[\\/]/).at(-1) || 'New project',
+            }
+          : current,
+      );
+    } catch (reason) {
+      setProjectError(String(reason));
+    }
   }
-  async function createProject(request: {directory: string; name: string; domain: string}) {
+  async function createProject(request: { directory: string; name: string; domain: string }) {
+    if (!beginNavigation()) return;
     try {
       const bindings = await window.viewerHost!.createProject(request);
-      setProjects(bindings.projects); setActiveProjectId(bindings.activeId); projectIdRef.current = bindings.activeId;
-      setAgentStatus(current => current ? {...current, projectDir: bindings.projectDir} : current);
+      setProjects(bindings.projects);
+      setActiveProjectId(bindings.activeId);
+      projectIdRef.current = bindings.activeId;
+      setAgentStatus(current =>
+        current ? { ...current, projectDir: bindings.projectDir } : current,
+      );
       setProjectFiles(await window.viewerHost!.projectFiles());
       setCollapsedDirs(new Set());
       setArtifacts([]);
-      setSourceFile(undefined); setSelectedId(''); setSelectedProjectFile(''); setOpened(undefined); setRightOpen(false); setFileTreeOpen(false);
-      setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setAgentEvents([]);
+      setSourceFile(undefined);
+      setSelectedArtifactId('');
+      setSelectedProjectFile('');
+      setOpenedViewer(undefined);
+      setRightOpen(false);
+      setFileTreeOpen(false);
+      setSubmittedTask('');
+      setBroker(undefined);
+      setCapabilityDetail(undefined);
+      setAgentEvents([]);
       await refreshChats(true);
-      setProjectDraft(null); setPage('project');
-    } catch (reason) {setProjectError(String(reason));}
+      setProjectDraft(null);
+      setPage('project');
+    } catch (reason) {
+      setProjectError(String(reason));
+    } finally {
+      endNavigation();
+    }
   }
   async function selectProject(id: string) {
-    setNavigating(true);
-    if (id === activeProjectId) {setPage('project'); setNavigating(false); return;}
+    if (!beginNavigation()) return;
+    if (id === activeProjectId) {
+      setPage('project');
+      endNavigation();
+      return;
+    }
     setError('');
     try {
       const bindings = await window.viewerHost!.selectProject(id);
-      setProjects(bindings.projects); setActiveProjectId(bindings.activeId); projectIdRef.current = bindings.activeId;
-      setAgentStatus(current => current ? {...current, projectDir: bindings.projectDir} : current);
+      setProjects(bindings.projects);
+      setActiveProjectId(bindings.activeId);
+      projectIdRef.current = bindings.activeId;
+      setAgentStatus(current =>
+        current ? { ...current, projectDir: bindings.projectDir } : current,
+      );
       setProjectFiles(await window.viewerHost!.projectFiles());
       setCollapsedDirs(new Set());
       setArtifacts([]);
-      setSourceFile(undefined); setSelectedId(''); setSelectedProjectFile(''); setOpened(undefined); setRightOpen(false); setFileTreeOpen(false);
-      setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setAgentEvents([]);
+      setSourceFile(undefined);
+      setSelectedArtifactId('');
+      setSelectedProjectFile('');
+      setOpenedViewer(undefined);
+      setRightOpen(false);
+      setFileTreeOpen(false);
+      setSubmittedTask('');
+      setBroker(undefined);
+      setCapabilityDetail(undefined);
+      setAgentEvents([]);
       await refreshChats(true);
       setPage('project');
-    } catch (reason) {setError(String(reason));}
-    finally {setNavigating(false);}
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      endNavigation();
+    }
   }
   async function selectProjectFile(relative: string) {
-    setError(''); setRightOpen(true);
+    setError('');
+    setRightOpen(true);
     try {
       const file = await window.viewerHost!.readProjectFile(relative);
       setSelectedProjectFile(relative);
@@ -292,120 +677,904 @@ export function App() {
         setArtifacts(current => [...current, item]);
         selectArtifact(item.id);
       } else {
-        setSelectedId(''); setOpened(undefined); setSourceFile(file);
+        setSelectedArtifactId('');
+        setOpenedViewer(undefined);
+        setSourceFile(file);
       }
-    } catch (reason) {setError(String(reason));}
+    } catch (reason) {
+      setError(String(reason));
+    }
   }
   async function newChat() {
-    if (navigating || submitting.current || creatingChat.current) return;
-    creatingChat.current = true;
-    setNavigating(true);
+    if (!beginNavigation()) return;
     try {
-      if (activeProject && !activeProject.domain) {setPage('project'); return;}
-      const history = await window.viewerHost!.newChat();
+      if (activeProject && !activeProject.domain) {
+        setPage('project');
+        return;
+      }
+      const history = await readHistory(() => window.viewerHost!.newChat());
       if (history.chat.id !== chatIdRef.current) {
         applyHistory(history);
-        setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
+        setTask('');
+        setSubmittedTask('');
+        setBroker(undefined);
+        setCapabilityDetail(undefined);
+        setBrokerError('');
+        setAgentEvents([]);
       }
       await refreshChats();
       setPage('chat');
-    } catch (reason) {setBrokerError(String(reason));}
-    finally {creatingChat.current = false; setNavigating(false);}
+    } catch (reason) {
+      setBrokerError(String(reason));
+    } finally {
+      endNavigation();
+    }
   }
-  async function resolveTask(context?: {domain: string; stage: string}, prompt = task) {
-    if (navigating || submitting.current || agentBusy || attachments.loading || (!prompt.trim() && !attachments.images.length)) return;
-    if (attachments.images.length && !modelImageInput) {setBrokerError('Choose a vision model and enable Image input in Model API settings.'); return;}
+  async function resolveTask(context?: { domain: string; stage: string }, prompt = task) {
+    if (
+      navigationPending.current ||
+      submitting.current ||
+      startingAgent.current ||
+      agentBusy ||
+      attachments.loading ||
+      (!prompt.trim() && !attachments.images.length)
+    )
+      return;
+    if (attachments.images.length && !modelImageInput) {
+      setBrokerError('Choose a vision model and enable Image input in Model API settings.');
+      return;
+    }
     prompt = prompt.trim() || 'Describe the attached images.';
     const images = [...attachments.images];
-    submitting.current = true; followMessages.current = true; setAgentBusy(true);
-    setBrokerError(''); setDetail(undefined);
+    submitting.current = true;
+    followMessages.current = true;
+    setAgentBusy(true);
+    setBrokerError('');
+    setCapabilityDetail(undefined);
     try {
-      const artifactKind = /\b(this|selected|current)\b|这个|当前|该|它/i.test(prompt) ? selected?.kind : undefined;
-      const result = await window.viewerHost!.resolve({task: prompt, chatId: chatIdRef.current || undefined, artifactKind, domain: selectedDomain || context?.domain, stage: context?.domain === selectedDomain || !selectedDomain ? context?.stage : undefined});
+      const artifactKind = /\b(this|selected|current)\b|这个|当前|该|它/i.test(prompt)
+        ? selectedArtifact?.kind
+        : undefined;
+      const result = await window.viewerHost!.resolve({
+        task: prompt,
+        chatId: chatIdRef.current || undefined,
+        artifactKind,
+        domain: selectedDomain || context?.domain,
+        stage: context?.domain === selectedDomain || !selectedDomain ? context?.stage : undefined,
+      });
       setBroker(result);
       await refreshChats(true);
       setTask('');
-      if (agentStatus?.available && agentStatus.configured && agentStatus.projectDir) await runAgent(prompt, images);
+      if (agentStatus?.available && agentStatus.configured && agentStatus.projectDir)
+        await runAgent(prompt, images);
       else setAgentBusy(false);
-    } catch (reason) {setBrokerError(String(reason)); setAgentBusy(false);}
-    finally {submitting.current = false;}
+    } catch (reason) {
+      setBrokerError(String(reason));
+      setAgentBusy(false);
+    } finally {
+      submitting.current = false;
+    }
   }
   async function setProjectDomain(id: string, domain: string) {
     try {
       const bindings = await window.viewerHost!.setProjectDomain(id, domain);
       setProjects(bindings.projects);
-      setTask(''); setSubmittedTask(''); setBroker(undefined); setDetail(undefined); setBrokerError(''); setAgentEvents([]);
+      setTask('');
+      setSubmittedTask('');
+      setBroker(undefined);
+      setCapabilityDetail(undefined);
+      setBrokerError('');
+      setAgentEvents([]);
       await refreshChats(true);
-    } catch (reason) {throw reason;}
+    } catch (reason) {
+      throw reason;
+    }
   }
   function resourcesChanged() {
-    setBroker(undefined); setDetail(undefined); setBrokerError('');
+    setBroker(undefined);
+    setCapabilityDetail(undefined);
+    setBrokerError('');
   }
   async function showDetail(id: string) {
-    try {setDetail(await window.viewerHost!.detail(id)); const trace = await window.viewerHost!.brokerTrace(); setBroker(current => current ? {...current, trace} : current);}
-    catch (reason) {setBrokerError(String(reason));}
+    try {
+      setCapabilityDetail(await window.viewerHost!.detail(id));
+      const trace = await window.viewerHost!.brokerTrace();
+      setBroker(current => (current ? { ...current, trace } : current));
+    } catch (reason) {
+      setBrokerError(String(reason));
+    }
   }
   async function runAgent(prompt = submittedTask, images: PromptImage[] = []) {
+    if (navigationPending.current || startingAgent.current) return;
+    startingAgent.current = true;
     const chatId = chatIdRef.current;
-    if (chatId) {sentImages.current.set(chatId, images); sentTasks.current.set(chatId, prompt);}
+    if (chatId) {
+      sentImages.current.set(chatId, images);
+      sentTasks.current.set(chatId, prompt);
+    }
     attachments.clear();
-    setAgentEvents([]); setAgentBusy(true);
-    try {await window.viewerHost!.runAgent({task: prompt, chatId: chatId || undefined, projectId: activeProjectId!, images}); await refreshChats(true);}
-    catch (reason) {attachments.restore(images); setTask(prompt); setBrokerError(String(reason)); setAgentBusy(false);}
+    setAgentEvents([]);
+    setAgentBusy(true);
+    try {
+      await window.viewerHost!.runAgent({
+        task: prompt,
+        chatId: chatId || undefined,
+        projectId: activeProjectId!,
+        images,
+      });
+      await refreshChats(true);
+    } catch (reason) {
+      attachments.restore(images);
+      setTask(prompt);
+      setBrokerError(String(reason));
+      setAgentBusy(false);
+    } finally {
+      startingAgent.current = false;
+    }
   }
 
-  const diagnostic = agentEvents.filter(event => event.type === 'diagnostic-log').at(-1);
+  const diagnostic = latestEvent(agentEvents, 'diagnostic-log');
   // Failed installs/toggles record 'install failed · …' / 'toggle failed · …';
   // both must keep the toggle usable so the user can retry or disable.
-  const guiFailed = guiInstall.startsWith('install failed') || guiInstall.startsWith('toggle failed');
-  return <div className={`rp-shell ia-app theme-${theme} ${leftOpen ? '' : 'left-collapsed'} ${rightOpen ? '' : 'right-collapsed'}`}>
-    <div className="ia-columns">
-      {leftOpen && <aside className="ia-tree ia-sidebar">
-        <div className="ia-sidebar-brand"><span className="ia-product-mark"><Cpu size={16}/></span><b>Industrial Harness</b><button className="ia-icon" onClick={() => setLeftOpen(false)} title="Hide sidebar"><PanelLeftClose size={16}/></button></div>
-        <div className="ia-projects-heading"><span>PROJECTS</span><button onClick={chooseProject} disabled={navigating || submitting.current} aria-label="New project" title="New project"><Plus size={15}/></button></div>
-        <div className="ia-project-list">{projects.map(item => {const domain = domainFor(item.domain); const active = item.id === activeProjectId; return <div key={item.id} className="ia-project-group">
-          <button className={`ia-project-row ${active ? 'selected' : ''}`} onClick={() => void selectProject(item.id)} title={item.path} disabled={navigating || submitting.current}><FolderOpen size={15}/><span className="ia-project-row-name">{item.name}</span>{runningSessions.some(session => session.projectId === item.id && session.running) && <small className="ia-project-running" title="Running chats">{runningSessions.filter(session => session.projectId === item.id && session.running).length}</small>}{domain && <span className="ia-project-domain-badge" title={domain.label}><span aria-hidden="true">{domain.emoji}</span>{domain.label}</span>}</button>
-          {active && <div className="ia-project-chats" role="group" aria-label={`${item.name} chats`} data-project-id={item.id}>
-            <button className="ia-new-chat" onClick={() => void newChat()} disabled={navigating || submitting.current || !item.domain || (page === 'chat' && Boolean(activeChatId) && turns.length === 0)} title={page === 'chat' && activeChatId && turns.length === 0 ? 'Send a message in this chat before starting another' : 'New chat'} aria-label={`New chat in ${item.name}`}><FilePlus2 size={14}/> New chat</button>
-            {chatList.map(chat => <div className="ia-chat-row" key={chat.id}><button className="ia-sidebar-chat" title={chat.title} disabled={navigating || submitting.current} aria-current={page === 'chat' && activeChatId === chat.id ? 'page' : undefined} onClick={() => void openChat(chat.id)}><Activity size={14}/><span>{chat.title}</span>{chat.running && <small className={`ia-session-running ${chat.awaitingApproval || chat.awaitingQuestion ? 'awaiting-approval' : ''}`} role="status" aria-label={chat.awaitingQuestion ? 'Awaiting answer' : chat.awaitingApproval ? 'Awaiting approval' : 'Running'} title={chat.awaitingQuestion ? 'Awaiting answer' : chat.awaitingApproval ? 'Awaiting approval' : 'Running'}/>}</button><button className="ia-chat-delete" aria-label={`Delete chat ${chat.title}`} title="Delete chat" disabled={chat.running || navigating || submitting.current} onClick={() => void deleteChat(chat.id)}><Trash2 size={12}/></button></div>)}
-          </div>}
-        </div>;})}</div>
-        {error && <p className="ia-sidebar-error">{error}</p>}
-        <div className="ia-sidebar-spacer"/>
-        <div className="ia-tree-bottom"><button className="ia-settings-button" onClick={() => setSettingsOpen(value => !value)}><Settings2 size={16}/> Settings <ChevronRight size={14}/></button></div>
-        {settingsOpen && <div className="ia-settings-popover"><div className="ia-settings-title"><b>Settings</b><button className="ia-icon" onClick={() => setSettingsOpen(false)}>×</button></div><div className="ia-settings-row"><span>Appearance</span><button onClick={() => setTheme(value => value === 'light' ? 'dark' : 'light')}>{theme === 'light' ? <Sun size={14}/> : <Moon size={14}/>} {theme === 'light' ? 'Light' : 'Dark'}</button></div><div className="ia-settings-row"><span>Debug logs</span><button onClick={() => setDebug(value => !value)}><Bug size={14}/> {debug ? 'On' : 'Off'}</button></div><div className="ia-settings-row"><span>Computer Use</span><button disabled={Boolean(guiInstall) && !guiFailed} onClick={() => {const next = !agentStatus?.gui?.enabled; setGuiInstall('installing'); void window.viewerHost!.setGuiPlugin(next).then(state => {setAgentStatus(current => current ? {...current, gui: state} : current); if (!state.enabled) setGuiInstall('');}).catch(reason => {setGuiInstall(`toggle failed · ${String(reason)}`);});}} title={agentStatus?.gui?.enabled ? 'Kimi can operate your desktop apps for this session' : 'Install and enable desktop GUI control'}>{agentStatus?.gui?.enabled ? 'On' : 'Off'}</button></div>{agentStatus?.gui?.enabled && <p className="ia-settings-note">{guiFailed ? guiInstall : guiInstall ? `Installing computer use · ${guiInstall}…` : agentStatus.gui.install !== 'ready' ? 'Installing…' : `Ready · v${agentStatus.gui.version || 'unknown'} · macOS: grant Screen Recording & Accessibility in System Settings → Privacy & Security.`}</p>}{!agentStatus?.gui?.enabled && <p className="ia-settings-note">Enabling installs the computer-use engine and lets Kimi drive desktop apps. It can be disabled at any time.</p>}<div className="ia-settings-row"><span>Approval mode</span><select aria-label="Approval mode" value={approvalMode} disabled={approvalModeBusy} onChange={event => {const mode = event.target.value as 'ask' | 'auto'; setApprovalModeBusy(true); void window.viewerHost!.setApprovalMode(mode).then(setApprovalMode).catch(reason => setError(String(reason))).finally(() => setApprovalModeBusy(false));}}><option value="ask">Request approval</option><option value="auto">Auto approve</option></select></div><p className="ia-settings-note">{approvalMode === 'auto' ? 'Kimi can run tools without approval prompts, including file changes and external services. Questions still wait for your answer.' : 'Kimi asks before actions that require approval.'}</p><div className="ia-settings-row"><span>Model API</span><button onClick={() => {setSettingsOpen(false); setModelSettingsOpen(true);}}>Configure</button></div><div className="ia-settings-row"><span>MCP &amp; Skills</span><button onClick={() => {setSettingsOpen(false); setResourceSettingsOpen(true);}}>Configure</button></div><div className="ia-settings-row"><span>Domains</span><button onClick={() => {setSettingsOpen(false); setDomainFirstRun(false); setDomainManagerOpen(true);}}>Manage</button></div><div className="ia-settings-row"><span>Application</span><button onClick={() => {setSettingsOpen(false); setCoreUpdateOpen(true);}}>Check updates</button></div><div className="ia-settings-note">Kimi CLI: {agentStatus?.available ? agentStatus.version || 'available' : 'unavailable'}</div></div>}
-      </aside>}
-      <main className="ia-chat">
-        <header className="ia-chat-header"><div>{!leftOpen && <button className="ia-icon" onClick={() => setLeftOpen(true)} title="Show sidebar"><PanelLeftOpen size={16}/></button>}<Folder size={14}/><b>{projectName}</b></div><div className="ia-chat-actions"><button aria-label="View agent logs" title="View detailed agent logs" disabled={!activeProjectId} onClick={() => showAgentLog()}>Logs</button><button className={debug ? 'active' : ''} onClick={() => setDebug(value => !value)} title="Toggle debug logs"><Bug size={15}/></button><button onClick={() => setRightOpen(value => !value)} title={rightOpen ? 'Hide workspace' : 'Show workspace'}>{rightOpen ? <PanelRightClose size={16}/> : <PanelRightOpen size={16}/>}</button></div></header>
-        {page === 'project' && activeProject ? <ProjectDetails key={activeProject.id} project={activeProject} domains={domains} busy={runningSessions.some(session => session.projectId === activeProjectId && session.running)} onDomainChange={setProjectDomain} resourceRevision={resourceRevision} onResourcesChanged={resourcesChanged} onNewChat={newChat}/> : <>
-        <div className="ia-chat-scroll" ref={chatScroll} onScroll={event => {const element = event.currentTarget; followMessages.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80;}}>
-          {hasEarlier && <button className="ia-history-more" disabled={historyLoading} onClick={() => void loadEarlier()}>{historyLoading ? 'Loading…' : 'Load earlier messages'}</button>}
-          {!turns.length && <div className="ia-chat-welcome"><span className="ia-welcome-icon"><Cpu size={22}/></span><h1>What are you working on?</h1><p>Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.</p></div>}
-          {turns.map((turn, index) => <div className="ia-chat-turn" key={turn.id} data-turn-id={turn.id}>
-            <div className="ia-user-message">{turn.task}{turn.events.map(event => (event.type === 'user-images' || event.type === 'input-images') ? <ImageThumbnails key="input-images" images={event.images}/> : null)}</div>
-            {turn.broker && <BrokerCall broker={turn.broker} detail={index === turns.length - 1 ? detail : undefined} debug={debug} selectedDomain={selectedDomain} readOnly={index !== turns.length - 1 || agentBusy} onContext={context => void resolveTask(context, turn.task)} onDetail={id => void showDetail(id)}/>}
-            {turn.events.length > 0 && <AgentFlow onLog={showAgentLog} events={turn.events} running={agentOwned && agentBusy && index === turns.length - 1} debug={debug} approve={(id, decision) => window.viewerHost!.approveAgent(id, decision, chatIdRef.current || undefined)} answer={(id, answers) => window.viewerHost!.answerAgentQuestion(id, answers, chatIdRef.current || undefined)}/>}
-          </div>)}
-          {brokerError && <div className="ia-flow-error">{brokerError}</div>}
-        </div>
-        {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy}/>}
-        {agentBusy && !agentOwned && <p role="status" className="ia-composer-hint">This chat is running in another window. Open a new chat to work in parallel.</p>}
-        <div className="ia-composer-wrap"><div className="ia-composer" onDragOver={event => {if (event.dataTransfer.types.includes('Files')) event.preventDefault();}} onDrop={event => {if (!event.dataTransfer.files.length) return; event.preventDefault(); if (!agentBusy) void attachments.addFiles(Array.from(event.dataTransfer.files));}} onPaste={event => {const files = Array.from(event.clipboardData.items).filter(item => item.kind === 'file').map(item => item.getAsFile()).filter((file): file is File => Boolean(file)); if (files.length) {event.preventDefault(); if (!agentBusy) void attachments.addFiles(files);}}}><ImageThumbnails images={attachments.images} onRemove={attachments.remove} disabled={agentBusy || attachments.loading}/>{attachments.error && <p role="alert" className="ia-flow-error">{attachments.error}</p>}{attachments.loading && <p role="status">Preparing images…</p>}{attachments.images.length > 0 && !modelImageInput && <p className="ia-image-model-hint">This model is configured for text only. <button onClick={() => setModelSettingsOpen(true)}>Configure image input</button></p>}<textarea aria-label="Engineering task" placeholder="Ask about your project…" value={task} disabled={agentBusy || navigating} onChange={event => setTask(event.target.value)} onKeyDown={event => {if (event.key === 'Enter' && !event.shiftKey) {event.preventDefault(); void resolveTask();}}}/><div className="ia-composer-footer"><DomainPill domain={fixedDomain} domains={domains} label="Session domain"/><div className="ia-send-actions"><ImageAttachButton attachments={attachments} disabled={agentBusy || attachments.loading || !activeProjectId}/>{agentOwned && agentBusy && <button onClick={() => void window.viewerHost!.interruptAgent(chatIdRef.current || undefined)} title="Stop agent"><Square size={14}/></button>}{Boolean(broker && agentStatus?.available && agentStatus.configured && agentStatus.projectDir) && <button onClick={() => void runAgent()} disabled={navigating || agentBusy || submitting.current || turns.at(-1)?.status !== 'scoped'} title="Run with Kimi"><Play size={14}/></button>}<button className="ia-send" onClick={() => void resolveTask()} disabled={navigating || agentBusy || attachments.loading || (!task.trim() && !attachments.images.length) || (attachments.images.length > 0 && !modelImageInput)} title="Send task"><ChevronRight size={17}/></button></div></div></div><div className="ia-composer-hint">{!agentStatus?.available ? 'Kimi CLI is required to run Agent tasks' : !agentStatus.configured ? 'Configure the Model API in Settings to run Kimi' : !agentStatus.projectDir ? 'Choose a project to run Kimi' : 'Kimi ready'}</div></div>
-        </>}
-      </main>
-      {rightOpen && <section ref={workspace} className="ia-viewer ia-workspace">
-        <header className="ia-viewer-header"><div><File size={14}/><b>{activeName || 'Workspace'}</b>{activeName && <button className="ia-icon" onClick={() => {setSourceFile(undefined); setSelectedId(''); setSelectedProjectFile('');}} title="Close file"><X size={13}/></button>}</div><div className="ia-workspace-actions">{fullscreenError && <span role="status">{fullscreenError}</span>}{opened && <div className="ia-view-navigation" aria-label="Viewer zoom controls"><button aria-label="Zoom out" title="Zoom out" disabled={!ready || !viewNavigation?.ready} onClick={() => viewNavigation?.zoomOut()}>−</button><output aria-label="Viewer zoom">{viewNavigation?.percent == null ? viewNavigation?.description || 'Zoom' : `${viewNavigation.percent}%`}</output><button aria-label="Zoom in" title="Zoom in" disabled={!ready || !viewNavigation?.ready} onClick={() => viewNavigation?.zoomIn()}>+</button><button aria-label="Fit viewer" title="Fit content to the view" disabled={!ready || !viewNavigation?.ready} onClick={() => viewNavigation?.fit()}>Fit</button></div>}<button onClick={() => void toggleViewerFullscreen()} title={viewerFullscreen ? 'Exit viewer fullscreen' : 'Fullscreen viewer'} aria-label={viewerFullscreen ? 'Exit viewer fullscreen' : 'Fullscreen viewer'} aria-pressed={viewerFullscreen}>{viewerFullscreen ? <Minimize size={15}/> : <Maximize size={15}/>}</button><button className="ia-file-tree-toggle" onClick={() => setFileTreeOpen(value => !value)} title={fileTreeOpen ? 'Hide file tree' : 'Show file tree'}>{fileTreeOpen ? <PanelRightClose size={15}/> : <PanelRightOpen size={15}/>}</button><button onClick={() => setRightOpen(false)} title="Hide workspace"><X size={15}/></button></div></header>
-        <div className="ia-workspace-body"><div className="ia-workspace-content"><div className="ia-workspace-breadcrumb">{sourceFile?.path || selectedProjectFile || projectName}</div>
-          {sourceFile ? <div className="ia-source-panel">{sourceFile.content == null ? <p>Binary file · no text preview available.</p> : <pre>{sourceFile.content}</pre>}{sourceFile.truncated && <small>Preview limited to the first 2 MB.</small>}</div> : selected ? <div className="rp-stage ia-viewer-stage">{opened ? <ViewerCanvas key={selectedId} onNavigation={setViewNavigation} opened={opened} onReady={() => setReady(true)} onError={setError}/> : <div className="ia-workspace-empty">{error || (loading ? 'Opening viewer…' : 'Preparing viewer…')}</div>}</div> : <div className="ia-workspace-empty">{error || 'Open the file tree to browse this project.'}</div>}
-          {selected && <footer className="ia-viewer-footer">{selected.kind.toUpperCase()} · {opened && ready ? 'Ready' : loading ? 'Loading' : error ? 'Error' : 'Preparing'} · SHA-256 {selected.sha256.slice(0, 16)}…</footer>}
-        </div>{fileTreeOpen && <aside className="ia-workspace-tree"><div className="ia-file-search">FILES</div><button className="ia-file-root" onClick={() => setPage('project')}><ChevronDown size={13}/><FolderOpen size={14}/><span>{projectName}</span></button><div className="ia-file-list">{visibleProjectFiles.map(item => <button key={item.path} className={selectedProjectFile === item.path ? 'selected' : ''} style={{paddingLeft: 11 + item.depth * 13}} onClick={() => item.directory ? toggleDirectory(item.path) : void selectProjectFile(item.path)} title={item.path}>{item.directory ? collapsedDirs.has(item.path.replaceAll('\\', '/')) ? <ChevronRight size={12}/> : <ChevronDown size={12}/> : <File size={13}/>}<span>{item.name}</span></button>)}{!projectFiles.length && <p className="ia-file-hint">Choose a project to browse its files.</p>}</div></aside>}</div>
-      </section>}
+  const guiFailed =
+    guiInstall.startsWith('install failed') || guiInstall.startsWith('toggle failed');
+  return (
+    <div
+      className={`rp-shell ia-app theme-${theme} ${leftOpen ? '' : 'left-collapsed'} ${rightOpen ? '' : 'right-collapsed'}`}
+    >
+      <div className="ia-columns">
+        {leftOpen && (
+          <aside className="ia-tree ia-sidebar">
+            <div className="ia-sidebar-brand">
+              <span className="ia-product-mark">
+                <Cpu size={16} />
+              </span>
+              <b>Industrial Harness</b>
+              <button className="ia-icon" onClick={() => setLeftOpen(false)} title="Hide sidebar">
+                <PanelLeftClose size={16} />
+              </button>
+            </div>
+            <div className="ia-projects-heading">
+              <span>PROJECTS</span>
+              <button
+                onClick={chooseProject}
+                disabled={navigating || submitting.current}
+                aria-label="New project"
+                title="New project"
+              >
+                <Plus size={15} />
+              </button>
+            </div>
+            <div className="ia-project-list">
+              {projects.map(item => {
+                const domain = domainFor(item.domain);
+                const active = item.id === activeProjectId;
+                return (
+                  <div key={item.id} className="ia-project-group">
+                    <button
+                      className={`ia-project-row ${active ? 'selected' : ''}`}
+                      onClick={() => void selectProject(item.id)}
+                      title={item.path}
+                      disabled={navigating || submitting.current}
+                    >
+                      <FolderOpen size={15} />
+                      <span className="ia-project-row-name">{item.name}</span>
+                      {Boolean(runningByProject.get(item.id)) && (
+                        <small className="ia-project-running" title="Running chats">
+                          {runningByProject.get(item.id)}
+                        </small>
+                      )}
+                      {domain && (
+                        <span className="ia-project-domain-badge" title={domain.label}>
+                          <span aria-hidden="true">{domain.emoji}</span>
+                          {domain.label}
+                        </span>
+                      )}
+                    </button>
+                    {active && (
+                      <div
+                        className="ia-project-chats"
+                        role="group"
+                        aria-label={`${item.name} chats`}
+                        data-project-id={item.id}
+                      >
+                        <button
+                          className="ia-new-chat"
+                          onClick={() => void newChat()}
+                          disabled={
+                            navigating ||
+                            submitting.current ||
+                            !item.domain ||
+                            (page === 'chat' && Boolean(activeChatId) && turns.length === 0)
+                          }
+                          title={
+                            page === 'chat' && activeChatId && turns.length === 0
+                              ? 'Send a message in this chat before starting another'
+                              : 'New chat'
+                          }
+                          aria-label={`New chat in ${item.name}`}
+                        >
+                          <FilePlus2 size={14} /> New chat
+                        </button>
+                        {chatList.map(chat => (
+                          <div className="ia-chat-row" key={chat.id}>
+                            <button
+                              className="ia-sidebar-chat"
+                              title={chat.title}
+                              disabled={navigating || submitting.current}
+                              aria-current={
+                                page === 'chat' && activeChatId === chat.id ? 'page' : undefined
+                              }
+                              onClick={() => void openChat(chat.id)}
+                            >
+                              <Activity size={14} />
+                              <span>{chat.title}</span>
+                              {chat.running && (
+                                <small
+                                  className={`ia-session-running ${chat.awaitingApproval || chat.awaitingQuestion ? 'awaiting-approval' : ''}`}
+                                  role="status"
+                                  aria-label={
+                                    chat.awaitingQuestion
+                                      ? 'Awaiting answer'
+                                      : chat.awaitingApproval
+                                        ? 'Awaiting approval'
+                                        : 'Running'
+                                  }
+                                  title={
+                                    chat.awaitingQuestion
+                                      ? 'Awaiting answer'
+                                      : chat.awaitingApproval
+                                        ? 'Awaiting approval'
+                                        : 'Running'
+                                  }
+                                />
+                              )}
+                            </button>
+                            <button
+                              className="ia-chat-delete"
+                              aria-label={`Delete chat ${chat.title}`}
+                              title="Delete chat"
+                              disabled={chat.running || navigating || submitting.current}
+                              onClick={() => void deleteChat(chat.id)}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {error && <p className="ia-sidebar-error">{error}</p>}
+            <div className="ia-sidebar-spacer" />
+            <div className="ia-tree-bottom">
+              <button
+                className="ia-settings-button"
+                onClick={() => setSettingsOpen(value => !value)}
+              >
+                <Settings2 size={16} /> Settings <ChevronRight size={14} />
+              </button>
+            </div>
+            {settingsOpen && (
+              <div className="ia-settings-popover">
+                <div className="ia-settings-title">
+                  <b>Settings</b>
+                  <button className="ia-icon" onClick={() => setSettingsOpen(false)}>
+                    ×
+                  </button>
+                </div>
+                <div className="ia-settings-row">
+                  <span>Appearance</span>
+                  <button onClick={() => setTheme(value => (value === 'light' ? 'dark' : 'light'))}>
+                    {theme === 'light' ? <Sun size={14} /> : <Moon size={14} />}{' '}
+                    {theme === 'light' ? 'Light' : 'Dark'}
+                  </button>
+                </div>
+                <div className="ia-settings-row">
+                  <span>Debug logs</span>
+                  <button onClick={() => setDebug(value => !value)}>
+                    <Bug size={14} /> {debug ? 'On' : 'Off'}
+                  </button>
+                </div>
+                <div className="ia-settings-row">
+                  <span>Computer Use</span>
+                  <button
+                    disabled={Boolean(guiInstall) && !guiFailed}
+                    onClick={() => {
+                      const next = !agentStatus?.gui?.enabled;
+                      setGuiInstall('installing');
+                      void window
+                        .viewerHost!.setGuiPlugin(next)
+                        .then(state => {
+                          setAgentStatus(current =>
+                            current ? { ...current, gui: state } : current,
+                          );
+                          if (!state.enabled) setGuiInstall('');
+                        })
+                        .catch(reason => {
+                          setGuiInstall(`toggle failed · ${String(reason)}`);
+                        });
+                    }}
+                    title={
+                      agentStatus?.gui?.enabled
+                        ? 'Kimi can operate your desktop apps for this session'
+                        : 'Install and enable desktop GUI control'
+                    }
+                  >
+                    {agentStatus?.gui?.enabled ? 'On' : 'Off'}
+                  </button>
+                </div>
+                {agentStatus?.gui?.enabled && (
+                  <p className="ia-settings-note">
+                    {guiFailed
+                      ? guiInstall
+                      : guiInstall
+                        ? `Installing computer use · ${guiInstall}…`
+                        : agentStatus.gui.install !== 'ready'
+                          ? 'Installing…'
+                          : `Ready · v${agentStatus.gui.version || 'unknown'} · macOS: grant Screen Recording & Accessibility in System Settings → Privacy & Security.`}
+                  </p>
+                )}
+                {!agentStatus?.gui?.enabled && (
+                  <p className="ia-settings-note">
+                    Enabling installs the computer-use engine and lets Kimi drive desktop apps. It
+                    can be disabled at any time.
+                  </p>
+                )}
+                <div className="ia-settings-row">
+                  <span>Approval mode</span>
+                  <select
+                    aria-label="Approval mode"
+                    value={approvalMode}
+                    disabled={approvalModeBusy}
+                    onChange={event => {
+                      const mode = event.target.value as 'ask' | 'auto';
+                      setApprovalModeBusy(true);
+                      void window
+                        .viewerHost!.setApprovalMode(mode)
+                        .then(setApprovalMode)
+                        .catch(reason => setError(String(reason)))
+                        .finally(() => setApprovalModeBusy(false));
+                    }}
+                  >
+                    <option value="ask">Request approval</option>
+                    <option value="auto">Auto approve</option>
+                  </select>
+                </div>
+                <p className="ia-settings-note">
+                  {approvalMode === 'auto'
+                    ? 'Kimi can run tools without approval prompts, including file changes and external services. Questions still wait for your answer.'
+                    : 'Kimi asks before actions that require approval.'}
+                </p>
+                <div className="ia-settings-row">
+                  <span>Model API</span>
+                  <button
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      setModelSettingsOpen(true);
+                    }}
+                  >
+                    Configure
+                  </button>
+                </div>
+                <div className="ia-settings-row">
+                  <span>MCP &amp; Skills</span>
+                  <button
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      setResourceSettingsOpen(true);
+                    }}
+                  >
+                    Configure
+                  </button>
+                </div>
+                <div className="ia-settings-row">
+                  <span>Domains</span>
+                  <button
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      setDomainFirstRun(false);
+                      setDomainManagerOpen(true);
+                    }}
+                  >
+                    Manage
+                  </button>
+                </div>
+                <div className="ia-settings-row">
+                  <span>Application</span>
+                  <button
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      setCoreUpdateOpen(true);
+                    }}
+                  >
+                    Check updates
+                  </button>
+                </div>
+                <div className="ia-settings-note">
+                  Kimi CLI:{' '}
+                  {agentStatus?.available ? agentStatus.version || 'available' : 'unavailable'}
+                </div>
+              </div>
+            )}
+          </aside>
+        )}
+        <main className="ia-chat">
+          <header className="ia-chat-header">
+            <div>
+              {!leftOpen && (
+                <button className="ia-icon" onClick={() => setLeftOpen(true)} title="Show sidebar">
+                  <PanelLeftOpen size={16} />
+                </button>
+              )}
+              <Folder size={14} />
+              <b>{projectName}</b>
+            </div>
+            <div className="ia-chat-actions">
+              <button
+                aria-label="View agent logs"
+                title="View detailed agent logs"
+                disabled={!activeProjectId}
+                onClick={() => showAgentLog()}
+              >
+                Logs
+              </button>
+              <button
+                className={debug ? 'active' : ''}
+                onClick={() => setDebug(value => !value)}
+                title="Toggle debug logs"
+              >
+                <Bug size={15} />
+              </button>
+              <button
+                onClick={() => setRightOpen(value => !value)}
+                title={rightOpen ? 'Hide workspace' : 'Show workspace'}
+              >
+                {rightOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+              </button>
+            </div>
+          </header>
+          {page === 'project' && activeProject ? (
+            <ProjectDetails
+              key={activeProject.id}
+              project={activeProject}
+              domains={domains}
+              busy={runningSessions.some(
+                session => session.projectId === activeProjectId && session.running,
+              )}
+              onDomainChange={setProjectDomain}
+              resourceRevision={resourceRevision}
+              onResourcesChanged={resourcesChanged}
+              onNewChat={newChat}
+            />
+          ) : (
+            <>
+              <div
+                className="ia-chat-scroll"
+                ref={chatScroll}
+                onScroll={event => {
+                  const element = event.currentTarget;
+                  followMessages.current =
+                    element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+                }}
+              >
+                {hasEarlier && (
+                  <button
+                    className="ia-history-more"
+                    disabled={historyLoading}
+                    onClick={() => void loadEarlier()}
+                  >
+                    {historyLoading ? 'Loading…' : 'Load earlier messages'}
+                  </button>
+                )}
+                {!turns.length && (
+                  <div className="ia-chat-welcome">
+                    <span className="ia-welcome-icon">
+                      <Cpu size={22} />
+                    </span>
+                    <h1>What are you working on?</h1>
+                    <p>
+                      Describe a task in your project. Relevant capabilities and tools will appear
+                      as the work progresses.
+                    </p>
+                  </div>
+                )}
+                {turns.map((turn, index) => (
+                  <div className="ia-chat-turn" key={turn.id} data-turn-id={turn.id}>
+                    <div className="ia-user-message">
+                      {turn.task}
+                      {turn.events.map(event =>
+                        event.type === 'user-images' || event.type === 'input-images' ? (
+                          <ImageThumbnails key="input-images" images={event.images} />
+                        ) : null,
+                      )}
+                    </div>
+                    {turn.broker && (
+                      <BrokerCall
+                        broker={turn.broker}
+                        detail={index === turns.length - 1 ? capabilityDetail : undefined}
+                        debug={debug}
+                        selectedDomain={selectedDomain}
+                        readOnly={index !== turns.length - 1 || agentBusy}
+                        onContext={context => void resolveTask(context, turn.task)}
+                        onDetail={id => void showDetail(id)}
+                      />
+                    )}
+                    {turn.events.length > 0 && (
+                      <AgentFlow
+                        onLog={showAgentLog}
+                        events={turn.events}
+                        running={agentOwned && agentBusy && index === turns.length - 1}
+                        debug={debug}
+                        approve={approveAgent}
+                        answer={answerAgent}
+                      />
+                    )}
+                  </div>
+                ))}
+                {brokerError && <div className="ia-flow-error">{brokerError}</div>}
+              </div>
+              {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy} />}
+              {agentBusy && !agentOwned && (
+                <p role="status" className="ia-composer-hint">
+                  This chat is running in another window. Open a new chat to work in parallel.
+                </p>
+              )}
+              <div className="ia-composer-wrap">
+                <div
+                  className="ia-composer"
+                  onDragOver={event => {
+                    if (event.dataTransfer.types.includes('Files')) event.preventDefault();
+                  }}
+                  onDrop={event => {
+                    if (!event.dataTransfer.files.length) return;
+                    event.preventDefault();
+                    if (!agentBusy) void attachments.addFiles(Array.from(event.dataTransfer.files));
+                  }}
+                  onPaste={event => {
+                    const files = Array.from(event.clipboardData.items)
+                      .filter(item => item.kind === 'file')
+                      .map(item => item.getAsFile())
+                      .filter((file): file is File => Boolean(file));
+                    if (files.length) {
+                      event.preventDefault();
+                      if (!agentBusy) void attachments.addFiles(files);
+                    }
+                  }}
+                >
+                  <ImageThumbnails
+                    images={attachments.images}
+                    onRemove={attachments.remove}
+                    disabled={agentBusy || attachments.loading}
+                  />
+                  {attachments.error && (
+                    <p role="alert" className="ia-flow-error">
+                      {attachments.error}
+                    </p>
+                  )}
+                  {attachments.loading && <p role="status">Preparing images…</p>}
+                  {attachments.images.length > 0 && !modelImageInput && (
+                    <p className="ia-image-model-hint">
+                      This model is configured for text only.{' '}
+                      <button onClick={() => setModelSettingsOpen(true)}>
+                        Configure image input
+                      </button>
+                    </p>
+                  )}
+                  <textarea
+                    aria-label="Engineering task"
+                    placeholder="Ask about your project…"
+                    value={task}
+                    disabled={agentBusy || navigating}
+                    onChange={event => setTask(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        void resolveTask();
+                      }
+                    }}
+                  />
+                  <div className="ia-composer-footer">
+                    <DomainPill domain={fixedDomain} domains={domains} label="Session domain" />
+                    <div className="ia-send-actions">
+                      <ImageAttachButton
+                        attachments={attachments}
+                        disabled={agentBusy || attachments.loading || !activeProjectId}
+                      />
+                      {agentOwned && agentBusy && (
+                        <button
+                          disabled={navigating}
+                          onClick={() => {
+                            if (navigationPending.current) return;
+                            void window
+                              .viewerHost!.interruptAgent(activeChatId || undefined)
+                              .catch(reason => setBrokerError(String(reason)));
+                          }}
+                          title="Stop agent"
+                        >
+                          <Square size={14} />
+                        </button>
+                      )}
+                      {Boolean(
+                        broker &&
+                          agentStatus?.available &&
+                          agentStatus.configured &&
+                          agentStatus.projectDir,
+                      ) && (
+                        <button
+                          onClick={() => void runAgent()}
+                          disabled={
+                            navigating ||
+                            agentBusy ||
+                            submitting.current ||
+                            turns.at(-1)?.status !== 'scoped'
+                          }
+                          title="Run with Kimi"
+                        >
+                          <Play size={14} />
+                        </button>
+                      )}
+                      <button
+                        className="ia-send"
+                        onClick={() => void resolveTask()}
+                        disabled={
+                          navigating ||
+                          agentBusy ||
+                          attachments.loading ||
+                          (!task.trim() && !attachments.images.length) ||
+                          (attachments.images.length > 0 && !modelImageInput)
+                        }
+                        title="Send task"
+                      >
+                        <ChevronRight size={17} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="ia-composer-hint">
+                  {!agentStatus?.available
+                    ? 'Kimi CLI is required to run Agent tasks'
+                    : !agentStatus.configured
+                      ? 'Configure the Model API in Settings to run Kimi'
+                      : !agentStatus.projectDir
+                        ? 'Choose a project to run Kimi'
+                        : 'Kimi ready'}
+                </div>
+              </div>
+            </>
+          )}
+        </main>
+        {rightOpen && (
+          <section ref={workspace} className="ia-viewer ia-workspace">
+            <header className="ia-viewer-header">
+              <div>
+                <File size={14} />
+                <b>{activeFileName || 'Workspace'}</b>
+                {activeFileName && (
+                  <button
+                    className="ia-icon"
+                    onClick={() => {
+                      setSourceFile(undefined);
+                      setSelectedArtifactId('');
+                      setSelectedProjectFile('');
+                    }}
+                    title="Close file"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+              <div className="ia-workspace-actions">
+                {fullscreenError && <span role="status">{fullscreenError}</span>}
+                {activeViewer && (
+                  <div className="ia-view-navigation" aria-label="Viewer zoom controls">
+                    <button
+                      aria-label="Zoom out"
+                      title="Zoom out"
+                      disabled={!isViewerReady || !viewNavigation?.ready}
+                      onClick={() => viewNavigation?.zoomOut()}
+                    >
+                      −
+                    </button>
+                    <output aria-label="Viewer zoom">
+                      {viewNavigation?.percent == null
+                        ? viewNavigation?.description || 'Zoom'
+                        : `${viewNavigation.percent}%`}
+                    </output>
+                    <button
+                      aria-label="Zoom in"
+                      title="Zoom in"
+                      disabled={!isViewerReady || !viewNavigation?.ready}
+                      onClick={() => viewNavigation?.zoomIn()}
+                    >
+                      +
+                    </button>
+                    <button
+                      aria-label="Fit viewer"
+                      title="Fit content to the view"
+                      disabled={!isViewerReady || !viewNavigation?.ready}
+                      onClick={() => viewNavigation?.fit()}
+                    >
+                      Fit
+                    </button>
+                  </div>
+                )}
+                <button
+                  onClick={() => void toggleViewerFullscreen()}
+                  title={viewerFullscreen ? 'Exit viewer fullscreen' : 'Fullscreen viewer'}
+                  aria-label={viewerFullscreen ? 'Exit viewer fullscreen' : 'Fullscreen viewer'}
+                  aria-pressed={viewerFullscreen}
+                >
+                  {viewerFullscreen ? <Minimize size={15} /> : <Maximize size={15} />}
+                </button>
+                <button
+                  className="ia-file-tree-toggle"
+                  onClick={() => setFileTreeOpen(value => !value)}
+                  title={fileTreeOpen ? 'Hide file tree' : 'Show file tree'}
+                >
+                  {fileTreeOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
+                </button>
+                <button onClick={() => setRightOpen(false)} title="Hide workspace">
+                  <X size={15} />
+                </button>
+              </div>
+            </header>
+            <div className="ia-workspace-body">
+              <div className="ia-workspace-content">
+                <div className="ia-workspace-breadcrumb">
+                  {sourceFile?.path || selectedProjectFile || projectName}
+                </div>
+                {sourceFile ? (
+                  <div className="ia-source-panel">
+                    {sourceFile.content == null ? (
+                      <p>Binary file · no text preview available.</p>
+                    ) : (
+                      <pre>{sourceFile.content}</pre>
+                    )}
+                    {sourceFile.truncated && <small>Preview limited to the first 2 MB.</small>}
+                  </div>
+                ) : selectedArtifact ? (
+                  <div className="rp-stage ia-viewer-stage">
+                    {activeViewer ? (
+                      <ViewerCanvas
+                        key={selectedArtifactId}
+                        onNavigation={setViewNavigation}
+                        opened={activeViewer}
+                        onReady={viewerReady}
+                        onError={setError}
+                      />
+                    ) : (
+                      <div className="ia-workspace-empty">
+                        {error || (loading ? 'Opening viewer…' : 'Preparing viewer…')}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="ia-workspace-empty">
+                    {error || 'Open the file tree to browse this project.'}
+                  </div>
+                )}
+                {selectedArtifact && (
+                  <footer className="ia-viewer-footer">
+                    {selectedArtifact.kind.toUpperCase()} ·{' '}
+                    {activeViewer && isViewerReady
+                      ? 'Ready'
+                      : loading
+                        ? 'Loading'
+                        : error
+                          ? 'Error'
+                          : 'Preparing'}{' '}
+                    · SHA-256 {selectedArtifact.sha256.slice(0, 16)}…
+                  </footer>
+                )}
+              </div>
+              {fileTreeOpen && (
+                <aside className="ia-workspace-tree">
+                  <div className="ia-file-search">FILES</div>
+                  <button className="ia-file-root" onClick={() => setPage('project')}>
+                    <ChevronDown size={13} />
+                    <FolderOpen size={14} />
+                    <span>{projectName}</span>
+                  </button>
+                  <div className="ia-file-list">
+                    {visibleProjectFiles.map(item => (
+                      <button
+                        key={item.path}
+                        className={selectedProjectFile === item.path ? 'selected' : ''}
+                        style={{ paddingLeft: 11 + item.depth * 13 }}
+                        onClick={() =>
+                          item.directory
+                            ? toggleDirectory(item.path)
+                            : void selectProjectFile(item.path)
+                        }
+                        title={item.path}
+                      >
+                        {item.directory ? (
+                          collapsedDirs.has(item.path.replaceAll('\\', '/')) ? (
+                            <ChevronRight size={12} />
+                          ) : (
+                            <ChevronDown size={12} />
+                          )
+                        ) : (
+                          <File size={13} />
+                        )}
+                        <span>{item.name}</span>
+                      </button>
+                    ))}
+                    {!projectFiles.length && (
+                      <p className="ia-file-hint">Choose a project to browse its files.</p>
+                    )}
+                  </div>
+                </aside>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
+      {projectDraft && (
+        <CreateProjectModal
+          draft={projectDraft}
+          domains={domains}
+          error={projectError}
+          onChange={setProjectDraft}
+          onChooseDirectory={chooseProjectDirectory}
+          onClose={() => setProjectDraft(null)}
+          onCreate={createProject}
+        />
+      )}
+      {logOpen && activeProjectId && (
+        <AgentLogPanel
+          key={activeProjectId}
+          projectId={activeProjectId}
+          projectName={projectName}
+          initialTraceId={logTrace}
+          runningTraceId={diagnostic?.type === 'diagnostic-log' ? diagnostic.traceId : undefined}
+          running={agentBusy}
+          onClose={() => setLogOpen(false)}
+        />
+      )}
+      {resourceSettingsOpen && (
+        <GlobalResourceSettings
+          busy={runningSessions.some(session => session.running)}
+          onChanged={() => {
+            setResourceRevision(value => value + 1);
+            resourcesChanged();
+          }}
+          onClose={() => setResourceSettingsOpen(false)}
+        />
+      )}
+      {domainManagerOpen && (
+        <DomainManager
+          firstRun={domainFirstRun}
+          busy={runningSessions.some(session => session.running)}
+          onChanged={items => {
+            setDomains(items);
+            resourcesChanged();
+          }}
+          onClose={() => {
+            if (domainFirstRun) localStorage.setItem('ia-domain-onboarding-skipped', 'true');
+            setDomainManagerOpen(false);
+            setDomainFirstRun(false);
+          }}
+        />
+      )}
+      {coreUpdateOpen && (
+        <CoreUpdatePanel
+          busy={runningSessions.some(session => session.running)}
+          onClose={() => setCoreUpdateOpen(false)}
+        />
+      )}
+      {modelSettingsOpen && (
+        <ModelSettings
+          onClose={() => setModelSettingsOpen(false)}
+          onSaved={profile => {
+            setModelImageInput(profile.imageInput);
+            void window.viewerHost!.agentStatus().then(setAgentStatus);
+          }}
+        />
+      )}
     </div>
-    {projectDraft && <CreateProjectModal draft={projectDraft} domains={domains} error={projectError} onChange={setProjectDraft} onChooseDirectory={chooseProjectDirectory} onClose={() => setProjectDraft(null)} onCreate={createProject}/>}
-    {logOpen && activeProjectId && <AgentLogPanel key={activeProjectId} projectId={activeProjectId} projectName={projectName} initialTraceId={logTrace} runningTraceId={diagnostic?.type === 'diagnostic-log' ? diagnostic.traceId : undefined} running={agentBusy} onClose={() => setLogOpen(false)}/>}
-    {resourceSettingsOpen && <GlobalResourceSettings busy={runningSessions.some(session => session.running)} onChanged={() => {setResourceRevision(value => value + 1); resourcesChanged();}} onClose={() => setResourceSettingsOpen(false)}/>}
-    {domainManagerOpen && <DomainManager firstRun={domainFirstRun} busy={runningSessions.some(session => session.running)} onChanged={items => {setDomains(items); resourcesChanged();}} onClose={() => {if (domainFirstRun) localStorage.setItem('ia-domain-onboarding-skipped', 'true'); setDomainManagerOpen(false); setDomainFirstRun(false);}}/>}
-    {coreUpdateOpen && <CoreUpdatePanel busy={runningSessions.some(session => session.running)} onClose={() => setCoreUpdateOpen(false)}/>}
-    {modelSettingsOpen && <ModelSettings onClose={() => setModelSettingsOpen(false)} onSaved={profile => {setModelImageInput(profile.imageInput); void window.viewerHost!.agentStatus().then(setAgentStatus);}}/>}
-  </div>;
+  );
 }

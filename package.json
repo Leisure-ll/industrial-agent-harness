@@ -18,6 +18,15 @@
     "test:chat-resume": "node --test tests/integration/chat-resume.test.cjs",
     "test:mcp": "node --test tests/integration/domain-mcp*.test.cjs tests/integration/pcb-mcp*.test.cjs",
     "test:external-mcp": "node --test tests/integration/external-mcp*.test.cjs",
-    "test:pcb-mcp": "node --test tests/integration/pcb-mcp*.test.cjs"
+    "test:pcb-mcp": "node --test tests/integration/pcb-mcp*.test.cjs",
+    "format": "prettier --write \"{apps,packages,scripts,tests}/**/*.{cjs,mjs,js,ts,tsx,css}\"",
+    "format:check": "prettier --check \"{apps,packages,scripts,tests}/**/*.{cjs,mjs,js,ts,tsx,css}\"",
+    "benchmark:maintenance": "node scripts/benchmark-maintenance.cjs",
+    "test:session-resources": "node --test tests/integration/session-resources-kimi.test.cjs",
+    "stress:sessions": "node scripts/stress-sessions.cjs",
+    "test:session-chaos": "node --test tests/integration/session-chaos-kimi.test.cjs"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
   }
 }

@@ -89,3 +89,7 @@ CLI 与桌面版已默认注册同一 `chip-pack.eda`，按 Chip 项目与任务
 ## 按领域的测试包
 
 `package-headless.cjs --domain chip|pcb|godot` 生成只注册对应领域资源的 CLI 包。包内 `--domain` 可省略，其他领域会拒绝；发布工作流生成三个归档与校验文件。Chip 包包含 EDA 固定源码，PCB/Godot 包不包含；Kimi、Python 环境与工业软件按测试需求另行准备。详见 [下载与构建](../../doc/domain-cli-downloads.md)。
+
+## 会话资源保护
+
+CLI 与同一配置目录的 Desktop/其他 CLI 共用执行和常驻额度，默认 4/6；达到上限时以既有错误事件和非零退出码明确拒绝，不启动原生 Prompt。单次 CLI 结束时关闭 Kimi 并释放额度，保留聊天和原生上下文供恢复。额度、内存准入、配置项和真实进程压测见[多会话资源保护](../../doc/session-resource-guards.md)。
