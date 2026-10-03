@@ -31,7 +31,7 @@ docker build --platform linux/amd64 -f eda-harness/Dockerfile.tools \
 
 ## 与 Industrial Core 的边界
 
-- 本包既可独立连接 Kimi，也已通过共享 Scope Gateway 注册到 Desktop/CLI。Core 使用 [Headless preview.4](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.4) 的声明、项目绑定与范围检查，不能直接注册原始 MCP 以绕过 Gateway。
+- 本包既可独立连接 Kimi，也已通过共享 Scope Gateway 注册到 Desktop/CLI。Core 使用 [Headless preview.5](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.5) 的声明、项目绑定与范围检查，不能直接注册原始 MCP 以绕过 Gateway。
 - 本版是以固定 EDA 0.6.0 提交为基础的补丁，不是上游 EDA 0.7.0。包内不含预构建 Python 环境、EDA 镜像、PDK 或用户工程。
 - 未获得原始 G01 MCU 工程与 PDK，不能宣称其全量工程验收通过。`Error 247` 单独出现时原因未知；新版本增加额度与 OOM/退出证据，不能据此重写历史根因。
 - 原生 memory SMT 尚未证明，不声明支持；任意设计的等价收敛无法保证。独立 shell/Docker 命令不具备 MCP 受控运行时的清理与共享额度。
