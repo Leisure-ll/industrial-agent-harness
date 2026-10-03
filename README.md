@@ -79,6 +79,8 @@ CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[head
 
 新增或扩展 Viewer 时，必须在同一次变更中更新本节的支持格式、查看能力、依赖与限制，并遵守 [Viewer 接入规则](AGENTS.md#viewer-integration-contract)。
 
+Viewer 在首次打开时按需加载；加载期间显示状态并禁用缩放。切换文件仅挂载与当前 Artifact 对应的视图，避免沿用上一文件的就绪状态。全屏保留当前视图的运行状态。
+
 ## Viewer 示例项目
 
 无需配置模型即可查看这些示例。点击 Projects 旁的「＋」绑定相应文件夹，选择 Domain，再打开右侧工作区和文件树。
@@ -96,5 +98,7 @@ macOS 已实测这两个示例的真实渲染，以及 Godot 暂停、单步、�
 ## 文档
 
 从 [文档目录](doc/README.md) 开始阅读架构、Capability Broker、Viewer 层、领域扩展和开发阶段。仓库开发规则见 [AGENTS.md](AGENTS.md)。
+
+源码格式检查运行 `pnpm format:check`，自动整理运行 `pnpm format`。[全仓分析与优化](doc/repository-optimization.md)记录维护改动、性能对比、验证范围和后续优化优先级。
 
 Viewer 代码源自 [Silicon Lens demo](https://github.com/Zhiman-BJ/silicon-lens-harness)；聊天区的思考与 Todo 呈现参考了带轨迹回放的 [EDA Harness demo](https://github.com/Zhiman-BJ/eda-harness-demo)，产品使用实时 SDK 事件。

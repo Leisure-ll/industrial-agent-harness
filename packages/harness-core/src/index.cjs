@@ -19,16 +19,21 @@ function resourceCatalog(domain, external = []) {
 function effectiveCapabilities(registry, disabled = {}) {
   const disabledSkills = new Set(disabled.skills || []);
   const disabledMcp = new Set(disabled.mcpServers || []);
+  // Resolve providers once per request so newly installed Packs remain visible.
+  const disabledToolsByDomain = new Map();
+  if (disabledMcp.size)
+    for (const server of listMcpServers()) {
+      if (!disabledMcp.has(server.id)) continue;
+      if (!disabledToolsByDomain.has(server.domain))
+        disabledToolsByDomain.set(server.domain, new Set());
+      for (const id of server.toolIds || []) disabledToolsByDomain.get(server.domain).add(id);
+    }
   return registry.map(item => {
-    const mcpTools = new Set(
-      listMcpServers(item.domain)
-        .filter(server => disabledMcp.has(server.id))
-        .flatMap(server => server.toolIds || []),
-    );
+    const disabledTools = disabledToolsByDomain.get(item.domain);
     return {
       ...item,
       skills: item.skills.filter(skill => !disabledSkills.has(skill.id)),
-      tools: item.tools.filter(tool => !mcpTools.has(tool.id)),
+      tools: item.tools.filter(tool => !disabledTools?.has(tool.id)),
     };
   });
 }

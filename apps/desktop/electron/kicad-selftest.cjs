@@ -87,7 +87,11 @@ async function run(window) {
         return find(document);
       })()`;
       const measure = () => frame.executeJavaScript(`${native}.viewer.viewport.camera.zoom`);
-      await verifyNavigation(window, measure);
+      try {
+        await verifyNavigation(window, measure);
+      } catch (error) {
+        throw Error(`${file}: ${error.message}`, { cause: error });
+      }
       const fitted = await measure();
       // Both ordinary wheel and trackpad pinch zoom around the pointer.
       for (const ctrlKey of [false, true]) {

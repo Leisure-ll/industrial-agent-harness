@@ -194,6 +194,10 @@ test('a queued call gives up after the wait budget and later calls still run', a
   const first = plugin.clientLike.call('slow', {});
   const second = plugin.clientLike.call('type_text', { text: 'x' });
   await assert.rejects(second, /busy|gave up waiting/i);
+  // A timed-out waiter cannot let a later call overtake the physical action
+  // that is still running at the head of the queue.
+  const overtaking = plugin.clientLike.call('list_apps', {});
+  await assert.rejects(overtaking, /busy|gave up waiting/i);
   assert.match((await first).output, /ran slow/, 'the in-flight call is unaffected');
   // An abandoned slot must not wedge the queue: the next call runs normally.
   const third = await plugin.clientLike.call('list_apps', {});

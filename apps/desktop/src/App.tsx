@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   Bug,
@@ -55,26 +55,10 @@ import { ModelSettings } from './components/ModelSettings';
 import { ProjectDetails } from './components/ProjectDetails';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { DomainPill } from './components/DomainPill';
+import { appendDisplayEvents, latestEvent } from './agent-events';
 
 type Theme = 'light' | 'dark';
 type ProjectFile = { path: string; name: string; depth: number; directory: boolean };
-function appendDisplayEvent(current: AgentEvent[], event: AgentEvent): AgentEvent[] {
-  if (event.type === 'text' || event.type === 'thinking') {
-    let index = current.length - 1;
-    while (index >= 0 && (current[index].type === 'status' || current[index].type === 'step'))
-      index--;
-    const previous = current[index];
-    if (
-      (previous?.type === 'text' && event.type === 'text') ||
-      (previous?.type === 'thinking' && event.type === 'thinking')
-    ) {
-      const updated = [...current];
-      updated[index] = { ...previous, text: previous.text + event.text };
-      return updated;
-    }
-  }
-  return [...current, event];
-}
 
 type SourceFile = {
   path: string;
@@ -102,13 +86,13 @@ export function App() {
     domain: string;
   } | null>(null);
   const [projectError, setProjectError] = useState('');
-  const [selectedId, setSelectedId] = useState('');
+  const [selectedArtifactId, setSelectedArtifactId] = useState('');
   const [selectedProjectFile, setSelectedProjectFile] = useState('');
   const [sourceFile, setSourceFile] = useState<SourceFile>();
-  const [opened, setOpened] = useState<OpenedViewer>();
+  const [openedViewer, setOpenedViewer] = useState<OpenedViewer>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [ready, setReady] = useState(false);
+  const [isViewerReady, setViewerReady] = useState(false);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(false);
   const [fileTreeOpen, setFileTreeOpen] = useState(false);
@@ -129,14 +113,25 @@ export function App() {
   const [debug, setDebug] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [logTrace, setLogTrace] = useState<string>();
-  function showAgentLog(traceId?: string) {
+  const showAgentLog = useCallback((traceId?: string) => {
     setLogTrace(traceId);
     setLogOpen(true);
-  }
+  }, []);
+  const approveAgent = useCallback(
+    (id: string, decision: 'approve' | 'reject') =>
+      window.viewerHost!.approveAgent(id, decision, chatIdRef.current || undefined),
+    [],
+  );
+  const answerAgent = useCallback(
+    (id: string, answers: Record<string, string>) =>
+      window.viewerHost!.answerAgentQuestion(id, answers, chatIdRef.current || undefined),
+    [],
+  );
+  const viewerReady = useCallback(() => setViewerReady(true), []);
   const [task, setTask] = useState('');
   const [submittedTask, setSubmittedTask] = useState('');
   const [broker, setBroker] = useState<BrokerResult>();
-  const [detail, setDetail] = useState<CapabilityDetail>();
+  const [capabilityDetail, setCapabilityDetail] = useState<CapabilityDetail>();
   const [brokerError, setBrokerError] = useState('');
   const [agentStatus, setAgentStatus] = useState<{
     available: boolean;
@@ -191,7 +186,7 @@ export function App() {
     setAgentEvents(last?.events || []);
     setAgentBusy(last?.status === 'running');
     setAgentOwned(Boolean(history.executing));
-    setDetail(undefined);
+    setCapabilityDetail(undefined);
     attachments.clear();
     if (last && ['error', 'cancelled'].includes(last.status)) {
       const images = last.events.find(
@@ -209,9 +204,9 @@ export function App() {
     setChatList(list.chats);
     setRunningSessions(list.sessions);
     if (openSelected && list.activeId) {
-      const selectedId = chatIdRef.current;
+      const selectedChatId = chatIdRef.current;
       const history = await window.viewerHost!.chatHistory({ id: list.activeId });
-      if (projectId === projectIdRef.current && selectedId === chatIdRef.current)
+      if (projectId === projectIdRef.current && selectedChatId === chatIdRef.current)
         applyHistory(history);
     } else if (openSelected) {
       chatIdRef.current = null;
@@ -356,6 +351,32 @@ export function App() {
           void refreshChats(true).catch(reason => setError(String(reason)));
       },
     );
+    let pendingEvents: AgentEvent[] = [];
+    let eventTimer: ReturnType<typeof setTimeout> | undefined;
+    function flushEvents() {
+      clearTimeout(eventTimer);
+      eventTimer = undefined;
+      const batch = pendingEvents.filter(
+        event => !event.chatId || event.chatId === chatIdRef.current,
+      );
+      pendingEvents = [];
+      if (!batch.length) return;
+      setAgentEvents(current => appendDisplayEvents(current, batch));
+      setTurns(current =>
+        current.map((turn, index) => {
+          const events = batch.filter(event =>
+            event.turnId ? event.turnId === turn.id : index === current.length - 1,
+          );
+          if (!events.length) return turn;
+          let status = turn.status;
+          for (const event of events) {
+            if (event.type === 'done') status = event.result.status;
+            else if (event.type === 'error') status = 'error';
+          }
+          return { ...turn, events: appendDisplayEvents(turn.events, events), status };
+        }),
+      );
+    }
     const removeEvents = window.viewerHost.onAgentEvent(event => {
       const chatId = event.chatId || '';
       const images = sentImages.current.get(chatId) || [];
@@ -366,27 +387,9 @@ export function App() {
       }
       if (event.chatId && event.chatId !== chatIdRef.current) return;
       setAgentOwned(true);
-      setAgentEvents(current => appendDisplayEvent(current, event));
-      setTurns(current =>
-        current.map((turn, index) =>
-          event.turnId
-            ? turn.id === event.turnId
-              ? {
-                  ...turn,
-                  events: appendDisplayEvent(turn.events, event),
-                  status:
-                    event.type === 'done'
-                      ? event.result.status
-                      : event.type === 'error'
-                        ? 'error'
-                        : turn.status,
-                }
-              : turn
-            : index === current.length - 1
-              ? { ...turn, events: appendDisplayEvent(turn.events, event) }
-              : turn,
-        ),
-      );
+      pendingEvents.push(event);
+      if (['done', 'error', 'approval', 'question'].includes(event.type)) flushEvents();
+      else if (!eventTimer) eventTimer = setTimeout(flushEvents, 16);
       if (event.type === 'tool-result')
         void window.viewerHost!.brokerTrace().then(trace => {
           if (chatId === chatIdRef.current)
@@ -405,27 +408,28 @@ export function App() {
       void refreshChats().catch(reason => setError(String(reason)));
     });
     return () => {
+      clearTimeout(eventTimer);
       removeEvents();
       removeUpdated();
     };
   }, []);
   useEffect(() => {
     setViewNavigation(null);
-    if (!selectedId) {
-      setOpened(undefined);
+    if (!selectedArtifactId) {
+      setOpenedViewer(undefined);
       setLoading(false);
       return;
     }
     let cancelled = false;
     setLoading(true);
-    setReady(false);
+    setViewerReady(false);
     setError('');
-    setOpened(undefined);
+    setOpenedViewer(undefined);
     window
-      .viewerHost!.open({ artifactId: selectedId })
+      .viewerHost!.open({ artifactId: selectedArtifactId })
       .then(view => {
         if (!cancelled) {
-          setOpened(view);
+          setOpenedViewer(view);
           setLoading(false);
         }
       })
@@ -438,7 +442,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId]);
+  }, [selectedArtifactId]);
 
   useEffect(() => {
     if (!window.viewerHost) return;
@@ -455,17 +459,30 @@ export function App() {
       }
     });
   }, []);
-  const selected = artifacts.find(item => item.id === selectedId);
+  const selectedArtifact = artifacts.find(item => item.id === selectedArtifactId);
+  // Effects clear the previous Viewer after rendering. Bind display readiness
+  // immediately so a file switch cannot remount an old Viewer under a new ID.
+  const activeViewer = openedViewer?.artifact.id === selectedArtifactId ? openedViewer : undefined;
   const activeProject = projects.find(item => item.id === activeProjectId);
   const projectName = activeProject?.name || 'No project selected';
   const fixedDomain = activeProject?.domain || null;
   const selectedDomain = fixedDomain;
   const domainFor = (id?: string | null) => domains.find(item => item.id === id);
-  const activeName = sourceFile?.name || selected?.name;
-  const todo = [...agentEvents].reverse().find(event => event.type === 'todo');
-  const visibleProjectFiles = projectFiles.filter(
-    item => ![...collapsedDirs].some(dir => item.path.replaceAll('\\', '/').startsWith(`${dir}/`)),
-  );
+  const activeFileName = sourceFile?.name || selectedArtifact?.name;
+  const todo = latestEvent(agentEvents, 'todo');
+  const visibleProjectFiles = useMemo(() => {
+    const hidden = [...collapsedDirs];
+    return projectFiles.filter(item => {
+      const relative = item.path.replaceAll('\\', '/');
+      return !hidden.some(directory => relative.startsWith(`${directory}/`));
+    });
+  }, [projectFiles, collapsedDirs]);
+  const runningByProject = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const session of runningSessions)
+      if (session.running) counts.set(session.projectId, (counts.get(session.projectId) || 0) + 1);
+    return counts;
+  }, [runningSessions]);
   function toggleDirectory(relative: string) {
     const key = relative.replaceAll('\\', '/');
     setCollapsedDirs(current => {
@@ -478,7 +495,7 @@ export function App() {
 
   function selectArtifact(id: string) {
     setSourceFile(undefined);
-    setSelectedId(id);
+    setSelectedArtifactId(id);
     setRightOpen(true);
   }
   function chooseProject() {
@@ -522,14 +539,14 @@ export function App() {
       setCollapsedDirs(new Set());
       setArtifacts([]);
       setSourceFile(undefined);
-      setSelectedId('');
+      setSelectedArtifactId('');
       setSelectedProjectFile('');
-      setOpened(undefined);
+      setOpenedViewer(undefined);
       setRightOpen(false);
       setFileTreeOpen(false);
       setSubmittedTask('');
       setBroker(undefined);
-      setDetail(undefined);
+      setCapabilityDetail(undefined);
       setAgentEvents([]);
       await refreshChats(true);
       setProjectDraft(null);
@@ -558,14 +575,14 @@ export function App() {
       setCollapsedDirs(new Set());
       setArtifacts([]);
       setSourceFile(undefined);
-      setSelectedId('');
+      setSelectedArtifactId('');
       setSelectedProjectFile('');
-      setOpened(undefined);
+      setOpenedViewer(undefined);
       setRightOpen(false);
       setFileTreeOpen(false);
       setSubmittedTask('');
       setBroker(undefined);
-      setDetail(undefined);
+      setCapabilityDetail(undefined);
       setAgentEvents([]);
       await refreshChats(true);
       setPage('project');
@@ -586,8 +603,8 @@ export function App() {
         setArtifacts(current => [...current, item]);
         selectArtifact(item.id);
       } else {
-        setSelectedId('');
-        setOpened(undefined);
+        setSelectedArtifactId('');
+        setOpenedViewer(undefined);
         setSourceFile(file);
       }
     } catch (reason) {
@@ -609,7 +626,7 @@ export function App() {
         setTask('');
         setSubmittedTask('');
         setBroker(undefined);
-        setDetail(undefined);
+        setCapabilityDetail(undefined);
         setBrokerError('');
         setAgentEvents([]);
       }
@@ -641,10 +658,10 @@ export function App() {
     followMessages.current = true;
     setAgentBusy(true);
     setBrokerError('');
-    setDetail(undefined);
+    setCapabilityDetail(undefined);
     try {
       const artifactKind = /\b(this|selected|current)\b|这个|当前|该|它/i.test(prompt)
-        ? selected?.kind
+        ? selectedArtifact?.kind
         : undefined;
       const result = await window.viewerHost!.resolve({
         task: prompt,
@@ -673,7 +690,7 @@ export function App() {
       setTask('');
       setSubmittedTask('');
       setBroker(undefined);
-      setDetail(undefined);
+      setCapabilityDetail(undefined);
       setBrokerError('');
       setAgentEvents([]);
       await refreshChats(true);
@@ -683,12 +700,12 @@ export function App() {
   }
   function resourcesChanged() {
     setBroker(undefined);
-    setDetail(undefined);
+    setCapabilityDetail(undefined);
     setBrokerError('');
   }
   async function showDetail(id: string) {
     try {
-      setDetail(await window.viewerHost!.detail(id));
+      setCapabilityDetail(await window.viewerHost!.detail(id));
       const trace = await window.viewerHost!.brokerTrace();
       setBroker(current => (current ? { ...current, trace } : current));
     } catch (reason) {
@@ -720,7 +737,7 @@ export function App() {
     }
   }
 
-  const diagnostic = agentEvents.filter(event => event.type === 'diagnostic-log').at(-1);
+  const diagnostic = latestEvent(agentEvents, 'diagnostic-log');
   // Failed installs/toggles record 'install failed · …' / 'toggle failed · …';
   // both must keep the toggle usable so the user can retry or disable.
   const guiFailed =
@@ -766,15 +783,9 @@ export function App() {
                     >
                       <FolderOpen size={15} />
                       <span className="ia-project-row-name">{item.name}</span>
-                      {runningSessions.some(
-                        session => session.projectId === item.id && session.running,
-                      ) && (
+                      {Boolean(runningByProject.get(item.id)) && (
                         <small className="ia-project-running" title="Running chats">
-                          {
-                            runningSessions.filter(
-                              session => session.projectId === item.id && session.running,
-                            ).length
-                          }
+                          {runningByProject.get(item.id)}
                         </small>
                       )}
                       {domain && (
@@ -1107,7 +1118,7 @@ export function App() {
                     {turn.broker && (
                       <BrokerCall
                         broker={turn.broker}
-                        detail={index === turns.length - 1 ? detail : undefined}
+                        detail={index === turns.length - 1 ? capabilityDetail : undefined}
                         debug={debug}
                         selectedDomain={selectedDomain}
                         readOnly={index !== turns.length - 1 || agentBusy}
@@ -1121,20 +1132,8 @@ export function App() {
                         events={turn.events}
                         running={agentOwned && agentBusy && index === turns.length - 1}
                         debug={debug}
-                        approve={(id, decision) =>
-                          window.viewerHost!.approveAgent(
-                            id,
-                            decision,
-                            chatIdRef.current || undefined,
-                          )
-                        }
-                        answer={(id, answers) =>
-                          window.viewerHost!.answerAgentQuestion(
-                            id,
-                            answers,
-                            chatIdRef.current || undefined,
-                          )
-                        }
+                        approve={approveAgent}
+                        answer={answerAgent}
                       />
                     )}
                   </div>
@@ -1272,13 +1271,13 @@ export function App() {
             <header className="ia-viewer-header">
               <div>
                 <File size={14} />
-                <b>{activeName || 'Workspace'}</b>
-                {activeName && (
+                <b>{activeFileName || 'Workspace'}</b>
+                {activeFileName && (
                   <button
                     className="ia-icon"
                     onClick={() => {
                       setSourceFile(undefined);
-                      setSelectedId('');
+                      setSelectedArtifactId('');
                       setSelectedProjectFile('');
                     }}
                     title="Close file"
@@ -1289,12 +1288,12 @@ export function App() {
               </div>
               <div className="ia-workspace-actions">
                 {fullscreenError && <span role="status">{fullscreenError}</span>}
-                {opened && (
+                {activeViewer && (
                   <div className="ia-view-navigation" aria-label="Viewer zoom controls">
                     <button
                       aria-label="Zoom out"
                       title="Zoom out"
-                      disabled={!ready || !viewNavigation?.ready}
+                      disabled={!isViewerReady || !viewNavigation?.ready}
                       onClick={() => viewNavigation?.zoomOut()}
                     >
                       −
@@ -1307,7 +1306,7 @@ export function App() {
                     <button
                       aria-label="Zoom in"
                       title="Zoom in"
-                      disabled={!ready || !viewNavigation?.ready}
+                      disabled={!isViewerReady || !viewNavigation?.ready}
                       onClick={() => viewNavigation?.zoomIn()}
                     >
                       +
@@ -1315,7 +1314,7 @@ export function App() {
                     <button
                       aria-label="Fit viewer"
                       title="Fit content to the view"
-                      disabled={!ready || !viewNavigation?.ready}
+                      disabled={!isViewerReady || !viewNavigation?.ready}
                       onClick={() => viewNavigation?.fit()}
                     >
                       Fit
@@ -1356,14 +1355,14 @@ export function App() {
                     )}
                     {sourceFile.truncated && <small>Preview limited to the first 2 MB.</small>}
                   </div>
-                ) : selected ? (
+                ) : selectedArtifact ? (
                   <div className="rp-stage ia-viewer-stage">
-                    {opened ? (
+                    {activeViewer ? (
                       <ViewerCanvas
-                        key={selectedId}
+                        key={selectedArtifactId}
                         onNavigation={setViewNavigation}
-                        opened={opened}
-                        onReady={() => setReady(true)}
+                        opened={activeViewer}
+                        onReady={viewerReady}
                         onError={setError}
                       />
                     ) : (
@@ -1377,17 +1376,17 @@ export function App() {
                     {error || 'Open the file tree to browse this project.'}
                   </div>
                 )}
-                {selected && (
+                {selectedArtifact && (
                   <footer className="ia-viewer-footer">
-                    {selected.kind.toUpperCase()} ·{' '}
-                    {opened && ready
+                    {selectedArtifact.kind.toUpperCase()} ·{' '}
+                    {activeViewer && isViewerReady
                       ? 'Ready'
                       : loading
                         ? 'Loading'
                         : error
                           ? 'Error'
                           : 'Preparing'}{' '}
-                    · SHA-256 {selected.sha256.slice(0, 16)}…
+                    · SHA-256 {selectedArtifact.sha256.slice(0, 16)}…
                   </footer>
                 )}
               </div>

@@ -1,6 +1,6 @@
 import type { AgentEvent } from '@industrial-agent-harness/viewer-builtin/api';
 import { ThinkingPreview } from './ThinkingPreview';
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 
 type ToolResult = Extract<AgentEvent, { type: 'tool-result' }>;
 
@@ -222,7 +222,7 @@ function QuestionCard({
   );
 }
 
-export function AgentFlow({
+export const AgentFlow = memo(function AgentFlow({
   events,
   running,
   debug,
@@ -428,4 +428,4 @@ export function AgentFlow({
       })}
     </section>
   );
-}
+});

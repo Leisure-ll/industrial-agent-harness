@@ -1,17 +1,60 @@
-import { LayoutViewport } from './layout/LayoutViewport';
-import { NetlistViewport } from './netlist/NetlistViewport';
-import { WaveformViewport } from './waveform/WaveformViewport';
-import { GodotViewport } from './godot/GodotViewport';
-import { AssetViewport } from './assets/AssetViewport';
-import { KiCadViewport } from './kicad/KiCadViewport';
-import { DocumentViewport } from './documents/DocumentViewport';
-import { EngineeringViewport } from './engineering/EngineeringViewport';
+import { Component, lazy, memo, Suspense } from 'react';
+import type { ReactNode } from 'react';
 import type { OpenedViewer } from './api';
 import { ViewNavigationContext } from './navigation';
 import type { ViewNavigation } from './navigation';
 export type { ViewNavigation } from './navigation';
 
-export function ViewerCanvas({
+const LayoutViewport = lazy(() =>
+  import('./layout/LayoutViewport').then(module => ({ default: module.LayoutViewport })),
+);
+const NetlistViewport = lazy(() =>
+  import('./netlist/NetlistViewport').then(module => ({ default: module.NetlistViewport })),
+);
+const WaveformViewport = lazy(() =>
+  import('./waveform/WaveformViewport').then(module => ({ default: module.WaveformViewport })),
+);
+const GodotViewport = lazy(() =>
+  import('./godot/GodotViewport').then(module => ({ default: module.GodotViewport })),
+);
+const AssetViewport = lazy(() =>
+  import('./assets/AssetViewport').then(module => ({ default: module.AssetViewport })),
+);
+const KiCadViewport = lazy(() =>
+  import('./kicad/KiCadViewport').then(module => ({ default: module.KiCadViewport })),
+);
+const DocumentViewport = lazy(() =>
+  import('./documents/DocumentViewport').then(module => ({ default: module.DocumentViewport })),
+);
+const EngineeringViewport = lazy(() =>
+  import('./engineering/EngineeringViewport').then(module => ({
+    default: module.EngineeringViewport,
+  })),
+);
+
+class ViewerBoundary extends Component<
+  { children: ReactNode; onError: (message: string) => void },
+  { error: string }
+> {
+  state = { error: '' };
+  static getDerivedStateFromError(error: Error) {
+    return { error: error.message };
+  }
+  componentDidCatch(error: Error) {
+    this.props.onError(error.message);
+  }
+  render() {
+    return this.state.error ? (
+      <p role="alert" className="rp-view-error">
+        {this.state.error}
+      </p>
+    ) : (
+      this.props.children
+    );
+  }
+}
+
+export const ViewerCanvas = memo(function ViewerCanvas({
   onNavigation,
   ...props
 }: {
@@ -22,10 +65,14 @@ export function ViewerCanvas({
 }) {
   return (
     <ViewNavigationContext value={onNavigation}>
-      <ViewerContent {...props} />
+      <ViewerBoundary key={props.opened.artifact.id} onError={props.onError}>
+        <Suspense fallback={<p role="status">Opening viewer…</p>}>
+          <ViewerContent {...props} />
+        </Suspense>
+      </ViewerBoundary>
     </ViewNavigationContext>
   );
-}
+});
 function ViewerContent({
   opened,
   onReady,

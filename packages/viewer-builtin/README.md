@@ -21,6 +21,8 @@ pnpm --filter @industrial-agent-harness/viewer-builtin test
 
 生产调用必须先由桌面端把用户选定的项目与 Artifact ID 解析、校验为本地只读文件，再交给这些模块。Viewer 只产生显示数据和临时视图状态，不修改工程资产或验收结果。Godot V1 运行 Web Export 预览，不提供工程编辑；完整编辑仍由 Godot 承担。
 
+`ViewerCanvas` 按需加载各 Viewport，加载期间显示状态，加载或渲染失败交给原有错误回调。桌面宿主只挂载与当前选中 Artifact ID 一致的 Viewer。导航状态更新直接发布新的控制器，卸载时清理，避免缩放过程中反复清空标题栏状态；进入全屏保留已挂载视图。
+
 接入说明见 [EDA Viewer 参考](../../doc/viewer-eda-reference.md)，通用约束见 [Viewer 层设计](../../doc/viewer-layer.md)。
 Godot 导出和桥接说明见 [Godot Viewer V1](../../doc/godot-viewer.md)。
 仓库内 [Godot Playground](../../examples/godot-viewer/README.md) 提供源项目和导出脚本；真实 Web 运行时与 Viewer 控制已在 macOS Electron 实测。

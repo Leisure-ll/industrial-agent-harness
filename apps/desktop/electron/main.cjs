@@ -98,6 +98,7 @@ const {
   sessionEnv,
 } = require('./model-config.cjs');
 const { readBindings, addBinding, saveBindings } = require('./project-bindings.cjs');
+const { resolveProjectFile, listProjectFiles, readSourcePreview } = require('./project-files.cjs');
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -421,11 +422,7 @@ function kindFor(file) {
 }
 
 function projectFile(relative) {
-  if (!projectDir || typeof relative !== 'string') throw Error('Choose a project first.');
-  const file = fs.realpathSync(path.resolve(projectDir, relative));
-  if (!file.startsWith(projectDir + path.sep) || !fs.statSync(file).isFile())
-    throw Error('File is outside the selected project.');
-  return file;
+  return resolveProjectFile(projectDir, relative);
 }
 
 async function digest(file) {
@@ -934,34 +931,9 @@ function registerHandlers() {
     notifySessions();
     return chatList();
   });
-  ipcMain.handle('project:list', () => {
-    if (!projectDir) return [];
-    const output = [];
-    const walk = (dir, depth) => {
-      if (depth > 3 || output.length >= 250) return;
-      const hidden =
-        activeProject()?.domain === 'godot'
-          ? ['node_modules', '__pycache__', 'target']
-          : ['node_modules', 'dist', 'build', '__pycache__', 'target'];
-      const entries = fs
-        .readdirSync(dir, { withFileTypes: true })
-        .filter(item => !item.name.startsWith('.') && !hidden.includes(item.name))
-        .sort(
-          (a, b) =>
-            Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name),
-        );
-      for (const entry of entries) {
-        if (output.length >= 250) break;
-        if (!entry.isDirectory() && !entry.isFile()) continue;
-        const absolute = path.join(dir, entry.name);
-        const relative = path.relative(projectDir, absolute);
-        output.push({ path: relative, name: entry.name, depth, directory: entry.isDirectory() });
-        if (entry.isDirectory()) walk(absolute, depth + 1);
-      }
-    };
-    walk(projectDir, 0);
-    return output;
-  });
+  ipcMain.handle('project:list', () =>
+    listProjectFiles(projectDir, { includeBuildDirectories: activeProject()?.domain === 'godot' }),
+  );
   ipcMain.handle('project:open', async (_event, relative) => {
     const file = projectFile(relative);
     return registerArtifact({
@@ -974,36 +946,11 @@ function registerHandlers() {
   });
   ipcMain.handle('project:read', (_event, relative) => {
     const file = projectFile(relative);
-    const sizeBytes = fs.statSync(file).size;
     let viewer = null;
     try {
       viewer = kindFor(file);
     } catch {}
-    if (viewer)
-      return {
-        path: relative,
-        name: path.basename(file),
-        sizeBytes,
-        viewer,
-        content: null,
-        truncated: false,
-      };
-    const limit = 2 * 1024 * 1024;
-    const fd = fs.openSync(file, 'r');
-    const buffer = Buffer.alloc(Math.min(sizeBytes, limit));
-    try {
-      fs.readSync(fd, buffer, 0, buffer.length, 0);
-    } finally {
-      fs.closeSync(fd);
-    }
-    return {
-      path: relative,
-      name: path.basename(file),
-      sizeBytes,
-      viewer: null,
-      content: buffer.includes(0) ? null : buffer.toString('utf8'),
-      truncated: sizeBytes > limit,
-    };
+    return readSourcePreview(file, relative, viewer);
   });
   function imageRequest(event, request) {
     if (
@@ -1486,7 +1433,10 @@ async function createWindow() {
     );
     await new Promise(resolve => setTimeout(resolve, 150));
     const projectScreenshot = await shot('project');
-    await waitFor(`document.querySelectorAll('.ia-project-resources select').length === 3`);
+    const expectedResources = resourceCatalog(activeProject().domain);
+    await waitFor(
+      `document.querySelectorAll('.ia-project-resources select').length === ${expectedResources.skills.length + expectedResources.mcpServers.length}`,
+    );
     await window.webContents.executeJavaScript(
       `(() => {const select = document.querySelector('.ia-project-resources select'); select.value = 'disabled'; select.dispatchEvent(new Event('change', {bubbles: true}));})()`,
     );
@@ -1603,7 +1553,7 @@ async function createWindow() {
       `document.querySelector('.ia-file-list button[title="README.md"]').click()`,
     );
     await waitFor(
-      `Boolean(document.querySelector('.ia-source-panel pre')?.innerText.includes('Sobel chip design sample'))`,
+      `Boolean(document.querySelector('.rp-document-markdown')?.innerText.includes('Sobel chip design sample')) && document.querySelector('.ia-viewer-footer')?.innerText.includes('MARKDOWN · Ready')`,
     );
     screenshots.push(await shot('source'));
     await waitFor(

@@ -132,3 +132,59 @@ test('reader rejects cross-project, traversal, symlink, corrupt identity and exc
   fs.symlinkSync(root, projectLogDirectory(project, directory));
   await assert.rejects(reader.list(project), /symlink/);
 });
+
+test('large split records retain byte offsets and category counts across partial appends with bounded copies', async t => {
+  const { project, directory, reader } = fixture(t);
+  const log = createDiagnosticLog(project, { directory });
+  log.record('run.start', {});
+  const output = '工具🙂'.repeat(100000);
+  log.record('sdk.event', {
+    type: 'ToolResult',
+    payload: { tool_call_id: 'large', return_value: { output, is_error: false } },
+  });
+  log.close();
+  const runId = path.basename(log.file);
+  let copiedBytes = 0;
+  const concatenate = Buffer.concat;
+  t.mock.method(Buffer, 'concat', (buffers, length) => {
+    copiedBytes += length ?? buffers.reduce((sum, bytes) => sum + bytes.length, 0);
+    return concatenate(buffers, length);
+  });
+  const first = await reader.page(project, { runId });
+  assert.equal(first.counts.tools, 1);
+  assert.ok(
+    copiedBytes <= fs.statSync(log.file).size * 2,
+    'index copies remain proportional to log size',
+  );
+  const end = JSON.stringify({
+    schemaVersion: 1,
+    traceId: log.traceId,
+    sequence: 3,
+    at: new Date().toISOString(),
+    type: 'run.end',
+    payload: { status: 'completed' },
+  });
+  fs.appendFileSync(log.file, '\n' + end.slice(0, 50));
+  assert.equal((await reader.page(project, { runId })).pending, true);
+  fs.appendFileSync(log.file, end.slice(50) + '\n');
+  const complete = await reader.page(project, { runId });
+  assert.equal(complete.totalRecords, 3);
+  assert.equal(complete.counts.tools, 1);
+  assert.equal(complete.counts.run, 2);
+  const last = await reader.record(project, { runId, sequence: 3 });
+  assert.equal(JSON.parse(last.text).payload.status, 'completed');
+  const page = await reader.view(project, { runId, view: 'tools' });
+  let reconstructed = '',
+    offset = 0;
+  do {
+    const part = await reader.detail(project, {
+      runId,
+      id: page.entries[0].id,
+      field: 'output',
+      offset,
+    });
+    reconstructed += part.text;
+    offset = part.nextOffset;
+  } while (offset !== null);
+  assert.equal(reconstructed, output);
+});

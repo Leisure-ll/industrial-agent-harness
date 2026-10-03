@@ -2,12 +2,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { projectEvents, descriptor } = require('./diagnostic-view.cjs');
+const { scanRecords, CHUNK_BYTES } = require('./diagnostic-index.cjs');
 const { defaultLogDirectory, projectLogDirectory } = require('./diagnostic-log.cjs');
 const namePattern =
   /^(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/;
 const maxFileBytes = 64 * 1024 * 1024;
-const maxRecordBytes = 16 * 1024 * 1024;
-const chunkBytes = 64 * 1024;
+const chunkBytes = CHUNK_BYTES;
+const categories = ['tools', 'context', 'thinking', 'approvals', 'run', 'ui'];
 function category(row) {
   const event = typeof row.payload?.type === 'string' ? row.payload.type : '';
   if (row.type === 'harness.event') return 'ui';
@@ -177,74 +178,59 @@ class DiagnosticReader {
   async index(opened) {
     const { handle, stat, file, traceId } = opened;
     const cached = this.cache.get(file);
-    if (
-      cached &&
-      cached.size === stat.size &&
-      cached.mtime === stat.mtimeMs &&
-      cached.ino === stat.ino
-    )
-      return cached;
+    const sameFile = cached && cached.ino === stat.ino && cached.dev === stat.dev;
+    if (sameFile && cached.size === stat.size && cached.mtime === stat.mtimeMs) return cached;
     // Append-only runs resume at the last complete record; rewrites start again.
-    const append = cached && cached.size < stat.size && cached.ino === stat.ino;
+    const append = sameFile && cached.size < stat.size;
     const rows = append ? [...cached.rows] : [];
-    let cursor = append ? cached.cursor : 0,
-      pending = Buffer.alloc(0);
-    if (stat.size > cursor) {
-      let position = cursor;
-      while (position < stat.size) {
-        const bytes = Buffer.alloc(Math.min(chunkBytes, stat.size - position));
-        const { bytesRead } = await handle.read(bytes, 0, bytes.length, position);
-        if (bytesRead !== bytes.length) throw Error('Diagnostic log changed while indexing.');
-        position += bytesRead;
-        pending = Buffer.concat([pending, bytes]);
-        let newline;
-        while ((newline = pending.indexOf(10)) >= 0) {
-          if (newline > maxRecordBytes)
-            throw Error('Diagnostic record exceeds the 16 MiB viewing limit.');
-          const raw = pending.subarray(0, newline).toString('utf8');
-          if (raw.trim()) {
-            let row;
-            try {
-              row = JSON.parse(raw);
-            } catch {
-              throw Error(`Malformed diagnostic record at byte ${cursor}.`);
-            }
-            if (
-              row.schemaVersion !== 1 ||
-              row.traceId !== traceId ||
-              row.sequence !== rows.length + 1 ||
-              typeof row.type !== 'string' ||
-              row.type.length > 100 ||
-              typeof row.at !== 'string' ||
-              row.at.length > 64
-            )
-              throw Error('Diagnostic record identity or sequence is inconsistent.');
-            rows.push({
-              sequence: row.sequence,
-              at: row.at,
-              type: row.type,
-              event: typeof row.payload?.type === 'string' ? row.payload.type.slice(0, 100) : null,
-              category: category(row),
-              summary: String(summary(row)).slice(0, 180),
-              offset: cursor,
-              bytes: newline,
-            });
-            if (rows.length > 100000) throw Error('Diagnostic log exceeds 100,000 records.');
-          }
-          cursor += newline + 1;
-          pending = pending.subarray(newline + 1);
+    const counts = append
+      ? { ...cached.counts }
+      : Object.fromEntries(categories.map(kind => [kind, 0]));
+    const scanned = await scanRecords(
+      handle,
+      stat.size,
+      append ? cached.cursor : 0,
+      (raw, offset, bytes) => {
+        if (!raw.trim()) return;
+        let row;
+        try {
+          row = JSON.parse(raw);
+        } catch {
+          throw Error(`Malformed diagnostic record at byte ${offset}.`);
         }
-        if (pending.length > maxRecordBytes)
-          throw Error('Diagnostic record exceeds the 16 MiB viewing limit.');
-      }
-    }
+        if (
+          row.schemaVersion !== 1 ||
+          row.traceId !== traceId ||
+          row.sequence !== rows.length + 1 ||
+          typeof row.type !== 'string' ||
+          row.type.length > 100 ||
+          typeof row.at !== 'string' ||
+          row.at.length > 64
+        )
+          throw Error('Diagnostic record identity or sequence is inconsistent.');
+        const kind = category(row);
+        rows.push({
+          sequence: row.sequence,
+          at: row.at,
+          type: row.type,
+          event: typeof row.payload?.type === 'string' ? row.payload.type.slice(0, 100) : null,
+          category: kind,
+          summary: String(summary(row)).slice(0, 180),
+          offset,
+          bytes,
+        });
+        counts[kind]++;
+        if (rows.length > 100000) throw Error('Diagnostic log exceeds 100,000 records.');
+      },
+    );
     const result = {
       rows,
-      cursor,
+      counts,
+      ...scanned,
       size: stat.size,
       mtime: stat.mtimeMs,
       ino: stat.ino,
-      pending: pending.length > 0,
+      dev: stat.dev,
     };
     this.cache.delete(file);
     this.cache.set(file, result);
@@ -274,12 +260,7 @@ class DiagnosticReader {
           (filter === 'all' || row.category === filter) &&
           (!needle || `${row.type} ${row.event} ${row.summary}`.toLowerCase().includes(needle)),
       );
-      const counts = Object.fromEntries(
-        ['tools', 'context', 'thinking', 'approvals', 'run', 'ui'].map(kind => [
-          kind,
-          index.rows.filter(row => row.category === kind).length,
-        ]),
-      );
+      const counts = { ...index.counts };
       return {
         records: rows.slice(offset, offset + 100),
         nextOffset: offset + 100 < rows.length ? offset + 100 : null,
@@ -294,7 +275,7 @@ class DiagnosticReader {
   }
   async projection(opened, project) {
     const index = await this.index(opened);
-    const signature = `${opened.file}:${index.size}:${index.mtime}:${index.ino}`;
+    const signature = `${opened.file}:${index.size}:${index.mtime}:${index.ino}:${index.dev}`;
     if (this.viewCache?.signature === signature) return this.viewCache.value;
     const buffer = Buffer.alloc(index.cursor);
     const { bytesRead } = await opened.handle.read(buffer, 0, buffer.length, 0);
@@ -356,6 +337,7 @@ class DiagnosticReader {
       }
     }
     const value = projectEvents(records, snapshots);
+    value.byId = new Map([...value.entries, ...value.contexts].map(entry => [entry.id, entry]));
     this.viewCache = { signature, value }; // Only one run's full content is cached.
     return value;
   }
@@ -408,10 +390,14 @@ class DiagnosticReader {
     const opened = await this.open(project, runId);
     try {
       const value = await this.projection(opened, project);
-      const entry = [...value.entries, ...value.contexts].find(item => item.id === id);
+      const entry = value.byId.get(id);
       const part = entry?.fields.find(item => item.key === field);
       if (!part) throw Error('Diagnostic field is unavailable.');
-      const bytes = Buffer.from(part.text);
+      // Keep one encoded field while paging it; encoding the entire tool result
+      // for every 64 KiB page repeats a large allocation and UTF-8 conversion.
+      if (this.detailCache?.part !== part)
+        this.detailCache = { part, bytes: Buffer.from(part.text) };
+      const bytes = this.detailCache.bytes;
       if (offset > bytes.length || (bytes[offset] & 0xc0) === 0x80)
         throw Error('Invalid diagnostic text offset.');
       let end = Math.min(offset + chunkBytes, bytes.length);
@@ -437,7 +423,7 @@ class DiagnosticReader {
     const opened = await this.open(project, runId);
     try {
       const index = await this.index(opened),
-        row = index.rows.find(row => row.sequence === sequence);
+        row = index.rows[sequence - 1];
       if (!row || offset >= row.bytes) throw Error('Diagnostic record is unavailable.');
       const buffer = Buffer.alloc(Math.min(chunkBytes, row.bytes - offset));
       const { bytesRead } = await opened.handle.read(buffer, 0, buffer.length, row.offset + offset);

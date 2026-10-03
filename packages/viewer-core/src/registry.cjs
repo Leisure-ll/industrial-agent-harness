@@ -11,12 +11,13 @@ function createViewerRegistry(plugins) {
       throw Error('Invalid or duplicate Viewer plugin.');
     byId.set(plugin.id, Object.freeze(plugin));
   }
+  const registeredPlugins = [...byId.values()];
   return Object.freeze({
     get(id) {
       return byId.get(id);
     },
     match(file) {
-      return [...byId.values()].find(plugin => plugin.matches(file))?.id || null;
+      return registeredPlugins.find(plugin => plugin.matches(file))?.id || null;
     },
     list() {
       return [...byId.keys()];

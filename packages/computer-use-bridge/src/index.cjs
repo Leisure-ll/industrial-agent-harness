@@ -77,7 +77,8 @@ function createGuiPlugin({
         const timer = setTimeout(() => {
           if (settled) return;
           settled = true;
-          advance();
+          // Release this slot only after the preceding action finishes. A
+          // timeout ends the caller's wait, not the physical desktop action.
           reject(
             new Error(
               `Computer use is busy with another session; gave up waiting for ${name} after ${queueWaitMs}ms. Retry later, or complete this step with a non-GUI tool.`,

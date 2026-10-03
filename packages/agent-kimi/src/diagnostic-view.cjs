@@ -28,7 +28,7 @@ function projectEvents(records, snapshots = new Map()) {
   const field = (key, label, value, open = true) => ({ key, label, text: text(value), open });
   for (const row of records) {
     const event = row.payload ?? {},
-      p = event.payload ?? {};
+      sdkPayload = event.payload ?? {};
     if (row.type === 'run.start') {
       start = row;
       contexts.push({
@@ -72,22 +72,23 @@ function projectEvents(records, snapshots = new Map()) {
       (!sdk && row.type === 'harness.event' && event.type === 'step')
     ) {
       message = null;
-      step = add(row, 'step', `模型第 ${p.n ?? event.number} 步`);
+      step = add(row, 'step', `模型第 ${sdkPayload.n ?? event.number} 步`);
       step.stepId = step.id;
-      step.number = p.n ?? event.number;
+      step.number = sdkPayload.n ?? event.number;
       steps.set(step.id, step);
     }
     if (
       (row.type === 'sdk.event' && event.type === 'ContentPart') ||
       (!sdk && row.type === 'harness.event' && ['text', 'thinking'].includes(event.type))
     ) {
-      const thinking = row.type === 'sdk.event' ? p.type === 'think' : event.type === 'thinking';
+      const thinking =
+        row.type === 'sdk.event' ? sdkPayload.type === 'think' : event.type === 'thinking';
       const content =
         row.type === 'sdk.event'
           ? thinking
-            ? p.think
-            : p.type === 'text'
-              ? p.text
+            ? sdkPayload.think
+            : sdkPayload.type === 'text'
+              ? sdkPayload.text
               : null
           : event.text;
       if (typeof content !== 'string') continue;
@@ -106,16 +107,16 @@ function projectEvents(records, snapshots = new Map()) {
       (!sdk && row.type === 'harness.event' && event.type === 'tool')
     ) {
       message = null;
-      const id = row.type === 'sdk.event' ? p.id : event.id;
+      const id = row.type === 'sdk.event' ? sdkPayload.id : event.id;
       const call = add(
         row,
         'tool',
-        row.type === 'sdk.event' ? p.function?.name || '未知工具' : event.name,
+        row.type === 'sdk.event' ? sdkPayload.function?.name || '未知工具' : event.name,
         [
           field(
             'input',
             '调用参数',
-            row.type === 'sdk.event' ? p.function?.arguments : event.arguments,
+            row.type === 'sdk.event' ? sdkPayload.function?.arguments : event.arguments,
           ),
         ],
       );
@@ -128,10 +129,10 @@ function projectEvents(records, snapshots = new Map()) {
       (!sdk && row.type === 'harness.event' && event.type === 'tool-result')
     ) {
       message = null;
-      const id = row.type === 'sdk.event' ? p.tool_call_id : event.id;
+      const id = row.type === 'sdk.event' ? sdkPayload.tool_call_id : event.id;
       const value =
         row.type === 'sdk.event'
-          ? (p.return_value ?? {})
+          ? (sdkPayload.return_value ?? {})
           : { output: event.output, message: event.message, is_error: event.error };
       let call = calls.get(id);
       if (!call) {
@@ -150,8 +151,8 @@ function projectEvents(records, snapshots = new Map()) {
         call.fields.push(field('display', '补充展示', value.display, false));
     }
     if (row.type === 'sdk.event' && event.type === 'StatusUpdate' && step) {
-      step.usage = p.token_usage;
-      step.contextUsage = p.context_usage;
+      step.usage = sdkPayload.token_usage;
+      step.contextUsage = sdkPayload.context_usage;
       step.sequences.push(row.sequence);
     }
     if (
@@ -179,7 +180,7 @@ function projectEvents(records, snapshots = new Map()) {
           ApprovalResponse: '审批结果',
           QuestionRequest: '询问用户',
         }[event.type],
-        [field('detail', '记录内容', p)],
+        [field('detail', '记录内容', sdkPayload)],
       );
     }
     if (row.type === 'approval.response')

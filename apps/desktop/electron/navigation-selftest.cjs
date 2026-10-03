@@ -24,10 +24,23 @@ async function verifyNavigation(window, measure, { percent = true } = {}) {
   await click('Zoom in');
   await wait(async () => (await measure()) > fitted * 1.05);
   await click('Zoom out');
-  await wait(async () => Math.abs((await measure()) / fitted - 1) < 0.01);
+  try {
+    await wait(async () => Math.abs((await measure()) / fitted - 1) < 0.01);
+  } catch (error) {
+    throw Error(
+      `Zoom out did not restore the fitted scale: fit=${fitted}, actual=${await measure()}`,
+      { cause: error },
+    );
+  }
   await click('Zoom in');
   await click('Fit viewer');
-  await wait(async () => Math.abs((await measure()) / fitted - 1) < 0.01);
+  try {
+    await wait(async () => Math.abs((await measure()) / fitted - 1) < 0.01);
+  } catch (error) {
+    throw Error(`Fit did not restore the fitted scale: fit=${fitted}, actual=${await measure()}`, {
+      cause: error,
+    });
+  }
   await click('Fullscreen viewer');
   await wait(() =>
     evaluate(`Boolean(document.fullscreenElement?.classList.contains('ia-workspace'))`),

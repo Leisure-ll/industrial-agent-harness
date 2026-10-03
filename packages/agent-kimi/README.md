@@ -20,6 +20,8 @@ Desktop/CLI 通过 `resolveSession` / `sessionInitialized` 回调提供共享聊
 
 运行时接受有效外部 MCP 快照，经 domain-mcp 生成私有 Gateway 配置；revision、连接配置、工具 schema 和引用环境值参与会话兼容性，运行中的 adapter 也在下一轮检测变化。Industrial Context 只给发现入口，不倾倒全部 schema。真实 MCP 截图经 Kimi 原生多模态进入视觉模型；审批由固定 CLI 处理。已知外部凭据加入诊断 JSONL 脱敏，观察保持未验证。见 [外部 MCP](../../doc/external-mcp.md)。
 
+日志索引以 64 KiB 块扫描，跨块记录只在完整时拼接一次；追加记录增量更新分类统计。序号与语义 ID 使用索引查询，长字段的 UTF-8 分页最多复用一个已编码字段。缓存仍按文件身份和变化失效，保留原有大小、路径与快照哈希校验。性能证据见[全仓优化记录](../../doc/repository-optimization.md)。
+
 ## 横切插件注入
 
 `KimiSession` 构造参数 `plugins` 接收横切插件对象（如 `computer-use-bridge` 的 `createGuiPlugin`），每项形如 `{name, enabled(), toolNames, materializeSkill(dir), toolsFactory()}`。启用的插件会把 skill 目录并入会话 `extra_skill_dirs`，并把其外部工具与 Broker 工具一起注册；本包不依赖任何具体插件，也不感知其领域属性。启用即授权：插件工具触发的 `ApprovalRequest`（按 `sender` 工具名匹配）由本包自动以 `approve_for_session` 应答，不上抛 UI；非插件工具的审批卡片保持不变。插件工具自身的执行边界校验（如会话内被禁用即拒绝）由各插件在自己的 handler 内完成。

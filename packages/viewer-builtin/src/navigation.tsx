@@ -27,8 +27,10 @@ export function useViewNavigation(value: ViewNavigation) {
       percent: value.percent,
       description: value.description,
     });
-    return () => publish?.(null);
   }, [publish, value.ready, value.percent, value.description]);
+  // Updating the scale must not briefly remove an otherwise ready controller.
+  // Clear it when the Viewer or its host changes, not on every zoom event.
+  useEffect(() => () => publish?.(null), [publish]);
 }
 
 /** Normalize mouse wheels, trackpad scroll and Ctrl+wheel pinch to a bounded view scale. */

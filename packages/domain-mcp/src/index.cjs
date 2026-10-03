@@ -27,6 +27,7 @@ function listMcpServers(domain, external = []) {
 
 function selectMcpServers(scope, disabledIds = [], registry = servers(), external = []) {
   const disabled = new Set(disabledIds);
+  const allowedTools = new Set(scope.tools);
   return registry
     .filter(
       item =>
@@ -34,25 +35,25 @@ function selectMcpServers(scope, disabledIds = [], registry = servers(), externa
         !disabled.has(item.id) &&
         item.toolIds.length > 0 &&
         (item.transport === 'gateway'
-          ? item.toolIds.some(id => scope.tools.includes(id))
-          : item.toolIds.every(id => scope.tools.includes(id))),
+          ? item.toolIds.some(id => allowedTools.has(id))
+          : item.toolIds.every(id => allowedTools.has(id))),
     )
     .map(item =>
       item.transport === 'gateway'
-        ? { ...item, allowedToolIds: item.toolIds.filter(id => scope.tools.includes(id)) }
+        ? { ...item, allowedToolIds: item.toolIds.filter(id => allowedTools.has(id)) }
         : item,
     )
     .concat(
       external
         .filter(
           server =>
-            !disabled.has(server.id) && server.tools.some(tool => scope.tools.includes(tool.id)),
+            !disabled.has(server.id) && server.tools.some(tool => allowedTools.has(tool.id)),
         )
         .map(server => ({
           ...server,
           transport: 'external',
           allowedToolIds: server.tools
-            .filter(tool => scope.tools.includes(tool.id))
+            .filter(tool => allowedTools.has(tool.id))
             .map(tool => tool.id),
         })),
     );
