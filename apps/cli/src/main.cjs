@@ -13,6 +13,7 @@ const {
   ChatStore,
   defaultChatDirectory,
   ExternalMcpRegistry,
+  SessionResourceManager,
 } = require('@industrial-agent-harness/harness-core');
 const { loadRegistry, distributionDomain } = require('@industrial-agent-harness/domain-skills');
 const { discloseDetail } = require('@industrial-agent-harness/capability-broker');
@@ -203,6 +204,7 @@ async function runWithStore(options, output, environment, Session, chats) {
   let turnId;
   let release;
   let guiBridge;
+  let sessionResources;
   const chat = options.chatId
     ? chats.get(options.chatId, projectDir, options.domain)
     : chats.create(projectDir, options.domain);
@@ -217,6 +219,7 @@ async function runWithStore(options, output, environment, Session, chats) {
   const onSigint = () => onInterrupt('SIGINT');
   const onSigterm = () => onInterrupt('SIGTERM');
   try {
+    sessionResources = new SessionResourceManager({ environment });
     releasePack = process.env.INDUSTRIAL_HARNESS_PACK_STORE
       ? new PackManager().acquireUse(options.domain)
       : null;
@@ -321,6 +324,7 @@ async function runWithStore(options, output, environment, Session, chats) {
       () => runtime,
       undefined,
       {
+        resources: sessionResources,
         directory: options.logDir || environment.INDUSTRIAL_HARNESS_LOG_DIR,
         getBrokerTrace: () => broker.trace,
         getContextAnchor: () => contextStore.anchor(),
@@ -373,7 +377,11 @@ async function runWithStore(options, output, environment, Session, chats) {
       releasePack?.();
       contextStore?.close();
       await guiBridge?.close?.().catch(() => {});
-      fs.rmSync(configDir, { recursive: true, force: true });
+      try {
+        await sessionResources?.close();
+      } finally {
+        fs.rmSync(configDir, { recursive: true, force: true });
+      }
     }
   }
 }

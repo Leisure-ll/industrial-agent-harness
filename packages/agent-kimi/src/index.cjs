@@ -258,6 +258,13 @@ class KimiSession {
     this.getRuntime = getRuntime;
     this.sessionFactory = sessionFactory;
     this.diagnostics = diagnostics;
+    if (
+      diagnostics.resources &&
+      (typeof diagnostics.resolveSession !== 'function' ||
+        typeof diagnostics.sessionInitialized !== 'function')
+    )
+      throw Error('Managed session resources require persistent native session callbacks.');
+    this.resourceId = crypto.randomUUID();
     this.plugins = plugins;
     // ToolCall arrives with arguments:null; the real arguments stream in as
     // ToolCallPart frames (carrying no id) before the ToolResult lands. Track
@@ -299,6 +306,7 @@ class KimiSession {
       secrets: externalSecrets(runtime.externalServers || [], runtime.environment),
     });
     this.log = log;
+    this.interruptRequested = false;
     this.running = true;
     this.turnMetrics = {
       peakContextUsage: null,
@@ -315,7 +323,23 @@ class KimiSession {
       }
     };
     let outcome = 'error';
+    let releaseResources;
     try {
+      releaseResources = await this.diagnostics.resources?.acquire(this.resourceId, {
+        dispose: async () => {
+          await this.closeNative();
+          this.diagnostics.onIdleRelease?.();
+        },
+        isBusy: () =>
+          Boolean(
+            this.running || this.turn || this.pendingApprovals.size || this.pendingQuestions.size,
+          ),
+      });
+      if (this.interruptRequested) {
+        outcome = 'cancelled';
+        this.emitAgent({ type: 'done', result: { status: outcome } });
+        return;
+      }
       log.record('run.start', {
         projectDir: this.workDir,
         previousSessionId: this.session?.sessionId || null,
@@ -436,6 +460,11 @@ class KimiSession {
           ? { images: images.map(({ dataUrl, ...metadata }) => metadata), content }
           : {}),
       });
+      if (this.interruptRequested) {
+        outcome = 'cancelled';
+        this.emitAgent({ type: 'done', result: { status: outcome } });
+        return;
+      }
       const turn = this.session.prompt(content);
       this.turn = turn;
       for await (const event of turn) {
@@ -483,6 +512,7 @@ class KimiSession {
         log.close();
         this.log = undefined;
         this.running = false;
+        releaseResources?.();
       }
     }
   }
@@ -701,10 +731,23 @@ class KimiSession {
     }
   }
   interrupt() {
+    if (this.running) this.interruptRequested = true;
     this.log?.record('turn.interrupt', {});
     return this.turn?.interrupt();
   }
   async close() {
+    if (this.running) this.interruptRequested = true;
+    await this.diagnostics.resources?.remove(this.resourceId);
+    await this.closeNative();
+  }
+  async closeNative() {
+    if (this.closing) return this.closing;
+    this.closing = this.disposeNative().finally(() => {
+      this.closing = undefined;
+    });
+    return this.closing;
+  }
+  async disposeNative() {
     await this.session?.close();
     this.session = undefined;
     if (this.sessionConfigDir && !this.persistentSession)

@@ -43,6 +43,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [Computer Use 桥接包](../packages/computer-use-bridge/README.md) | GUI 横切插件：固定二进制安装、18 工具面、MCP 进程模型与已知缺口 |
 | [Agent 聊天 UI 来源](agent-ui-provenance.md) | EDA Harness demo 的思考、Todo、工具呈现如何接入实时 SDK 事件 |
 | [并行 Session](parallel-sessions.md) | 同项目与跨项目聊天并行、后台审批、停止与配置影响范围 |
+| [多会话资源保护与压测](session-resource-guards.md) | 共用执行/常驻额度、空闲回收、原生恢复、内存准入与真实 Kimi 进程压测 |
 | [全仓分析与优化](repository-optimization.md) | 2026-10-03 的模块分析、维护改动、性能基准、验证与后续优化优先级 |
 
 来源：用户提供的《Industrial Harness 架构与开发 Plan》（2026-09-23，v0.1 提案）和《Industrial Capability Broker 开发 Plan》。本目录提炼两份材料供仓库实施使用，不把计划中的示例接口当成已经存在的实现。

@@ -1,4 +1,6 @@
 const { ChatStore, defaultChatDirectory } = require('./chat-store.cjs');
+const sessionResources = require('./session-resources.cjs');
+const { availableMemoryBytes } = require('./available-memory.cjs');
 const { resolve } = require('@industrial-agent-harness/capability-broker');
 const {
   capabilities,
@@ -98,6 +100,8 @@ function resolveProjectTask(
 }
 
 module.exports = {
+  ...sessionResources,
+  availableMemoryBytes,
   ChatStore,
   defaultChatDirectory,
   resolveProjectTask,

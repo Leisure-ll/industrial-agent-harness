@@ -69,6 +69,7 @@ const {
   ChatStore,
   defaultChatDirectory,
   ExternalMcpRegistry,
+  SessionResourceManager,
 } = require('@industrial-agent-harness/harness-core');
 const { loadRegistry } = require('@industrial-agent-harness/domain-skills');
 const {
@@ -271,6 +272,9 @@ const resourceSettings = new ResourceSettings(
     : undefined,
 );
 const externalRegistry = new ExternalMcpRegistry(path.dirname(resourceSettings.file));
+const sessionResources = new SessionResourceManager({
+  directory: path.dirname(resourceSettings.file),
+});
 function resourceCatalog(domain) {
   return baseResourceCatalog(domain, externalRegistry.records());
 }
@@ -1066,6 +1070,11 @@ function registerHandlers() {
                 ? require('./chat-selftest.cjs').createSession
                 : undefined,
         {
+          resources: sessionResources,
+          onIdleRelease: () => {
+            entry.context?.close();
+            entry.context = undefined;
+          },
           directory: diagnosticDirectory(),
           getBrokerTrace: () => entry.trace,
           pluginLog: (canonicalId, risk, args, info) => {
@@ -1723,11 +1732,26 @@ app
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
-app.on('before-quit', () => {
+let shutdownComplete = false;
+let shutdownPromise;
+app.on('before-quit', event => {
+  if (shutdownComplete) return;
+  event.preventDefault();
+  if (shutdownPromise) return;
   raster?.close();
   viewerProtocol?.close();
   godotRuntime.close();
   kicadRuntime.close();
-  void sessions.close();
-  void guiBridge?.close();
+  shutdownPromise = (async () => {
+    try {
+      await sessions.close();
+    } finally {
+      await Promise.allSettled([sessionResources.close(), guiBridge?.close()]);
+    }
+  })()
+    .catch(error => console.error('Session shutdown failed:', error.message))
+    .finally(() => {
+      shutdownComplete = true;
+      app.quit();
+    });
 });

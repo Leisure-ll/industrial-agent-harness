@@ -101,4 +101,6 @@ macOS 已实测这两个示例的真实渲染，以及 Godot 暂停、单步、�
 
 源码格式检查运行 `pnpm format:check`，自动整理运行 `pnpm format`。[全仓分析与优化](doc/repository-optimization.md)记录维护改动、性能对比、验证范围和后续优化优先级。
 
+多聊天执行默认受共用额度保护：最多 4 个同时执行、6 个常驻 Kimi 会话，空闲 5 分钟后回收并在下次执行恢复原生上下文。达到执行上限或内存保留边界时明确拒绝新任务。配置与真实进程压测见[多会话资源保护](doc/session-resource-guards.md)。
+
 Viewer 代码源自 [Silicon Lens demo](https://github.com/Zhiman-BJ/silicon-lens-harness)；聊天区的思考与 Todo 呈现参考了带轨迹回放的 [EDA Harness demo](https://github.com/Zhiman-BJ/eda-harness-demo)，产品使用实时 SDK 事件。

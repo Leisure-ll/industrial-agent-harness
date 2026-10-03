@@ -7,6 +7,49 @@ const { KimiSession } = require('../src/index.cjs');
 const { createKimiPaths } = require('@moonshot-ai/kimi-agent-sdk');
 const { ChatStore } = require('../../harness-core/src/index.cjs');
 
+test('Stop while waiting for resource admission prevents a native prompt and releases the slot', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'stop-admission-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  let admit,
+    released = 0,
+    created = 0;
+  const events = [];
+  const session = new KimiSession(
+    directory,
+    () => ({ domain: 'test', stage: 'test', capabilityIds: [], skills: [], tools: [] }),
+    () => null,
+    () => null,
+    event => events.push(event),
+    () => ({ apiKey: 'fixture', profile: { thinking: false }, revision: 0 }),
+    () => {
+      created++;
+      throw Error('Native session must not start');
+    },
+    {
+      directory: path.join(directory, 'logs'),
+      resolveSession: () => null,
+      sessionInitialized: () => {},
+      resources: {
+        acquire: () =>
+          new Promise(resolve => {
+            admit = resolve;
+          }),
+        remove: async () => {},
+      },
+    },
+  );
+  const run = session.run('This task is cancelled during admission.');
+  await session.interrupt();
+  admit(() => {
+    released++;
+  });
+  await run;
+  assert.equal(created, 0);
+  assert.equal(released, 1);
+  assert.equal(events.at(-1).result.status, 'cancelled');
+  assert.equal(session.running, false);
+});
+
 test('adapter resumes persistent IDs after close, rotates scope/model, and preserves missing-context history', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-adapter-resume-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
