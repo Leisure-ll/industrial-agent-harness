@@ -81,7 +81,7 @@ const {
 const {
   defaultLogDirectory,
 } = require('@industrial-agent-harness/agent-kimi/src/diagnostic-log.cjs');
-const { SessionManager } = require('./session-manager.cjs');
+const { SessionManager, finishTurn } = require('./session-manager.cjs');
 const { CoreUpdater } = require('./updater.cjs');
 const { KimiSession } = require('@industrial-agent-harness/agent-kimi');
 const { ObservedContextStore } = require('@industrial-agent-harness/domain-runtime');
@@ -204,16 +204,15 @@ let activeChatId;
 function chatList() {
   return {
     chats: activeProject()?.domain
-      ? chats.list(projectDir, activeProject().domain).map(chat => ({
-          ...chat,
-          running: sessions.busy(sessions.get(activeProject(), chat.id)),
-          awaitingApproval: Boolean(
-            sessions.get(activeProject(), chat.id).agent?.pendingApprovals.size,
-          ),
-          awaitingQuestion: Boolean(
-            sessions.get(activeProject(), chat.id).agent?.pendingQuestions.size,
-          ),
-        }))
+      ? chats.list(projectDir, activeProject().domain).map(chat => {
+          const entry = sessions.find(chat.id);
+          return {
+            ...chat,
+            running: sessions.busy(entry),
+            awaitingApproval: Boolean(entry?.agent?.pendingApprovals.size),
+            awaitingQuestion: Boolean(entry?.agent?.pendingQuestions.size),
+          };
+        })
       : [],
     activeId: activeChatId || null,
     sessions: sessions.snapshots(),
@@ -226,7 +225,8 @@ function ensureChat() {
 }
 function chatHistory(id, before = null) {
   const history = chats.history(id, projectDir, activeProject().domain, before);
-  return { ...history, executing: sessions.busy(sessions.get(activeProject(), id)) };
+  const entry = sessions.find(id);
+  return { ...history, executing: sessions.busy(entry), eventRevision: entry?.eventRevision || 0 };
 }
 function selectedSession() {
   const entry = sessions.get(activeProject(), ensureChat());
@@ -917,7 +917,10 @@ function registerHandlers() {
   });
   ipcMain.handle('chat:history', (event, request) => {
     chatRequest(event);
-    return chatHistory(request.id, request.before || null);
+    const history = chatHistory(request.id, request.before || null);
+    return process.argv.includes('--parallel-selftest')
+      ? require('./parallel-selftest.cjs').historyResponse(history)
+      : history;
   });
   ipcMain.handle('chat:select', (event, id) => {
     chatRequest(event);
@@ -1032,6 +1035,7 @@ function registerHandlers() {
       let outcome = 'error';
       const emit = event => {
         chats.append(turnId, event);
+        entry.eventRevision = (entry.eventRevision || 0) + 1;
         if (event.type === 'done') outcome = event.result.status;
         if (event.type === 'error') outcome = 'error';
         if (mainWindow && !mainWindow.webContents.isDestroyed())
@@ -1040,6 +1044,7 @@ function registerHandlers() {
             chatId: entry.id,
             projectId: entry.project.id,
             turnId,
+            eventRevision: entry.eventRevision,
           });
         if (
           [
@@ -1098,16 +1103,8 @@ function registerHandlers() {
       void entry.agent
         .run(task, images)
         .catch(error => emit({ type: 'error', message: String(error) }))
-        .finally(() => {
-          chats.finish(turnId, outcome);
-          const release = entry.release;
-          entry.release = undefined;
-          release?.();
-          const releasePack = entry.releasePack;
-          entry.releasePack = undefined;
-          releasePack?.();
-          notifySessions();
-        });
+        .finally(() => finishTurn(entry, () => chats.finish(turnId, outcome), notifySessions))
+        .catch(error => console.error('Chat finalization failed:', error.message));
       notifySessions();
       return { started: true, chatId: entry.id, turnId };
     } catch (error) {

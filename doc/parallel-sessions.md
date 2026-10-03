@@ -12,8 +12,14 @@ The same Project directory is shared by its chats. Parallel execution does not c
 
 Images use the existing capability-aware multimodal input. Submitted images are retained with their chat turn; errors and cancellation restore only the matching chat's draft. Switching chats clears the visible draft and displays the selected chat's saved inputs. Old diagnostic-only conversations whose native context was removed cannot be converted into resumable sessions by this feature.
 
+Navigation is reserved synchronously so same-frame repeated clicks cannot launch competing selections or submissions. Approval, answer and Stop callbacks capture the rendered chat identity and are blocked during navigation. Historical listing and opening allocate no native actor. A display-only event revision reconciles late history snapshots with subsequent live events; stale navigation replies cannot replace a newer selection.
+
+Stop requests native cancellation first. If the turn remains unsettled after three seconds, the adapter closes that actor and settles the local turn after close. This covers the pinned SDK's signal-killed-process result wait without touching another session, replacing native persistence or retrying mutations. Execution errors also close their actor before releasing active capacity. Shutdown and settings reset wait for all close attempts, including slow siblings after an early failure; finalization releases chat and Pack leases even if persistence fails.
+
 Validation on macOS:
 
 - `pnpm --filter @industrial-agent-harness/desktop test:parallel`: two chats in one project plus a third in another project held concurrently, navigation, background approval, colliding approval IDs, forged/stale requests, project resource/model guards, isolated Stop and isolated replies.
 - `KIMI_EXECUTABLE=/absolute/path/to/kimi node --test packages/agent-kimi/tests/parallel-wire.test.cjs`: actual pinned SDK/CLI requests overlap before either receives a response; finishing/closing one session leaves the second active, and cancellation affects only the second.
 - Existing image, logs, approval/resource, persisted desktop restart and real CLI context-resume checks remain applicable. Linux/Windows packaged flows have not been exercised.
+- Extended `test:parallel`: 200 chat/project switches, 160 same-frame double clicks, four held turns and fifth-task rejection, renderer reload, question ownership, repeated Stop, delayed history after live completion, deletion and shutdown with an active approval. Controlled SDK actors exercise the real renderer/IPC/store/resource paths.
+- `pnpm test:session-chaos`: SIGKILL a real pinned Kimi process, repeated Stop using the production three-second grace, continued execution of a second native session and restoration of the first native ID/persisted context. See [results and boundaries](session-resource-guards.md#切换与交错操作验证).

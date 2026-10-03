@@ -48,3 +48,5 @@ Desktop 与同一配置目录的 CLI 默认共用 4 个执行额度、6 个常�
 外部服务注册与 CLI 共用，详情见 [外部 MCP](../../doc/external-mcp.md)。`test:external-mcp` 在隔离用户目录运行真实 UI 添加/刷新/移除、项目禁用、运行中拒绝修改及固定 Kimi 审批/截图路径。需要服务自行安装并获得系统授权，GUI 不自动申请这些权限。
 
 Chip 项目默认注册 `chip-pack.eda`，在全局 MCP & Skills 与项目详情页可查看和禁用。准备固定 Python 依赖后，工程任务通过共用 Broker 和项目绑定网关调用 EDA Runtime；沿用聊天审批、工具结果和日志。macOS 真实 Kimi/Electron 路径由 `test:mcp` 验证。见 [共享 MCP 接入](../../doc/domain-mcp-integration.md)。
+
+`INDUSTRIAL_HARNESS_SESSION_IDLE_MS=100 pnpm --filter @industrial-agent-harness/desktop test:parallel` 还覆盖 200 次聊天/项目切换、160 次同帧双击、4 个后台任务与第 5 个拒绝、重载后问题恢复、重复 Stop、延迟历史与实时结束交错，以及带活动审批退出。SDK 会话可控，Renderer、IPC、持久化和资源管理使用生产路径；真实 Kimi 强杀/停止/恢复另由 `pnpm test:session-chaos` 检查。行为与边界见[验证报告](../../doc/session-resource-guards.md)。

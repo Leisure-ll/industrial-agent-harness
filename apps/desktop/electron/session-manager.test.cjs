@@ -1,6 +1,92 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { SessionManager } = require('./session-manager.cjs');
+test('reset reserves all targeted chats; failed cleanup waits for slower siblings and remains retryable', async () => {
+  const manager = new SessionManager();
+  const project = { id: 'p', path: '/p', domain: 'example' };
+  const first = manager.get(project, 'one'),
+    second = manager.get(project, 'two');
+  let finish;
+  first.agent = {
+    close: async () => {
+      throw Error('close failed');
+    },
+  };
+  second.agent = {
+    close: () =>
+      new Promise(resolve => {
+        finish = resolve;
+      }),
+  };
+  let settled = false;
+  const reset = manager.reset('p').catch(error => {
+    settled = true;
+    return error;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(manager.busy(second), true);
+  assert.equal(settled, false);
+  finish();
+  assert.ok((await reset) instanceof AggregateError);
+  assert.equal(manager.entries.has('two'), false);
+  assert.equal(manager.busy(first), false);
+  first.agent.close = async () => {};
+  await manager.reset('p');
+});
+test('shutdown waits for every actor despite an early failure and blocks new sessions', async () => {
+  const manager = new SessionManager();
+  const project = { id: 'p', path: '/p', domain: 'example' };
+  let finish,
+    released = 0;
+  manager.get(project, 'one').agent = {
+    close: async () => {
+      throw Error('early failure');
+    },
+  };
+  const second = manager.get(project, 'two');
+  second.agent = {
+    close: () =>
+      new Promise(resolve => {
+        finish = resolve;
+      }),
+  };
+  second.release = () => {
+    released++;
+  };
+  let settled = false;
+  const closing = manager.close().catch(error => {
+    settled = true;
+    return error;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(settled, false);
+  assert.throws(() => manager.get(project, 'new'), /shutting down/);
+  finish();
+  assert.ok((await closing) instanceof AggregateError);
+  assert.equal(released, 1);
+  assert.equal(manager.entries.size, 0);
+});
+test('failed history finalization still releases both execution and pack leases', () => {
+  const { finishTurn } = require('./session-manager.cjs');
+  let released = 0,
+    notified = 0;
+  const entry = { release: () => released++, releasePack: () => released++ };
+  assert.throws(
+    () =>
+      finishTurn(
+        entry,
+        () => {
+          throw Error('disk full');
+        },
+        () => notified++,
+      ),
+    /disk full/,
+  );
+  assert.equal(released, 2);
+  assert.equal(notified, 1);
+  assert.equal(entry.release, undefined);
+  assert.equal(entry.releasePack, undefined);
+});
 test('running chats remain bound to their own project and scope across navigation; settings affect only their project', async () => {
   const manager = new SessionManager();
   const projectA = { id: 'a', path: '/project/a', domain: 'example' };

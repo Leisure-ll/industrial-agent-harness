@@ -56,6 +56,7 @@ import { ProjectDetails } from './components/ProjectDetails';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { DomainPill } from './components/DomainPill';
 import { appendDisplayEvents, latestEvent } from './agent-events';
+import { mergeHistoryEvents } from './chat-history';
 
 type Theme = 'light' | 'dark';
 type ProjectFile = { path: string; name: string; depth: number; directory: boolean };
@@ -117,16 +118,6 @@ export function App() {
     setLogTrace(traceId);
     setLogOpen(true);
   }, []);
-  const approveAgent = useCallback(
-    (id: string, decision: 'approve' | 'reject') =>
-      window.viewerHost!.approveAgent(id, decision, chatIdRef.current || undefined),
-    [],
-  );
-  const answerAgent = useCallback(
-    (id: string, answers: Record<string, string>) =>
-      window.viewerHost!.answerAgentQuestion(id, answers, chatIdRef.current || undefined),
-    [],
-  );
   const viewerReady = useCallback(() => setViewerReady(true), []);
   const [task, setTask] = useState('');
   const [submittedTask, setSubmittedTask] = useState('');
@@ -149,7 +140,13 @@ export function App() {
   const [chatList, setChatList] = useState<ChatSummary[]>([]);
   const [runningSessions, setRunningSessions] = useState<SessionStatus[]>([]);
   const [navigating, setNavigating] = useState(false);
-  const creatingChat = useRef(false);
+  const navigationPending = useRef(false);
+  const navigationRevision = useRef(0);
+  const listRevision = useRef(0);
+  const historyRevision = useRef(0);
+  const displayRevision = useRef(0);
+  const historyReads = useRef(new Set<{ events: AgentEvent[]; overflow: boolean }>());
+  const startingAgent = useRef(false);
   const projectIdRef = useRef<string | null>(null);
   projectIdRef.current = activeProjectId;
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -170,7 +167,45 @@ export function App() {
       prependHeight.current = null;
     } else if (followMessages.current) element.scrollTop = element.scrollHeight;
   }, [turns, page]);
+  function beginNavigation() {
+    if (navigationPending.current || submitting.current || startingAgent.current) return false;
+    navigationPending.current = true;
+    navigationRevision.current++;
+    setNavigating(true);
+    return true;
+  }
+  function endNavigation() {
+    navigationPending.current = false;
+    setNavigating(false);
+  }
+  const approveAgent = useCallback(
+    (id: string, decision: 'approve' | 'reject') =>
+      navigationPending.current
+        ? Promise.reject(Error('Wait for the chat to open.'))
+        : window.viewerHost!.approveAgent(id, decision, activeChatId || undefined),
+    [activeChatId],
+  );
+  const answerAgent = useCallback(
+    (id: string, answers: Record<string, string>) =>
+      navigationPending.current
+        ? Promise.reject(Error('Wait for the chat to open.'))
+        : window.viewerHost!.answerAgentQuestion(id, answers, activeChatId || undefined),
+    [activeChatId],
+  );
+  async function readHistory(read: () => Promise<ChatHistory>): Promise<ChatHistory> {
+    const pending = { events: [] as AgentEvent[], overflow: false };
+    historyReads.current.add(pending);
+    try {
+      const history = await read();
+      if (pending.overflow)
+        return await readHistory(() => window.viewerHost!.chatHistory({ id: history.chat.id }));
+      return mergeHistoryEvents(history, pending.events);
+    } finally {
+      historyReads.current.delete(pending);
+    }
+  }
   function applyHistory(history: ChatHistory) {
+    displayRevision.current = history.eventRevision ?? 0;
     if (chatIdRef.current !== history.chat.id) {
       followMessages.current = true;
       prependHeight.current = null;
@@ -199,14 +234,28 @@ export function App() {
   }
   async function refreshChats(openSelected = false) {
     const projectId = projectIdRef.current;
+    const navigation = navigationRevision.current;
+    const request = openSelected ? ++historyRevision.current : ++listRevision.current;
     const list = await window.viewerHost!.chats();
-    if (projectId !== projectIdRef.current) return;
+    if (
+      projectId !== projectIdRef.current ||
+      navigation !== navigationRevision.current ||
+      request !== (openSelected ? historyRevision.current : listRevision.current)
+    )
+      return;
     setChatList(list.chats);
     setRunningSessions(list.sessions);
     if (openSelected && list.activeId) {
       const selectedChatId = chatIdRef.current;
-      const history = await window.viewerHost!.chatHistory({ id: list.activeId });
-      if (projectId === projectIdRef.current && selectedChatId === chatIdRef.current)
+      const history = await readHistory(() =>
+        window.viewerHost!.chatHistory({ id: list.activeId! }),
+      );
+      if (
+        projectId === projectIdRef.current &&
+        selectedChatId === chatIdRef.current &&
+        navigation === navigationRevision.current &&
+        request === historyRevision.current
+      )
         applyHistory(history);
     } else if (openSelected) {
       chatIdRef.current = null;
@@ -216,9 +265,9 @@ export function App() {
     }
   }
   async function openChat(id: string) {
-    setNavigating(true);
+    if (!beginNavigation()) return;
     try {
-      const history = await window.viewerHost!.selectChat(id);
+      const history = await readHistory(() => window.viewerHost!.selectChat(id));
       setTask('');
       applyHistory(history);
       setPage('chat');
@@ -226,15 +275,15 @@ export function App() {
     } catch (reason) {
       setError(String(reason));
     } finally {
-      setNavigating(false);
+      endNavigation();
     }
   }
   async function deleteChat(id: string) {
-    setNavigating(true);
+    if (!beginNavigation()) return;
     try {
       const list = await window.viewerHost!.deleteChat(id);
       setChatList(list.chats);
-      if (id === activeChatId) {
+      if (id === chatIdRef.current) {
         chatIdRef.current = null;
         setActiveChatId(null);
         setTurns([]);
@@ -247,7 +296,7 @@ export function App() {
     } catch (reason) {
       setError(String(reason));
     } finally {
-      setNavigating(false);
+      endNavigation();
     }
   }
   async function loadEarlier() {
@@ -338,29 +387,39 @@ export function App() {
         }
       })
       .catch(reason => setError(String(reason)));
-    void Promise.all([window.viewerHost.agentStatus(), window.viewerHost.projectBindings()]).then(
-      ([status, bindings]) => {
+    void Promise.all([window.viewerHost.agentStatus(), window.viewerHost.projectBindings()])
+      .then(([status, bindings]) => {
         setAgentStatus(status);
         setProjects(bindings.projects);
         setActiveProjectId(bindings.activeId);
         projectIdRef.current = bindings.activeId;
         if (bindings.projects.find(item => item.id === bindings.activeId && !item.domain))
           setPage('project');
-        if (status.projectDir) void window.viewerHost!.projectFiles().then(setProjectFiles);
+        if (status.projectDir)
+          void window
+            .viewerHost!.projectFiles()
+            .then(setProjectFiles)
+            .catch(reason => setError(String(reason)));
         if (bindings.projects.find(item => item.id === bindings.activeId)?.domain)
           void refreshChats(true).catch(reason => setError(String(reason)));
-      },
-    );
+      })
+      .catch(reason => setError(String(reason)));
     let pendingEvents: AgentEvent[] = [];
     let eventTimer: ReturnType<typeof setTimeout> | undefined;
     function flushEvents() {
       clearTimeout(eventTimer);
       eventTimer = undefined;
       const batch = pendingEvents.filter(
-        event => !event.chatId || event.chatId === chatIdRef.current,
+        event =>
+          (!event.chatId || event.chatId === chatIdRef.current) &&
+          (event.eventRevision === undefined || event.eventRevision > displayRevision.current),
       );
       pendingEvents = [];
       if (!batch.length) return;
+      displayRevision.current = Math.max(
+        displayRevision.current,
+        ...batch.map(event => event.eventRevision ?? 0),
+      );
       setAgentEvents(current => appendDisplayEvents(current, batch));
       setTurns(current =>
         current.map((turn, index) => {
@@ -378,6 +437,13 @@ export function App() {
       );
     }
     const removeEvents = window.viewerHost.onAgentEvent(event => {
+      for (const pending of historyReads.current) {
+        if (pending.overflow) continue;
+        if (pending.events.length >= 4096) {
+          pending.events = [];
+          pending.overflow = true;
+        } else pending.events.push(event);
+      }
       const chatId = event.chatId || '';
       const images = sentImages.current.get(chatId) || [];
       const prompt = sentTasks.current.get(chatId) || '';
@@ -391,10 +457,15 @@ export function App() {
       if (['done', 'error', 'approval', 'question'].includes(event.type)) flushEvents();
       else if (!eventTimer) eventTimer = setTimeout(flushEvents, 16);
       if (event.type === 'tool-result')
-        void window.viewerHost!.brokerTrace().then(trace => {
-          if (chatId === chatIdRef.current)
-            setBroker(current => (current ? { ...current, trace } : current));
-        });
+        void window
+          .viewerHost!.brokerTrace()
+          .then(trace => {
+            if (chatId === chatIdRef.current)
+              setBroker(current => (current ? { ...current, trace } : current));
+          })
+          .catch(reason => {
+            if (chatId === chatIdRef.current) setBrokerError(String(reason));
+          });
       if (event.type === 'done' || event.type === 'error') setAgentBusy(false);
       if (
         event.type === 'error' ||
@@ -527,6 +598,7 @@ export function App() {
     }
   }
   async function createProject(request: { directory: string; name: string; domain: string }) {
+    if (!beginNavigation()) return;
     try {
       const bindings = await window.viewerHost!.createProject(request);
       setProjects(bindings.projects);
@@ -553,13 +625,15 @@ export function App() {
       setPage('project');
     } catch (reason) {
       setProjectError(String(reason));
+    } finally {
+      endNavigation();
     }
   }
   async function selectProject(id: string) {
-    setNavigating(true);
+    if (!beginNavigation()) return;
     if (id === activeProjectId) {
       setPage('project');
-      setNavigating(false);
+      endNavigation();
       return;
     }
     setError('');
@@ -589,7 +663,7 @@ export function App() {
     } catch (reason) {
       setError(String(reason));
     } finally {
-      setNavigating(false);
+      endNavigation();
     }
   }
   async function selectProjectFile(relative: string) {
@@ -612,15 +686,13 @@ export function App() {
     }
   }
   async function newChat() {
-    if (navigating || submitting.current || creatingChat.current) return;
-    creatingChat.current = true;
-    setNavigating(true);
+    if (!beginNavigation()) return;
     try {
       if (activeProject && !activeProject.domain) {
         setPage('project');
         return;
       }
-      const history = await window.viewerHost!.newChat();
+      const history = await readHistory(() => window.viewerHost!.newChat());
       if (history.chat.id !== chatIdRef.current) {
         applyHistory(history);
         setTask('');
@@ -635,14 +707,14 @@ export function App() {
     } catch (reason) {
       setBrokerError(String(reason));
     } finally {
-      creatingChat.current = false;
-      setNavigating(false);
+      endNavigation();
     }
   }
   async function resolveTask(context?: { domain: string; stage: string }, prompt = task) {
     if (
-      navigating ||
+      navigationPending.current ||
       submitting.current ||
+      startingAgent.current ||
       agentBusy ||
       attachments.loading ||
       (!prompt.trim() && !attachments.images.length)
@@ -713,6 +785,8 @@ export function App() {
     }
   }
   async function runAgent(prompt = submittedTask, images: PromptImage[] = []) {
+    if (navigationPending.current || startingAgent.current) return;
+    startingAgent.current = true;
     const chatId = chatIdRef.current;
     if (chatId) {
       sentImages.current.set(chatId, images);
@@ -734,6 +808,8 @@ export function App() {
       setTask(prompt);
       setBrokerError(String(reason));
       setAgentBusy(false);
+    } finally {
+      startingAgent.current = false;
     }
   }
 
@@ -1209,9 +1285,13 @@ export function App() {
                       />
                       {agentOwned && agentBusy && (
                         <button
-                          onClick={() =>
-                            void window.viewerHost!.interruptAgent(chatIdRef.current || undefined)
-                          }
+                          disabled={navigating}
+                          onClick={() => {
+                            if (navigationPending.current) return;
+                            void window
+                              .viewerHost!.interruptAgent(activeChatId || undefined)
+                              .catch(reason => setBrokerError(String(reason)));
+                          }}
                           title="Stop agent"
                         >
                           <Square size={14} />

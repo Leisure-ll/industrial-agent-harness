@@ -1,0 +1,55 @@
+{
+  "recordedAt": "2026-10-03T02:43:03.271232+00:00",
+  "platform": "darwin-arm64",
+  "node": "v25.9.0",
+  "electron": "44.0.0",
+  "desktop": {
+    "test": "apps/desktop/electron/parallel-selftest.cjs",
+    "method": "Production Electron renderer, IPC, ChatStore and session resources; controlled SDK actors and a deliberately delayed history response.",
+    "idleMs": 100,
+    "exitCode": 0,
+    "ok": true,
+    "sameProjectOverlap": true,
+    "crossProjectOverlap": true,
+    "backgroundApproval": true,
+    "approvalIdIsolation": true,
+    "stopIsolation": true,
+    "streamIsolation": true,
+    "globalModelGuard": true,
+    "restoredOwnerBoundary": true,
+    "navigationSwitches": 200,
+    "sameFrameDoubleClicks": 160,
+    "capacityRejection": true,
+    "rendererReloadWithFourActiveTurns": true,
+    "questionIsolation": true,
+    "repeatedStop": true,
+    "lateHistoryAndLiveEvents": true,
+    "activeShutdown": true
+  },
+  "nativeCrash": {
+    "test": "tests/integration/session-chaos-kimi.test.cjs",
+    "method": "Real pinned Kimi CLI 1.51.0 / SDK 0.1.8; local controlled model; SIGKILL only the test-owned first process; second native actor held independently.",
+    "exitCode": 0,
+    "productionStopGraceMs": 3000,
+    "observedStopSettlementMs": 3009,
+    "repeatedStop": true,
+    "otherNativeTurnContinues": true,
+    "sameNativeIdResumed": true,
+    "persistedMarkerRestored": true
+  },
+  "verification": {
+    "workspace": {
+      "tests": 180,
+      "pass": 176,
+      "fail": 0,
+      "skipped": 4
+    },
+    "architecturePassed": 12,
+    "nativeBudgetCrashAndResumeIntegrationPassed": 3,
+    "desktopLogsPassed": true,
+    "desktopRestartPassed": true,
+    "formatAndBuildPassed": true,
+    "explicitKimiAndKLayoutPassed": 7
+  },
+  "limits": "Signal-killed SDK waits are settled by Stop or host close, not automatically treated as successful work. Restoration verifies previously persisted context, not unsaved crash-time fragments. Desktop switching uses controlled actors; physical process/RSS pressure is measured separately in session-resource-stress.json. No OS CPU/RSS isolation or new Windows/Linux acceptance is claimed."
+}

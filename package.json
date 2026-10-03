@@ -23,7 +23,8 @@
     "format:check": "prettier --check \"{apps,packages,scripts,tests}/**/*.{cjs,mjs,js,ts,tsx,css}\"",
     "benchmark:maintenance": "node scripts/benchmark-maintenance.cjs",
     "test:session-resources": "node --test tests/integration/session-resources-kimi.test.cjs",
-    "stress:sessions": "node scripts/stress-sessions.cjs"
+    "stress:sessions": "node scripts/stress-sessions.cjs",
+    "test:session-chaos": "node --test tests/integration/session-chaos-kimi.test.cjs"
   },
   "devDependencies": {
     "prettier": "3.6.2"

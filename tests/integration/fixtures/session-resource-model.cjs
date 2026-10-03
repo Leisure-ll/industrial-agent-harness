@@ -33,6 +33,7 @@ async function startModel({ delayMs = 30, held = false } = {}) {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return {
     endpoint: `http://127.0.0.1:${server.address().port}/v1`, requests,
+    hold() { held = true; },
     release() { held = false; for (const send of [...pending]) send(); },
     async waitForRequests(count, timeout = 20000) {
       const end = Date.now() + timeout;

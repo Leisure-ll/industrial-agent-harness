@@ -103,4 +103,6 @@ macOS 已实测这两个示例的真实渲染，以及 Godot 暂停、单步、�
 
 多聊天执行默认受共用额度保护：最多 4 个同时执行、6 个常驻 Kimi 会话，空闲 5 分钟后回收并在下次执行恢复原生上下文。达到执行上限或内存保留边界时明确拒绝新任务。配置与真实进程压测见[多会话资源保护](doc/session-resource-guards.md)。
 
+切换聊天时后台任务继续执行，历史数量不受执行额度限制。切换连点、迟到的历史结果、重复 Stop 和异常清理已有防护；Stop 在原生取消 3 秒仍未结束时关闭目标会话。200 次桌面交错切换及真实 Kimi 强杀后恢复的验证与范围见同一报告。
+
 Viewer 代码源自 [Silicon Lens demo](https://github.com/Zhiman-BJ/silicon-lens-harness)；聊天区的思考与 Todo 呈现参考了带轨迹回放的 [EDA Harness demo](https://github.com/Zhiman-BJ/eda-harness-demo)，产品使用实时 SDK 事件。

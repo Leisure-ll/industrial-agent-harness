@@ -3,8 +3,32 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { saveBindings } = require('./project-bindings.cjs');
+const { createKimiPaths } = require(
+  require.resolve('@moonshot-ai/kimi-agent-sdk', {
+    paths: [path.resolve(__dirname, '../../../packages/agent-kimi')],
+  }),
+);
 let evidence;
 const turns = new Map();
+let delayedHistory;
+let releaseHistory;
+let holdHistory = false;
+function historyResponse(history) {
+  if (
+    holdHistory &&
+    history.turns.at(-1)?.task === 'SESSION_LATE' &&
+    history.turns.at(-1)?.status === 'running'
+  ) {
+    delayedHistory = history;
+    return new Promise(resolve => {
+      releaseHistory = () => {
+        holdHistory = false;
+        resolve(history);
+      };
+    });
+  }
+  return history;
+}
 function prepare(config) {
   evidence = path.dirname(config);
   const projects = ['parallel-a', 'parallel-b'].map(id => {
@@ -20,9 +44,15 @@ function prepare(config) {
   saveBindings(config, { activeId: 'parallel-a', projects });
 }
 function createSession(options) {
+  const sessionId = options.sessionId || crypto.randomUUID();
+  const nativeDirectory = createKimiPaths(options.shareDir).sessionDir(options.workDir, sessionId);
+  fs.mkdirSync(nativeDirectory, { recursive: true });
+  let current;
   return {
-    sessionId: options.sessionId || crypto.randomUUID(),
-    close: async () => {},
+    sessionId,
+    close: async () => {
+      current?.stop();
+    },
     prompt(content) {
       const text = typeof content === 'string' ? content : content[0].text;
       const marker = /User task: (SESSION_[A-Z]+)/.exec(text)?.[1];
@@ -39,15 +69,25 @@ function createSession(options) {
         workDir: options.workDir,
         approved: false,
         stopped: false,
-        finish: () => end(),
-      };
-      turns.set(marker, state);
-      return {
-        result: finish.then(() => ({ status: state.stopped ? 'cancelled' : 'finished' })),
-        interrupt: async () => {
+        interrupts: 0,
+        stop: () => {
           state.stopped = true;
           resume();
           end();
+        },
+        finish: () => end(),
+      };
+      current = state;
+      turns.set(marker, state);
+      fs.appendFileSync(
+        path.join(nativeDirectory, 'context.jsonl'),
+        JSON.stringify({ role: 'user', content: text }) + '\n',
+      );
+      return {
+        result: finish.then(() => ({ status: state.stopped ? 'cancelled' : 'finished' })),
+        interrupt: async () => {
+          state.interrupts++;
+          state.stop();
         },
         approve: async (id, response) => {
           assert.equal(id, 'same-approval-id');
@@ -55,11 +95,36 @@ function createSession(options) {
           state.approved = true;
           resume();
         },
+        respondQuestion: async (rpcId, id, answers) => {
+          assert.equal(id, 'same-question-id');
+          assert.equal(answers[marker], 'Continue');
+          state.approved = true;
+          resume();
+        },
         async *[Symbol.asyncIterator]() {
-          yield {
-            type: 'ApprovalRequest',
-            payload: { id: 'same-approval-id', action: 'test approval', description: marker },
-          };
+          yield marker === 'SESSION_THETA'
+            ? {
+                type: 'QuestionRequest',
+                payload: {
+                  id: 'same-question-id',
+                  tool_call_id: 'question',
+                  questions: [
+                    {
+                      question: marker,
+                      header: 'Test',
+                      multi_select: false,
+                      options: [
+                        { label: 'Continue', description: 'Continue this chat' },
+                        { label: 'Wait', description: 'Keep waiting' },
+                      ],
+                    },
+                  ],
+                },
+              }
+            : {
+                type: 'ApprovalRequest',
+                payload: { id: 'same-approval-id', action: 'test approval', description: marker },
+              };
           await approval;
           if (!state.stopped)
             yield { type: 'ContentPart', payload: { type: 'text', text: `${marker}_ONLY` } };
@@ -84,7 +149,10 @@ async function run(window) {
       `(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'${marker}');area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
     );
     await evaluate(`document.querySelector('.ia-send').click()`);
-    await wait(`document.querySelector('.ia-approval')?.innerText.includes('${marker}')`);
+    await wait(
+      `document.querySelector('.ia-approval,.ia-question')?.innerText.includes('${marker}')`,
+    );
+    await wait(`!document.querySelector('.ia-new-chat').disabled`);
   }
   async function newChat() {
     await evaluate(`document.querySelector('.ia-new-chat').click()`);
@@ -261,6 +329,135 @@ async function run(window) {
       release();
       store.close();
     }
+    // Deliberately interleave real renderer actions, main-process IPC, held SDK
+    // turns, resource rejection, old history replies and a renderer reload.
+    const markers = ['SESSION_DELTA', 'SESSION_EPSILON', 'SESSION_ZETA', 'SESSION_THETA'];
+    const ids = new Map();
+    for (const marker of markers) {
+      await newChat();
+      await submit(marker);
+      ids.set(marker, await evaluate(`window.viewerHost.chats().then(list=>list.activeId)`));
+    }
+    await wait(`document.querySelectorAll('.ia-session-running').length===4`);
+    await newChat();
+    await evaluate(
+      `(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'SESSION_IOTA');area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+    );
+    await evaluate(`document.querySelector('.ia-send').click()`);
+    await wait(
+      `document.querySelector('.ia-chat-scroll')?.innerText.includes('shared limit of 4')&&!document.querySelector('.ia-composer textarea').disabled`,
+    );
+    assert.equal(turns.has('SESSION_IOTA'), false, 'fifth task never reaches the kernel');
+    let switches = 0;
+    for (let index = 0; index < 160; index++) {
+      const marker = markers[index % markers.length];
+      const next = markers[(index + 1) % markers.length];
+      await wait(`!document.querySelector('.ia-sidebar-chat').disabled`);
+      // Both clicks happen before React can render the disabled state.
+      await evaluate(
+        `(() => {const buttons=Array.from(document.querySelectorAll('.ia-sidebar-chat'));buttons.find(button=>button.innerText.includes('${marker}')).click();buttons.find(button=>button.innerText.includes('${next}')).click();})()`,
+      );
+      await wait(
+        `document.querySelector('.ia-sidebar-chat[aria-current="page"]')?.innerText.includes('${marker}')&&document.querySelector('.ia-approval,.ia-question')?.innerText.includes('${marker}')&&!document.querySelector('.ia-sidebar-chat').disabled`,
+      );
+      assert.equal(
+        await evaluate(`window.viewerHost.chats().then(list=>list.activeId)`),
+        ids.get(marker),
+      );
+      assert.equal(
+        await evaluate(
+          `window.viewerHost.chats().then(list=>list.sessions.filter(item=>item.running).length)`,
+        ),
+        4,
+      );
+      switches++;
+      if (index % 8 === 0) {
+        await evaluate(
+          `Array.from(document.querySelectorAll('.ia-project-row')).find(button=>button.innerText.includes('Parallel project B')).click()`,
+        );
+        await wait(
+          `document.querySelector('.ia-project-page h1')?.innerText==='Parallel project B'&&!document.querySelector('.ia-project-row').disabled`,
+        );
+        await evaluate(
+          `Array.from(document.querySelectorAll('.ia-project-row')).find(button=>button.innerText.includes('Parallel project A')).click()`,
+        );
+        await wait(
+          `document.querySelector('.ia-project-page h1')?.innerText==='Parallel project A'&&!document.querySelector('.ia-project-row').disabled`,
+        );
+        switches += 2;
+      }
+    }
+    await evaluate(
+      `Array.from(document.querySelectorAll('.ia-sidebar-chat')).find(button=>button.innerText.includes('SESSION_THETA')).click()`,
+    );
+    await wait(
+      `document.querySelector('.ia-question')?.innerText.includes('SESSION_THETA')&&!document.querySelector('.ia-sidebar-chat').disabled`,
+    );
+    await window.webContents.reload();
+    await wait(
+      `document.querySelector('.ia-question')?.innerText.includes('SESSION_THETA')&&Boolean(document.querySelector('button[title=\"Stop agent\"]'))`,
+    );
+    await evaluate(
+      `Array.from(document.querySelectorAll('.ia-question label')).find(label=>label.innerText.includes('Continue')).querySelector('input').click()`,
+    );
+    await wait(`!document.querySelector('.ia-question button[type="submit"]').disabled`);
+    await evaluate(`document.querySelector('.ia-question button[type="submit"]').click()`);
+    await wait(
+      `document.querySelector('.ia-question-resolved')?.innerText.includes('Question answered')`,
+    );
+    assert.equal(turns.get('SESSION_DELTA').approved, false);
+    for (const marker of markers) {
+      await evaluate(
+        `Array.from(document.querySelectorAll('.ia-sidebar-chat')).find(button=>button.innerText.includes('${marker}')).click()`,
+      );
+      await wait(
+        `document.querySelector('.ia-sidebar-chat[aria-current="page"]')?.innerText.includes('${marker}')&&!document.querySelector('.ia-sidebar-chat').disabled`,
+      );
+      await evaluate(
+        `(() => {const button=document.querySelector('button[title="Stop agent"]');button.click();button.click();})()`,
+      );
+      await wait(
+        `!document.querySelector('button[title="Stop agent"]')&&!document.querySelector('.ia-composer textarea').disabled`,
+      );
+      assert.equal(turns.get(marker).interrupts, 1);
+    }
+    // Hold the snapshot captured while running, finish the turn, then deliver
+    // that obsolete snapshot after the final live events have reached React.
+    await newChat();
+    holdHistory = true;
+    await evaluate(
+      `(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'SESSION_LATE');area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+    );
+    await evaluate(`document.querySelector('.ia-send').click()`);
+    await wait(`document.querySelector('.ia-approval')?.innerText.includes('SESSION_LATE')`);
+    const historyDeadline = Date.now() + 15000;
+    while (!delayedHistory && Date.now() < historyDeadline)
+      await new Promise(resolve => setTimeout(resolve, 20));
+    assert.ok(delayedHistory);
+    await evaluate(`document.querySelector('.ia-approval button').click()`);
+    turns.get('SESSION_LATE').finish();
+    await wait(`document.querySelector('.ia-chat-scroll')?.innerText.includes('finished')`);
+    releaseHistory();
+    await wait(
+      `!document.querySelector('.ia-new-chat').disabled&&!document.querySelector('.ia-composer textarea').disabled`,
+    );
+    assert.equal(
+      await evaluate(
+        `Boolean(document.querySelector('.ia-approval')||document.querySelector('button[title="Stop agent"]'))`,
+      ),
+      false,
+    );
+    assert.equal(
+      await evaluate(
+        `document.querySelector('.ia-chat-scroll').innerText.split('SESSION_LATE_ONLY').length-1`,
+      ),
+      1,
+    );
+    const lateId = await evaluate(`window.viewerHost.chats().then(list=>list.activeId)`);
+    await evaluate(`window.viewerHost.deleteChat(${JSON.stringify(lateId)})`);
+    await newChat();
+    await submit('SESSION_FINAL');
+    // Leave one active approval for the normal app shutdown path to clean up.
     console.log(
       JSON.stringify({
         ok: true,
@@ -272,6 +469,14 @@ async function run(window) {
         streamIsolation: true,
         globalModelGuard: true,
         restoredOwnerBoundary: true,
+        navigationSwitches: switches,
+        sameFrameDoubleClicks: 160,
+        capacityRejection: true,
+        rendererReloadWithFourActiveTurns: true,
+        questionIsolation: true,
+        repeatedStop: true,
+        lateHistoryAndLiveEvents: true,
+        activeShutdown: true,
         evidence,
       }),
     );
@@ -283,4 +488,4 @@ async function run(window) {
     throw error;
   }
 }
-module.exports = { prepare, createSession, run };
+module.exports = { prepare, createSession, run, historyResponse };

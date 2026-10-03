@@ -307,6 +307,14 @@ class KimiSession {
     });
     this.log = log;
     this.interruptRequested = false;
+    this.stopPromise = undefined;
+    let finishTurn;
+    this.turnFinished = new Promise(resolve => {
+      finishTurn = resolve;
+    });
+    const forcedCancellation = new Promise(resolve => {
+      this.cancelTurn = resolve;
+    });
     this.running = true;
     this.turnMetrics = {
       peakContextUsage: null,
@@ -467,26 +475,41 @@ class KimiSession {
       }
       const turn = this.session.prompt(content);
       this.turn = turn;
-      for await (const event of turn) {
-        log.record('sdk.event', redactImagePayloads(event));
-        this.emitEvent(event);
-      }
-      const result = await turn.result;
+      const consume = async () => {
+        for await (const event of turn) {
+          if (this.turn !== turn) return { status: 'cancelled' };
+          log.record('sdk.event', redactImagePayloads(event));
+          this.emitEvent(event);
+        }
+        return await turn.result;
+      };
+      const result = await Promise.race([consume(), forcedCancellation]);
       emitMetrics();
       outcome = result.status;
       this.emitAgent({ type: 'done', result });
     } catch (error) {
+      if (this.turn) {
+        this.interruptRequested = true;
+        try {
+          await this.closeNative();
+        } catch (closeError) {
+          error = new AggregateError(
+            [error, closeError],
+            `${error.message}; ${closeError.message}`,
+          );
+        }
+      }
       emitMetrics();
       this.emitAgent({ type: 'error', message: String(error) });
     } finally {
-      this.turn = undefined;
-      this.pendingToolArgs.clear();
-      this.toolNames.clear();
-      this.lastToolCall = null;
-      for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
-      for (const [id, question] of this.pendingQuestions)
-        if (question.state === 'pending') this.resolveQuestion(id, 'expired');
       try {
+        this.turn = undefined;
+        this.pendingToolArgs.clear();
+        this.toolNames.clear();
+        this.lastToolCall = null;
+        for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
+        for (const [id, question] of this.pendingQuestions)
+          if (question.state === 'pending') this.resolveQuestion(id, 'expired');
         this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
         if (
           this.persistentSession &&
@@ -509,10 +532,15 @@ class KimiSession {
           brokerTrace: this.diagnostics.getBrokerTrace?.() || [],
         });
       } finally {
-        log.close();
-        this.log = undefined;
-        this.running = false;
-        releaseResources?.();
+        try {
+          log.close();
+        } finally {
+          this.log = undefined;
+          this.running = false;
+          this.cancelTurn = undefined;
+          finishTurn();
+          releaseResources?.();
+        }
       }
     }
   }
@@ -733,7 +761,28 @@ class KimiSession {
   interrupt() {
     if (this.running) this.interruptRequested = true;
     this.log?.record('turn.interrupt', {});
-    return this.turn?.interrupt();
+    const turn = this.turn;
+    if (!turn) return;
+    if (this.stopPromise) return this.stopPromise;
+    const turnFinished = this.turnFinished;
+    // The pinned SDK can leave turn.result pending after a signal-killed CLI.
+    // Give native cancellation a grace period, then close only this actor.
+    let timer;
+    const fallback = new Promise((resolve, reject) => {
+      timer = setTimeout(() => {
+        if (this.turn !== turn) return resolve();
+        this.closeNative().then(resolve, reject);
+      }, this.diagnostics.interruptGraceMs ?? 3000);
+    });
+    const requested = Promise.resolve()
+      .then(() => turn.interrupt())
+      .catch(() => {});
+    const stopPromise = Promise.race([requested.then(() => turnFinished), fallback]).finally(() => {
+      clearTimeout(timer);
+      if (this.stopPromise === stopPromise) this.stopPromise = undefined;
+    });
+    this.stopPromise = stopPromise;
+    return stopPromise;
   }
   async close() {
     if (this.running) this.interruptRequested = true;
@@ -749,6 +798,7 @@ class KimiSession {
   }
   async disposeNative() {
     await this.session?.close();
+    if (this.interruptRequested && this.turn) this.cancelTurn?.({ status: 'cancelled' });
     this.session = undefined;
     if (this.sessionConfigDir && !this.persistentSession)
       fs.rmSync(this.sessionConfigDir, { recursive: true, force: true });

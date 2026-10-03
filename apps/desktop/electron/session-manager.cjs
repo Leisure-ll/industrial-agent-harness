@@ -5,6 +5,7 @@ class SessionManager {
     this.entries = new Map();
   }
   get(project, chatId) {
+    if (this.closing) throw Error('Sessions are shutting down.');
     if (!project?.id || !project.path || !project.domain || typeof chatId !== 'string' || !chatId)
       throw Error('Choose a project and chat.');
     let entry = this.entries.get(chatId);
@@ -31,7 +32,12 @@ class SessionManager {
     return entry;
   }
   busy(entry) {
-    return Boolean(entry.removing || entry.release || entry.agent?.running || entry.agent?.turn);
+    return Boolean(
+      entry && (entry.removing || entry.release || entry.agent?.running || entry.agent?.turn),
+    );
+  }
+  find(chatId) {
+    return this.entries.get(chatId);
   }
   matching(projectId) {
     return [...this.entries.values()].filter(
@@ -48,13 +54,19 @@ class SessionManager {
   async reset(projectId) {
     this.assertIdle(projectId);
     const entries = this.matching(projectId);
-    await Promise.all(
+    for (const entry of entries) entry.removing = true;
+    const results = await Promise.allSettled(
       entries.map(async entry => {
-        await entry.agent?.close();
-        entry.context?.close();
-        this.entries.delete(entry.id);
+        try {
+          await entry.agent?.close();
+          entry.context?.close();
+          this.entries.delete(entry.id);
+        } finally {
+          entry.removing = false;
+        }
       }),
     );
+    throwFailures(results);
   }
   async remove(project, chatId) {
     const entry = this.get(project, chatId);
@@ -78,20 +90,56 @@ class SessionManager {
     }));
   }
   async close() {
+    if (this.closePromise) return this.closePromise;
+    this.closing = true;
+    this.closePromise = this.dispose();
+    return this.closePromise;
+  }
+  async dispose() {
     try {
-      await Promise.all(
+      const results = await Promise.allSettled(
         this.matching().map(async entry => {
           try {
             await entry.agent?.close();
           } finally {
-            entry.release?.();
-            entry.context?.close();
+            try {
+              entry.release?.();
+            } finally {
+              entry.context?.close();
+            }
           }
         }),
       );
+      throwFailures(results);
     } finally {
       this.entries.clear();
     }
   }
 }
-module.exports = { SessionManager };
+function throwFailures(results) {
+  const errors = results
+    .filter(result => result.status === 'rejected')
+    .map(result => result.reason);
+  if (errors.length)
+    throw new AggregateError(errors, errors.map(error => error.message).join('; '));
+}
+function finishTurn(entry, finish, notify) {
+  try {
+    finish();
+  } finally {
+    const release = entry.release;
+    const releasePack = entry.releasePack;
+    entry.release = undefined;
+    entry.releasePack = undefined;
+    try {
+      release?.();
+    } finally {
+      try {
+        releasePack?.();
+      } finally {
+        notify();
+      }
+    }
+  }
+}
+module.exports = { SessionManager, finishTurn };

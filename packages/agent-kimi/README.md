@@ -29,3 +29,5 @@ Desktop/CLI 通过 `diagnostics.resources` 注入 Core 的共享资源管理器�
 `KimiSession` 构造参数 `plugins` 接收横切插件对象（如 `computer-use-bridge` 的 `createGuiPlugin`），每项形如 `{name, enabled(), toolNames, materializeSkill(dir), toolsFactory()}`。启用的插件会把 skill 目录并入会话 `extra_skill_dirs`，并把其外部工具与 Broker 工具一起注册；本包不依赖任何具体插件，也不感知其领域属性。启用即授权：插件工具触发的 `ApprovalRequest`（按 `sender` 工具名匹配）由本包自动以 `approve_for_session` 应答，不上抛 UI；非插件工具的审批卡片保持不变。插件工具自身的执行边界校验（如会话内被禁用即拒绝）由各插件在自己的 handler 内完成。
 
 Kimi Wire `QuestionRequest` 进入当前会话的待答状态，`answerQuestion` 调用固定 SDK 的 `respondQuestion`，支持重试、跳过和完成后的过期处理。固定 Kimi CLI 1.51.0 将问题 ID 同时用作 RPC 请求 ID；真实 Wire 回答链路已验证。`approvalMode=auto` 传给 SDK 的 `yoloMode`，不改变问题需要用户作答的语义。
+
+Stop 优先发送原生取消，3 秒后本轮仍未结束则通过 SDK 关闭该会话，并在关闭完成后结束宿主等待。重复 Stop 复用同一请求；其他会话继续运行，旧轮次迟到的事件不会进入新轮次。该路径处理 SDK 0.1.8 信号强杀后结果等待不结束的边界，未修改 SDK，也不自动重试工程动作。执行错误关闭本轮原生会话，观察/日志清理失败仍释放执行额度。真实验证入口：`pnpm test:session-chaos`，范围见[资源与切换保护](../../doc/session-resource-guards.md)。

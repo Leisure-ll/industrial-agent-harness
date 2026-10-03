@@ -7,6 +7,50 @@ const { KimiSession } = require('../src/index.cjs');
 const { createKimiPaths } = require('@moonshot-ai/kimi-agent-sdk');
 const { ChatStore } = require('../../harness-core/src/index.cjs');
 
+test('observer failure during cleanup cannot leave an execution slot or running state behind', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'failed-observer-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(directory, 'config.toml'), 'default_model="industrial"\n');
+  let released = 0;
+  const agent = new KimiSession(
+    directory,
+    () => ({ domain: 'test', stage: 'test', capabilityIds: [], skills: [], tools: [] }),
+    () => null,
+    () => null,
+    event => {
+      if (event.type === 'error' || event.type === 'approval-resolved')
+        throw Error('Observer failed');
+    },
+    () => ({ apiKey: 'fixture', profile: { thinking: false }, revision: 0, shareDir: directory }),
+    () => ({
+      sessionId: 'fixture',
+      close: async () => {},
+      prompt: () => ({
+        result: Promise.resolve({ status: 'finished' }),
+        async *[Symbol.asyncIterator]() {
+          yield {
+            type: 'ApprovalRequest',
+            payload: { id: 'pending', action: 'test', description: 'pending' },
+          };
+          throw Error('Native transport failed');
+        },
+      }),
+    }),
+    {
+      directory: path.join(directory, 'logs'),
+      resolveSession: () => null,
+      sessionInitialized: () => {},
+      resources: { acquire: async () => () => released++, remove: async () => {} },
+    },
+  );
+  await assert.rejects(agent.run('Fail while an approval is pending.'), /Observer failed/);
+  assert.equal(released, 1);
+  assert.equal(agent.running, false);
+  assert.equal(agent.turn, undefined);
+  assert.equal(agent.log, undefined);
+  await agent.close();
+});
+
 test('Stop while waiting for resource admission prevents a native prompt and releases the slot', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'stop-admission-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));

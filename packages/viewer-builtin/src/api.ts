@@ -377,7 +377,12 @@ export interface ResourceSettingsSnapshot {
   effective: { skills: string[]; mcpServers: string[] };
 }
 
-export type AgentEvent = { chatId?: string; projectId?: string; turnId?: string } & (
+export type AgentEvent = {
+  chatId?: string;
+  projectId?: string;
+  turnId?: string;
+  eventRevision?: number;
+} & (
   | { type: 'user-images'; images: PromptImage[] }
   | { type: 'input-images'; images: PromptImage[] }
   | { type: 'context-reset'; message: string }
@@ -562,6 +567,7 @@ export interface ChatTurn {
   events: AgentEvent[];
 }
 export interface ChatHistory {
+  eventRevision?: number;
   executing?: boolean;
   chat: ChatSummary;
   turns: ChatTurn[];
