@@ -52,7 +52,7 @@ try {
     assert.equal(rows.at(-1).status, 'scoped');
     assert.ok(
       rows[0].trace.find(row => row.event === 'domain.index').detail.count ===
-        (domain === 'chip' ? 8 : domain === 'pcb' ? 8 : 0),
+        (domain === 'chip' ? 8 : domain === 'pcb' ? 8 : 2),
     );
     const denied = domain === 'chip' ? 'pcb' : 'chip';
     assert.throws(
@@ -105,6 +105,44 @@ try {
       assert.equal(pcbScope([]).tools.length, 89);
       assert.deepEqual(pcbScope(['--disable-mcp', 'pcb-bench.tools']).tools, []);
       assert.ok(!pcbScope(['--disable-skill', 'pcb.design.e2e']).skills.includes('pcb.design.e2e'));
+    }
+    if (domain === 'godot') {
+      assert.equal(catalog.skills.length, 2);
+      assert.equal(catalog.packs.length, 1);
+      assert.equal(
+        fs.existsSync(path.join(packageRoot, 'domain-packs/godot/src/runtime.cjs')),
+        true,
+      );
+      const godotScope = (task, extra = []) =>
+        JSON.parse(
+          execFileSync(
+            process.execPath,
+            [entry, 'run', '--project-dir', temporary, '--task', task, '--scope-only', ...extra],
+            {
+              cwd: temporary,
+              encoding: 'utf8',
+              env: {
+                ...process.env,
+                INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(temporary, 'config'),
+              },
+            },
+          ).split('\n')[0],
+        ).scope;
+      assert.deepEqual(godotScope('Inspect scene').tools, [
+        'godot.game.project_status',
+        'godot.game.inspect_scene_source',
+      ]);
+      assert.equal(godotScope('Develop a Godot game').tools.length, 5);
+      assert.deepEqual(
+        godotScope('Develop a Godot game', ['--disable-mcp', 'godot.local']).tools,
+        [],
+      );
+      assert.ok(
+        !godotScope('Develop a Godot game', [
+          '--disable-skill',
+          'godot.game.develop',
+        ]).skills.includes('godot.game.develop'),
+      );
     }
     console.log(
       JSON.stringify({

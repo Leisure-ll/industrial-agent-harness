@@ -6,7 +6,7 @@
 
 [headless-v0.2.0-preview.3](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.3) 在所有包中加入 [外部 MCP 注册](external-mcp.md)：`node industrial-harness.cjs mcp add --file mcp.json`，与 Desktop 共用 stdio/HTTP/SSE 服务、项目策略和 Kimi 审批。截图任务使用视觉模型及 `--image-input`。外部服务不受领域分包排除，软件与系统授权仍需单独准备；preview.2 不提供此入口。
 
-[headless-v0.2.0-preview.4](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.4) 更新 Chip Pack 至 0.6.1，增加 EDA 资源保护、容器清理与等价验证修复。Chip 使用者需同步重建工具镜像并更新工程配置，见 [迁移说明](../domain-packs/chip/eda-harness/docs/runtime-reliability.md)。旧归档和旧镜像不会自动更新。
+[headless-v0.2.0-preview.5](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.5) 更新 Chip Pack 至 0.6.1，增加 EDA 资源保护、容器清理与等价验证修复。Chip 使用者需同步重建工具镜像并更新工程配置，见 [迁移说明](../domain-packs/chip/eda-harness/docs/runtime-reliability.md)。旧归档和旧镜像不会自动更新。
 
 | 包 | 默认领域 | 当前能力与测试依赖 |
 | --- | --- | --- |

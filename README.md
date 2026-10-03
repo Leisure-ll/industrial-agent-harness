@@ -33,7 +33,7 @@ pnpm dev
 
 无需克隆仓库即可从 [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases) 下载无 UI Harness 预发布包；安装与校验步骤见 [CLI 文档](apps/cli/README.md#github-release-安装)。开发时也可运行 `node scripts/package-headless.cjs` 生成同样的目录。仓库提供当前能力烟测和预期失败的 RTL 验证目标场景；逐场 JSONL 与汇总结果用于定位 Harness 缺口。这个打包产物包含 Broker、Skill 和已注册的 Chip Pack MCP；执行它需要单独准备固定版本的 Python 环境。Core 工业状态闭环仍未完成。
 
-CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[headless-v0.2.0-preview.4](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.4) 包含共用外部 MCP 注册及 Chip 0.6.1 的资源、容器清理与等价修复，历史包不自动更新。构建与使用见 [按领域下载 CLI](doc/domain-cli-downloads.md)。
+CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[headless-v0.2.0-preview.5](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.5) 包含共用外部 MCP 注册及 Chip 0.6.1 的资源、容器清理与等价修复，历史包不自动更新。构建与使用见 [按领域下载 CLI](doc/domain-cli-downloads.md)。
 
 完整芯片 MCP 另以 [Chip Pack 0.6.1 Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.1-preview.1) 独立发布，包含 EDA Harness 25 工具服务、领域 Skill 和 Kimi 适配生成器；[安装说明](domain-packs/chip/README.md)列出 uv 与工具镜像的准备步骤。它可用于芯片场景；桌面与无 UI Core 已通过共享网关把 Chip Pack 纳入 Broker Scope；独立领域包保留自己的运行时。采用运行时修复需同时重建 EDA 工具镜像，见 [迁移与验证范围](domain-packs/chip/eda-harness/docs/runtime-reliability.md)。
 
