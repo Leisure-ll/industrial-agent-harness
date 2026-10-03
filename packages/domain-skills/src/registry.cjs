@@ -60,6 +60,24 @@ const skills = Object.freeze([
     title: 'Operate AutoCAD on macOS',
     directory: 'cad-autocad-macos',
   },
+  {
+    id: 'cad.intent.loop',
+    domain: 'cad',
+    title: 'CAD intent loop (dimension-neutral)',
+    directory: 'cad-intent-loop',
+  },
+  {
+    id: 'cad.ezdxf.author',
+    domain: 'cad',
+    title: 'Author 2D DXF via ezdxf',
+    directory: 'cad-ezdxf',
+  },
+  {
+    id: 'cad.freecad.headless',
+    domain: 'cad',
+    title: 'Drive FreeCAD headless',
+    directory: 'cad-freecad-headless',
+  },
 ]);
 
 function listSkills(domain) {
