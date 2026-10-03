@@ -1,0 +1,10 @@
+**/node_modules/**
+**/dist/**
+**/build/**
+**/out/**
+**/vendor/**
+**/fixtures/**
+**/public/**
+domain-packs/chip/eda-harness/**
+packages/viewer-builtin/src/waveform/surfer/surfer.js
+packages/viewer-builtin/src/waveform/surfer/integration.js

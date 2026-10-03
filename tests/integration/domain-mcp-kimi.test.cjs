@@ -3,35 +3,91 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {execFile} = require('node:child_process');
-const {promisify} = require('node:util');
-const {startModel} = require('./fixtures/domain-mcp-model.cjs');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const { startModel } = require('./fixtures/domain-mcp-model.cjs');
 const execute = promisify(execFile);
 const root = path.resolve(__dirname, '../..');
 const entry = process.env.INDUSTRIAL_HARNESS_TEST_CLI || path.join(root, 'apps/cli/src/main.cjs');
 const kimi = process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
-const python = process.env.INDUSTRIAL_HARNESS_EDA_PYTHON || path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
+const python =
+  process.env.INDUSTRIAL_HARNESS_EDA_PYTHON ||
+  path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
 
-test('real CLI + pinned Kimi invokes registered MCP, approves mutation and retrieves persisted context; rejection has no mutation', {timeout: 90000, skip: !fs.existsSync(kimi) || !fs.existsSync(python)}, async t => {
-  const fixture = await startModel(); t.after(fixture.close);
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-mcp-')); t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
-  for (const approval of ['reject', 'approve']) {
-    const project = path.join(directory, approval); fs.mkdirSync(project);
-    fs.writeFileSync(path.join(project, 'eda.yaml'), 'name: mcp-test\ntop: top\nruntime:\n  kind: local\ninputs: {}\nactions: {}\nrequired_verification: []\n');
-    const before = fixture.requests.length;
-    const args = [entry, 'run', '--project-dir', project, '--domain', 'chip', '--task', 'create_goal for MCP integration', '--approval', approval, '--provider', 'openai_legacy', '--endpoint', fixture.endpoint, '--model', 'controlled-mcp', '--no-thinking', '--kimi-executable', kimi, '--timeout-ms', '25000', '--chat-dir', path.join(directory, 'chats'), '--state-dir', path.join(directory, 'state'), '--log-dir', path.join(directory, 'logs')];
-    const {stdout, stderr} = await execute(process.execPath, args, {cwd: root, env: {...process.env, OPENAI_API_KEY: 'local-fixture-key', INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(directory, 'resources')}, timeout: 40000, maxBuffer: 4 * 1024 * 1024});
-    const rows = stdout.trim().split('\n').map(JSON.parse);
-    assert.equal(rows.at(-1).status, 'finished', stderr + stdout);
-    assert.ok(rows.some(row => row.type === 'approval_decision' && row.decision === approval));
-    const requests = fixture.requests.slice(before);
-    const tools = requests[0].tools.map(tool => tool.function.name);
-    assert.ok(tools.includes('domain_tool_call'));
-    assert.ok(!tools.includes('run_action'));
-    if (approval === 'approve') {
-      assert.ok(JSON.stringify(requests.at(-1).messages).includes('MCP_INTEGRATION_GOAL'));
-      assert.ok(rows.some(row => row.event?.type === 'tool-result' && row.event.output?.includes('MCP_INTEGRATION_GOAL')), JSON.stringify(rows.filter(row=>row.event?.type==='tool-result')));
-      assert.ok(fs.existsSync(path.join(project, '.eda')));
-    } else assert.ok(!fs.existsSync(path.join(project, '.eda')));
-  }
-});
+test(
+  'real CLI + pinned Kimi invokes registered MCP, approves mutation and retrieves persisted context; rejection has no mutation',
+  { timeout: 90000, skip: !fs.existsSync(kimi) || !fs.existsSync(python) },
+  async t => {
+    const fixture = await startModel();
+    t.after(fixture.close);
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-mcp-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    for (const approval of ['reject', 'approve']) {
+      const project = path.join(directory, approval);
+      fs.mkdirSync(project);
+      fs.writeFileSync(
+        path.join(project, 'eda.yaml'),
+        'name: mcp-test\ntop: top\nruntime:\n  kind: local\ninputs: {}\nactions: {}\nrequired_verification: []\n',
+      );
+      const before = fixture.requests.length;
+      const args = [
+        entry,
+        'run',
+        '--project-dir',
+        project,
+        '--domain',
+        'chip',
+        '--task',
+        'create_goal for MCP integration',
+        '--approval',
+        approval,
+        '--provider',
+        'openai_legacy',
+        '--endpoint',
+        fixture.endpoint,
+        '--model',
+        'controlled-mcp',
+        '--no-thinking',
+        '--kimi-executable',
+        kimi,
+        '--timeout-ms',
+        '25000',
+        '--chat-dir',
+        path.join(directory, 'chats'),
+        '--state-dir',
+        path.join(directory, 'state'),
+        '--log-dir',
+        path.join(directory, 'logs'),
+      ];
+      const { stdout, stderr } = await execute(process.execPath, args, {
+        cwd: root,
+        env: {
+          ...process.env,
+          OPENAI_API_KEY: 'local-fixture-key',
+          INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(directory, 'resources'),
+        },
+        timeout: 40000,
+        maxBuffer: 4 * 1024 * 1024,
+      });
+      const rows = stdout.trim().split('\n').map(JSON.parse);
+      assert.equal(rows.at(-1).status, 'finished', stderr + stdout);
+      assert.ok(rows.some(row => row.type === 'approval_decision' && row.decision === approval));
+      const requests = fixture.requests.slice(before);
+      const tools = requests[0].tools.map(tool => tool.function.name);
+      assert.ok(tools.includes('domain_tool_call'));
+      assert.ok(!tools.includes('run_action'));
+      if (approval === 'approve') {
+        assert.ok(JSON.stringify(requests.at(-1).messages).includes('MCP_INTEGRATION_GOAL'));
+        assert.ok(
+          rows.some(
+            row =>
+              row.event?.type === 'tool-result' &&
+              row.event.output?.includes('MCP_INTEGRATION_GOAL'),
+          ),
+          JSON.stringify(rows.filter(row => row.event?.type === 'tool-result')),
+        );
+        assert.ok(fs.existsSync(path.join(project, '.eda')));
+      } else assert.ok(!fs.existsSync(path.join(project, '.eda')));
+    }
+  },
+);

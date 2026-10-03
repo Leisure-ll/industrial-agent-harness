@@ -1,27 +1,31 @@
-const {contextBridge, ipcRenderer} = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 const api = {
   open: request => ipcRenderer.invoke('viewer:open', request),
-  openExternalArtifact: artifactId => ipcRenderer.invoke('viewer:external-open', {artifactId}),
+  openExternalArtifact: artifactId => ipcRenderer.invoke('viewer:external-open', { artifactId }),
   render: request => ipcRenderer.invoke('viewer:render', request),
   netlist: request => ipcRenderer.invoke('viewer:netlist', request),
   resolve: request => ipcRenderer.invoke('broker:resolve', request),
   domains: () => ipcRenderer.invoke('broker:domains'),
   domainStatus: () => ipcRenderer.invoke('domains:status'),
   domainAvailable: () => ipcRenderer.invoke('domains:available'),
-  domainInstall: domains => ipcRenderer.invoke('domains:install', {domains}),
-  domainRemove: domain => ipcRenderer.invoke('domains:remove', {domain}),
+  domainInstall: domains => ipcRenderer.invoke('domains:install', { domains }),
+  domainRemove: domain => ipcRenderer.invoke('domains:remove', { domain }),
   coreUpdateStatus: () => ipcRenderer.invoke('update:status'),
   coreUpdateCheck: () => ipcRenderer.invoke('update:check'),
   coreUpdateInstall: () => ipcRenderer.invoke('update:install'),
-  onCoreUpdateChanged: callback => {const listener = (_event, state) => callback(state); ipcRenderer.on('update:changed', listener); return () => ipcRenderer.removeListener('update:changed', listener);},
+  onCoreUpdateChanged: callback => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('update:changed', listener);
+    return () => ipcRenderer.removeListener('update:changed', listener);
+  },
   resourceGet: request => ipcRenderer.invoke('resource:get', request),
   resourceSet: request => ipcRenderer.invoke('resource:set', request),
   resourceCatalog: () => ipcRenderer.invoke('resource:catalog'),
   externalMcpList: () => ipcRenderer.invoke('external-mcp:list'),
   externalMcpAdd: request => ipcRenderer.invoke('external-mcp:add', request),
-  externalMcpRefresh: id => ipcRenderer.invoke('external-mcp:refresh', {id}),
-  externalMcpRemove: id => ipcRenderer.invoke('external-mcp:remove', {id}),
+  externalMcpRefresh: id => ipcRenderer.invoke('external-mcp:refresh', { id }),
+  externalMcpRemove: id => ipcRenderer.invoke('external-mcp:remove', { id }),
   detail: capabilityId => ipcRenderer.invoke('broker:detail', capabilityId),
   brokerTrace: () => ipcRenderer.invoke('broker:trace'),
   diagnosticRuns: request => ipcRenderer.invoke('agent:log-runs', request),
@@ -31,32 +35,48 @@ const api = {
   diagnosticRecord: request => ipcRenderer.invoke('agent:log-record', request),
   agentStatus: () => ipcRenderer.invoke('agent:status'),
   guiState: () => ipcRenderer.invoke('settings:gui-state'),
-  setGuiPlugin: enabled => ipcRenderer.invoke('settings:set-gui', {enabled}),
+  setGuiPlugin: enabled => ipcRenderer.invoke('settings:set-gui', { enabled }),
   approvalMode: () => ipcRenderer.invoke('settings:approval-mode'),
   setApprovalMode: mode => ipcRenderer.invoke('settings:set-approval-mode', mode),
-  onGuiProgress: callback => {const listener = (_event, value) => callback(value); ipcRenderer.on('settings:gui-progress', listener); return () => ipcRenderer.removeListener('settings:gui-progress', listener);},
+  onGuiProgress: callback => {
+    const listener = (_event, value) => callback(value);
+    ipcRenderer.on('settings:gui-progress', listener);
+    return () => ipcRenderer.removeListener('settings:gui-progress', listener);
+  },
   modelGet: () => ipcRenderer.invoke('model:get'),
   modelSave: request => ipcRenderer.invoke('model:save', request),
   chooseProjectDirectory: () => ipcRenderer.invoke('project:choose-directory'),
   createProject: request => ipcRenderer.invoke('project:create', request),
   projectBindings: () => ipcRenderer.invoke('project:bindings'),
   selectProject: id => ipcRenderer.invoke('project:select', id),
-  setProjectDomain: (id, domain) => ipcRenderer.invoke('project:set-domain', {id, domain}),
-  setProjectResource: (projectId, kind, id, enabled) => ipcRenderer.invoke('project:set-resource', {projectId, kind, id, enabled}),
+  setProjectDomain: (id, domain) => ipcRenderer.invoke('project:set-domain', { id, domain }),
+  setProjectResource: (projectId, kind, id, enabled) =>
+    ipcRenderer.invoke('project:set-resource', { projectId, kind, id, enabled }),
   chats: () => ipcRenderer.invoke('chat:list'),
   chatHistory: request => ipcRenderer.invoke('chat:history', request),
   selectChat: id => ipcRenderer.invoke('chat:select', id),
   deleteChat: id => ipcRenderer.invoke('chat:delete', id),
-  onChatUpdated: callback => {const listener = () => callback(); ipcRenderer.on('chat:updated', listener); return () => ipcRenderer.removeListener('chat:updated', listener);},
+  onChatUpdated: callback => {
+    const listener = () => callback();
+    ipcRenderer.on('chat:updated', listener);
+    return () => ipcRenderer.removeListener('chat:updated', listener);
+  },
   newChat: () => ipcRenderer.invoke('agent:new'),
   projectFiles: () => ipcRenderer.invoke('project:list'),
   readProjectFile: relative => ipcRenderer.invoke('project:read', relative),
   openProjectFile: relative => ipcRenderer.invoke('project:open', relative),
   validateImages: request => ipcRenderer.invoke('agent:validate-images', request),
-  runAgent: (task, chatId) => ipcRenderer.invoke('agent:run', typeof task === 'string' && chatId ? {task, chatId} : task),
-  approveAgent: (id, response, chatId) => ipcRenderer.invoke('agent:approve', {id, response, chatId}),
-  answerAgentQuestion: (id, answers, chatId) => ipcRenderer.invoke('agent:answer-question', {id, answers, chatId}),
-  interruptAgent: chatId => ipcRenderer.invoke('agent:interrupt', {chatId}),
-  onAgentEvent: callback => {const listener = (_event, value) => callback(value); ipcRenderer.on('agent:event', listener); return () => ipcRenderer.removeListener('agent:event', listener);},
+  runAgent: (task, chatId) =>
+    ipcRenderer.invoke('agent:run', typeof task === 'string' && chatId ? { task, chatId } : task),
+  approveAgent: (id, response, chatId) =>
+    ipcRenderer.invoke('agent:approve', { id, response, chatId }),
+  answerAgentQuestion: (id, answers, chatId) =>
+    ipcRenderer.invoke('agent:answer-question', { id, answers, chatId }),
+  interruptAgent: chatId => ipcRenderer.invoke('agent:interrupt', { chatId }),
+  onAgentEvent: callback => {
+    const listener = (_event, value) => callback(value);
+    ipcRenderer.on('agent:event', listener);
+    return () => ipcRenderer.removeListener('agent:event', listener);
+  },
 };
 contextBridge.exposeInMainWorld('viewerHost', api);

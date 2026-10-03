@@ -4,7 +4,7 @@ export interface ViewerArtifactRef {
   artifactId: string;
   artifactType: string;
   contentHash: string;
-  source: {kind: 'state'; stateId: string} | {kind: 'run'; runId: string};
+  source: { kind: 'state'; stateId: string } | { kind: 'run'; runId: string };
 }
 
 export type ViewerMode = 'embedded' | 'artifact-preview' | 'external-app';

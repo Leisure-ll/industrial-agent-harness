@@ -3,14 +3,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {spawn} = require('node:child_process');
-const {createGuiPlugin} = require('../src/index.cjs');
+const { spawn } = require('node:child_process');
+const { createGuiPlugin } = require('../src/index.cjs');
 
 // A fake server that answers initialize and the first tools/call, then exits
 // so the next call must go through the rebuild path.
 function crashingServerScript(dir) {
   const serverFile = path.join(dir, 'server.cjs');
-  fs.writeFileSync(serverFile, `
+  fs.writeFileSync(
+    serverFile,
+    `
     let buffer = '';
     let calls = 0;
     process.stdin.on('data', chunk => {
@@ -30,14 +32,17 @@ function crashingServerScript(dir) {
         }
       }
     });
-  `);
+  `,
+  );
   return serverFile;
 }
 
 // A minimal server that answers initialize and every tools/call.
 function stableServerScript(dir) {
   const serverFile = path.join(dir, 'stable-server.cjs');
-  fs.writeFileSync(serverFile, `
+  fs.writeFileSync(
+    serverFile,
+    `
     let buffer = '';
     process.stdin.on('data', chunk => {
       buffer += chunk.toString('utf8');
@@ -54,21 +59,22 @@ function stableServerScript(dir) {
         }
       }
     });
-  `);
+  `,
+  );
   return serverFile;
 }
 
 test('toolsFactory routes tool-call logs to a per-session sink', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gui-bridge-log-'));
-  t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const serverFile = stableServerScript(dir);
   const baseLogs = [];
   const sessionLogs = [];
   const plugin = createGuiPlugin({
     enabled: () => true,
     installedDir: null,
-    env: {GUI_BRIDGE_BIN: 'node'},
-    spawner: () => spawn(process.execPath, [serverFile], {stdio: ['pipe', 'pipe', 'pipe']}),
+    env: { GUI_BRIDGE_BIN: 'node' },
+    spawner: () => spawn(process.execPath, [serverFile], { stdio: ['pipe', 'pipe', 'pipe'] }),
     log: (...args) => baseLogs.push(args),
   });
   t.after(() => plugin.close());
@@ -84,12 +90,14 @@ test('toolsFactory routes tool-call logs to a per-session sink', async t => {
 
 test('concurrent GUI calls serialize instead of interleaving input injection', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gui-bridge-serialize-'));
-  t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   // Tracks in-flight calls and answers after a delay, so concurrent requests
   // would overlap inside the server; each response reports the call order
   // seen so far and whether any overlap ever happened.
   const serverFile = path.join(dir, 'serial-server.cjs');
-  fs.writeFileSync(serverFile, `
+  fs.writeFileSync(
+    serverFile,
+    `
     let buffer = '';
     const calls = [];
     let inFlight = 0;
@@ -116,20 +124,21 @@ test('concurrent GUI calls serialize instead of interleaving input injection', a
         }
       }
     });
-  `);
+  `,
+  );
   const plugin = createGuiPlugin({
     enabled: () => true,
     installedDir: null,
-    env: {GUI_BRIDGE_BIN: 'node'},
-    spawner: () => spawn(process.execPath, [serverFile], {stdio: ['pipe', 'pipe', 'pipe']}),
+    env: { GUI_BRIDGE_BIN: 'node' },
+    spawner: () => spawn(process.execPath, [serverFile], { stdio: ['pipe', 'pipe', 'pipe'] }),
   });
   t.after(() => plugin.close());
   // Parallel sessions (or parallel tool calls in one turn) fire simultaneously;
   // the desktop they drive is a single physical resource, so the calls must
   // execute one at a time, in issue order, without blocking anything else.
   const results = await Promise.all([
-    plugin.clientLike.call('click', {element_id: 'e1'}),
-    plugin.clientLike.call('type_text', {text: 'hello'}),
+    plugin.clientLike.call('click', { element_id: 'e1' }),
+    plugin.clientLike.call('type_text', { text: 'hello' }),
     plugin.clientLike.call('screenshot', {}),
   ]);
   const reports = results.map(result => JSON.parse(result.output));
@@ -139,16 +148,22 @@ test('concurrent GUI calls serialize instead of interleaving input injection', a
     // name is the last entry in the order snapshot taken at that moment.
     assert.equal(report.order.at(-1), report.name, `${report.name} executed at its turn`);
   }
-  assert.deepEqual(reports.at(-1).order, ['click', 'type_text', 'screenshot'], 'the queue is FIFO in issue order');
+  assert.deepEqual(
+    reports.at(-1).order,
+    ['click', 'type_text', 'screenshot'],
+    'the queue is FIFO in issue order',
+  );
 });
 
 test('a queued call gives up after the wait budget and later calls still run', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gui-bridge-wait-'));
-  t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   // The first call is slow; a caller stuck behind it must be able to abandon
   // the wait, report an actionable error, and leave the queue healthy.
   const serverFile = path.join(dir, 'slow-server.cjs');
-  fs.writeFileSync(serverFile, `
+  fs.writeFileSync(
+    serverFile,
+    `
     let buffer = '';
     process.stdin.on('data', chunk => {
       buffer += chunk.toString('utf8');
@@ -166,17 +181,18 @@ test('a queued call gives up after the wait budget and later calls still run', a
         }
       }
     });
-  `);
+  `,
+  );
   const plugin = createGuiPlugin({
     enabled: () => true,
     installedDir: null,
-    env: {GUI_BRIDGE_BIN: 'node'},
-    spawner: () => spawn(process.execPath, [serverFile], {stdio: ['pipe', 'pipe', 'pipe']}),
+    env: { GUI_BRIDGE_BIN: 'node' },
+    spawner: () => spawn(process.execPath, [serverFile], { stdio: ['pipe', 'pipe', 'pipe'] }),
     queueWaitMs: 50,
   });
   t.after(() => plugin.close());
   const first = plugin.clientLike.call('slow', {});
-  const second = plugin.clientLike.call('type_text', {text: 'x'});
+  const second = plugin.clientLike.call('type_text', { text: 'x' });
   await assert.rejects(second, /busy|gave up waiting/i);
   assert.match((await first).output, /ran slow/, 'the in-flight call is unaffected');
   // An abandoned slot must not wedge the queue: the next call runs normally.
@@ -186,16 +202,16 @@ test('a queued call gives up after the wait budget and later calls still run', a
 
 test('a dead MCP server is rebuilt on the next call instead of failing forever', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gui-bridge-rebuild-'));
-  t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const serverFile = crashingServerScript(dir);
   let spawns = 0;
   const plugin = createGuiPlugin({
     enabled: () => true,
     installedDir: null,
-    env: {GUI_BRIDGE_BIN: 'node'},
+    env: { GUI_BRIDGE_BIN: 'node' },
     spawner: (bin, args, options) => {
       spawns += 1;
-      return spawn(process.execPath, [serverFile], {stdio: ['pipe', 'pipe', 'pipe']});
+      return spawn(process.execPath, [serverFile], { stdio: ['pipe', 'pipe', 'pipe'] });
     },
   });
   t.after(() => plugin.close());

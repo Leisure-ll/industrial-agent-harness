@@ -3,51 +3,110 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {KimiSession} = require('../src/index.cjs');
+const { KimiSession } = require('../src/index.cjs');
 
 test('equivalent Broker scope keeps the session; a changed effective scope replaces it', async t => {
   const shareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-test-'));
-  t.after(() => fs.rmSync(shareDir, {recursive: true, force: true}));
+  t.after(() => fs.rmSync(shareDir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(shareDir, 'config.toml'), 'default_model = "industrial"\n');
-  let scope = {version: 'one', domain: 'chip', stage: 'rtl', capabilityIds: ['chip.rtl.netlist.inspect'], skills: ['chip.netlist.inspect'], tools: ['eda.netlist.inspect']};
+  let scope = {
+    version: 'one',
+    domain: 'chip',
+    stage: 'rtl',
+    capabilityIds: ['chip.rtl.netlist.inspect'],
+    skills: ['chip.netlist.inspect'],
+    tools: ['eda.netlist.inspect'],
+  };
   const created = [];
   const prompts = [];
   const events = [];
   const factory = options => {
-    const instance = {options, closes: 0, async close() {this.closes++;}, prompt(text) {
-      prompts.push(text);
-      return {result: Promise.resolve({status: 'completed'}), async *[Symbol.asyncIterator]() {
-        yield {type: 'StatusUpdate', payload: {context_usage: 0.72, token_usage: null}};
-        yield {type: 'ToolResult', payload: {tool_call_id: 't1', return_value: {output: 'x'.repeat(13000), message: 'Read', is_error: false}}};
-        yield {type: 'CompactionBegin', payload: {}};
-        yield {type: 'CompactionEnd', payload: {}};
-        yield {type: 'StatusUpdate', payload: {context_usage: 0.24, token_usage: null}};
-      }};
-    }};
+    const instance = {
+      options,
+      closes: 0,
+      async close() {
+        this.closes++;
+      },
+      prompt(text) {
+        prompts.push(text);
+        return {
+          result: Promise.resolve({ status: 'completed' }),
+          async *[Symbol.asyncIterator]() {
+            yield { type: 'StatusUpdate', payload: { context_usage: 0.72, token_usage: null } };
+            yield {
+              type: 'ToolResult',
+              payload: {
+                tool_call_id: 't1',
+                return_value: { output: 'x'.repeat(13000), message: 'Read', is_error: false },
+              },
+            };
+            yield { type: 'CompactionBegin', payload: {} };
+            yield { type: 'CompactionEnd', payload: {} };
+            yield { type: 'StatusUpdate', payload: { context_usage: 0.24, token_usage: null } };
+          },
+        };
+      },
+    };
     created.push(instance);
     return instance;
   };
-  const session = new KimiSession(shareDir, () => scope, async () => null, () => null, event => events.push(event), () => ({apiKey: 'test-key', revision: 0, shareDir, profile: {thinking: false}, disabledMcpServers: []}), factory, {directory: path.join(shareDir, 'logs'), getBrokerTrace: () => [{level: 'L0', event: 'scope'}]});
+  const session = new KimiSession(
+    shareDir,
+    () => scope,
+    async () => null,
+    () => null,
+    event => events.push(event),
+    () => ({
+      apiKey: 'test-key',
+      revision: 0,
+      shareDir,
+      profile: { thinking: false },
+      disabledMcpServers: [],
+    }),
+    factory,
+    {
+      directory: path.join(shareDir, 'logs'),
+      getBrokerTrace: () => [{ level: 'L0', event: 'scope' }],
+    },
+  );
   t.after(() => session.close());
 
   await session.run('Inspect netlist');
-  scope = {...scope, version: 'two'};
+  scope = { ...scope, version: 'two' };
   await session.run('Inspect netlist again');
   assert.equal(created.length, 1);
   assert.match(prompts[1], /Industrial Context \(current Broker scope\)/);
   assert.match(prompts[1], /chip\.rtl\.netlist\.inspect/);
-  assert.deepEqual(events.filter(event => event.type === 'context-metrics')[0], {type: 'context-metrics', peakContextUsage: 0.72, lastContextUsage: 0.24, compactions: 1, toolResults: 1, peakToolResultBytes: 13000});
+  assert.deepEqual(events.filter(event => event.type === 'context-metrics')[0], {
+    type: 'context-metrics',
+    peakContextUsage: 0.72,
+    lastContextUsage: 0.24,
+    compactions: 1,
+    toolResults: 1,
+    peakToolResultBytes: 13000,
+  });
   assert.equal(events.find(event => event.type === 'tool-result').outputTruncated, true);
   assert.equal(events.find(event => event.type === 'tool-result').outputBytes, 13000);
   const logPath = events.find(event => event.type === 'diagnostic-log').path;
   const logRows = fs.readFileSync(logPath, 'utf8').trim().split('\n').map(JSON.parse);
   assert.equal(fs.statSync(logPath).mode & 0o777, 0o600);
-  assert.deepEqual(logRows.map(row => row.sequence), Array.from({length: logRows.length}, (_, index) => index + 1));
-  assert.deepEqual(logRows.find(row => row.type === 'run.start').payload.brokerTrace, [{level: 'L0', event: 'scope'}]);
-  assert.equal(logRows.find(row => row.type === 'sdk.event' && row.payload.type === 'ToolResult').payload.payload.return_value.output.length, 13000);
-  assert.ok(logRows.some(row => row.type === 'prompt' && row.payload.text.includes('Inspect netlist')));
+  assert.deepEqual(
+    logRows.map(row => row.sequence),
+    Array.from({ length: logRows.length }, (_, index) => index + 1),
+  );
+  assert.deepEqual(logRows.find(row => row.type === 'run.start').payload.brokerTrace, [
+    { level: 'L0', event: 'scope' },
+  ]);
+  assert.equal(
+    logRows.find(row => row.type === 'sdk.event' && row.payload.type === 'ToolResult').payload
+      .payload.return_value.output.length,
+    13000,
+  );
+  assert.ok(
+    logRows.some(row => row.type === 'prompt' && row.payload.text.includes('Inspect netlist')),
+  );
 
-  scope = {...scope, stage: 'verification', version: 'three'};
+  scope = { ...scope, stage: 'verification', version: 'three' };
   await session.run('Inspect verification');
   assert.equal(created.length, 2);
   assert.equal(created[0].closes, 1);
@@ -56,33 +115,76 @@ test('equivalent Broker scope keeps the session; a changed effective scope repla
 
 test('session preparation is busy and a completed turn expires unanswered approvals', async t => {
   const shareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-pending-'));
-  t.after(() => fs.rmSync(shareDir, {recursive: true, force: true}));
+  t.after(() => fs.rmSync(shareDir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(shareDir, 'config.toml'), 'default_model = "industrial"\n');
   let resume;
-  const anchor = new Promise(resolve => {resume = resolve;});
+  const anchor = new Promise(resolve => {
+    resume = resolve;
+  });
   const events = [];
-  const scope = {domain: 'chip', stage: 'rtl', capabilityIds: [], skills: [], tools: []};
-  const factory = () => ({close: async () => {}, prompt: () => ({result: Promise.resolve({status: 'completed'}), async *[Symbol.asyncIterator]() {
-    yield {type: 'ApprovalRequest', payload: {id: 'expired', action: 'read', description: 'No reply'}};
-  }})});
-  const session = new KimiSession(shareDir, () => scope, () => null, () => null, event => events.push(event), () => ({apiKey: 'test-key', revision: 0, shareDir, profile: {thinking: false}}), factory, {directory: path.join(shareDir, 'logs'), getContextAnchor: () => anchor});
+  const scope = { domain: 'chip', stage: 'rtl', capabilityIds: [], skills: [], tools: [] };
+  const factory = () => ({
+    close: async () => {},
+    prompt: () => ({
+      result: Promise.resolve({ status: 'completed' }),
+      async *[Symbol.asyncIterator]() {
+        yield {
+          type: 'ApprovalRequest',
+          payload: { id: 'expired', action: 'read', description: 'No reply' },
+        };
+      },
+    }),
+  });
+  const session = new KimiSession(
+    shareDir,
+    () => scope,
+    () => null,
+    () => null,
+    event => events.push(event),
+    () => ({ apiKey: 'test-key', revision: 0, shareDir, profile: { thinking: false } }),
+    factory,
+    { directory: path.join(shareDir, 'logs'), getContextAnchor: () => anchor },
+  );
   t.after(() => session.close());
   const turn = session.run('Inspect');
   assert.equal(session.running, true);
   assert.equal(session.turn, undefined);
   await assert.rejects(session.run('Duplicate task'), /already running/);
-  resume(null); await turn;
+  resume(null);
+  await turn;
   assert.equal(session.running, false);
-  assert.deepEqual(events.at(-1), {type: 'approval-resolved', id: 'expired', decision: 'expired'});
+  assert.deepEqual(events.at(-1), {
+    type: 'approval-resolved',
+    id: 'expired',
+    decision: 'expired',
+  });
   await assert.rejects(session.approve('expired', 'approve'), /no longer pending/);
 });
 
-
 test('MCP multipart output retains text in chat events and metrics without exposing media payloads', () => {
   const events = [];
-  const session = new KimiSession('.', () => null, () => null, () => null, event => events.push(event), () => null);
-  session.turnMetrics = {toolResults: 0, peakToolResultBytes: 0};
-  session.emitEvent({type: 'ToolResult', payload: {tool_call_id: 'mcp-call', return_value: {is_error: false, output: [{type: 'text', text: 'MCP result 中文'}, {type: 'image_url', image_url: {url: 'data:image/png;base64,AAA'}}]}}});
+  const session = new KimiSession(
+    '.',
+    () => null,
+    () => null,
+    () => null,
+    event => events.push(event),
+    () => null,
+  );
+  session.turnMetrics = { toolResults: 0, peakToolResultBytes: 0 };
+  session.emitEvent({
+    type: 'ToolResult',
+    payload: {
+      tool_call_id: 'mcp-call',
+      return_value: {
+        is_error: false,
+        output: [
+          { type: 'text', text: 'MCP result 中文' },
+          { type: 'image_url', image_url: { url: 'data:image/png;base64,AAA' } },
+        ],
+      },
+    },
+  });
   assert.match(events[0].output, /MCP result 中文/);
   assert.equal(events[0].imageCount, 1);
   assert.ok(!events[0].output.includes('base64'));

@@ -1,4 +1,4 @@
-const {z} = require('zod');
+const { z } = require('zod');
 
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
 const ObservedArtifactSchema = z.object({
@@ -47,4 +47,10 @@ const ActionRecordSchema = z.object({
   verification: VerificationResultSchema,
 });
 
-module.exports = {ObservedArtifactSchema, ObservedStateSchema, ContextCheckpointSchema, VerificationResultSchema, ActionRecordSchema};
+module.exports = {
+  ObservedArtifactSchema,
+  ObservedStateSchema,
+  ContextCheckpointSchema,
+  VerificationResultSchema,
+  ActionRecordSchema,
+};
