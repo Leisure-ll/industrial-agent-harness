@@ -28,7 +28,7 @@ wget -O install-chip-linux.sh https://github.com/Zhiman-BJ/industrial-agent-harn
 
 ## 验证范围
 
-发布门禁在 Ubuntu 24.04 x86-64 上运行真实 Kimi、Linux 写入与 Unix socket 限制、项目技能加载、原生 RTL 成功/失败/取消/恢复，以及安装态 Pack 完整性检查。生成安装器后从其他目录启动实际安装的 CLI，验证正文按需读取、环境冲突、原生 Shell 写入拒绝、真实 Verilator 验收与持久 Checkpoint，再验证重复安装。升级门禁先安装已发布的 preview.1，再用 preview.2 更新同一个启动入口，并核对旧安装、工程和配置仍然保留。确定性模型响应仅推动真实 SDK/Runtime，不属于外网模型能力评测。
+发布门禁在 Ubuntu 22.04 x86-64 上使用校验摘要的 Verilator 5.026，运行真实 Kimi、Linux 写入与 Unix socket 限制、项目技能加载、原生 RTL 成功/失败/取消/恢复，以及安装态 Pack 完整性检查。生成安装器后从其他目录启动实际安装的 CLI，验证正文按需读取、环境冲突、原生 Shell 写入拒绝、真实 Verilator 验收与持久 Checkpoint，再验证重复安装。升级门禁先安装已发布的 preview.1，再用 preview.2 更新同一个启动入口，并核对旧安装、工程和配置仍然保留。确定性模型响应仅推动真实 SDK/Runtime，不属于外网模型能力评测。
 
 受保护 Agent 还保留 macOS 原生回归；跨平台基础和 macOS/Windows 桌面首次启动由仓库 CI 检查。本发行入口只覆盖 Linux x86-64 Chip CLI，不扩大 Windows、Linux ARM64 或其他领域的工业执行支持。随附 `verification.json` 是本次安装包的实际证据。
 

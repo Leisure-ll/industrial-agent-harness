@@ -12,8 +12,8 @@ permissions:
 
 jobs:
   native-installed-chip:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
     env:
       RELEASE_TAG: ${{ inputs.release_tag }}
     steps:
@@ -33,7 +33,20 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y bubblewrap verilator curl
+          sudo apt-get install -y bubblewrap curl autoconf flex bison help2man libfl-dev g++ make
+          bwrap --unshare-user --unshare-pid --ro-bind / / --proc /proc --dev /dev -- /bin/true
+          curl -fL --retry 3 https://github.com/verilator/verilator/archive/refs/tags/v5.026.tar.gz -o "$RUNNER_TEMP/verilator.tar.gz"
+          printf '87fdecf3967007d9ee8c30191ff2476f2a33635d0e0c6e3dbf345cc2f0c50b78  %s\n' "$RUNNER_TEMP/verilator.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/verilator.tar.gz" -C "$RUNNER_TEMP"
+          (
+            cd "$RUNNER_TEMP/verilator-5.026"
+            autoconf
+            ./configure --prefix="$RUNNER_TEMP/verilator-runtime"
+            make -j2
+            make install
+          ) > "$RUNNER_TEMP/verilator-build.log" 2>&1
+          export PATH="$RUNNER_TEMP/verilator-runtime/bin:$PATH"
+          printf '%s\n' "$RUNNER_TEMP/verilator-runtime/bin" >> "$GITHUB_PATH"
           verilator --version
           pnpm install --frozen-lockfile
           python -m pip install uv==0.11.6
