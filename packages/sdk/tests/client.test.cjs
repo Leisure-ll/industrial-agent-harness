@@ -77,6 +77,15 @@ test('nonzero exit and malformed events expose typed errors; stderr redacts envi
   }
 });
 
+test('malformed output racing natural process exit always settles as a typed protocol error', async t => {
+  const client = setup(t);
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const handle = client.run({ task: 'invalid' });
+    await assert.rejects(drain(handle), { code: 'PROTOCOL_ERROR' });
+    await assert.rejects(handle.result, { code: 'PROTOCOL_ERROR' });
+  }
+});
+
 test(
   'timeout and cancellation kill descendants and close the result promise',
   { skip: process.platform === 'win32' },

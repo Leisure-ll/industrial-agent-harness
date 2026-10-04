@@ -415,5 +415,5 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 - 来源：用户要求合并项目 Skill 修复、发版，并继续提供 wget 下载后直接执行的一键安装。
 - 决定：从干净已提交源码生成不可变 Linux x86-64 Chip 安装包，固定并校验两级 SHA-256，安装私有 Node/uv/Python/Kimi、Chip CLI/MCP 和 EDA 镜像。每版使用独立目录，重复安装拒绝非受管理内容；完成验证后替换受管理的 launcher，保留旧版本目录。
 - Linux 执行：bubblewrap/seccomp 保留原生 Kimi 循环和模型网络，工程和 Runtime 文件只读，宿主 Unix socket 和 namespace 重配置被拒绝；工业动作进入宿主 Runtime。安装前验证用户命名空间，安装后验证受保护 Kimi 启动，不降级为旧版无隔离模式。
-- 发布门禁：Ubuntu 22.04 x86-64 真实 Agent/Verilator、工程写入与 Unix socket 拒绝、持久事实/失败/取消/恢复，以及实际安装 CLI、项目 Skill 正文按需加载、Checkpoint 和重复安装。其他发行版自动依赖准备范围不等于逐版本完成工业验收。
+- 发布门禁：Ubuntu 24.04 x86-64 真实 Agent/Verilator、工程写入与 Unix socket 拒绝、持久事实/失败/取消/恢复，以及实际安装 CLI、项目 Skill 正文按需加载、Checkpoint 和重复安装。其他发行版自动依赖准备范围不等于逐版本完成工业验收。
 - 边界：此入口只提供 Chip CLI；不含模型凭据、用户工程、PDK 或签核规则。外部 MCP host 服务、应用控制插件和旧 MCP 修改继续服从已记录限制；Scope 切换仍按预期建立新上下文段。

@@ -14,6 +14,10 @@ wget -O install-chip-linux.sh https://github.com/Zhiman-BJ/industrial-agent-harn
 
 默认构建 `eda-harness-tools:chip-linux-installer-v0.1.0-preview.2`，需能访问 GitHub、Node.js、Python 包源及上游 Docker 镜像源。工程将 `eda.yaml` 的 `runtime.image` 设置为该镜像，并配置 `require_native: true`。可传入 `--prefix /absolute/path --bin-dir /absolute/bin`；`--skip-image` 仅安装 CLI/MCP，不代表工业工具就绪。
 
+## 从 v0.1.0-preview.1 升级
+
+默认安装直接重新执行上面的新版命令，无需卸载旧版。安装检查通过后，`~/.local/bin/industrial-harness-chip` 指向新版目录，旧目录、工程、模型配置保留。若原来使用自定义路径，选择新的 `--prefix`，并沿用旧的 `--bin-dir`；不要把新包安装进旧版本目录。安装器不修改工程的 `eda.yaml`，需要使用新版 EDA 镜像时自行更新 `runtime.image`。
+
 ## 相比原生 Kimi Code 集成了什么
 
 - **项目技能和指令恢复**：自动接入 `.skill/`、`.skills/`、`.kimi/skills`、`.claude/skills`、`.codex/skills`、`.agents/skills`，以及所选工程根的 `AGENTS.md` 和 `.kimi/AGENTS.md`。摘要发现、正文按需读取、同名优先级由 Kimi 原生处理。
@@ -24,7 +28,7 @@ wget -O install-chip-linux.sh https://github.com/Zhiman-BJ/industrial-agent-harn
 
 ## 验证范围
 
-发布门禁在 Ubuntu 22.04 x86-64 上运行真实 Kimi、Linux 写入与 Unix socket 限制、项目技能加载、原生 RTL 成功/失败/取消/恢复，以及安装态 Pack 完整性检查。生成安装器后从其他目录启动实际安装的 CLI，验证正文按需读取、环境冲突、原生 Shell 写入拒绝、真实 Verilator 验收与持久 Checkpoint，再验证重复安装。确定性模型响应仅推动真实 SDK/Runtime，不属于外网模型能力评测。
+发布门禁在 Ubuntu 24.04 x86-64 上运行真实 Kimi、Linux 写入与 Unix socket 限制、项目技能加载、原生 RTL 成功/失败/取消/恢复，以及安装态 Pack 完整性检查。生成安装器后从其他目录启动实际安装的 CLI，验证正文按需读取、环境冲突、原生 Shell 写入拒绝、真实 Verilator 验收与持久 Checkpoint，再验证重复安装。升级门禁先安装已发布的 preview.1，再用 preview.2 更新同一个启动入口，并核对旧安装、工程和配置仍然保留。确定性模型响应仅推动真实 SDK/Runtime，不属于外网模型能力评测。
 
 受保护 Agent 还保留 macOS 原生回归；跨平台基础和 macOS/Windows 桌面首次启动由仓库 CI 检查。本发行入口只覆盖 Linux x86-64 Chip CLI，不扩大 Windows、Linux ARM64 或其他领域的工业执行支持。随附 `verification.json` 是本次安装包的实际证据。
 
