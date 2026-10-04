@@ -79,10 +79,13 @@ jobs:
   industrial:
     uses: ./.github/workflows/industrial-core.yml
 
+  industrial-linux:
+    uses: ./.github/workflows/industrial-linux.yml
+
   all-checks-passed:
     name: All checks passed
     if: always()
-    needs: [repository, portable, desktop, industrial]
+    needs: [repository, portable, desktop, industrial, industrial-linux]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:

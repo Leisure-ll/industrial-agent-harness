@@ -1,6 +1,6 @@
 # P0 工业运行时与执行边界
 
-状态：2026-10-04 的实际实现与本机 macOS Apple Silicon（arm64）验证。Intel Mac 暂不支持；主仓自有贡献按用户选择采用 MIT，第三方边界见根目录 `THIRD_PARTY_NOTICES.md`。本页不声明完整桌面发行包、其他平台或其他领域已经通过工业验收。
+状态：2026-10-04 的实际实现，macOS Apple Silicon（arm64）与 Ubuntu 22.04 x86-64 的验证入口。Linux 一键安装门禁见 `industrial-linux.yml`；Intel Mac 暂不支持。主仓自有贡献按用户选择采用 MIT，第三方边界见根目录 `THIRD_PARTY_NOTICES.md`。本页不声明其他领域、Windows 或 Linux ARM64 已通过工业验收。
 
 `harness-core.createProjectRuntime` 从仓库注册或验签安装后的 `loadRegistry.runtimePacks` 加载 Pack 声明的 runtime entry。项目不能注入任意入口。领域实现与 Capability ID 留在 Chip Pack；通用 Factory、Broker、Kimi 与 Runtime 不硬编码领域。CLI 与桌面项目运行时缓存消费同一入口。
 
@@ -14,7 +14,9 @@ macOS 使用真正的 Seatbelt 进程边界：Kimi 及其 Shell/WriteFile/子进
 
 会话还映射所选 Project 根目录的原生技能目录和 `AGENTS.md`，并追加 `.skill/`、`.skills/`，由 Kimi 继续处理摘要、正文和优先级。启动包装器通过原生 `--add-dir` 注册 Project 的规范绝对路径，并固定 `KIMI_SHARE_DIR`，恢复项目搜索且避免继承环境重定向会话存储。Seatbelt 的只读工程边界继续生效。剩余兼容性差异见 [Kimi 原生机制审计](kimi-native-compatibility-audit.md)。
 
-遗留 Domain MCP 的修改继承只读边界并可见失败，不能靠 Prompt 放行。尚未形成 Runtime 闭环的领域不自动获得写入能力。外部 MCP host 服务与应用控制插件在真实受保护会话中被明确拒绝，其其他进程/远程副作用尚未纳入工业审计；不能用未经验证的旧功能回避边界。Linux/Windows 工业 Kimi 执行在启动前拒绝，直到存在同等的真实进程边界与对应发行验证。
+Linux x86-64 使用 bubblewrap 的只读宿主挂载、独立 user/PID/IPC namespace 和删除 capabilities，仅重新挂载 session/scratch 为可写。继承的 seccomp 拒绝宿主 Unix socket 与 namespace/mount 重配置，避免经 Docker/D-Bus/SSH agent 绕过。模型 TCP/UDP 与子进程内部 socketpair 保留。bwrap、namespace 或过滤器不可用时直接失败。安装器先验证主机前提，安装后验证受保护 Kimi 启动。
+
+遗留 Domain MCP 的修改继承只读边界并可见失败，不能靠 Prompt 放行。尚未形成 Runtime 闭环的领域不自动获得写入能力。外部 MCP host 服务与应用控制插件在真实受保护会话中被明确拒绝，其其他进程/远程副作用尚未纳入工业审计。Windows 工业 Kimi 执行仍在启动前拒绝。
 
 实际验证入口：
 

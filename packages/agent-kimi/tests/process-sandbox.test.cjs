@@ -8,7 +8,7 @@ const { createProcessSandbox } = require('../src/process-sandbox.cjs');
 
 test(
   'a real descendant process can write session scratch but cannot overwrite project, lateral files, metadata or sandbox launcher',
-  { skip: process.platform !== 'darwin' },
+  { skip: !['darwin', 'linux'].includes(process.platform) },
   t => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'boundary-test-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -25,7 +25,7 @@ test(
     t.after(() => sandbox.close());
     assert.equal(sandbox.env.KIMI_SHARE_DIR, fs.realpathSync(path.join(directory, 'share')));
     fs.symlinkSync(path.join(directory, 'project'), path.join(directory, 'share', 'project-link'));
-    const probe = `import json, pathlib, subprocess, sys\nresults=[]\nfor name in sys.argv[1:]:\n try:\n  pathlib.Path(name).write_text('bypass')\n  results.append(True)\n except PermissionError:\n  results.append(False)\n# Descendants inherit the same restriction, including an arbitrary shell.\np=subprocess.run(['/bin/sh','-c','printf bypass > "$1"','probe',sys.argv[1]],capture_output=True)\nprint(json.dumps({'writes':results,'child':p.returncode}))`;
+    const probe = `import json, pathlib, subprocess, sys\nresults=[]\nfor name in sys.argv[1:]:\n try:\n  pathlib.Path(name).write_text('bypass')\n  results.append(True)\n except OSError as error:\n  if error.errno not in (1,13,30): raise\n  results.append(False)\n# Descendants inherit the same restriction, including an arbitrary shell.\np=subprocess.run(['/bin/sh','-c','printf bypass > "$1"','probe',sys.argv[1]],capture_output=True)\nprint(json.dumps({'writes':results,'child':p.returncode}))`;
     const probeResult = spawnSync(
       sandbox.executable,
       [

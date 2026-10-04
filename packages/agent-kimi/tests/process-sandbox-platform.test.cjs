@@ -8,9 +8,18 @@ const { createProcessSandbox } = require('../src/process-sandbox.cjs');
 test('an unverified platform and a writable session nested in a protected project fail before spawning', t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'boundary-invalid-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  for (const platform of ['linux', 'win32']) {
-    assert.throws(() => createProcessSandbox({ platform }), /verified process write boundary/);
-  }
+  assert.throws(
+    () => createProcessSandbox({ platform: 'win32' }),
+    /verified process write boundary/,
+  );
+  assert.throws(
+    () =>
+      createProcessSandbox({
+        platform: 'linux',
+        environment: { PATH: path.join(directory, 'missing') },
+      }),
+    /requires bubblewrap|qualified only on x86-64/,
+  );
   if (process.platform === 'darwin')
     assert.throws(
       () =>
