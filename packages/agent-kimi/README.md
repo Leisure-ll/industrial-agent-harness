@@ -4,7 +4,7 @@ Thin integration around `@moonshot-ai/kimi-agent-sdk`, pinned to `0.1.8` in this
 
 当前已接入会话启动、流式文本、工具事件、审批与中断入口。有效 Broker Scope（domain、stage、capability、skill、tool）或模型配置变化时创建新会话；仅 Scope 版本号变化会复用原会话。只注册当前 Scope 对应的 Harness 外部工具，工具处理器再次校验当前 Scope。需要本机 Kimi CLI 才能做真实会话验证。
 
-P0 的实际工业会话采用 macOS Seatbelt：真实 Kimi/原生 Shell/WriteFile/子 MCP 只能写隔离 session/scratch，实际工程只读；宿主 `industrial_action_call` 以当前 DomainState ID、Scope 和审批进入持久 Runtime。固定 Kimi 要求 cwd 可写，所以使用稳定 session workspace，Prompt明确原 Project 的绝对路径与只读 project/ 链接。原生上下文恢复及快照按 workspace 关联。未验证的 Linux/Windows 拒绝启动；外部 MCP host 服务和应用控制插件明确拒绝，其已有 API/受控测试不代表当前真实工业会话支持。旧 Domain MCP mutation 也受此只读边界限制。详见 [安全边界](../../SECURITY.md) 和 [实际闭环](../../doc/p0-industrial-runtime.md)。
+P0 的实际工业会话采用 macOS Seatbelt，或 Linux x86-64 的 bubblewrap/seccomp：真实 Kimi/原生 Shell/WriteFile/子 MCP 只能写隔离 session/scratch，实际工程只读；宿主 `industrial_action_call` 以当前 DomainState ID、Scope 和审批进入持久 Runtime。固定 Kimi 要求 cwd 可写，所以使用稳定 session workspace，Prompt 明确原 Project 的绝对路径与只读 project/ 链接。Linux 需要 bwrap 与可用的非特权 user/PID namespace；不可用则启动失败，不降级为无隔离执行。Linux 子进程不能创建宿主 Unix socket 连接，TCP/UDP 模型连接和内部 socketpair 保留。原生上下文恢复及快照按 workspace 关联。Windows 仍拒绝启动；外部 MCP host 服务和应用控制插件明确拒绝。旧 Domain MCP mutation 也受此只读边界限制。详见 [安全边界](../../SECURITY.md) 和 [实际闭环](../../doc/p0-industrial-runtime.md)。
 
 Harness 外部工具返回最多 16 KiB UTF-8 JSON；能力详情可按 `skills`、`tools`、`verification` 分段获取。每轮 Industrial Context 最多 8 KiB。SDK 的上下文占用和压缩事件会汇总为 `context-metrics`；界面工具结果截断会标注原始字节数。这些外部工具边界不作用于 Kimi 原生工具；已注册 Domain MCP 网关另有 16 KiB 输出和原始响应分页限制，也不改写 Kimi 的上下文压缩。
 

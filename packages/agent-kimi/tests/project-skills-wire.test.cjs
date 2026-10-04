@@ -9,7 +9,10 @@ const { startModel } = require('../../../tests/integration/fixtures/domain-mcp-m
 
 test(
   'real isolated Kimi discovers project skills progressively with native brand precedence',
-  { skip: !process.env.KIMI_EXECUTABLE || process.platform !== 'darwin', timeout: 45000 },
+  {
+    skip: !process.env.KIMI_EXECUTABLE || !['darwin', 'linux'].includes(process.platform),
+    timeout: 45000,
+  },
   async t => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kimi-project-skills-wire-'));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));

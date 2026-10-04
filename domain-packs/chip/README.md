@@ -1,5 +1,7 @@
 # Chip Pack: EDA Harness 0.6.1
 
+Linux x86-64 users can install the private CLI/Kimi/Python runtimes and native EDA image with the [one-command Chip installer](../../releases/chip-linux-installer-v0.1.0-preview.2.md). It requires bubblewrap user namespaces for protected Agent execution. Install receipts record exact source and checks; model credentials, engineering inputs and PDKs remain user-provided.
+
 This is a separate, no UI domain release. It contains the full EDA Harness MCP server (25 tools), its `eda-core` Skill, a project-bound Kimi adapter generator, and a Dockerfile for the EDA tool image. Industrial Agent Harness Desktop and CLI now register it through their shared scoped gateway; standalone usage remains supported.
 
 ## Install

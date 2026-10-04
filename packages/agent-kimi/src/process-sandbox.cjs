@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { linuxCommand } = require('./linux-sandbox.cjs');
 
 const quoteShell = value => "'" + String(value).replaceAll("'", "'\\''") + "'";
 const seatbeltString = value => JSON.stringify(value);
@@ -26,10 +27,25 @@ function createProcessSandbox({
   platform = process.platform,
   kimiProjectAccess = false,
 }) {
-  if (platform !== 'darwin' || !fs.existsSync('/usr/bin/sandbox-exec'))
+  if (
+    !['darwin', 'linux'].includes(platform) ||
+    (platform === 'darwin' && !fs.existsSync('/usr/bin/sandbox-exec'))
+  )
     throw Error(
       `Industrial agent execution is unavailable on ${platform}: a verified process write boundary is required.`,
     );
+  let bwrap;
+  if (platform === 'linux') {
+    if (process.arch !== 'x64')
+      throw Error('Protected Linux agent execution is qualified only on x86-64.');
+    try {
+      bwrap = executablePath('bwrap', environment);
+    } catch {
+      throw Error(
+        'Industrial agent execution on Linux requires bubblewrap (bwrap) and enabled unprivileged user namespaces.',
+      );
+    }
+  }
   const project = fs.realpathSync(projectDir);
   const share = fs.realpathSync(shareDir);
   const protectedRoots = [
@@ -52,16 +68,29 @@ function createProcessSandbox({
   // Descendant processes inherit the Seatbelt restriction. Native Shell,
   // WriteFile, Python and project-controlled MCP children cannot write facts.
   // Runtime tools run in the parent host process, with a separate policy check.
-  fs.writeFileSync(
-    profile,
-    `(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* (subpath ${seatbeltString(share)}) (subpath ${seatbeltString(fs.realpathSync(scratch))}) (literal "/dev/null"))\n${protectedRoots.map(root => `(deny file-write* (subpath ${seatbeltString(root)}))`).join('\n')}\n(deny appleevent-send)\n`,
-    { mode: 0o400 },
-  );
+  if (platform === 'darwin')
+    fs.writeFileSync(
+      profile,
+      `(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* (subpath ${seatbeltString(share)}) (subpath ${seatbeltString(fs.realpathSync(scratch))}) (literal "/dev/null"))\n${protectedRoots.map(root => `(deny file-write* (subpath ${seatbeltString(root)}))`).join('\n')}\n(deny appleevent-send)\n`,
+      { mode: 0o400 },
+    );
   const wrapper = path.join(directory, 'kimi');
   const target = executablePath(executable, environment);
+  const command =
+    platform === 'linux'
+      ? linuxCommand({
+          directory,
+          bwrap,
+          share,
+          scratch: fs.realpathSync(scratch),
+          workDir,
+          protectedRoots,
+          quote: quoteShell,
+        })
+      : `exec /usr/bin/sandbox-exec -f ${quoteShell(profile)}`;
   fs.writeFileSync(
     wrapper,
-    `#!/bin/sh\nexec /usr/bin/sandbox-exec -f ${quoteShell(profile)} ${quoteShell(target)}${kimiProjectAccess ? ` --add-dir ${quoteShell(project)}` : ''} "$@"\n`,
+    `#!/bin/sh\nset -e\n${command} ${quoteShell(target)}${kimiProjectAccess ? ` --add-dir ${quoteShell(project)}` : ''} "$@"\n`,
     { mode: 0o500 },
   );
   return {
@@ -72,12 +101,12 @@ function createProcessSandbox({
     directory,
     workDir,
     boundary: {
-      platform: 'darwin',
+      platform,
       projectWritable: false,
       projectDir: project,
       agentWorkDir: workDir,
       writableRoots: [share, scratch],
-      mechanism: 'seatbelt',
+      mechanism: platform === 'linux' ? 'bubblewrap-seccomp' : 'seatbelt',
       hostRuntimeRequired: true,
     },
     close() {

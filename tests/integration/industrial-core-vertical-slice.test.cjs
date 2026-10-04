@@ -452,7 +452,7 @@ test(
     const rows = result.stdout.trim().split('\n').map(JSON.parse);
     assert.equal(rows.at(-1).status, 'finished', result.stderr + result.stdout);
     assert.deepEqual(fs.readFileSync(path.join(project, 'rtl/counter.sv')), before);
-    assert.ok(JSON.stringify(fixture.requests).includes('Operation not permitted'));
+    assert.match(JSON.stringify(fixture.requests), /Operation not permitted|Read-only file system/);
     const engineering = rows.find(row => row.type === 'industrial_result');
     assert.ok(engineering, 'CLI must expose the real canonical runtime result.');
     assert.equal(engineering.verification.status, 'passed', JSON.stringify(engineering));
