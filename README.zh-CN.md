@@ -85,7 +85,7 @@ KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" \
 
 测试运行真实 RTL 仿真，检查断言、波形、失败处理、安装态 Pack 完整性和重启恢复。模型响应来自本地受控提供方，不消耗模型 API 额度，也不用于衡量模型能力。真实任务的准备方式和证据边界见[工业运行时说明](doc/p0-industrial-runtime.md)。
 
-Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v0.1.0-preview.2.md)，自动准备私有运行时、受保护 Agent 和 EDA 镜像。
+Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v0.1.0-preview.3.md)，自动准备私有运行时、受保护 Agent 和 EDA 镜像。
 
 需要下载包时，请查看 [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases)，并按对应版本说明安装。[无界面安装](apps/cli/README.md#github-release-安装)和[领域 CLI 分包](doc/domain-cli-downloads.md)提供校验与外部依赖说明。历史归档不会自动获得当前源码的新功能。
 

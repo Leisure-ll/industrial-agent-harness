@@ -97,7 +97,52 @@ command -v bwrap >/dev/null || fail 'Install bubblewrap (bwrap) before running t
 bwrap --unshare-user --unshare-pid --ro-bind / / --proc /proc --dev /dev -- /bin/true \
   || fail 'Bubblewrap cannot create the required user/PID namespaces. Check the host namespace policy; no unrestricted Agent fallback is used.'
 
+write_docker_helper() {
+  [[ ! -L "$access_dir" && ! -L "$access_dir/docker" ]] || fail 'Docker access helper cannot be a symbolic link.'
+  if [[ -e "$access_dir/docker" ]]; then
+    grep -Fxq '# Industrial Harness Docker group helper' "$access_dir/docker" || fail 'Refusing to replace an unmanaged Docker helper.'
+  fi
+  mkdir -p -- "$access_dir"
+  {
+    printf '#!/usr/bin/env bash\n# Industrial Harness Docker group helper\nset -euo pipefail\n'
+    printf 'docker_binary=%q\n' "$docker_binary"
+    cat <<'WRAPPER'
+# Reuse effective process credentials. Never retry a Docker operation after it fails.
+if (( EUID == 0 )); then exec "$docker_binary" "$@"; fi
+docker_gid=$(getent group docker | cut -d: -f3)
+case " $(id -G) " in
+  *" $docker_gid "*) [[ -n "$docker_gid" ]] && exec "$docker_binary" "$@" ;;
+esac
+if [[ -r /proc/self/status ]] && awk '/^NoNewPrivs:/ {exit $2 != 1}' /proc/self/status; then
+  printf 'Docker group activation is unavailable in the protected Agent. Use industrial_action_call through the host Domain Runtime; native Shell and child MCP cannot access host Docker.\n' >&2
+  exit 77
+fi
+quote() { printf "'%s' " "${1//\'/\'\\\'\'}"; }
+command="exec $(quote "$docker_binary")"
+for argument in "$@"; do command+="$(quote "$argument") "; done
+exec sg docker -c "$command"
+WRAPPER
+  } > "$scratch/docker-helper"
+  chmod 755 "$scratch/docker-helper"
+  mv -- "$scratch/docker-helper" "$access_dir/docker"
+  export HARNESS_DOCKER_ACCESS_BIN="$access_dir"
+  export PATH="$access_dir:$PATH"
+}
+
 if ! "$skip_image"; then
+  access_dir="${XDG_DATA_HOME:-$HOME/.local/share}/industrial-harness/docker-access"
+  # An upgrade may inherit an older managed helper in PATH. Find the actual
+  # client instead of creating a helper that recursively invokes itself.
+  docker_binary=''
+  while IFS= read -r candidate; do
+    if ! grep -Fxq '# Industrial Harness Docker group helper' "$candidate" 2>/dev/null; then
+      docker_binary=$candidate; break
+    fi
+  done < <(type -a -p docker)
+  [[ -n "$docker_binary" ]] || fail 'Cannot locate the real Docker client outside the managed helper.'
+  if [[ -f "$access_dir/docker" ]] && grep -Fxq '# Industrial Harness Docker group helper' "$access_dir/docker"; then
+    write_docker_helper
+  fi
   if ! docker info >/dev/null 2>&1; then
     [[ ${DOCKER_HOST:-unix:///var/run/docker.sock} == unix:///var/run/docker.sock ]] || fail 'Configured Docker daemon is inaccessible; check DOCKER_HOST.'
     [[ ${DOCKER_CONTEXT:-default} == default ]] || fail 'Configured Docker context is inaccessible.'
@@ -108,28 +153,8 @@ if ! "$skip_image"; then
     [[ -S /var/run/docker.sock && $(stat -c '%G' /var/run/docker.sock) == docker ]] || fail 'Docker socket does not use the docker group.'
     username=$(id -un)
     run_as_root usermod -aG docker "$username"
-    # Activate the new group per Docker command, including from this login session.
-    access_dir="${XDG_DATA_HOME:-$HOME/.local/share}/industrial-harness/docker-access"
-    [[ ! -L "$access_dir" && ! -L "$access_dir/docker" ]] || fail 'Docker access helper cannot be a symbolic link.'
-    if [[ -e "$access_dir/docker" ]]; then
-      grep -Fxq '# Industrial Harness Docker group helper' "$access_dir/docker" || fail 'Refusing to replace an unmanaged Docker helper.'
-    fi
-    mkdir -p -- "$access_dir"
-    docker_binary=$(command -v docker)
-    {
-      printf '#!/usr/bin/env bash\n# Industrial Harness Docker group helper\nset -euo pipefail\n'
-      printf 'docker_binary=%q\n' "$docker_binary"
-      cat <<'WRAPPER'
-quote() { printf "'%s' " "${1//\'/\'\\\'\'}"; }
-command="exec $(quote "$docker_binary")"
-for argument in "$@"; do command+="$(quote "$argument") "; done
-exec sg docker -c "$command"
-WRAPPER
-    } > "$scratch/docker-helper"
-    chmod 755 "$scratch/docker-helper"
-    mv -- "$scratch/docker-helper" "$access_dir/docker"
-    export HARNESS_DOCKER_ACCESS_BIN="$access_dir"
-    export PATH="$access_dir:$PATH"
+    # sg is used only until the new group is present in process credentials.
+    write_docker_helper
   fi
   daemon_arch=$(docker info --format '{{.Architecture}}') || fail 'Docker is inaccessible after setup.'
   [[ "$daemon_arch" == amd64 || "$daemon_arch" == x86_64 ]] || fail 'Docker daemon must be native amd64.'

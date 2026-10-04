@@ -57,6 +57,11 @@ async function main() {
         return [
           { name: 'ReadFile', arguments: { path: skill } },
           { name: 'Shell', arguments: { command: 'printf bypass > project/rtl/counter.sv' } },
+          { name: 'Shell', arguments: { command: 'docker info' } },
+          {
+            name: 'industrial_action_call',
+            arguments: { toolId: 'chip.environment.check', inputs: {}, expectedStateId: id },
+          },
           {
             name: 'industrial_action_call',
             arguments: { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: id },
@@ -111,9 +116,41 @@ async function main() {
     const requests = JSON.stringify(fixture.requests);
     assert.match(requests, /RELEASE_LAZY_SKILL_BODY/);
     assert.match(requests, /Read-only file system|Operation not permitted/);
+    assert.match(
+      requests,
+      /Docker group activation is unavailable|permission denied while trying to connect|connect: operation not permitted|socket: operation not permitted/i,
+    );
     assert.deepEqual(fs.readFileSync(path.join(project, 'rtl/counter.sv')), before);
-    const engineering = rows.find(row => row.type === 'industrial_result');
-    assert.equal(engineering?.verification.status, 'passed', JSON.stringify(engineering));
+    const preflight = rows.find(
+      row => row.type === 'industrial_result' && row.action.toolId === 'chip.environment.check',
+    );
+    assert.equal(preflight?.action.status, 'completed', JSON.stringify(preflight));
+    assert.equal(preflight.verification.status, 'not_run');
+    assert.equal(preflight.state.id, preflight.action.stateId);
+    const environment = JSON.parse(preflight.action.diagnostics[0]);
+    assert.equal(environment.execution_location, 'host_domain_runtime');
+    assert.equal(environment.agent_docker_access, 'intentionally_denied');
+    assert.equal(environment.ready, true, JSON.stringify(environment));
+    const engineering = rows.find(
+      row => row.type === 'industrial_result' && row.action.toolId === 'chip.rtl.verify',
+    );
+    if (engineering?.verification.status !== 'passed') {
+      const failures = (engineering?.artifacts || [])
+        .filter(item => item.kind === 'log.tool')
+        .map(item => ({
+          sha256: item.sha256,
+          log: fs.readFileSync(path.join(project, item.relativePath), 'utf8').slice(-16384),
+        }));
+      fs.mkdirSync(path.dirname(path.resolve(output)), { recursive: true });
+      fs.writeFileSync(
+        output + '.failure.json',
+        JSON.stringify({ engineering, failures }, null, 2) + '\n',
+      );
+      throw Error(
+        'Installed RTL verification failed: ' +
+          JSON.stringify({ verification: engineering?.verification, failures }),
+      );
+    }
     assert.equal(rows.at(-1).engineering.checkpointId, engineering.checkpoint.id);
     const boundary = rows.find(row => row.event?.type === 'execution-boundary')?.event;
     assert.equal(boundary?.mechanism, 'bubblewrap-seccomp');
@@ -133,6 +170,9 @@ async function main() {
           progressiveSkillBody: 'PASS',
           conflictingShareEnvironment: 'PASS',
           shellBypassDenied: 'PASS',
+          agentDockerDenied: 'PASS',
+          hostEnvironmentCheck: 'PASS',
+          readOnlyCheckPreservesState: 'PASS',
           engineeringVerification: engineering.verification.status,
           checkpointPersisted: true,
           processBoundary: boundary.mechanism,

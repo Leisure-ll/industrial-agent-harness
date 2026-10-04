@@ -9,6 +9,85 @@ const source = path.resolve(__dirname, '../../domain-packs/chip/linux-bootstrap.
 const run = (args, env = process.env) =>
   spawnSync('bash', [source, ...args], { env, encoding: 'utf8' });
 
+function helperFixture(t, groups = '1000 998', noNewPrivileges = false) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'docker-helper-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const body = fs.readFileSync(source, 'utf8').split("cat <<'WRAPPER'\n")[1].split('\nWRAPPER')[0];
+  const docker = path.join(directory, 'docker-real');
+  fs.writeFileSync(docker, '#!/bin/bash\nprintf "%s\\n" "$@"\nexit "${DOCKER_TEST_STATUS:-0}"\n', {
+    mode: 0o755,
+  });
+  const helper = path.join(directory, 'docker');
+  fs.writeFileSync(helper, `#!/bin/bash\nset -euo pipefail\ndocker_binary='${docker}'\n${body}\n`, {
+    mode: 0o755,
+  });
+  fs.writeFileSync(path.join(directory, 'id'), `#!/bin/bash\nprintf '%s\\n' '${groups}'\n`, {
+    mode: 0o755,
+  });
+  fs.writeFileSync(path.join(directory, 'getent'), '#!/bin/bash\nprintf "docker:x:998:user\\n"\n', {
+    mode: 0o755,
+  });
+  fs.writeFileSync(
+    path.join(directory, 'sg'),
+    '#!/bin/bash\nprintf "unexpected sg\\n" >&2\nexit 91\n',
+    { mode: 0o755 },
+  );
+  if (noNewPrivileges)
+    fs.writeFileSync(path.join(directory, 'awk'), '#!/bin/bash\nexit 0\n', { mode: 0o755 });
+  return { helper, env: { ...process.env, PATH: `${directory}:${process.env.PATH}` } };
+}
+
+test('Docker helper uses effective group credentials, preserves literal arguments and never retries failures with sg', t => {
+  const { helper, env } = helperFixture(t);
+  const literal = 'apostrophe \' ; $(touch /tmp/never-execute) "quotes"';
+  const result = spawnSync(helper, ['info', '--format', literal], { env, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, `info\n--format\n${literal}\n`);
+  const failed = spawnSync(helper, ['run', 'missing-image'], {
+    env: { ...env, DOCKER_TEST_STATUS: '42' },
+    encoding: 'utf8',
+  });
+  assert.equal(failed.status, 42);
+  assert.doesNotMatch(failed.stderr, /sg/);
+});
+
+test('managed helper upgrades select the real client when an older helper is already in PATH', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'docker-upgrade-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const access = path.join(directory, 'data/industrial-harness/docker-access');
+  const bins = path.join(directory, 'bin');
+  fs.mkdirSync(access, { recursive: true });
+  fs.mkdirSync(bins);
+  fs.writeFileSync(
+    path.join(access, 'docker'),
+    '#!/bin/bash\n# Industrial Harness Docker group helper\nprintf "obsolete helper\\n" >&2\nexit 99\n',
+    { mode: 0o755 },
+  );
+  const programs = {
+    uname: 'if [[ "$1" == -s ]]; then echo Linux; else echo x86_64; fi',
+    bwrap: 'exit 0',
+    flock: 'exit 0',
+    wget: 'exit 99',
+    sha256sum: 'exit 99',
+    getent: 'echo docker:x:998:user',
+    id: 'echo "1000 998"',
+    docker:
+      'if [[ "$*" == *Architecture* ]]; then echo amd64; elif [[ "$*" == version* ]]; then echo 29.0.0; fi',
+    sg: 'echo "unexpected sg" >&2; exit 91',
+  };
+  for (const [name, body] of Object.entries(programs))
+    fs.writeFileSync(path.join(bins, name), `#!/bin/bash\n${body}\n`, { mode: 0o755 });
+  const result = run(['--system-only'], {
+    ...process.env,
+    XDG_DATA_HOME: path.join(directory, 'data'),
+    PATH: `${access}:${bins}:${process.env.PATH}`,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const upgraded = fs.readFileSync(path.join(access, 'docker'), 'utf8');
+  assert.ok(upgraded.includes(`docker_binary=${bins}/docker`));
+  assert.doesNotMatch(upgraded, /obsolete helper/);
+});
+
 test('help is available without downloads or system setup', () => {
   const result = run(['--help']);
   assert.equal(result.status, 0);
