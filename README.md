@@ -40,7 +40,7 @@ flowchart LR
 
 ## Quick start
 
-Use **Node.js 24+** and **pnpm 11.1.3**. Agent execution additionally requires **uv**, **Python 3.13**, the pinned Kimi CLI and a model API configuration. Protected agent execution is currently validated on **macOS with Apple Silicon (arm64)**; see [preview scope](#preview-scope) before trying other platforms.
+Use **Node.js 24+** and **pnpm 11.1.3**. Agent execution additionally requires **uv**, **Python 3.13**, the pinned Kimi CLI and a model API configuration. Protected agent execution is available on **macOS with Apple Silicon (arm64)** and **Linux x86-64 with bubblewrap**; see [preview scope](#preview-scope) before trying other platforms.
 
 ```sh
 git clone https://github.com/Zhiman-BJ/industrial-agent-harness.git
@@ -84,6 +84,8 @@ KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" \
 ```
 
 The tests run real RTL simulation and check assertions, waveforms, failure handling, installed Pack integrity and restart recovery. Model responses come from a controlled local provider, so these tests do not spend model API credits or measure model capability. See the [industrial runtime guide](doc/p0-industrial-runtime.md) for real-task setup and evidence boundaries.
+
+For Linux x86-64 Chip users, the [one-command installer](releases/chip-linux-installer-v0.1.0-preview.2.md) prepares private runtimes, the protected Agent and the EDA image.
 
 Prefer a packaged preview? Browse [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases) and follow that version's instructions. [Headless installation](apps/cli/README.md#github-release-安装) and [domain CLI packages](doc/domain-cli-downloads.md) cover checksums and external dependencies. Existing archives do not acquire newer source features automatically.
 
@@ -141,12 +143,12 @@ pnpm run test:release
 pnpm run format:check
 ```
 
-The [Harness CI gate](.github/workflows/ci.yml) runs shared-package and packaged CLI regressions on Linux x64/arm64, macOS arm64 and Windows x64, desktop installation on macOS/Windows, and the industrial Core path on Apple Silicon. [CI regression coverage](doc/ci-regression.md) documents dependencies, retained evidence and explicit coverage gaps; a skipped test does not establish support. Report security issues through the process in [SECURITY.md](SECURITY.md).
+The [Harness CI gate](.github/workflows/ci.yml) runs shared-package and packaged CLI regressions on Linux x64/arm64, macOS arm64 and Windows x64, desktop installation on macOS/Windows, and the industrial Core path on Apple Silicon and Linux x86-64, including the actual installed Chip CLI. [CI regression coverage](doc/ci-regression.md) documents dependencies, retained evidence and explicit coverage gaps; a skipped test does not establish support. Report security issues through the process in [SECURITY.md](SECURITY.md).
 
 ## Preview scope
 
 - **Platforms:** desktop build and first-run CI targets are macOS with Apple Silicon (arm64) and Windows x64. Intel Mac is temporarily unsupported; no Intel installers or Pack catalog targets will be published. Support can resume after installation and runtime validation on an Intel test machine. Signed installers and real upgrades still need separate acceptance.
-- **Protected execution:** macOS Seatbelt is the exercised agent write boundary. Linux and Windows real agent execution fail before starting Kimi until an equivalent boundary is available.
+- **Protected execution:** macOS uses Seatbelt; Linux x86-64 uses bubblewrap/seccomp and requires unprivileged user namespaces. Windows protected Agent execution remains unavailable.
 - **Tool compatibility:** legacy MCP writes are blocked; enabled external MCP services and Computer Use are refused in protected sessions pending Runtime integration.
 - **Engineering acceptance:** the first Core path verifies declared RTL/testbench assertions and evidence. Coverage sufficiency, physical signoff and other domains' complete workflows are pending.
 - **Packaging and evaluation:** local unsigned desktop checks and controlled model fixtures are documented. Signed releases, end-to-end cross-platform qualification and formal paid model comparisons remain separate work.

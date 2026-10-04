@@ -8,15 +8,19 @@ const { loadSkillOnlyPacks } = require('./skill-only-packs.cjs');
 const staticSkills = require('./registry.cjs');
 const { listDomains } = require('./domains.cjs');
 
-function repositoryPackDirectory(packDirectory) {
-  // A deployed pnpm package lives below node_modules/.pnpm. Bind its native
-  // resources to the portable release root, never a source checkout above it.
+function builtInPackDirectory(provider) {
+  // Resolve deployed pnpm resources from the owning module's ancestors. A
+  // release marker stops lookup before it can fall through to a source checkout.
   for (let directory = __dirname; ; directory = path.dirname(directory)) {
-    if (fs.existsSync(path.join(directory, 'HARNESS-PACKAGE.json')))
-      return path.join(directory, 'domain-packs', packDirectory);
-    if (path.dirname(directory) === directory) break;
+    const candidate = path.join(directory, 'domain-packs', provider.packDirectory);
+    const exists = fs.statSync(candidate, { throwIfNoEntry: false })?.isDirectory();
+    if (exists) return candidate;
+    if (
+      fs.existsSync(path.join(directory, 'HARNESS-PACKAGE.json')) ||
+      path.dirname(directory) === directory
+    )
+      throw Error(`Missing bundled Domain Pack: ${provider.packDirectory}`);
   }
-  return path.resolve(__dirname, '../../../domain-packs', packDirectory);
 }
 
 function loadRegistry() {
@@ -41,7 +45,7 @@ function loadRegistry() {
           domain: pack.domain,
           version: pack.version,
           runtime: pack.runtime,
-          directory: repositoryPackDirectory(pack.provider.packDirectory),
+          directory: builtInPackDirectory(pack.provider),
         })),
     };
   }

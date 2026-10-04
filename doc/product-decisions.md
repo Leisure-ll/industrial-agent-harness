@@ -406,19 +406,29 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 - 状态：已在 macOS Apple Silicon 真实 Kimi 会话验证
 - 来源：用户反馈 Project 根目录 `.skill/`、`.skills/` 无法自动加载，并要求全面扫描 Harness 对 Kimi 原生机制的影响。
 - 决定：Desktop/CLI 共用的适配器映射所选 Project 根的原生技能目录及 `AGENTS.md`，并追加 `.skill/`、`.skills/`。Kimi 继续负责技能解析、摘要、按需读取和优先级；项目技能不增加工业工具权限。通过原生 `--add-dir` 恢复绝对 Project 路径搜索，固定会话 `KIMI_SHARE_DIR` 防止继承环境重定向。
-- 边界：活跃进程不自动刷新技能索引；两个别名目录为 extra scope，低于原生项目与用户 scope。此次 workspace 版本升级使旧聊天开始新上下文段，历史保留。相对 cwd、monorepo 祖先发现、斜杠命令、配置继承和跨 Scope 对话延续尚未完整保持，详见 [兼容性审计](kimi-native-compatibility-audit.md)。
+- 边界：活跃进程不自动刷新技能索引；两个别名目录为 extra scope，低于原生项目与用户 scope。此次 workspace 版本升级使旧聊天开始新上下文段，历史保留。Scope 切换重建上下文是预期设计，不属于待修复缺陷。相对 cwd、monorepo 祖先发现、斜杠命令和配置继承仍有兼容差异，详见 [兼容性审计](kimi-native-compatibility-audit.md)。
 
-## PD-038：FreeCAD 作为 CAD 首批 3D 零件工具
+## PD-038：Linux Chip 的可核对一键安装
+
+- 日期：2026-10-04
+- 状态：已实现，发布前必须通过原生 Linux 与实际安装消费门禁
+- 来源：用户要求合并项目 Skill 修复、发版，并继续提供 wget 下载后直接执行的一键安装。
+- 决定：从干净已提交源码生成不可变 Linux x86-64 Chip 安装包，固定并校验两级 SHA-256，安装私有 Node/uv/Python/Kimi、Chip CLI/MCP 和 EDA 镜像。每版使用独立目录，重复安装拒绝非受管理内容；完成验证后替换受管理的 launcher，保留旧版本目录。
+- Linux 执行：bubblewrap/seccomp 保留原生 Kimi 循环和模型网络，工程和 Runtime 文件只读，宿主 Unix socket 和 namespace 重配置被拒绝；工业动作进入宿主 Runtime。安装前验证用户命名空间，安装后验证受保护 Kimi 启动，不降级为旧版无隔离模式。
+- 发布门禁：Ubuntu 22.04 x86-64 真实 Agent/Verilator、工程写入与 Unix socket 拒绝、持久事实/失败/取消/恢复，以及实际安装 CLI、项目 Skill 正文按需加载、Checkpoint 和重复安装。其他发行版自动依赖准备范围不等于逐版本完成工业验收。
+- 边界：此入口只提供 Chip CLI；不含模型凭据、用户工程、PDK 或签核规则。外部 MCP host 服务、应用控制插件和旧 MCP 修改继续服从已记录限制；Scope 切换仍按预期建立新上下文段。
+
+## PD-039：FreeCAD 作为 CAD 首批 3D 零件工具
 
 - 日期：2026-10-04。
 - 状态：已确认，依据用户要求优先接入开源 FreeCAD，并选择 3D 零件建模方向。
 - 理由：CAD 从 Skill 和受限文件预览扩展到可执行、可回读的参数化零件流程。
 - 可观察行为：草图/拉伸/孔/布尔工具走共用持久 Runtime；FCStd/STEP/STL 与独立几何验证保留操作证据，工程文件树可查看实体网格。首批原生平台为 macOS arm64，范围和限制见 [FreeCAD CAD Pack](freecad-domain-pack.md)。
 
-## PD-039：OCCT CAD 查看与连续零件修改
+## PD-040：OCCT CAD 查看与连续零件修改
 
 - 日期：2026-10-04。
-- 状态：已确认；升级 PD-038 的显示与任务范围。
+- 状态：已确认；升级 PD-039 的显示与任务范围。
 - 来源：用户选择开源 OCCT 可视化模块，并要求覆盖真实的零件修改任务。
 - 决定：CAD Viewer 使用官方 OCCT AIS/V3d/TKOpenGles 的本地 WebAssembly，显示 BREP 曲面、CAD 轮廓、深度遮挡和抗锯齿，保留共享导航和全屏状态。完整对应源码、许可证及重编译资料随桌面提供。
 - 连续修改：原配方与模型经哈希绑定；修改参数、轮廓或位置产生新 Action，原件和历史版本保留。缺少 Model API 时明确提示并保留 prompt。同工程、同 Domain 和相同事实阶段下，对上一结果的明确延续可保留仍可用的上一能力；不跨工程/阶段继承工具，禁用资源即时生效。
@@ -428,7 +438,7 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 - 工程资源：已注册 Runtime 的工业会话暂不加载外部 MCP 或应用控制插件，事前筛选、记录原因并提示，已接入的工业工具继续执行；用户资源设置保持原值。当前 DomainState 的有界产物路径进入上下文，连续修改从实际输出继续。
 - 产物可见性：工业 Action 返回或任务完成后刷新当前工程文件树，新版本可直接从 Registry 打开；异步刷新不得覆盖用户刚切换的工程。当前 Viewer 打开的原件仍保留，用户可以切换到新产物。Desktop 真实模型的澄清→加长底板→改圆板及 Viewer 证据见 [任务验收](cad-task-qualification-20261004.md)。
 
-## PD-040：CAD 剖切、选择、测量与草图约束查看
+## PD-041：CAD 剖切、选择、测量与草图约束查看
 
 - 日期：2026-10-04。
 - 状态：用户已确认优先级；macOS arm64 原生与 Electron 路径验收。

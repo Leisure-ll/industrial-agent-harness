@@ -31,11 +31,19 @@ function simulationGate(directory, project) {
     process.env.INDUSTRIAL_HARNESS_EDA_PYTHON ||
     path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
   const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
-  const command =
-    'exec ' +
-    [python, path.join(__dirname, 'fixtures/native-simulation-gate.py'), ready, release]
-      .map(quote)
-      .join(' ');
+  // Verilator 5.026 limits a literal $system command to 256 bytes. Keep the
+  // native simulator command short while the script passes full paths safely.
+  const gateScript = path.join(directory, 'simulation-gate.sh');
+  fs.writeFileSync(
+    gateScript,
+    '#!/bin/sh\nexec ' +
+      [python, path.join(__dirname, 'fixtures/native-simulation-gate.py'), ready, release]
+        .map(quote)
+        .join(' ') +
+      '\n',
+    { mode: 0o700 },
+  );
+  const command = 'exec ' + quote(gateScript);
   const file = path.join(project, 'tb/counter_tb.sv');
   const source = fs.readFileSync(file, 'utf8');
   assert.ok(source.includes('  initial begin\n'));
@@ -452,7 +460,7 @@ test(
     const rows = result.stdout.trim().split('\n').map(JSON.parse);
     assert.equal(rows.at(-1).status, 'finished', result.stderr + result.stdout);
     assert.deepEqual(fs.readFileSync(path.join(project, 'rtl/counter.sv')), before);
-    assert.ok(JSON.stringify(fixture.requests).includes('Operation not permitted'));
+    assert.match(JSON.stringify(fixture.requests), /Operation not permitted|Read-only file system/);
     const engineering = rows.find(row => row.type === 'industrial_result');
     assert.ok(engineering, 'CLI must expose the real canonical runtime result.');
     assert.equal(engineering.verification.status, 'passed', JSON.stringify(engineering));

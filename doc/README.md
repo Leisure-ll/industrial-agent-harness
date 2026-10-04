@@ -50,6 +50,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [27B 上下文评测结果](27b-evaluation-results.md) | 真实模型的合成检索、SDK 工具调用与压缩后续接证据 |
 | [聊天持久化](chat-persistence.md) | Desktop/CLI 历史聊天、Kimi 原生上下文恢复、Scope 会话段、中断与验证边界 |
 | [按领域下载 CLI](domain-cli-downloads.md) | Chip/PCB/Godot 独立包、默认领域绑定与测试依赖 |
+| [Linux Chip 一键安装 preview.2](../releases/chip-linux-installer-v0.1.0-preview.2.md) | 干净源码安装包、项目 Skill 修复、Linux 隔离、安装校验与限制 |
 | [安装、补装与 OTA 规划](installation-and-ota-plan.md) | macOS/Windows 桌面安装、多选 Domain、后续补装与 Core/Pack 更新的 P3 提案 |
 | [CLI 与 Bench 入口](../apps/cli/README.md) | 无界面单任务命令、JSON Lines 事件、模型与工件输入 |
 | [Computer Use 桥接包](../packages/computer-use-bridge/README.md) | GUI 横切插件：固定二进制安装、18 工具面、MCP 进程模型与已知缺口 |

@@ -29,6 +29,14 @@ const transportFiles = [
   'tests/integration/pcb-mcp-transport.test.cjs',
   'tests/integration/chip-runtime-reliability.test.cjs',
 ];
+const linuxNativeFiles = [
+  'packages/agent-kimi/tests/process-sandbox.test.cjs',
+  'packages/agent-kimi/tests/linux-process-sandbox.test.cjs',
+  'packages/agent-kimi/tests/project-skills-wire.test.cjs',
+  'tests/integration/industrial-core-vertical-slice.test.cjs',
+  'tests/integration/industrial-core-installed-pack.test.cjs',
+  'tests/integration/chat-resume.test.cjs',
+];
 
 function portableFiles() {
   // Discover the same suites as pnpm test, including future tests in these packages.
@@ -53,7 +61,11 @@ function portableFiles() {
     return matches.map(file => path.join(directory, file).split(path.sep).join('/'));
   });
   return [...new Set([...files, 'tests/ci/ci-tests.test.cjs'])]
-    .filter(file => !nativeFiles.includes(file) || file.includes('industrial-recovery'))
+    .filter(
+      file =>
+        ![...nativeFiles, ...linuxNativeFiles].includes(file) ||
+        file.includes('industrial-recovery'),
+    )
     .sort();
 }
 
@@ -97,7 +109,7 @@ async function runFiles({ suite, files, reportDirectory, allowed = [] }) {
   }
   const skipped = [];
   let summary;
-  const stream = run({ files, execArgv: [], concurrency: suite === 'native' ? 2 : 4 });
+  const stream = run({ files, execArgv: [], concurrency: suite.startsWith('native') ? 2 : 4 });
   stream.on('test:pass', data => {
     if (data.skip) skipped.push(data.name);
   });
@@ -132,7 +144,7 @@ async function runFiles({ suite, files, reportDirectory, allowed = [] }) {
 
 async function main(suite) {
   // pnpm forwards an optional separator to scripts.
-  if (!['portable', 'native', 'benchmark', 'transport'].includes(suite))
+  if (!['portable', 'native', 'native-linux', 'benchmark', 'transport'].includes(suite))
     throw Error(`Unknown CI suite: ${suite}`);
   process.chdir(root);
   for (const [variable, actual] of [
@@ -143,13 +155,17 @@ async function main(suite) {
       throw Error(`${variable}: expected ${process.env[variable]}, got ${actual}`);
     }
   }
-  if (suite === 'native') {
-    if (process.platform !== 'darwin' || process.arch !== 'arm64') {
-      throw Error('Protected native CI requires macOS Apple Silicon.');
+  if (suite.startsWith('native')) {
+    const supported =
+      suite === 'native'
+        ? process.platform === 'darwin' && process.arch === 'arm64'
+        : process.platform === 'linux' && process.arch === 'x64';
+    if (!supported) {
+      throw Error('Protected native CI requires its declared native OS/architecture.');
     }
     for (const file of [
       process.env.KIMI_EXECUTABLE,
-      process.env.INDUSTRIAL_HARNESS_FREECAD_CMD,
+      ...(suite === 'native' ? [process.env.INDUSTRIAL_HARNESS_FREECAD_CMD] : []),
       path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python'),
     ]) {
       if (!file || !fs.existsSync(file)) throw Error(`Missing required native runtime: ${file}`);
@@ -158,7 +174,7 @@ async function main(suite) {
   }
   for (const tool of suite === 'benchmark'
     ? ['iverilog', 'vvp']
-    : suite === 'native'
+    : suite.startsWith('native')
       ? ['verilator']
       : []) {
     const result = spawnSync(tool, [tool === 'verilator' ? '--version' : '-V'], {
@@ -171,9 +187,11 @@ async function main(suite) {
       ? portableFiles()
       : suite === 'native'
         ? nativeFiles
-        : suite === 'transport'
-          ? transportFiles
-          : ['tests/benchmark/paired.test.cjs'];
+        : suite === 'native-linux'
+          ? linuxNativeFiles
+          : suite === 'transport'
+            ? transportFiles
+            : ['tests/benchmark/paired.test.cjs'];
   const report = await runFiles({
     suite,
     files: files.map(file => path.join(root, file)),

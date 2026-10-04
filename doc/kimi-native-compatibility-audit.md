@@ -51,7 +51,7 @@
 
 ### F8 Scope 切换以新会话替代连续上下文
 
-**优先级 P1，已实测的既有设计取舍，未改变。** 有效 domain、stage、capability、skill 或 tool 集合变化，会关闭原进程，并通过不同 compatibility key 创建新 session ID 和 share 目录。旧聊天消息与原生目录保留，模型下一轮不再得到旧段的对话。模型、审批模式、插件或 MCP 变化也会触发相应重建。
+**已实测的预期设计，不计入待修复缺陷。** 有效 domain、stage、capability、skill 或 tool 集合变化，会关闭原进程，并通过不同 compatibility key 创建新 session ID 和 share 目录。旧聊天消息与原生目录保留，模型下一轮不再得到旧段的对话。模型、审批模式、插件或 MCP 变化也会触发相应重建。
 
 真实测试只修改 stage、保持工具集合不变：session ID 改变，第二次模型请求没有第一轮记忆标记，界面能收到 context-reset。保持新 Scope 再运行一轮，记忆继续保留。这里没有发现 UI 历史被删除；问题是“聊天仍在”与“模型仍记得”之间有差异。
 
