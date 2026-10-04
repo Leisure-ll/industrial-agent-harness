@@ -96,12 +96,14 @@ test('Stop while waiting for resource admission prevents a native prompt and rel
 
 test('adapter resumes persistent IDs after close, rotates scope/model, and preserves missing-context history', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-adapter-resume-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const source = path.join(root, 'config');
   fs.mkdirSync(source);
   fs.writeFileSync(path.join(source, 'config.toml'), 'default_model="industrial"\n');
   const store = new ChatStore(path.join(root, 'chats'));
-  t.after(() => store.close());
+  t.after(() => {
+    store.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
   const chat = store.create(root, 'chip');
   let scope = {
     domain: 'chip',

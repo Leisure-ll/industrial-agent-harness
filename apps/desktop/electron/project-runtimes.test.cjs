@@ -7,7 +7,6 @@ const { ProjectRuntimes } = require('./project-runtimes.cjs');
 
 test('desktop chats share one actual persistent project runtime and reopen its facts after disposal', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-project-runtime-'));
-  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const projectDir = path.join(directory, 'project');
   const packDir = path.join(directory, 'pack');
   fs.mkdirSync(projectDir);
@@ -38,7 +37,10 @@ test('desktop chats share one actual persistent project runtime and reopen its f
     ],
   };
   const runtimes = new ProjectRuntimes({ directory: path.join(directory, 'state') });
-  t.after(() => runtimes.close());
+  t.after(() => {
+    runtimes.close();
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
   const project = { id: 'project-id', path: projectDir, domain: 'review' };
   const first = runtimes.get(project, registry);
   assert.equal(runtimes.get({ ...project, id: 'another-chat-binding' }, registry), first);

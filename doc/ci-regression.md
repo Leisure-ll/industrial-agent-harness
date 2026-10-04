@@ -23,6 +23,8 @@
 - Windows 基础层保留两项已有的 POSIX 子进程树清理测试跳过；其余 SDK transport、协议、背压与实际 CLI 消费仍必须执行。这两项需要后续补 Windows 专用验收。
 - 协议层允许跳过依赖独立 PCB-bench 源码的那一项测试；仍强制执行官方 MCP transport、参数/范围拒绝、完整大响应和 schema 变化拒绝。私有/外部 PCB 后端与原生工程工具需另行验收。
 
+POSIX 文件权限位断言只在 macOS/Linux 执行，Windows 的 ACL 需单独验收；其他断言保留。Windows archive fixture 使用系统 tar 生成 ZIP，解包使用 runner 自带 Git for Windows 的 unzip。Git attributes 固定源码 LF 并禁止转换按哈希校验的上游 Viewer 资源，避免 Windows checkout 改写发行字节。SQLite fixture 先关闭数据库再删除目录；Linux 子进程清理断言区分已死亡、等待 PID 1 回收的 zombie 与仍然运行的进程。
+
 Linux/Windows 的基础回归与 Windows 桌面启动不扩大受保护工业 Agent 的支持范围。当前实际工业执行仅在 macOS Apple Silicon 验证；Intel Mac 按 [PD-036](product-decisions.md#pd-036暂停-intel-mac-支持) 暂停支持。签名发行、真实 OTA、真实模型 API 和完整工程任务评测仍属于独立发布验收。
 
 ## 本地复现

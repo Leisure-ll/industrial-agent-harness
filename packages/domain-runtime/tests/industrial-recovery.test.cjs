@@ -12,12 +12,17 @@ test(
   { timeout: 15000 },
   async t => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'core-recovery-'));
-    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    let reopened;
     const options = {
       directory: path.join(dir, 'state'),
       stateProvider: async () => ({ inputHashes: {}, stage: null }),
     };
     const owner = new IndustrialRuntime(dir, 'test-domain', options);
+    t.after(() => {
+      owner.close();
+      reopened?.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    });
     assert.throws(() => new IndustrialRuntime(dir, 'test-domain', options), /already open/);
     const modulePath = path.resolve(__dirname, '../src/industrial.cjs');
     const check = spawnSync(
@@ -48,8 +53,7 @@ test(
     const closed = new Promise(resolve => child.once('close', resolve));
     child.kill('SIGKILL');
     await closed;
-    const reopened = new IndustrialRuntime(dir, 'test-domain', options);
-    t.after(() => reopened.close());
+    reopened = new IndustrialRuntime(dir, 'test-domain', options);
     const action = reopened.listActions()[0];
     assert.equal(action.status, 'failed');
     assert.deepEqual(action.artifactIds, []);
@@ -105,7 +109,6 @@ test('future store versions are refused without changing its lease, and multiple
 
 test('StateProvider stage changes rotate the persisted state even with identical hashes; replacing the bound directory is rejected', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'core-binding-'));
-  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const project = path.join(directory, 'project');
   fs.mkdirSync(project);
   let stage = null;
@@ -113,7 +116,10 @@ test('StateProvider stage changes rotate the persisted state even with identical
     directory: path.join(directory, 'state'),
     stateProvider: async () => ({ inputHashes: {}, stage }),
   });
-  t.after(() => runtime.close());
+  t.after(() => {
+    runtime.close();
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
   const unknown = await runtime.inspect();
   assert.equal((await runtime.inspect()).id, unknown.id);
   stage = 'declared-stage';

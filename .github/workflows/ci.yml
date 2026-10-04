@@ -51,6 +51,10 @@ jobs:
           cache: pnpm
       - name: Install pinned dependencies
         run: pnpm install --frozen-lockfile
+      - name: Expose Git for Windows unzip for archive fixtures
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_PATH -Value 'C:\Program Files\Git\usr\bin'
       - name: Shared packages, CLI, SDK and platform boundaries
         shell: bash
         run: |

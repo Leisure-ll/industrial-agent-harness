@@ -1,0 +1,4 @@
+* text=auto eol=lf
+# These upstream assets are verified byte for byte against committed hashes.
+packages/viewer-builtin/src/kicad/vendor/** -text
+packages/viewer-builtin/src/waveform/surfer/** -text

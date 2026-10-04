@@ -83,7 +83,11 @@ test('idle TTL protects active and pending-interaction resources and keeps persi
 });
 
 test('a full resident pool requests eviction from another host before admitting a new process', async t => {
-  const { create } = fixture(t, { sweepIntervalMs: 10 });
+  // TTL must not race the specific cross-host eviction being verified here.
+  const { create } = fixture(t, {
+    sweepIntervalMs: 10,
+    limits: { maxConcurrent: 2, maxResident: 2, idleMs: 60000, minFreeMemoryBytes: 0 },
+  });
   const a = create();
   const b = create();
   let closed = 0;

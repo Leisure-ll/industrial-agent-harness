@@ -61,7 +61,8 @@ test('PCB launch policy binds a canonical candidate and external requirements wi
   assert.equal(policy.imageId, provider.imageId);
   assert.equal(config.env.DOCKER_CONTEXT, 'controlled-context');
   assert.ok(!JSON.stringify({ config, policy }).includes('fixture-secret-not-forwarded'));
-  assert.equal(fs.statSync(config.args[1]).mode & 0o777, 0o600);
+  // POSIX permission bits are not represented by Windows stat().
+  if (process.platform !== 'win32') assert.equal(fs.statSync(config.args[1]).mode & 0o777, 0o600);
   const internal = path.join(project, 'requirements.json');
   fs.writeFileSync(internal, '{}');
   assert.throws(

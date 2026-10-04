@@ -10,12 +10,21 @@ function fixture(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-chat-store-'));
   const project = path.join(directory, 'project');
   fs.mkdirSync(project);
-  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  return { directory, project, store: new ChatStore(path.join(directory, 'chats')) };
+  const stores = [];
+  const openStore = () => {
+    const store = new ChatStore(path.join(directory, 'chats'));
+    stores.push(store);
+    return store;
+  };
+  t.after(() => {
+    for (const store of stores) store.close();
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
+  return { directory, project, store: openStore(), openStore };
 }
 
 test('desktop drafts reuse actual empty chats within the project/domain and preserve existing rows', t => {
-  const { directory, project, store } = fixture(t);
+  const { directory, project, store, openStore } = fixture(t);
   t.after(() => store.close());
   const first = store.createDraft(project, 'test-domain');
   assert.equal(store.createDraft(project, 'test-domain').id, first.id);
@@ -49,7 +58,7 @@ test('desktop drafts reuse actual empty chats within the project/domain and pres
   const unlocked = store.createDraft(project, 'test-domain', draft.id);
   assert.notEqual(unlocked.id, draft.id, 'do not reuse a chat reserved for execution');
   release();
-  const reopened = new ChatStore(path.join(directory, 'chats'));
+  const reopened = openStore();
   t.after(() => reopened.close());
   assert.equal(
     reopened.createDraft(project, 'test-domain', draft.id).id,
@@ -102,7 +111,7 @@ test('concurrent desktop draft requests from separate processes create only one 
 });
 
 test('history survives reopening, separates projects/domains and pages without gaps', t => {
-  const { directory, project, store } = fixture(t);
+  const { directory, project, store, openStore } = fixture(t);
   const chat = store.create(project, 'test-domain');
   const ids = [];
   for (let i = 0; i < 23; i++) {
@@ -114,7 +123,7 @@ test('history survives reopening, separates projects/domains and pages without g
     store.finish(turn, 'finished');
   }
   store.close();
-  const reopened = new ChatStore(path.join(directory, 'chats'));
+  const reopened = openStore();
   t.after(() => reopened.close());
   assert.equal(reopened.list(project, 'test-domain')[0].title, 'Task 0');
   const first = reopened.history(chat.id, project, 'test-domain');
@@ -131,11 +140,13 @@ test('history survives reopening, separates projects/domains and pages without g
   const other = path.join(directory, 'other');
   fs.mkdirSync(other);
   assert.throws(() => reopened.get(chat.id, other, 'test-domain'), /unavailable/);
-  assert.equal(fs.statSync(path.join(directory, 'chats/chats.sqlite')).mode & 0o777, 0o600);
+  // POSIX permission bits are not represented by Windows stat().
+  if (process.platform !== 'win32')
+    assert.equal(fs.statSync(path.join(directory, 'chats/chats.sqlite')).mode & 0o777, 0o600);
 });
 
 test('one chat can have several runtime sessions; returning to an old scope starts a new segment', t => {
-  const { directory, project, store } = fixture(t);
+  const { directory, project, store, openStore } = fixture(t);
   t.after(() => store.close());
   const chat = store.create(project, 'test-domain');
   const one = store.runtimeSession(chat.id, 'scope-one');
@@ -145,7 +156,7 @@ test('one chat can have several runtime sessions; returning to an old scope star
   assert.notEqual(one.id, two.id);
   assert.notEqual(store.runtimeSession(chat.id, 'scope-one').id, one.id);
   const release = store.acquire(chat.id);
-  const other = new ChatStore(path.join(directory, 'chats'));
+  const other = openStore();
   t.after(() => other.close());
   assert.throws(() => other.acquire(chat.id), /another process/);
   assert.throws(() => store.remove(chat.id, project, 'test-domain'), /another process/);
@@ -157,7 +168,7 @@ test('one chat can have several runtime sessions; returning to an old scope star
 });
 
 test('killed process leaves an interrupted turn and an expired approval, without replaying work', async t => {
-  const { directory, project, store } = fixture(t);
+  const { directory, project, store, openStore } = fixture(t);
   const chat = store.create(project, 'test-domain');
   store.close();
   const child = spawn(
@@ -174,14 +185,14 @@ test('killed process leaves an interrupted turn and an expired approval, without
     child.once('error', reject);
     child.once('exit', code => reject(Error(`Exited ${code}`)));
   });
-  const live = new ChatStore(path.join(directory, 'chats'));
+  const live = openStore();
   assert.equal(live.history(chat.id, project, 'test-domain').turns[0].status, 'running');
   assert.throws(() => live.acquire(chat.id), /another process/);
   live.close();
   const exit = new Promise(resolve => child.once('exit', resolve));
   child.kill('SIGKILL');
   await exit;
-  const recovered = new ChatStore(path.join(directory, 'chats'));
+  const recovered = openStore();
   t.after(() => recovered.close());
   const turn = recovered.history(chat.id, project, 'test-domain').turns[0];
   assert.equal(turn.status, 'interrupted');

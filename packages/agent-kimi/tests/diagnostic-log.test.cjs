@@ -22,6 +22,9 @@ test('diagnostic log preserves full payloads while redacting known credentials',
   assert.equal(row.payload.output.length, 25000);
   assert.equal(row.payload.message, '[REDACTED_API_KEY]');
   assert.equal(row.payload.authorization, '[REDACTED]');
-  assert.equal(fs.statSync(log.file).mode & 0o777, 0o600);
-  assert.equal(fs.statSync(path.dirname(log.file)).mode & 0o777, 0o700);
+  // POSIX permission bits are not represented by Windows stat().
+  if (process.platform !== 'win32') assert.equal(fs.statSync(log.file).mode & 0o777, 0o600);
+  // POSIX permission bits are not represented by Windows stat().
+  if (process.platform !== 'win32')
+    assert.equal(fs.statSync(path.dirname(log.file)).mode & 0o777, 0o700);
 });

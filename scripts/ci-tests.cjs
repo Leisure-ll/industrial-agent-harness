@@ -43,9 +43,12 @@ function portableFiles() {
     }
     const directory = path.dirname(manifest);
     const patterns = command.slice('node --test '.length).split(/\s+/);
-    return fs
-      .globSync(patterns, { cwd: path.join(root, directory) })
-      .map(file => path.join(directory, file).split(path.sep).join('/'));
+    const matches = patterns.flatMap(pattern => {
+      const matched = fs.globSync(pattern, { cwd: path.join(root, directory) });
+      if (!matched.length) throw Error(`No tests matched ${pattern} in ${manifest}.`);
+      return matched;
+    });
+    return matches.map(file => path.join(directory, file).split(path.sep).join('/'));
   });
   return [...new Set([...files, 'tests/ci/ci-tests.test.cjs'])]
     .filter(file => !nativeFiles.includes(file) || file.includes('industrial-recovery'))
