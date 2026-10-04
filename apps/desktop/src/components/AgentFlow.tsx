@@ -270,6 +270,32 @@ export const AgentFlow = memo(function AgentFlow({
   return (
     <section className="ia-agent-flow">
       {events.map((event, index) => {
+        if (event.type === 'industrial-result') {
+          const verified =
+            event.verification.status === 'passed' && event.state.status === 'verified';
+          return (
+            <details
+              className={`ia-agent-tool ${event.verification.status === 'failed' ? 'error' : ''}`}
+              key={index}
+            >
+              <summary>
+                {verified
+                  ? 'Engineering verification passed'
+                  : event.state.status === 'stale'
+                    ? 'Engineering evidence is stale'
+                    : event.verification.status === 'failed'
+                      ? 'Engineering verification failed'
+                      : 'Engineering evidence is insufficient'}
+              </summary>
+              <p>{event.verification.reason}</p>
+              {debug && (
+                <small>
+                  Action {event.action.id} · Checkpoint {event.checkpoint.id}
+                </small>
+              )}
+            </details>
+          );
+        }
         if (event.type === 'diagnostic-log')
           return (
             <div className="ia-agent-minor" key={index}>

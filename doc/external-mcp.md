@@ -1,5 +1,7 @@
 # 外部 MCP：Desktop / CLI 共用注册
 
+2026-10-04 边界更新：以下注册、管理与协议实现仍保留。实际受保护的工业 Kimi 会话会拒绝启用外部 MCP 应用服务；这类宿主服务须接入工业 Action 与证据边界后才能恢复组合执行。已注册服务可在项目中停用，CLI 用 `--disable-mcp external.<名称>`。下文的执行证据属于此前版本的协议验收，当前限制见[安全边界](../SECURITY.md)。
+
 外部服务可显式注册一次，在 Desktop 和 Chip / PCB / Godot CLI 包中共用。支持本地 stdio、Streamable HTTP 和旧 SSE；使用固定的官方 TypeScript MCP SDK 1.30.1。不自动安装服务、软件镜像或申请操作系统授权，也不读取项目里的任意 MCP 启动配置。
 
 ## 添加和管理

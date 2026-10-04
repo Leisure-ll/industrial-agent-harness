@@ -80,6 +80,13 @@ function loadDomainPacks() {
         throw Error('Invalid pinned provider resource inventory.');
     } else if (['pcb-bench', 'godot-local'].includes(pack.provider.backend))
       throw Error('Missing pinned provider resources.');
+    if (
+      pack.runtime &&
+      (typeof pack.runtime.entry !== 'string' ||
+        !/^[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*\.cjs$/.test(pack.runtime.entry) ||
+        pack.runtime.entry.split('/').some(part => part === '.' || part === '..'))
+    )
+      throw Error('Invalid Domain runtime entry.');
     ids.add(pack.id);
     providerIds.add(pack.provider.id);
     const declared = new Map();

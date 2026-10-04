@@ -12,8 +12,11 @@ jobs:
       - name: Check scaffold
         run: |
           test -f README.md
+          test -f README.zh-CN.md
           test -f AGENTS.md
           test -f pnpm-workspace.yaml
+          test -f LICENSE
+          test -f THIRD_PARTY_NOTICES.md
           for dir in apps/desktop packages/agent-kimi packages/contracts packages/domain-skills packages/domain-runtime packages/domain-mcp packages/pack-manager packages/viewer-core packages/viewer-builtin; do
             test -f "$dir/README.md"
             test -f "$dir/package.json"
@@ -31,6 +34,14 @@ jobs:
         run: pnpm run format:check
       - name: Architecture boundaries
         run: pnpm test:architecture
+      - name: Domain Pack release contents and compatibility
+        run: pnpm run test:release
+      - name: Prepare independent RTL benchmark verifier
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+      - name: Paired benchmark engineering smoke
+        run: pnpm run test:benchmark
       - name: Build and test MVP
         run: |
           pnpm --filter @industrial-agent-harness/desktop build
@@ -50,11 +61,5 @@ jobs:
           uv sync --frozen --no-dev --python 3.13
           cd ../..
           pnpm test:mcp
-      - name: Industrial Core vertical slice gate when implemented
-        run: |
-          if test -f tests/integration/domain-mcp-scope.test.cjs; then
-            node --test tests/integration/domain-mcp-scope.test.cjs
-          fi
-          if test -f tests/integration/industrial-core-vertical-slice.test.cjs; then
-            node --test tests/integration/industrial-core-vertical-slice.test.cjs
-          fi
+      - name: Domain execution scope gate
+        run: node --test tests/integration/domain-mcp-scope.test.cjs

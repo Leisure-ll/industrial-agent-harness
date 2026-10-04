@@ -33,7 +33,12 @@ class SessionManager {
   }
   busy(entry) {
     return Boolean(
-      entry && (entry.removing || entry.release || entry.agent?.running || entry.agent?.turn),
+      entry &&
+        (entry.removing ||
+          entry.resolving ||
+          entry.release ||
+          entry.agent?.running ||
+          entry.agent?.turn),
     );
   }
   find(chatId) {

@@ -82,6 +82,7 @@ const {
   defaultLogDirectory,
 } = require('@industrial-agent-harness/agent-kimi/src/diagnostic-log.cjs');
 const { SessionManager, finishTurn } = require('./session-manager.cjs');
+const { ProjectRuntimes } = require('./project-runtimes.cjs');
 const { CoreUpdater } = require('./updater.cjs');
 const { KimiSession } = require('@industrial-agent-harness/agent-kimi');
 const { ObservedContextStore } = require('@industrial-agent-harness/domain-runtime');
@@ -254,6 +255,20 @@ function sessionContext(entry) {
     contextStoreOptions(),
   );
   return entry.context;
+}
+const projectRuntimes = new ProjectRuntimes(contextStoreOptions());
+async function resolveSessionTask(entry, request, registry) {
+  entry.runtimeBundle = projectRuntimes.get(entry.project, registry);
+  const state = entry.runtimeBundle ? await entry.runtimeBundle.runtime.inspect() : null;
+  return resolveProjectTask(
+    entry.project.domain,
+    { ...request, ...(state ? { state } : {}) },
+    entry.scope,
+    [...registry.capabilities, ...(entry.runtimeBundle?.capabilities || [])],
+    projectResourcePolicy(entry.project),
+    entry.externalServers,
+    registry.domains,
+  );
 }
 function notifySessions() {
   if (mainWindow && !mainWindow.webContents.isDestroyed())
@@ -620,6 +635,8 @@ function registerHandlers() {
     )
       throw Error('Choose one or more distinct Domains.');
     sessions.assertIdle();
+    await sessions.reset();
+    projectRuntimes.close();
     const { manager, packs } = await availablePacks();
     const selected = request.domains.map(id => {
       const item = packs.find(pack => pack.domain === id);
@@ -629,50 +646,52 @@ function registerHandlers() {
     for (const item of selected) await manager.install(item);
     return { installed: installedDomains() };
   });
-  ipcMain.handle('domains:remove', (_event, request) => {
+  ipcMain.handle('domains:remove', async (_event, request) => {
     if (!managedPacks || typeof request?.domain !== 'string')
       throw Error('Invalid Domain removal.');
     sessions.assertIdle();
     if (projectBindings.projects.some(project => project.domain === request.domain))
       throw Error('A Project still uses this Domain.');
+    await sessions.reset();
+    projectRuntimes.close();
     packManager.remove(request.domain);
     return { installed: installedDomains() };
   });
   ipcMain.handle('resource:catalog', () => resourceCatalog(activeProject()?.domain));
-  ipcMain.handle('broker:resolve', (event, request) => {
+  ipcMain.handle('broker:resolve', async (event, request) => {
     chatRequest(event);
     if (changingResources) throw Error('Resource settings are being saved.');
     if (request?.chatId && request.chatId !== activeChatId)
       throw Error('Selected chat changed; retry the task.');
     const entry = selectedSession();
     if (sessions.busy(entry)) throw Error('This chat is already running.');
-    entry.externalServers = externalRegistry.records();
-    const registry = currentRegistry();
-    const result = resolveProjectTask(
-      entry.project.domain,
-      request,
-      entry.scope,
-      registry.capabilities,
-      projectResourcePolicy(entry.project),
-      entry.externalServers,
-      registry.domains,
-    );
-    entry.resolvedRequest = { ...request };
-    result.request = entry.resolvedRequest;
-    entry.scope = result.scope;
-    entry.trace = result.trace;
-    entry.preparedTurn = {
-      id: chats.beginTurn(entry.id, request.task, result, false),
-      task: request.task,
-      broker: result,
-    };
-    notifySessions();
-    return { ...result, chatId: entry.id, turnId: entry.preparedTurn.id };
+    entry.resolving = true;
+    try {
+      entry.externalServers = externalRegistry.records();
+      const registry = currentRegistry();
+      const result = await resolveSessionTask(entry, request, registry);
+      entry.resolvedRequest = { ...request };
+      result.request = entry.resolvedRequest;
+      entry.scope = result.scope;
+      entry.trace = result.trace;
+      entry.preparedTurn = {
+        id: chats.beginTurn(entry.id, request.task, result, false),
+        task: request.task,
+        broker: result,
+      };
+      notifySessions();
+      return { ...result, chatId: entry.id, turnId: entry.preparedTurn.id };
+    } finally {
+      entry.resolving = false;
+    }
   });
   function loadDetail(capabilityId, entry = selectedSession()) {
     const detail = discloseDetail(
       entry.scope,
-      effectiveCapabilities(currentRegistry().capabilities, projectResourcePolicy(entry.project)),
+      effectiveCapabilities(
+        [...currentRegistry().capabilities, ...(entry.runtimeBundle?.capabilities || [])],
+        projectResourcePolicy(entry.project),
+      ),
       capabilityId,
     );
     entry.trace.push({
@@ -989,7 +1008,7 @@ function registerHandlers() {
     return images;
   }
   ipcMain.handle('agent:validate-images', (event, request) => imageRequest(event, request));
-  ipcMain.handle('agent:run', (event, request) => {
+  ipcMain.handle('agent:run', async (event, request) => {
     chatRequest(event);
     if (changingResources) throw Error('Resource settings are being saved.');
     if (request?.chatId && request.chatId !== activeChatId)
@@ -1013,15 +1032,7 @@ function registerHandlers() {
       chats.recoverInterrupted();
       entry.externalServers = externalRegistry.records();
       const registry = currentRegistry();
-      const current = resolveProjectTask(
-        entry.project.domain,
-        { ...entry.resolvedRequest, task },
-        entry.scope,
-        registry.capabilities,
-        projectResourcePolicy(entry.project),
-        entry.externalServers,
-        registry.domains,
-      );
+      const current = await resolveSessionTask(entry, { ...entry.resolvedRequest, task }, registry);
       current.request = entry.resolvedRequest;
       entry.scope = current.scope;
       entry.trace = current.trace;
@@ -1075,6 +1086,12 @@ function registerHandlers() {
                 ? require('./chat-selftest.cjs').createSession
                 : undefined,
         {
+          industrialRuntime: entry.runtimeBundle?.runtime,
+          protectedPaths: entry.runtimeBundle?.protectedPaths,
+          onIndustrialResult: result => {
+            entry.scope.stateId = result.state.id;
+            entry.agent.emit({ type: 'industrial-result', ...result });
+          },
           resources: sessionResources,
           onIdleRelease: () => {
             entry.context?.close();
@@ -1743,7 +1760,11 @@ app.on('before-quit', event => {
     try {
       await sessions.close();
     } finally {
-      await Promise.allSettled([sessionResources.close(), guiBridge?.close()]);
+      try {
+        projectRuntimes.close();
+      } finally {
+        await Promise.allSettled([sessionResources.close(), guiBridge?.close()]);
+      }
     }
   })()
     .catch(error => console.error('Session shutdown failed:', error.message))

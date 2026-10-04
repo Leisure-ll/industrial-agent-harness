@@ -23,6 +23,15 @@ function loadRegistry() {
         .listSkills()
         .map(item => ({ ...item, file: staticSkills.skillFile(item.id) })),
       providerPacks,
+      runtimePacks: providerPacks
+        .filter(pack => pack.runtime)
+        .map(pack => ({
+          id: pack.id,
+          domain: pack.domain,
+          version: pack.version,
+          runtime: pack.runtime,
+          directory: path.resolve(__dirname, '../../../domain-packs', pack.provider.packDirectory),
+        })),
     };
   }
   const bundles = new PackManager()
@@ -38,6 +47,7 @@ function loadRegistry() {
       domain: skill.domain,
       title: skill.title,
       enabledByDefault: true,
+      ...(skill.external ? { external: skill.external } : {}),
       file: path.join(bundle.location, ...skill.file.split('/')),
     })),
   );
@@ -58,7 +68,18 @@ function loadRegistry() {
   for (const skill of skills)
     if (!fs.statSync(skill.file, { throwIfNoEntry: false })?.isFile())
       throw Error(`Missing installed Skill: ${skill.id}`);
-  return { domains, capabilities, skills, providerPacks };
+  const runtimePacks = bundles.flatMap(bundle =>
+    bundle.providerPacks
+      .filter(pack => pack.runtime)
+      .map(pack => ({
+        id: pack.id,
+        domain: pack.domain,
+        version: pack.version,
+        runtime: pack.runtime,
+        directory: path.join(bundle.location, 'domain-packs', pack.provider.packDirectory),
+      })),
+  );
+  return { domains, capabilities, skills, providerPacks, runtimePacks };
 }
 
 function installedSkills(domain) {
@@ -67,20 +88,32 @@ function installedSkills(domain) {
     .map(({ file, ...item }) => item);
 }
 
-function materializeInstalledSkills(scope, directory) {
+function materializeInstalledSkills(scope, directory, environment = process.env) {
   if (!process.env.INDUSTRIAL_HARNESS_PACK_STORE)
-    return staticSkills.materializeSkills(scope, directory);
-  const root = path.join(directory, 'skills');
-  fs.mkdirSync(root, { recursive: true, mode: 0o700 });
-  const skills = loadRegistry().skills;
-  for (const id of scope.skills) {
-    const item = skills.find(skill => skill.id === id);
-    if (!item) throw Error(`Unknown installed Skill: ${id}`);
-    const target = path.join(root, id.replace(/[^a-zA-Z0-9.-]/g, '-'));
-    fs.mkdirSync(target, { recursive: true, mode: 0o700 });
-    fs.copyFileSync(item.file, path.join(target, 'SKILL.md'));
-  }
-  return root;
+    return staticSkills.materializeSkills(scope, directory, environment);
+  const { materializeSkillDirectories } = require('./skill-resources.cjs');
+  const { skills, providerPacks } = loadRegistry();
+  return materializeSkillDirectories(
+    scope.skills.map(id => {
+      const item = skills.find(skill => skill.id === id);
+      if (!item) throw Error(`Unknown installed Skill: ${id}`);
+      let source = path.dirname(item.file),
+        suffix;
+      if (item.external) {
+        const provider = providerPacks.find(
+          pack => pack.id === item.external.providerPackId,
+        )?.provider;
+        if (!provider) throw Error('Skill requires its registered Domain Pack.');
+        source = path.join(
+          require('./pack-resources.cjs').resourceDirectory(provider, environment),
+          ...item.external.resourcePath.split('/'),
+        );
+        suffix = staticSkills.integrationSuffix(item.external.nativeToolPrefix);
+      }
+      return { name: id.replace(/[^a-zA-Z0-9.-]/g, '-'), source, suffix };
+    }),
+    directory,
+  );
 }
 
 module.exports = { loadRegistry, installedSkills, materializeInstalledSkills };

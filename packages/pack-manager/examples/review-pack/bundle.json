@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "domain": "review-fixture",
+  "label": "Pack authoring fixture",
+  "emoji": "🧪",
+  "version": "1.0.0",
+  "coreApi": 1,
+  "summary": "An owned Skill-only fixture demonstrating installed resources",
+  "prerequisites": [],
+  "capabilities": [{
+    "id": "review-fixture.inspect",
+    "title": "Inspect a release report",
+    "domain": "review-fixture",
+    "stages": ["review"],
+    "priority": 1,
+    "keywords": ["inspect report", "review report"],
+    "skills": [{"id": "review-fixture.inspect", "summary": "Read review criteria and prepare a report.", "reference": "references/criteria.md"}],
+    "tools": [],
+    "verification": []
+  }],
+  "skills": [{"id": "review-fixture.inspect", "domain": "review-fixture", "title": "Inspect a release report", "file": "skills/review-fixture.inspect/SKILL.md"}],
+  "providerPacks": []
+}

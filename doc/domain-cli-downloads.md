@@ -26,7 +26,7 @@ node industrial-harness.cjs run --project-dir /absolute/project --task '检查�
 各包默认绑定所选 Domain，`--domain` 可省略；显式指定另一个领域会拒绝。只注册本领域 Capability / Skill / MCP，删除无关 Skill 与 Domain Pack 文件；Chip 之外不携带 EDA 源码或 Python 环境。
 `HARNESS-PACKAGE.json` 记录领域、构建时间、来源提交、是否含未提交改动与 provider 版本。
 
-所有包需要 Node.js 22.13+。实际 Agent 另需 Kimi CLI **1.51.0** 和模型 API key；可先用 `--scope-only` 测试注册而不启动模型。可使用 uv 在包外的独立目录安装：
+所有包需要 Node.js 24+。实际 Agent 另需 Kimi CLI **1.51.0** 和模型 API key；可先用 `--scope-only` 测试注册而不启动模型。可使用 uv 在包外的独立目录安装：
 
 ```sh
 uv venv --python 3.13 /absolute/path/harness-kimi

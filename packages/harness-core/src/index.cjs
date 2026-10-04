@@ -1,7 +1,8 @@
 const { ChatStore, defaultChatDirectory } = require('./chat-store.cjs');
+const { createProjectRuntime } = require('./project-runtime.cjs');
 const sessionResources = require('./session-resources.cjs');
 const { availableMemoryBytes } = require('./available-memory.cjs');
-const { resolve } = require('@industrial-agent-harness/capability-broker');
+const { resolve, resolveFromState } = require('@industrial-agent-harness/capability-broker');
 const {
   capabilities,
   listDomains,
@@ -52,7 +53,8 @@ function resolveProjectTask(
   if (!validDomains.some(item => item.id === domain)) throw Error('Choose a valid project domain.');
   if (request?.domain && request.domain !== domain)
     throw Error(`This project is fixed to the ${domain} domain.`);
-  const result = resolve(
+  const resolver = request?.state ? resolveFromState : resolve;
+  const result = resolver(
     { ...request, domain },
     effectiveCapabilities(registry, disabled),
     previous,
@@ -100,6 +102,7 @@ function resolveProjectTask(
 }
 
 module.exports = {
+  createProjectRuntime,
   ...sessionResources,
   availableMemoryBytes,
   ChatStore,

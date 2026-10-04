@@ -1,0 +1,337 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { IndustrialRuntime } = require('../../packages/domain-runtime/src/index.cjs');
+const { resolveFromState } = require('../../packages/capability-broker/src/index.cjs');
+const { createRuntimePlugin } = require('../../domain-packs/chip/runtime/index.cjs');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const { startModel } = require('./fixtures/domain-mcp-model.cjs');
+const execute = promisify(execFile);
+const root = path.resolve(__dirname, '../..');
+
+function workspace(t) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-real-rtl-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const project = path.join(directory, 'project');
+  fs.cpSync(path.join(__dirname, 'fixtures/industrial-rtl'), project, { recursive: true });
+  const plugin = createRuntimePlugin();
+  const open = () =>
+    new IndustrialRuntime(project, 'chip', { directory: path.join(directory, 'state'), ...plugin });
+  return { directory, project, plugin, open };
+}
+
+test(
+  'real Verilator: StateProvider → Broker → runtime → artifacts → assertions → durable state/checkpoint; stale inputs and restart retain evidence',
+  { timeout: 120000 },
+  async t => {
+    const { project, plugin, open } = workspace(t);
+    let runtime = open();
+    t.after(() => runtime?.close());
+    const state = await runtime.inspect();
+    assert.equal(state.status, 'unverified');
+    assert.equal(state.stage, 'rtl');
+    const resolution = resolveFromState(
+      { task: 'Run RTL simulation verification assertions', state },
+      plugin.capabilities,
+    );
+    assert.deepEqual(resolution.scope.tools, ['chip.rtl.verify']);
+    const result = await runtime.execute(
+      { toolId: resolution.scope.tools[0], inputs: {}, expectedStateId: state.id },
+      { scope: resolution.scope, approval: true },
+    );
+    assert.equal(result.action.status, 'completed', JSON.stringify(result.action));
+    assert.match(result.action.toolVersion, /Verilator/);
+    assert.equal(result.verification.status, 'passed', JSON.stringify(result));
+    assert.equal(result.state.status, 'verified');
+    assert.ok(result.artifacts.some(artifact => artifact.kind === 'waveform.vcd'));
+    const wave = result.artifacts.find(artifact => artifact.kind === 'waveform.vcd');
+    assert.match(runtime.readArtifact(wave.id).content.toString(), /\$var/);
+    const checkpointId = result.checkpoint.id;
+    runtime.close();
+    runtime = open();
+    assert.equal(runtime.listActions()[0].id, result.action.id);
+    assert.equal(runtime.listVerifications()[0].id, result.verification.id);
+    assert.equal(runtime.latestCheckpoint().id, checkpointId);
+    assert.equal((await runtime.inspect()).id, result.state.id);
+    const originalWave = runtime.readArtifact(wave.id).content;
+    fs.appendFileSync(path.join(project, 'rtl/counter.sv'), '\n// changed source identity\n');
+    const stale = await runtime.inspect();
+    assert.equal(stale.status, 'stale');
+    assert.notEqual(stale.id, result.state.id);
+    const rejected = await runtime.execute(
+      { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
+      { scope: resolution.scope, approval: true },
+    );
+    assert.equal(rejected.action.status, 'failed');
+    assert.equal(rejected.artifacts.length, 0);
+    assert.equal(rejected.verification.status, 'insufficient_evidence');
+    assert.match(rejected.action.diagnostics.join(), /stale/);
+    assert.deepEqual(runtime.readArtifact(wave.id).content, originalWave);
+    assert.ok(
+      runtime
+        .listCheckpoints()
+        .some(item => item.id === checkpointId && item.state.status === 'verified'),
+    );
+  },
+);
+
+test(
+  'real native timeout preserves diagnostics and no engineering acceptance',
+  { timeout: 120000 },
+  async t => {
+    const { project, plugin, open } = workspace(t);
+    const yaml = path.join(project, 'eda.yaml');
+    fs.writeFileSync(
+      yaml,
+      fs.readFileSync(yaml, 'utf8').replace('timeout_seconds: 30', 'timeout_seconds: 1'),
+    );
+    const runtime = open();
+    t.after(() => runtime.close());
+    const state = await runtime.inspect();
+    const scope = resolveFromState(
+      { task: 'simulation assertions', state },
+      plugin.capabilities,
+    ).scope;
+    const result = await runtime.execute(
+      { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
+      { scope, approval: true },
+    );
+    assert.equal(result.action.status, 'failed');
+    assert.equal(result.verification.status, 'insufficient_evidence');
+    const executions = result.artifacts
+      .filter(item => item.kind === 'report.execution')
+      .flatMap(item => JSON.parse(runtime.readArtifact(item.id).content.toString()));
+    assert.ok(
+      executions.some(item => item.status === 'TIMEOUT'),
+      JSON.stringify(executions),
+    );
+    assert.ok(result.action.diagnostics.length);
+  },
+);
+
+test(
+  'real native cancellation waits for owned cleanup; input changes during native execution never become current acceptance',
+  { timeout: 120000 },
+  async t => {
+    const { project, plugin, open } = workspace(t);
+    const runtime = open();
+    t.after(() => runtime.close());
+    let state = await runtime.inspect();
+    let scope = resolveFromState(
+      { task: 'simulation assertions', state },
+      plugin.capabilities,
+    ).scope;
+    const pending = runtime.execute(
+      { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
+      { scope, approval: true },
+    );
+    const cancel = setTimeout(() => runtime.cancel(), 600);
+    t.after(() => clearTimeout(cancel));
+    const cancelled = await pending;
+    assert.equal(cancelled.action.status, 'failed');
+    assert.equal(cancelled.verification.status, 'insufficient_evidence');
+    const reports = cancelled.artifacts
+      .filter(item => item.kind === 'report.execution')
+      .flatMap(item => JSON.parse(runtime.readArtifact(item.id).content.toString()));
+    assert.ok(
+      reports.some(item => item.status === 'CANCELLED'),
+      JSON.stringify(reports),
+    );
+    state = await runtime.inspect();
+    scope = resolveFromState({ task: 'simulation assertions', state }, plugin.capabilities).scope;
+    const edited = runtime.execute(
+      { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
+      { scope, approval: true },
+    );
+    const change = setTimeout(
+      () =>
+        fs.appendFileSync(path.join(project, 'rtl/counter.sv'), '\n// concurrent input change\n'),
+      1200,
+    );
+    t.after(() => clearTimeout(change));
+    const result = await edited;
+    assert.equal(result.verification.status, 'insufficient_evidence');
+    assert.equal(result.state.status, 'stale');
+    assert.equal(result.state.id, result.checkpoint.state.id);
+  },
+);
+
+test(
+  'the real Pack subprocess receives engineering environment without inherited model credentials',
+  { timeout: 15000 },
+  async t => {
+    const { directory, project } = workspace(t);
+    const python =
+      process.env.INDUSTRIAL_HARNESS_EDA_PYTHON ||
+      path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
+    const wrapper = path.join(directory, 'checked-python');
+    const capture = path.join(directory, 'credential-check.json');
+    const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
+    const probe = `import json, os; json.dump({name: name in os.environ for name in ['OPENAI_API_KEY','KIMI_API_KEY','HF_TOKEN','TEST_PASSWORD']},open(${JSON.stringify(capture)},'w'))`;
+    fs.writeFileSync(
+      wrapper,
+      `#!/bin/sh\n${quote(python)} -c ${quote(probe)}\nexec ${quote(python)} "$@"\n`,
+      { mode: 0o700 },
+    );
+    const plugin = createRuntimePlugin({
+      environment: {
+        ...process.env,
+        INDUSTRIAL_HARNESS_EDA_PYTHON: wrapper,
+        OPENAI_API_KEY: 'local-test-key',
+        KIMI_API_KEY: 'local-test-key',
+        HF_TOKEN: 'local-test-token',
+        TEST_PASSWORD: 'local-test-password',
+      },
+    });
+    const state = await plugin.stateProvider({ projectDir: project });
+    assert.ok(state.inputHashes['rtl/counter.sv']);
+    assert.deepEqual(JSON.parse(fs.readFileSync(capture, 'utf8')), {
+      OPENAI_API_KEY: false,
+      KIMI_API_KEY: false,
+      HF_TOKEN: false,
+      TEST_PASSWORD: false,
+    });
+  },
+);
+
+test(
+  'real failed assertion and compiler failure remain distinct engineering outcomes; denied scope/approval creates no native run',
+  { timeout: 120000 },
+  async t => {
+    const { project, plugin, open } = workspace(t);
+    const runtime = open();
+    t.after(() => runtime.close());
+    let state = await runtime.inspect();
+    let scope = resolveFromState(
+      { task: 'simulation assertions', state },
+      plugin.capabilities,
+    ).scope;
+    for (const policy of [
+      { scope: { ...scope, tools: [] }, approval: true },
+      { scope: { ...scope, projectId: 'f'.repeat(64) }, approval: true },
+      { scope: { ...scope, projectId: undefined }, approval: true },
+      { scope: { ...scope, stateId: undefined }, approval: true },
+      { scope, approval: false },
+    ]) {
+      const denied = await runtime.execute(
+        { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
+        policy,
+      );
+      assert.equal(denied.action.status, 'failed');
+      assert.deepEqual(denied.artifacts, []);
+      assert.equal(denied.verification.status, 'insufficient_evidence');
+      assert.ok(!fs.existsSync(path.join(project, '.eda')));
+    }
+    const tb = path.join(project, 'tb/counter_tb.sv');
+    fs.writeFileSync(tb, fs.readFileSync(tb, 'utf8').replace('count == 4', 'count == 9'));
+    state = await runtime.inspect();
+    scope = resolveFromState({ task: 'simulation assertions', state }, plugin.capabilities).scope;
+    const failed = await runtime.execute(
+      { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
+      { scope, approval: true },
+    );
+    assert.equal(failed.verification.status, 'failed', JSON.stringify(failed));
+    assert.equal(failed.state.status, 'failed');
+    assert.ok(failed.artifacts.some(item => item.kind === 'log.tool'));
+    fs.appendFileSync(path.join(project, 'rtl/counter.sv'), '\nthis is invalid RTL;\n');
+    state = await runtime.inspect();
+    scope = resolveFromState({ task: 'simulation assertions', state }, plugin.capabilities).scope;
+    const compiler = await runtime.execute(
+      { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
+      { scope, approval: true },
+    );
+    assert.equal(compiler.action.status, 'failed');
+    assert.equal(compiler.verification.status, 'insufficient_evidence');
+    assert.notEqual(compiler.state.status, 'verified');
+  },
+);
+
+test(
+  'real CLI + pinned Kimi denies native Shell bypass and executes approved host RTL tool with a durable engineering result',
+  {
+    timeout: 120000,
+    skip: process.platform !== 'darwin' && !process.env.HARNESS_REQUIRE_CORE_NATIVE,
+  },
+  async t => {
+    const { directory, project } = workspace(t);
+    const native =
+      process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+    assert.ok(fs.existsSync(native), 'The mandatory Core gate requires the pinned Kimi CLI.');
+    const fixture = await startModel({
+      success: 'CORE_VERIFICATION_RECORDED',
+      calls: body => {
+        const prompt = JSON.stringify(body.messages);
+        const id = prompt.match(/expectedStateId=([a-f0-9-]{36})/)?.[1];
+        assert.ok(id, 'Real Kimi prompt must disclose the persisted DomainState identity.');
+        return [
+          { name: 'Shell', arguments: { command: 'printf bypass > project/rtl/counter.sv' } },
+          {
+            name: 'industrial_action_call',
+            arguments: { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: id },
+          },
+        ];
+      },
+    });
+    t.after(fixture.close);
+    const before = fs.readFileSync(path.join(project, 'rtl/counter.sv'));
+    const result = await execute(
+      process.execPath,
+      [
+        path.join(root, 'apps/cli/src/main.cjs'),
+        'run',
+        '--project-dir',
+        project,
+        '--domain',
+        'chip',
+        '--task',
+        'Run RTL simulation verification assertions',
+        '--approval',
+        'approve',
+        '--provider',
+        'openai_legacy',
+        '--endpoint',
+        fixture.endpoint,
+        '--model',
+        'controlled-core',
+        '--no-thinking',
+        '--kimi-executable',
+        native,
+        '--timeout-ms',
+        '60000',
+        '--chat-dir',
+        path.join(directory, 'chats'),
+        '--state-dir',
+        path.join(directory, 'state'),
+        '--log-dir',
+        path.join(directory, 'logs'),
+      ],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          OPENAI_API_KEY: 'local-core-fixture-key',
+          INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(directory, 'resources'),
+        },
+        timeout: 90000,
+        maxBuffer: 4 * 1024 * 1024,
+      },
+    );
+    const rows = result.stdout.trim().split('\n').map(JSON.parse);
+    assert.equal(rows.at(-1).status, 'finished', result.stderr + result.stdout);
+    assert.deepEqual(fs.readFileSync(path.join(project, 'rtl/counter.sv')), before);
+    assert.ok(JSON.stringify(fixture.requests).includes('Operation not permitted'));
+    const engineering = rows.find(row => row.type === 'industrial_result');
+    assert.ok(engineering, 'CLI must expose the real canonical runtime result.');
+    assert.equal(engineering.verification.status, 'passed', JSON.stringify(engineering));
+    assert.equal(engineering.state.id, engineering.checkpoint.state.id);
+    assert.equal(rows.at(-1).engineering.checkpointId, engineering.checkpoint.id);
+    assert.ok(
+      rows.some(
+        row => row.event?.type === 'execution-boundary' && row.event.projectWritable === false,
+      ),
+    );
+  },
+);

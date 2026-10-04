@@ -2,6 +2,8 @@
 
 Exposes compact discovery, selected tool schemas, and scoped calls backed by a declared domain Runtime.
 
+P0 工业执行边界已变更：真实 Kimi 及子 MCP 在 macOS 中只读实际 Project，遗留 Gateway mutation 会可见失败，不再作为正式工程写入路径；当前 Chip RTL Core 使用宿主 scoped `industrial_action_call` 经过规范 Runtime。外部 MCP host 服务在受保护会话启动前拒绝。下文的 Gateway 注册/传输 API 仍存在，不能据此声称工业 mutation 或工程验收已支持。事实和平台矩阵见 [P0 工业运行时](../../doc/p0-industrial-runtime.md) 与 [安全边界](../../SECURITY.md)。
+
 默认已注册 Chip Pack EDA Harness 0.6.0：25 个 canonical Tool ID，固定源码与 Python MCP 依赖。Desktop 与 CLI 共用此注册和策略，按当前 Scope 生成独立 Kimi 会话 mcp.json。
 PCB 同时注册 `pcb-bench.tools`：89 个工具来自固定的外部 PCB-bench 后端，设计 Skill 加载完整资源树。配置与实际协议已验证，原生镜像执行仍待实测；安装与约束见 [PCB MCP 接入](../../doc/pcb-mcp-integration.md)。
 Godot 同时注册 `godot.local`：5 个工具来自仓库固定资源，绑定本机 Godot 4，按任务选择检查或开发 Skill。见 [Godot game MCP](../../doc/godot-mcp-integration.md)。

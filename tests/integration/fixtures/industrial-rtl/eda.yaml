@@ -1,0 +1,21 @@
+name: industrial-core-counter
+top: counter
+inputs:
+  rtl: [rtl/*.sv]
+  testbench: [tb/*.sv]
+runtime:
+  kind: local
+  resources: {cpu: 1, memory_gb: 1, timeout_seconds: 30, build_jobs: 1}
+actions:
+  rtl.lint:
+    parameters:
+      operation: lint
+      top: counter
+      sources: [{path: rtl/counter.sv}]
+  rtl.simulate:
+    parameters:
+      operation: simulate
+      top: counter_tb
+      trace: true
+      sources: [{path: rtl/counter.sv}, {path: tb/counter_tb.sv}]
+required_verification: [rtl.simulate]

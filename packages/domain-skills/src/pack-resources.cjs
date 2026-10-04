@@ -2,6 +2,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
+function safeResourcePath(value) {
+  if (
+    typeof value !== 'string' ||
+    !/^[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*$/.test(value) ||
+    value.split('/').some(part => part === '.' || part === '..')
+  )
+    throw Error('Unsafe Domain Pack resource path.');
+  return value;
+}
+
 function resourceFiles(directory, roots) {
   const files = [];
   const visit = relative => {
@@ -13,15 +23,42 @@ function resourceFiles(directory, roots) {
         if (name !== '__pycache__' && name !== '.DS_Store' && !name.endsWith('.pyc'))
           visit(path.join(relative, name));
       }
-    } else if (info.isFile()) files.push(relative.split(path.sep).join('/'));
-    else throw Error('Domain Pack resources must be ordinary files.');
+    } else if (info.isFile()) {
+      if (files.length >= 20000) throw Error('Domain Pack resource file limit exceeded.');
+      files.push(relative.split(path.sep).join('/'));
+    } else throw Error('Domain Pack resources must be ordinary files.');
   };
-  for (const root of roots) visit(root);
+  for (const root of roots) {
+    safeResourcePath(root);
+    let prefix = directory;
+    for (const part of root.split('/')) {
+      prefix = path.join(prefix, part);
+      if (fs.lstatSync(prefix).isSymbolicLink())
+        throw Error('Domain Pack resources cannot contain symlinks.');
+    }
+    visit(root);
+  }
   return files.sort();
 }
 
 function validateResources(directory, provider) {
+  if (
+    !provider.sourceFiles ||
+    Array.isArray(provider.sourceFiles) ||
+    !Array.isArray(provider.resourceRoots) ||
+    !provider.resourceRoots.length ||
+    !/^[a-f0-9]{64}$/.test(provider.sourceSha256 || '')
+  )
+    throw Error('Invalid Domain Pack resource inventory.');
   const expected = Object.keys(provider.sourceFiles).sort();
+  for (const file of expected) {
+    safeResourcePath(file);
+    if (
+      !provider.resourceRoots.some(root => file.startsWith(safeResourcePath(root) + '/')) ||
+      !/^[a-f0-9]{64}$/.test(provider.sourceFiles[file])
+    )
+      throw Error('Invalid Domain Pack resource inventory.');
+  }
   const actual = resourceFiles(directory, provider.resourceRoots);
   if (JSON.stringify(actual) !== JSON.stringify(expected))
     throw Error(`${provider.title} resource inventory differs from the registered snapshot.`);

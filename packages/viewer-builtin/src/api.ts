@@ -446,6 +446,22 @@ export type AgentEvent = {
   | { type: 'step'; number: number }
   | { type: 'done'; result: { status: string } }
   | { type: 'error'; message: string }
+  | {
+      type: 'execution-boundary';
+      platform: string;
+      projectWritable: boolean;
+      mechanism: string;
+    }
+  | {
+      type: 'industrial-result';
+      action: { id: string; status: string };
+      verification: {
+        status: 'not_run' | 'passed' | 'failed' | 'insufficient_evidence';
+        reason: string;
+      };
+      state: { id: string; status: 'unverified' | 'verified' | 'failed' | 'stale' };
+      checkpoint: { id: string };
+    }
 );
 
 export interface PromptImage {

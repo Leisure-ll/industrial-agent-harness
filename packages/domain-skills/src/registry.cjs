@@ -103,48 +103,59 @@ function skillFile(id) {
   return file;
 }
 
-function materializeSkills(scope, directory, environment = process.env) {
-  const root = path.join(directory, 'skills');
-  const staged = fs.mkdtempSync(path.join(directory, '.skills-'));
-  try {
-    for (const id of scope.skills) {
-      const item = skills.find(
-        skill => skill.id === id && (!distributionDomain || skill.domain === distributionDomain),
-      );
-      if (!item) continue;
-      let source = path.dirname(skillFile(id));
-      if (item.externalPack) {
-        const { loadDomainPacks } = require('./packs.cjs');
-        const { resourceDirectory } = require('./pack-resources.cjs');
-        const provider = loadDomainPacks().find(pack => pack.id === item.externalPack)?.provider;
-        if (!provider) throw Error('Skill requires its registered Domain Pack.');
-        source = path.join(resourceDirectory(provider, environment), 'skills', item.directory);
-      }
-      const target = path.join(staged, item.directory);
-      fs.cpSync(source, target, {
-        recursive: true,
-        dereference: false,
-        filter: file => {
-          if (fs.lstatSync(file).isSymbolicLink())
-            throw Error('Skill resources cannot contain symlinks.');
-          return (
-            !['__pycache__', '.DS_Store'].includes(path.basename(file)) && !file.endsWith('.pyc')
-          );
-        },
-      });
-      if (item.externalPack)
-        fs.appendFileSync(
-          path.join(target, 'SKILL.md'),
-          `\n\n## Industrial Harness integration\n\nUse domain_tool_list to discover the current allowed tools. Each native name in this Skill maps to canonical ID ${item.nativeToolPrefix}<name>; use domain_tool_describe and domain_tool_call with that ID. The backend owns native CAD actions and receipts. Do not bypass it with Shell or direct file edits. A successful tool process or an observation is not engineering acceptance.\n`,
-        );
-    }
-    fs.rmSync(root, { recursive: true, force: true });
-    fs.renameSync(staged, root);
-  } catch (error) {
-    fs.rmSync(staged, { recursive: true, force: true });
-    throw error;
-  }
-  return root;
+function integrationSuffix(prefix) {
+  return `\n\n## Industrial Harness integration\n\nUse domain_tool_list to discover the current allowed tools. Each native name in this Skill maps to canonical ID ${prefix}<name>; use domain_tool_describe and domain_tool_call with that ID. The backend owns native CAD actions and receipts. Do not bypass it with Shell or direct file edits. A successful tool process or an observation is not engineering acceptance.\n`;
 }
 
-module.exports = { listSkills, skillFile, materializeSkills };
+function skillPackaging(id) {
+  const item = skills.find(
+    skill => skill.id === id && (!distributionDomain || skill.domain === distributionDomain),
+  );
+  if (!item) throw Error(`Unknown repository skill: ${id}`);
+  return {
+    source: path.dirname(skillFile(id)),
+    name: item.directory,
+    external: item.externalPack
+      ? {
+          providerPackId: item.externalPack,
+          resourcePath: `skills/${item.directory}`,
+          nativeToolPrefix: item.nativeToolPrefix,
+        }
+      : undefined,
+  };
+}
+
+function skillSource(id, environment = process.env) {
+  const resource = skillPackaging(id);
+  if (resource.external) {
+    const { loadDomainPacks } = require('./packs.cjs');
+    const { resourceDirectory } = require('./pack-resources.cjs');
+    const provider = loadDomainPacks().find(
+      pack => pack.id === resource.external.providerPackId,
+    )?.provider;
+    if (!provider) throw Error('Skill requires its registered Domain Pack.');
+    resource.source = path.join(
+      resourceDirectory(provider, environment),
+      ...resource.external.resourcePath.split('/'),
+    );
+    resource.suffix = integrationSuffix(resource.external.nativeToolPrefix);
+  }
+  return resource;
+}
+
+function materializeSkills(scope, directory, environment = process.env) {
+  const { materializeSkillDirectories } = require('./skill-resources.cjs');
+  return materializeSkillDirectories(
+    scope.skills.map(id => skillSource(id, environment)),
+    directory,
+  );
+}
+
+module.exports = {
+  listSkills,
+  skillFile,
+  materializeSkills,
+  skillSource,
+  skillPackaging,
+  integrationSuffix,
+};

@@ -5,7 +5,7 @@ const { createArchive, digest, signCatalog } = require('../packages/pack-manager
 const capabilities = require('../packages/domain-skills/src/capabilities.cjs');
 const { loadDomainPacks } = require('../packages/domain-skills/src/packs.cjs');
 const { loadSkillOnlyPacks } = require('../packages/domain-skills/src/skill-only-packs.cjs');
-const { listSkills, skillFile } = require('../packages/domain-skills/src/registry.cjs');
+const { listSkills, skillPackaging } = require('../packages/domain-skills/src/registry.cjs');
 
 const root = path.resolve(__dirname, '..');
 const output = path.resolve(process.argv[2] || path.join(root, 'dist', 'domain-packs'));
@@ -43,7 +43,11 @@ const features = {
 const providerPacks = loadDomainPacks();
 const skillOnlyPacks = loadSkillOnlyPacks();
 const entries = [];
+const selectedDomains = process.env.HARNESS_PACK_DOMAINS?.split(',');
+if (selectedDomains?.some(domain => !Object.hasOwn(labels, domain)))
+  throw Error('Unknown build Domain.');
 for (const [domain, [label, emoji]] of Object.entries(labels)) {
+  if (selectedDomains && !selectedDomains.includes(domain)) continue;
   const platforms = (process.env.HARNESS_PACK_PLATFORMS || `${process.platform}-${process.arch}`)
     .split(',')
     .filter(platform => domain !== 'cad' || platform.startsWith('darwin-'));
@@ -57,30 +61,43 @@ for (const [domain, [label, emoji]] of Object.entries(labels)) {
     domain: item.domain,
     title: item.title,
     file: `skills/${item.id}/SKILL.md`,
+    ...(skillPackaging(item.id).external ? { external: skillPackaging(item.id).external } : {}),
   }));
   for (const skill of skills) {
     const target = path.join(directory, ...skill.file.split('/'));
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.copyFileSync(skillFile(skill.id), target);
+    const { copySkillResources } = require('../packages/domain-skills/src/skill-resources.cjs');
+    const resource = skillPackaging(skill.id);
+    copySkillResources(resource.source, path.dirname(target));
   }
   for (const pack of providers) {
     const source = path.join(root, 'domain-packs', pack.provider.packDirectory);
     const destination = path.join(directory, 'domain-packs', pack.provider.packDirectory);
     fs.cpSync(source, destination, {
       recursive: true,
-      filter: file =>
-        ![
-          '.venv',
-          '.venv-kimi',
-          'node_modules',
-          '__pycache__',
-          '.DS_Store',
-          '.git',
-          'dist',
-          '.pytest_cache',
-          '.ruff_cache',
-        ].includes(path.basename(file)) && !file.endsWith('.pyc'),
+      dereference: false,
+      filter: file => {
+        if (fs.lstatSync(file).isSymbolicLink())
+          throw Error('Pack resources cannot contain symlinks.');
+        return (
+          ![
+            '.venv',
+            '.venv-kimi',
+            'node_modules',
+            '__pycache__',
+            '.DS_Store',
+            '.git',
+            'dist',
+            '.pytest_cache',
+            '.ruff_cache',
+          ].includes(path.basename(file)) && !file.endsWith('.pyc')
+        );
+      },
     });
+  }
+  for (const notice of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) {
+    const noticeFile = path.join(root, notice);
+    if (!fs.existsSync(noticeFile)) throw Error(`Missing Pack license material: ${notice}`);
+    fs.copyFileSync(noticeFile, path.join(directory, notice));
   }
   const bundle = {
     schemaVersion: 1,

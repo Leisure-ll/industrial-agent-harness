@@ -1,5 +1,8 @@
 packages:
   - apps/*
   - packages/*
+# Deployment checks must not trigger an implicit production-only reinstall of
+# the development workspace. CI installs the frozen lockfile explicitly.
+verifyDepsBeforeRun: false
 allowBuilds:
   electron-winstaller: false

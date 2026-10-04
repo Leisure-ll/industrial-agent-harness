@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "mode": "engineering-smoke",
+  "runKind": "first-attempt",
+  "seeds": [
+    0
+  ],
+  "budget": {
+    "maxMs": 10000,
+    "maxTokens": null
+  },
+  "verifierMaxMs": 15000,
+  "model": null,
+  "environment": {
+    "toolchainId": "local-iverilog-smoke",
+    "tools": [
+      {
+        "executable": "iverilog"
+      },
+      {
+        "executable": "vvp"
+      }
+    ]
+  },
+  "drivers": {
+    "native-kimi": {
+      "executable": "node",
+      "args": [
+        "{suiteDir}/smoke-driver.cjs",
+        "{projectDir}"
+      ],
+      "files": [
+        {
+          "path": "smoke-driver.cjs",
+          "sha256": "67cec6152a86413f78b09fd5a934b642023f05d3ab7009c0510ebb25164c4305"
+        }
+      ]
+    },
+    "harness": {
+      "executable": "node",
+      "args": [
+        "{suiteDir}/smoke-driver.cjs",
+        "{projectDir}"
+      ],
+      "files": [
+        {
+          "path": "smoke-driver.cjs",
+          "sha256": "67cec6152a86413f78b09fd5a934b642023f05d3ab7009c0510ebb25164c4305"
+        }
+      ]
+    }
+  },
+  "verifier": {
+    "executable": "node",
+    "args": [
+      "{suiteDir}/verify.cjs",
+      "{projectDir}",
+      "{outputDir}"
+    ],
+    "files": [
+      {
+        "path": "verify.cjs",
+        "sha256": "370797faf2d971158d63d1f6060ed7ca3a447dfa42ede58d6e9cb1ce1c086427"
+      },
+      {
+        "path": "tb.sv",
+        "sha256": "d6d0a8b12cb871bf37d36c909bfedd3a901207df959c2dbc542b5a254f8770b9"
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "counter-enable",
+      "domain": "chip",
+      "projectDir": "./project",
+      "inputTreeSha256": "cb2404a41f4556b60bf772b875c0bf79c3ddece7eec0ae49cade007ea7ba7896",
+      "prompt": "Repair counter.sv so reset has priority, enable=false holds count, enable=true increments the 4-bit counter and wraps from 15 to 0. Keep the interface unchanged. Engineering acceptance comes from an external testbench."
+    }
+  ]
+}

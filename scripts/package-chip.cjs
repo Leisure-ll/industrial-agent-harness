@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
+const { copyReleaseNotices } = require('./release-notices.cjs');
 
 const root = path.resolve(__dirname, '..');
 const source = path.join(root, 'domain-packs', 'chip');
@@ -13,6 +14,7 @@ fs.cpSync(source, target, {
     !['.venv', '.venv-kimi', '__pycache__', '.DS_Store'].includes(path.basename(file)) &&
     !file.endsWith('.pyc'),
 });
+copyReleaseNotices(target);
 for (const file of [
   'install.sh',
   'chip-harness.sh',
