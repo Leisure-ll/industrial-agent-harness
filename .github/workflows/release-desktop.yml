@@ -24,7 +24,7 @@ jobs:
         run: node scripts/desktop-release-env.cjs
       - name: Build signed Domain Pack catalog
         env:
-          HARNESS_PACK_PLATFORMS: darwin-arm64,darwin-x64,win32-x64
+          HARNESS_PACK_PLATFORMS: darwin-arm64,win32-x64
         run: node scripts/build-domain-packs.cjs dist/domain-packs
       - name: Upload signed Pack files
         uses: actions/upload-artifact@v4
@@ -49,7 +49,7 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm --filter @industrial-agent-harness/desktop build
           node scripts/stage-desktop.cjs dist/desktop-stage-arm-smoke
-          ./apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-arm-smoke --config "$GITHUB_WORKSPACE/electron-builder.config.cjs" --mac dir --publish never
+          ./apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-arm-smoke --config "$GITHUB_WORKSPACE/electron-builder.config.cjs" --mac dir --arm64 --publish never
           node scripts/smoke-packaged-desktop.cjs
           node scripts/smoke-packaged-desktop.cjs --domains
 
@@ -58,9 +58,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-15-intel
+          - runner: macos-15
             platform: mac
-            name: mac
+            name: mac-arm64
           - runner: windows-2025
             platform: windows
             name: windows-x64
@@ -95,7 +95,7 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           test -n "$CSC_LINK" && test -n "$CSC_KEY_PASSWORD" && test -n "$APPLE_API_KEY" && test -n "$APPLE_API_KEY_ID" && test -n "$APPLE_API_ISSUER"
-          ./apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-release --config "$GITHUB_WORKSPACE/electron-builder.config.cjs" --mac dmg zip --x64 --arm64 --publish never
+          ./apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-release --config "$GITHUB_WORKSPACE/electron-builder.config.cjs" --mac dmg zip --arm64 --publish never
       - name: Build signed Windows NSIS installer
         if: matrix.platform == 'windows'
         shell: pwsh

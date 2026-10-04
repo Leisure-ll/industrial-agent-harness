@@ -1,6 +1,6 @@
 # P0 工业运行时与执行边界
 
-状态：2026-10-04 的实际实现与本机 macOS 验证。主仓自有贡献按用户选择采用 MIT；第三方边界见根目录 `THIRD_PARTY_NOTICES.md`。本页不声明完整桌面发行包、其他平台或其他领域已经通过工业验收。
+状态：2026-10-04 的实际实现与本机 macOS Apple Silicon（arm64）验证。Intel Mac 暂不支持；主仓自有贡献按用户选择采用 MIT，第三方边界见根目录 `THIRD_PARTY_NOTICES.md`。本页不声明完整桌面发行包、其他平台或其他领域已经通过工业验收。
 
 `harness-core.createProjectRuntime` 从仓库注册或验签安装后的 `loadRegistry.runtimePacks` 加载 Pack 声明的 runtime entry。项目不能注入任意入口。领域实现与 Capability ID 留在 Chip Pack；通用 Factory、Broker、Kimi 与 Runtime 不硬编码领域。CLI 与桌面项目运行时缓存消费同一入口。
 
@@ -23,6 +23,8 @@ node --test tests/integration/license-materials.test.cjs
 ```
 
 Core 集成测试使用真正的 CLI/Kimi 和本地确定性模型响应推动调用，随后执行真实 Verilator；不使用外网模型凭据，不将这些受控响应当成模型能力评测。CI 的 mandatory macOS gate 要求固定 CLI/Python 与 Verilator；没有安装不能以跳过替代通过。
+
+取消与执行中输入变化的集成测试使用真实 Verilator 仿真中的就绪握手，取代固定延时。仿真通过测试专用后代进程通知已启动，并等待测试释放；取消用例检查仿真执行报告为 `CANCELLED`、仿真与后代均已退出、工程验证仍为不足证据。输入变化用例在收到就绪信号后修改源文件，再释放仿真，检查真实仿真完成仍不能建立当前工程验收。启动前取消另行检查无原生执行和空产物集；所有握手等待都有超时上限。
 
 安装态 Pack 库存不可变：Python 桥接禁止生成 bytecode/cache，项目产物与 Core SQLite/CAS 放在包外。安装 `.hpack` 后，通过包外 `INDUSTRIAL_HARNESS_EDA_PYTHON` 指向按其 uv.lock 准备的 Python 环境；不能在验签后的 Pack 内创建 `.venv`。源码开发 checkout 的默认 `.venv` 仅用于开发。安装态集成测试实际执行 Verilator 后重新扫描库存、重开 Factory 与读取验收历史。
 

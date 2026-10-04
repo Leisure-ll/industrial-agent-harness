@@ -39,7 +39,7 @@ flowchart LR
 
 ## 快速开始
 
-准备 **Node.js 24+** 和 **pnpm 11.1.3**。实际运行 Agent 还需 **uv**、**Python 3.13**、固定版本的 Kimi CLI 和模型 API 配置。当前受保护的 Agent 执行已在 **macOS** 验证；使用其他平台前请查看[预览版范围](#预览版范围)。
+准备 **Node.js 24+** 和 **pnpm 11.1.3**。实际运行 Agent 还需 **uv**、**Python 3.13**、固定版本的 Kimi CLI 和模型 API 配置。当前受保护的 Agent 执行已在 **macOS Apple Silicon（arm64）** 验证；使用其他平台前请查看[预览版范围](#预览版范围)。
 
 ```sh
 git clone https://github.com/Zhiman-BJ/industrial-agent-harness.git
@@ -71,7 +71,7 @@ pnpm dev
 
 准备脚本安装 **Kimi CLI 1.51.0**，接入层使用 **Kimi Agent SDK 0.1.8**。版图查看另需 KLayout Python，可运行 `pnpm --filter @industrial-agent-harness/desktop setup:layout`，或设置 `KLAYOUT_PYTHON`。
 
-### 3. 在 macOS 验证真实 RTL 闭环
+### 3. 在 macOS Apple Silicon 验证真实 RTL 闭环
 
 完成上述 Kimi 准备后，安装 Verilator，并准备 C++ 工具链与 Chip Python 环境：
 
@@ -139,10 +139,11 @@ pnpm run test:release
 pnpm run format:check
 ```
 
-[工业 Core 门禁](.github/workflows/industrial-core.yml)另需 macOS、Kimi 和上文的原生依赖。部分可选原生测试需要额外工具，跳过不代表支持。安全问题按 [SECURITY.md](SECURITY.md) 的流程报告。
+[工业 Core 门禁](.github/workflows/industrial-core.yml)另需 macOS Apple Silicon、Kimi 和上文的原生依赖。部分可选原生测试需要额外工具，跳过不代表支持。安全问题按 [SECURITY.md](SECURITY.md) 的流程报告。
 
 ## 预览版范围
 
+- **平台：** 桌面构建与首次启动 CI 目标为 macOS Apple Silicon（arm64）和 Windows x64。Intel Mac 暂不支持，不再发布 Intel 安装包或对应 Pack 目录目标；具备 Intel 测试机并完成安装及运行时验收后再恢复。签名安装器与真实升级仍需单独验收。
 - **受保护执行：** 已验证 macOS Seatbelt 的 Agent 写入边界；Linux 和 Windows 在具备等价边界前，真实 Agent 执行会在 Kimi 启动前拒绝。
 - **工具兼容性：** 旧 MCP 写入被阻止，受保护会话拒绝启用外部 MCP 服务与 Computer Use，等待这些能力接入 Runtime。
 - **工程验收：** 首条 Core 路径验证声明的 RTL/testbench 断言与证据；覆盖率充分性、物理签核和其他领域的完整闭环尚待实现与验收。

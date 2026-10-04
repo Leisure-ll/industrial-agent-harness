@@ -28,8 +28,6 @@ jobs:
         include:
           - runner: macos-15
             platform: mac
-          - runner: macos-15-intel
-            platform: mac
           - runner: windows-2025
             platform: windows
     runs-on: ${{ matrix.runner }}
@@ -52,7 +50,7 @@ jobs:
         if: matrix.platform == 'mac'
         shell: bash
         run: |
-          ./apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-ci --config "$GITHUB_WORKSPACE/electron-builder.config.cjs" --mac dir --publish never
+          ./apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-ci --config "$GITHUB_WORKSPACE/electron-builder.config.cjs" --mac dir --arm64 --publish never
       - name: Package Windows application
         if: matrix.platform == 'windows'
         shell: pwsh

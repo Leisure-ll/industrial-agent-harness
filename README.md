@@ -39,7 +39,7 @@ flowchart LR
 
 ## Quick start
 
-Use **Node.js 24+** and **pnpm 11.1.3**. Agent execution additionally requires **uv**, **Python 3.13**, the pinned Kimi CLI and a model API configuration. Protected agent execution is currently validated on **macOS**; see [preview scope](#preview-scope) before trying other platforms.
+Use **Node.js 24+** and **pnpm 11.1.3**. Agent execution additionally requires **uv**, **Python 3.13**, the pinned Kimi CLI and a model API configuration. Protected agent execution is currently validated on **macOS with Apple Silicon (arm64)**; see [preview scope](#preview-scope) before trying other platforms.
 
 ```sh
 git clone https://github.com/Zhiman-BJ/industrial-agent-harness.git
@@ -71,7 +71,7 @@ Open **Settings → Model API** to configure your model, then add a local projec
 
 The setup command installs **Kimi CLI 1.51.0**; the integration uses **Kimi Agent SDK 0.1.8**. Layout viewing additionally needs KLayout Python: run `pnpm --filter @industrial-agent-harness/desktop setup:layout` or set `KLAYOUT_PYTHON`.
 
-### 3. Verify the real RTL path on macOS
+### 3. Verify the real RTL path on macOS with Apple Silicon
 
 After setting up Kimi above, prepare Verilator, a C++ toolchain and the Chip Python environment:
 
@@ -139,10 +139,11 @@ pnpm run test:release
 pnpm run format:check
 ```
 
-The [industrial Core gate](.github/workflows/industrial-core.yml) additionally requires macOS, Kimi and the native dependencies described above. Some optional native tests require extra tools; a skipped test does not establish support. Report security issues through the process in [SECURITY.md](SECURITY.md).
+The [industrial Core gate](.github/workflows/industrial-core.yml) additionally requires macOS with Apple Silicon, Kimi and the native dependencies described above. Some optional native tests require extra tools; a skipped test does not establish support. Report security issues through the process in [SECURITY.md](SECURITY.md).
 
 ## Preview scope
 
+- **Platforms:** desktop build and first-run CI targets are macOS with Apple Silicon (arm64) and Windows x64. Intel Mac is temporarily unsupported; no Intel installers or Pack catalog targets will be published. Support can resume after installation and runtime validation on an Intel test machine. Signed installers and real upgrades still need separate acceptance.
 - **Protected execution:** macOS Seatbelt is the exercised agent write boundary. Linux and Windows real agent execution fail before starting Kimi until an equivalent boundary is available.
 - **Tool compatibility:** legacy MCP writes are blocked; enabled external MCP services and Computer Use are refused in protected sessions pending Runtime integration.
 - **Engineering acceptance:** the first Core path verifies declared RTL/testbench assertions and evidence. Coverage sufficiency, physical signoff and other domains' complete workflows are pending.
