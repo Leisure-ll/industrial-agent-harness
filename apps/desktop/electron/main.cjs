@@ -1260,6 +1260,10 @@ async function createWindow() {
       sandbox: true,
     },
   });
+  if (process.argv.includes('--cad-selftest'))
+    window.webContents.on('console-message', event =>
+      fs.writeSync(2, 'CAD renderer: ' + event.message + '\n'),
+    );
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
@@ -1751,7 +1755,7 @@ app
   .whenReady()
   .then(createWindow)
   .catch(error => {
-    console.error(error);
+    fs.writeSync(2, String(error?.stack || error) + '\n');
     app.exit(1);
   });
 app.on('window-all-closed', () => {

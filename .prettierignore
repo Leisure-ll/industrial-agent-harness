@@ -8,3 +8,5 @@
 domain-packs/chip/eda-harness/**
 packages/viewer-builtin/src/waveform/surfer/surfer.js
 packages/viewer-builtin/src/waveform/surfer/integration.js
+
+packages/viewer-builtin/src/cad/occt/harness-occt.js

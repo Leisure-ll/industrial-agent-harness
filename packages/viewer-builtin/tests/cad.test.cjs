@@ -51,3 +51,35 @@ test('CAD viewer binds both model and mesh to hash-checked project companions', 
     /outside/,
   );
 });
+test('OCCT BREP companions are hash bound and cannot escape the project', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'occt-boundary-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const model = path.join(root, 'model.FCStd'),
+    brep = path.join(root, 'model.brep');
+  fs.writeFileSync(model, 'model');
+  fs.writeFileSync(path.join(root, 'model.stl'), triangle());
+  fs.writeFileSync(brep, 'DBRep_DrawableShape\nCASCADE Topology V3, (c) Open Cascade\n');
+  const manifest = {
+    schemaVersion: 1,
+    hashes: {
+      'model.FCStd': hash(fs.readFileSync(model)),
+      'model.stl': hash(triangle()),
+      'model.brep': hash(fs.readFileSync(brep)),
+    },
+  };
+  fs.writeFileSync(path.join(root, 'model.cad-preview.json'), JSON.stringify(manifest));
+  const plugin = createCadPlugins({ projectRoot: () => root })[0],
+    artifact = { name: 'model.FCStd', sha256: manifest.hashes['model.FCStd'] };
+  assert.equal(
+    Buffer.from((await plugin.open({ file: model, artifact })).data.brep, 'base64').toString(),
+    fs.readFileSync(brep, 'utf8'),
+  );
+  fs.writeFileSync(brep, 'tamper');
+  await assert.rejects(plugin.open({ file: model, artifact }), /changed/);
+  const outside = path.join(root, '..', path.basename(root) + '.brep');
+  fs.writeFileSync(outside, 'DBRep_DrawableShape\nCASCADE Topology V3, (c) Open Cascade\n');
+  t.after(() => fs.rmSync(outside, { force: true }));
+  fs.unlinkSync(brep);
+  fs.symlinkSync(outside, brep);
+  await assert.rejects(plugin.open({ file: model, artifact }), /outside/);
+});

@@ -169,6 +169,60 @@ test('headless CLI runs a task and emits agent and approval events', async t => 
   assert.equal(rows.at(-1).status, 'completed');
 });
 
+test('headless clarification preserves the question and stops without inventing a user answer', async t => {
+  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-cli-question-'));
+  t.after(() => fs.rmSync(projectDir, { recursive: true, force: true }));
+  const rows = [];
+  let interrupted = false;
+  class QuestionSession {
+    constructor(_directory, _scope, _artifact, _disclose, emit) {
+      this.emit = emit;
+    }
+    async run() {
+      this.emit({ type: 'question', id: 'question-1', questions: [{ question: 'Which shape?' }] });
+      await new Promise(resolve => {
+        this.done = resolve;
+      });
+      this.emit({ type: 'done', result: { status: 'interrupted' } });
+    }
+    async interrupt() {
+      interrupted = true;
+      this.done();
+    }
+    async answerQuestion() {
+      assert.fail('A headless run must not invent a user answer');
+    }
+    async close() {}
+  }
+  const chatDir = path.join(projectDir, 'chats');
+  const code = await run(
+    {
+      projectDir,
+      domain: 'chip',
+      task: 'Inspect netlist signals',
+      chatDir,
+      stateDir: path.join(projectDir, 'state'),
+    },
+    { write: line => rows.push(JSON.parse(line)) },
+    { KIMI_API_KEY: 'test-key', INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(projectDir, 'resources') },
+    QuestionSession,
+  );
+  assert.equal(code, 2);
+  assert.equal(interrupted, true);
+  assert.equal(rows.at(-1).status, 'needs_input');
+  assert.equal(rows.find(r => r.type === 'needs_input').questions[0].question, 'Which shape?');
+  const { ChatStore } = require('@industrial-agent-harness/harness-core');
+  const chats = new ChatStore(chatDir);
+  try {
+    assert.equal(
+      chats.history(rows.at(-1).chatId, projectDir, 'chip').turns[0].status,
+      'needs_input',
+    );
+  } finally {
+    chats.close();
+  }
+});
+
 test('CLI uses the same persisted global and per-project policy as Desktop', async t => {
   const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-cli-policy-'));
   t.after(() => fs.rmSync(projectDir, { recursive: true, force: true }));

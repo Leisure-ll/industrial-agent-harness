@@ -21,4 +21,8 @@ Public source, headless archives, Domain Packs and desktop staging must include 
 
 ## External FreeCAD runtime
 
-FreeCAD 1.1.4 is an external prerequisite for the CAD Pack, downloaded separately from [official releases](https://github.com/FreeCAD/FreeCAD/releases/tag/1.1.4) for native acceptance. Its binaries are not distributed inside this repository or Pack archives. FreeCAD is primarily LGPL-2.1-or-later, with additional upstream component licenses; consult the official distribution notices and [upstream LICENSE](https://github.com/FreeCAD/FreeCAD/blob/1.1.4/LICENSE). Harness bridge and mesh preview code are original repository code under MIT.
+FreeCAD 1.1.4 is an external prerequisite for the CAD Pack, downloaded separately from [official releases](https://github.com/FreeCAD/FreeCAD/releases/tag/1.1.4) for native acceptance. Its binaries are not distributed inside this repository or Pack archives. FreeCAD is primarily LGPL-2.1-or-later, with additional upstream component licenses; consult the official distribution notices and [upstream LICENSE](https://github.com/FreeCAD/FreeCAD/blob/1.1.4/LICENSE). Harness native bridge is original repository code under MIT.
+
+## Bundled OCCT CAD visualization
+
+Desktop bundles official OCCT 7.9.2 AIS/V3d/TKOpenGles as WebAssembly, built from unmodified revision `c5f20409c52bf8f658314d205a0e5d6f0be0969c`. OCCT is LGPL-2.1 with its OCCT exception; preserve the complete notices in `packages/viewer-builtin/src/cad/occt`. Desktop license resources include the complete corresponding upstream source archive, MIT bridge sources, provenance and relink instructions. Initialization follows the upstream MIT WebGL sample with its notice preserved. Emscripten runtime glue has accompanying MIT/NCSA notices. This uses the open-source OCCT visualization module.

@@ -34,4 +34,4 @@ PCB 项目内 KiCad 文件的使用、限制与本地运行时来源见 [KiCad V
 
 领域与素材 Viewer（版图、网表、波形、Godot、图片、图集、动画、KiCad、工程文件）及五种通用文件 Viewer 通过 `src/navigation.tsx` 的 `ViewNavigation` 注册缩放与 Fit。工作区统一呈现缩小、放大、适配和全屏入口；加载期间禁用缩放，切换文件时移除旧控制器。新接入的 Viewer 应实现同一接口，并在真实渲染路径验证按钮、滚轮/捏合和全屏。百分比以当前 Fit 为 100%，波形使用时间轴语义。Godot 放大已挂载的预览，不修改场景相机。通用文档的 Fit 恢复 100% 阅读比例；格式、上限与来源边界见 [通用文件 Viewer](../../doc/document-viewers.md)。
 
-FreeCAD 实体 Viewer 的格式、16 MiB/100000 三角面限制、配套文件哈希和原生执行边界见 [FreeCAD CAD Pack](../../doc/freecad-domain-pack.md)。Viewer 本身不启动 FreeCAD。
+CAD Viewer 使用官方 OCCT 7.9.2 AIS/V3d WebGL2 的本地 WASM，显示 BREP 曲面和 CAD 轮廓；STL 使用 AIS_Triangulation。16 MiB/100000 三角形/5000 BREP 面限制、配套哈希和原生执行边界见 [FreeCAD CAD Pack](../../doc/freecad-domain-pack.md)。Viewer 本身不启动 FreeCAD；完整对应源码、许可证和重编译说明保存在 src/cad/occt，桌面发行时一同提供。

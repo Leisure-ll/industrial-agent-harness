@@ -41,3 +41,22 @@ test('CAD disclosure selects real native tools and registers a host Runtime with
     pack.provider,
   );
 });
+test('CAD edit validates real feature/parameter changes and discloses the exact user prompt', () => {
+  const { applyChanges } = require('../../../domain-packs/freecad/runtime/recipe.cjs');
+  const recipe = {
+    parameters: { W: 20 },
+    features: [
+      { id: 'Body', op: 'sketch_pad', profile: 'rectangle', length: 40, width: 'W', height: 5 },
+    ],
+    result: 'Body',
+  };
+  assert.equal(
+    validateRecipe(applyChanges(recipe, { parameters: { W: 30 } })).features[0].width,
+    30,
+  );
+  assert.throws(() => applyChanges(recipe, { parameters: { Missing: 10 } }), /Unknown/);
+  assert.throws(() => applyChanges(recipe, { features: [{ id: 'Body', height: -1 }] }), /positive/);
+  assert.throws(() => validateInputs('edit', { file: 'part.FCStd', changes: { script: 'evil' } }));
+  const r = resolve({ domain: 'cad', task: '修改零件的形状' }, loadRegistry().capabilities);
+  assert.ok(r.scope.tools.includes('cad.freecad.edit'));
+});

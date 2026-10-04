@@ -73,6 +73,7 @@ export interface KiCadData {
   url: string;
 }
 export interface CadData {
+  brep?: string;
   name: string;
   sha256: string;
   vertices: number[];

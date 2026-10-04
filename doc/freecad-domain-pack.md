@@ -7,8 +7,9 @@
 | 工具 | 首批能力 |
 | --- | --- |
 | `cad.freecad.build` | 参数配方、矩形/圆形全约束 Sketcher 草图、PartDesign Pad、长方体、圆柱、圆柱打孔、并集/差集/交集；保留原生特征树 |
+| `cad.freecad.edit` | 读取经哈希绑定的原配方，修改已知命名参数或特征尺寸/草图轮廓/位置，保存新版本并验证；保留原模型 |
 | `cad.freecad.inspect` | 回读受支持的 FCStd/STEP，生成几何报告和预览产物；不修改输入文件 |
-| `cad.freecad.export` | 受支持的 FCStd/STEP 转换为 FCStd、STEP、STL，并通过第二个 FreeCAD 进程回读检查 |
+| `cad.freecad.export` | 受支持的 FCStd/STEP 转换为 FCStd、STEP、STL、BREP，并通过第二个 FreeCAD 进程回读检查 |
 
 Desktop 和 CLI 均通过 `createProjectRuntime` 加载 `freecad-local` Pack。Broker 披露规范 Tool ID；Kimi 先调用 `industrial_tool_describe` 获取选中工具的输入说明，再通过 `industrial_action_call`、当前 State ID 和审批进入持久 Runtime。它是宿主 Runtime 工具提供方，不启动独立的 CAD MCP 进程；新增 CAD 操作没有绕过 Runtime 的直连执行路径。
 
@@ -40,19 +41,23 @@ Desktop 和 CLI 均通过 `createProjectRuntime` 加载 `freecad-local` Pack。B
 
 ## 回读、限制与证据
 
-保存后启动独立 FreeCAD 进程重开 FCStd，并重新读入 STEP 和 STL。Verifier 读取收集并保存的报告，检查实体有效性、正体积、Sketcher 全约束、原模型与 FCStd/STEP 的体积/尺寸/实体数一致性、网格存在，以及用户提供的尺寸预期。进程退出成功不等于通过；尺寸错误保留输出并返回 `failed`。这些检查不证明机械强度、装配正确性、公差设计或可制造性。
+保存后启动独立 FreeCAD 进程重开 FCStd，并重新读入 STEP、STL 和 BREP。Verifier 读取收集并保存的报告，检查实体有效性、正体积、Sketcher 全约束、原模型与 FCStd/STEP/BREP 的体积/尺寸/实体数一致性、网格存在，以及用户提供的尺寸预期。进程退出成功不等于通过；尺寸错误保留输出并返回 `failed`。这些检查不证明机械强度、装配正确性、公差设计或可制造性。
 
 输入限 16 MiB，源目录清单限 100 文件/64 MiB，FCStd 解压限 64 MiB/2000 项。FCStd 只允许本批原生特征及其基准对象，拒绝 Python 代理、Python 属性和表达式；任意插件、装配工作台及复杂既有 FCStd 不在首批范围。STEP 走 Part 原生导入。原生进程固定超时 90 秒，限制输出，取消后终止所拥有的进程组；运行目录之外禁止原生写入和网络访问。输入模型不在 Viewer 中执行。
 
 ## CAD Viewer
 
-项目文件树经 Viewer Registry 选择 CAD Viewer。直接打开二进制/ASCII STL；Pack 输出的 FCStd/STEP 使用同名 STL 与 `*.cad-preview.json`，同时校验模型和网格 SHA-256。不含配套预览的 FCStd 会明确要求先运行 inspect/export；不含配套预览的 STEP 保留现有受限 STEP 预览。
+项目文件树经 Viewer Registry 选择 CAD Viewer。直接打开二进制/ASCII STL；Pack 输出的 FCStd/STEP 使用同名 BREP/STL 与 `*.cad-preview.json`，同时校验模型、曲面和网格 SHA-256。不含配套预览的 FCStd 会明确要求先运行 inspect/export；不含配套预览的 STEP 保留现有受限 STEP 预览。
 
-只读实体表面显示、拖动旋转、Shift/右键拖动平移、滚轮/触控板缩放、共享缩放/Fit、全屏和 Esc；全屏保留旋转和缩放。Canvas 绘制有界三角面，最大 100000 个三角形/16 MiB 文件，无外部网络或渲染依赖。它是网格预览，不能编辑 B-rep、精确测量、选择原生特征、验证装配或替代 FreeCAD。实际 Desktop 路径在 macOS arm64 Electron 验证，其他 Viewer 平台尚未实测。
+只读实体显示、拖动旋转、Shift/右键拖动平移、滚轮/触控板缩放、共享缩放/Fit、全屏和 Esc；全屏保留旋转和缩放。使用官方开源 **OCCT 7.9.2 AIS/V3d/TKOpenGles**，按上游 WebGL 示例路径编译本地 WebAssembly，以 WebGL2 显示 BREP 曲面、CAD 轮廓、深度遮挡与 4x MSAA。STL 和旧产物使用 OCCT AIS_Triangulation。文件上限 16 MiB、100000 三角形、5000 BREP 面，WASM 内存上限 512 MiB；加载失败禁用导航，切换文件释放 GPU 对象，无外部网络请求。需 WebGL2；固定来源、完整源码、许可证和重编译说明见 [OCCT renderer](../packages/viewer-builtin/src/cad/occt/README.md)。Viewer 不能编辑模型、精确测量、验证装配或替代 FreeCAD。实际 Desktop 路径在 macOS arm64 Electron 验证，其他 Viewer 平台尚未实测。
 
 ## 回归与 CI
 
-`tests/integration/freecad-runtime.test.cjs` 用真实 FreeCAD 测试草图/拉伸/孔/布尔、FCStd 与 STEP 回读、尺寸不通过、拒绝输入与审批、State 失效、取消和历史证据。`apps/desktop/electron/cad-selftest.cjs` 从真实建模产物检查文件树→Registry→实体网格→旋转/平移/缩放/Fit/全屏/Esc/失败状态。解析器与配方边界加入四平台 Portable 回归；CAD 独立 CLI 包加入四平台打包和 Scope 检查。
+`tests/integration/freecad-runtime.test.cjs` 用真实 FreeCAD 测试草图/拉伸/孔/布尔、FCStd/STEP/BREP 回读、尺寸不通过、拒绝输入与审批、State 失效、取消和历史证据，还覆盖原模型→改宽度/孔径→改圆形轮廓，以及同一 Kimi chat 中的两轮实际原生执行。CI 的模型响应固定以保证可重复，不能据此宣称真实模型推理通过。`apps/desktop/electron/cad-selftest.cjs` 从真实建模产物检查文件树→Registry→OCCT BREP 显示→旋转/平移/缩放/Fit/全屏/Esc/失败状态，并提交「修改零件的形状」验证缺少 API 配置时显示原因、保留输入、恢复发送按钮。解析器与配方边界加入四平台 Portable 回归；CAD 独立 CLI 包加入四平台打包和 Scope 检查。
+
+`scripts/qualify-cad-tasks.cjs` 是另行运行的真实模型验收：真实 API、固定 Kimi、真实 FreeCAD 和独立读回。三轮同一 chat 先提交「修改零件的形状」检查澄清且不执行，再改宽度/孔径，接着把上一版本改成圆板。结果必须具有正确体积、边界、BREP 产物，原件及所有历史模型的哈希保持不变；保存 report.json 和逐轮诊断。提供当前模型 profile、API key 和原生可执行路径，在新目录运行 `node scripts/qualify-cad-tasks.cjs /absolute/new-output-directory`；配置从 `HARNESS_CAD_EVAL_PROFILE` 与 `HARNESS_CAD_EVAL_KEY` 读取，不写入仓库。实际验收记录见 [真实 CAD 任务验收](cad-task-qualification-20261004.md)。
+
+后续「继续」「刚刚的新版本」仅在同一工程、领域和 State 阶段内沿用上轮已选能力，且受当前资源策略再过滤；明确的新任务优先重新匹配。输入事实仍来自当前 State 和产物。模糊修改先澄清，不猜尺寸；没有 API 配置时在发送前提示，避免生成只有 scoped 状态的空任务。工业结果与任务完成后，Desktop 自动刷新当前工程文件树，新产物可以从 Registry 打开；正在查看的原件不被覆盖。
 
 macOS 15 与 26 arm64 native CI 通过 `scripts/setup-freecad.cjs` 下载官方 arm64 DMG，校验固定 SHA-256 `071343b4abb70492b75c973f41eaf1d2528f9b9c7ea018d22a4f46ae14d27ac0`，只读挂载并把可执行路径提供给测试。原生测试缺少依赖直接失败，不以 skip 代替成功；CI 下载二进制不会进入 Pack 发行档案。
 

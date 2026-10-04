@@ -4,7 +4,7 @@ Thin integration around `@moonshot-ai/kimi-agent-sdk`, pinned to `0.1.8` in this
 
 当前已接入会话启动、流式文本、工具事件、审批与中断入口。有效 Broker Scope（domain、stage、capability、skill、tool）或模型配置变化时创建新会话；仅 Scope 版本号变化会复用原会话。只注册当前 Scope 对应的 Harness 外部工具，工具处理器再次校验当前 Scope。需要本机 Kimi CLI 才能做真实会话验证。
 
-P0 的实际工业会话采用 macOS Seatbelt：真实 Kimi/原生 Shell/WriteFile/子 MCP 只能写隔离 session/scratch，实际工程只读；宿主 `industrial_action_call` 以当前 DomainState ID、Scope 和审批进入持久 Runtime。固定 Kimi 要求 cwd 可写，所以使用稳定 session workspace，Prompt明确原 Project 的绝对路径与只读 project/ 链接。原生上下文恢复及快照按 workspace 关联。未验证的 Linux/Windows 拒绝启动；外部 MCP host 服务和应用控制插件明确拒绝，其已有 API/受控测试不代表当前真实工业会话支持。旧 Domain MCP mutation 也受此只读边界限制。详见 [安全边界](../../SECURITY.md) 和 [实际闭环](../../doc/p0-industrial-runtime.md)。
+P0 的实际工业会话采用 macOS Seatbelt：真实 Kimi/原生 Shell/WriteFile/子 MCP 只能写隔离 session/scratch，实际工程只读；宿主 `industrial_action_call` 以当前 DomainState ID、Scope 和审批进入持久 Runtime。固定 Kimi 要求 cwd 可写，所以使用稳定 session workspace，Prompt明确原 Project 的绝对路径与只读 project/ 链接。原生上下文恢复及快照按 workspace 关联。未验证的 Linux/Windows 拒绝启动；已注册 Runtime 的会话在披露、配置和 Skill/Tool 装载之前排除外部 MCP host 服务与应用控制插件，保留用户配置并记录原因，Runtime 工具继续可用。其他受保护会话仍明确拒绝未支持的 host 配置。旧 Domain MCP mutation 也受此只读边界限制。详见 [安全边界](../../SECURITY.md) 和 [实际闭环](../../doc/p0-industrial-runtime.md)。
 
 Harness 外部工具返回最多 16 KiB UTF-8 JSON；能力详情可按 `skills`、`tools`、`verification` 分段获取。每轮 Industrial Context 最多 8 KiB。SDK 的上下文占用和压缩事件会汇总为 `context-metrics`；界面工具结果截断会标注原始字节数。这些外部工具边界不作用于 Kimi 原生工具；已注册 Domain MCP 网关另有 16 KiB 输出和原始响应分页限制，也不改写 Kimi 的上下文压缩。
 
@@ -28,10 +28,14 @@ Desktop/CLI 通过 `resolveSession` / `sessionInitialized` 回调提供共享聊
 
 Desktop/CLI 通过 `diagnostics.resources` 注入 Core 的共享资源管理器，Kimi 只在获得执行及常驻额度后启动原生 Prompt。启用该管理器必须同时提供持久会话回调；空闲关闭不删除持久目录，下一轮仍使用固定 SDK 的原生恢复。`onIdleRelease` 允许宿主释放观察数据库连接，`close()` 释放原生进程和资源租约。详见[多会话资源保护](../../doc/session-resource-guards.md)。
 
-`KimiSession` 仍保留已有横切插件注入 API 与受控会话测试。当前真实受保护会话在启动前拒绝启用插件；不能通过插件宿主 callback 绕过工业授权与审计。将这些侧效应纳入 Runtime 后，才可重新声明真实会话支持。
+`KimiSession` 仍保留已有横切插件注入 API 与受控会话测试。已注册工业 Runtime 的会话不加载应用控制插件，也不加载外部 MCP；不改动用户保存的 enable/disable 配置，记录 `resource.filtered` 与可见提示。不能通过插件宿主 callback 绕过工业授权与审计。将这些侧效应纳入 Runtime 后，才可声明这些服务在真实工业会话可用。
 
 Kimi Wire `QuestionRequest` 进入当前会话的待答状态，`answerQuestion` 调用固定 SDK 的 `respondQuestion`，支持重试、跳过和完成后的过期处理。固定 Kimi CLI 1.51.0 将问题 ID 同时用作 RPC 请求 ID；真实 Wire 回答链路已验证。`approvalMode=auto` 传给 SDK 的 `yoloMode`，不改变问题需要用户作答的语义。
 
 Stop 优先发送原生取消，3 秒后本轮仍未结束则通过 SDK 关闭该会话，并在关闭完成后结束宿主等待。重复 Stop 复用同一请求；其他会话继续运行，旧轮次迟到的事件不会进入新轮次。该路径处理 SDK 0.1.8 信号强杀后结果等待不结束的边界，未修改 SDK，也不自动重试工程动作。执行错误关闭本轮原生会话，观察/日志清理失败仍释放执行额度。真实验证入口：`pnpm test:session-chaos`，范围见[资源与切换保护](../../doc/session-resource-guards.md)。
 
 `industrial_tool_describe` 在当前 Broker Scope 内按需提供选中工具的输入指南与例子；`industrial_action_call` 根据指南提交输入，回传相对产物路径和验收范围。指南不构成工程证据。
+
+每轮工程上下文还包含当前 DomainState 的有界产物引用（最多 2 KiB，优先模型引用），提供规范 ID、种类、相对路径与哈希，不读取内容或猜测活动模型。后续「刚刚的新版本」可据此定位实际输出；原始输入文件和当前产物明确区分。
+
+`industrial_action_call` 接受互斥的 `inputs` 对象或 `inputsJson` JSON 字符串（最多 256 KiB），优先后者保留复杂嵌套的数值/数组类型。严格解析为同一规范 inputs 对象后进入原有 Scope、State、审批和 Runtime 校验；不把字符串数字或 `{item:…}` 转为工程数值/数组，不改动 Kimi/SDK。真实 MiniMax-M3 CAD 修改曾因未定型嵌套参数的错误编码连续重试，增加显式 JSON 传输后另行验收。无交互 CLI 的问题处理见 [CLI](../../apps/cli/README.md)。

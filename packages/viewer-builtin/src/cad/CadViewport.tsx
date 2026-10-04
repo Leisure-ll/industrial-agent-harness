@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import createOcctViewer from './occt/harness-occt.js';
+import type { OcctModule, OcctViewer } from './occt/harness-occt.js';
 import type { CadData } from '../api';
 import { useViewNavigation, useWheelZoom } from '../navigation';
 
@@ -13,14 +15,21 @@ export function CadViewport({
 }) {
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [view, setView] = useState({ zoom: 1, yaw: 0.65, pitch: -0.55, x: 0, y: 0 });
+  const [view, setView] = useState({ zoom: 1, yaw: -0.8, pitch: 0.65, x: 0, y: 0 });
+  const engine = useRef<OcctViewer | null>(null);
+  const [faces, setFaces] = useState(0);
+  const pose = useRef(view);
+  pose.current = view;
   const [ready, setReady] = useState(false);
   const drag = useRef<{ x: number; y: number; pan: boolean } | null>(null);
   const callbacks = useRef({ onReady, onError });
   callbacks.current = { onReady, onError };
   const zoom = (factor: number) =>
     setView(v => ({ ...v, zoom: Math.max(0.1, Math.min(20, v.zoom * factor)) }));
-  const fit = () => setView({ zoom: 1, yaw: 0.65, pitch: -0.55, x: 0, y: 0 });
+  const fit = () => {
+    engine.current?.fit();
+    setView({ zoom: 1, yaw: -0.8, pitch: 0.65, x: 0, y: 0 });
+  };
   useWheelZoom(host, ready ? zoom : undefined);
   useViewNavigation({
     zoomIn: () => zoom(1.25),
@@ -33,80 +42,94 @@ export function CadViewport({
     const element = canvas.current,
       container = host.current;
     if (!element || !container) return;
-    const draw = () => {
+    let cancelled = false,
+      instance: OcctViewer | undefined,
+      module: OcctModule | undefined;
+    setReady(false);
+    const size = () => {
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      element.width = Math.max(1, Math.round(container.clientWidth * ratio));
+      element.height = Math.max(1, Math.round(container.clientHeight * ratio));
+      instance?.resize();
+      const v = pose.current;
+      instance?.pose(v.yaw, v.pitch, v.zoom, Math.round(v.x * ratio), Math.round(v.y * ratio));
+    };
+    size();
+    const observer = new ResizeObserver(size);
+    observer.observe(container);
+    void (async () => {
       try {
-        const width = container.clientWidth,
-          height = container.clientHeight;
-        if (!width || !height) return;
-        const ratio = Math.min(window.devicePixelRatio || 1, 2);
-        element.width = width * ratio;
-        element.height = height * ratio;
-        const ctx = element.getContext('2d');
-        if (!ctx) throw Error('CAD canvas is unavailable.');
-        ctx.scale(ratio, ratio);
-        ctx.clearRect(0, 0, width, height);
-        const centre = data.bounds.slice(0, 3).map((v, i) => (v + data.bounds[i + 3]) / 2);
-        const diameter = Math.hypot(...centre.map((_, i) => data.bounds[i + 3] - data.bounds[i]));
-        const scale = ((Math.min(width, height) * 0.72) / diameter) * view.zoom;
-        const cy = Math.cos(view.yaw),
-          sy = Math.sin(view.yaw),
-          cp = Math.cos(view.pitch),
-          sp = Math.sin(view.pitch);
-        const points: Array<[number, number, number]> = [];
-        for (let i = 0; i < data.vertices.length; i += 3) {
-          const x = data.vertices[i] - centre[0],
-            y = data.vertices[i + 1] - centre[1],
-            z = data.vertices[i + 2] - centre[2];
-          const a = x * cy - y * sy,
-            b = x * sy + y * cy;
-          points.push([a, b * cp - z * sp, b * sp + z * cp]);
+        module = await createOcctViewer({
+          canvas: element,
+          locateFile: () => new URL('./occt/harness-occt.wasm', import.meta.url).href,
+          printErr: message => console.warn('OCCT Viewer:', message),
+        });
+        if (cancelled) return;
+        instance = new module.Viewer('#' + element.id);
+        let count;
+        if (data.brep) {
+          const decoded = atob(data.brep);
+          const bytes = Uint8Array.from(decoded, c => c.charCodeAt(0));
+          module.FS.writeFile('/model.brep', bytes);
+          try {
+            count = instance.load('/model.brep');
+          } finally {
+            module.FS.unlink('/model.brep');
+          }
+        } else count = instance.loadMesh(data.vertices);
+        if (cancelled) {
+          instance.dispose();
+          instance.delete();
+          return;
         }
-        const faces = [];
-        for (let i = 0; i < points.length; i += 3)
-          faces.push({
-            p: points.slice(i, i + 3),
-            depth: (points[i][2] + points[i + 1][2] + points[i + 2][2]) / 3,
-          });
-        faces.sort((a, b) => a.depth - b.depth);
-        for (const { p } of faces) {
-          const a = p[1].map((v, i) => v - p[0][i]),
-            b = p[2].map((v, i) => v - p[0][i]);
-          const normal = [
-            a[1] * b[2] - a[2] * b[1],
-            a[2] * b[0] - a[0] * b[2],
-            a[0] * b[1] - a[1] * b[0],
-          ];
-          const shade =
-            0.45 +
-            0.45 *
-              Math.abs(
-                (normal[0] * 0.3 + normal[1] * 0.5 + normal[2] * 0.8) /
-                  (Math.hypot(...normal) || 1),
-              );
-          ctx.fillStyle = `rgb(${Math.round(88 * shade)},${Math.round(170 * shade)},${Math.round(225 * shade)})`;
-          ctx.beginPath();
-          p.forEach(([x, y], i) => {
-            const px = width / 2 + view.x + x * scale,
-              py = height / 2 + view.y - y * scale;
-            if (i) ctx.lineTo(px, py);
-            else ctx.moveTo(px, py);
-          });
-          ctx.closePath();
-          ctx.fill();
-        }
-        element.dataset.renderedTriangles = String(faces.length);
+        engine.current = instance;
+        setFaces(count);
+        element.dataset.engine = 'OCCT 7.9.2 AIS/V3d WebGL2';
+        element.dataset.renderedTriangles = String(data.triangles);
+        element.dataset.renderedFaces = String(count);
+        element.dataset.geometry = data.brep ? 'brep' : 'mesh';
+        size();
         setReady(true);
         callbacks.current.onReady();
       } catch (error) {
-        setReady(false);
-        callbacks.current.onError(String(error));
+        if (!cancelled) {
+          setReady(false);
+          callbacks.current.onError('OCCT Viewer failed: ' + String(error));
+        }
       }
+    })();
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      engine.current = null;
+      try {
+        instance?.dispose();
+        instance?.delete();
+      } catch {
+        /* A lost WebGL context already released its resources. */
+      }
+      if (instance) element.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext();
     };
-    const observer = new ResizeObserver(draw);
-    observer.observe(container);
-    draw();
-    return () => observer.disconnect();
-  }, [data, view]);
+  }, [data]);
+  useEffect(() => {
+    if (!ready) return;
+    const frame = requestAnimationFrame(() => {
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      try {
+        engine.current?.pose(
+          view.yaw,
+          view.pitch,
+          view.zoom,
+          Math.round(view.x * ratio),
+          Math.round(view.y * ratio),
+        );
+      } catch (error) {
+        setReady(false);
+        callbacks.current.onError('OCCT camera failed: ' + String(error));
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [view, ready]);
   return (
     <div
       className="rp-cad"
@@ -124,7 +147,9 @@ export function CadViewport({
     >
       <div style={{ padding: '8px 12px', display: 'flex', gap: 16 }}>
         <strong>{data.name}</strong>
-        <span>{data.triangles.toLocaleString()} triangles</span>
+        <span>
+          OCCT · {data.brep ? `${faces} faces` : `${data.triangles.toLocaleString()} triangles`}
+        </span>
         <span>Drag to rotate · Shift/right drag to pan</span>
       </div>
       <div
@@ -142,14 +167,18 @@ export function CadViewport({
         }}
         onPointerMove={e => {
           const d = drag.current;
-          if (!d) return;
+          if (!d || !ready) return;
           const dx = e.clientX - d.x,
             dy = e.clientY - d.y;
           drag.current = { ...d, x: e.clientX, y: e.clientY };
           setView(v =>
             d.pan
               ? { ...v, x: v.x + dx, y: v.y + dy }
-              : { ...v, yaw: v.yaw + dx * 0.008, pitch: v.pitch + dy * 0.008 },
+              : {
+                  ...v,
+                  yaw: v.yaw + dx * 0.008,
+                  pitch: Math.max(-1.4, Math.min(1.4, v.pitch + dy * 0.008)),
+                },
           );
         }}
         onPointerUp={() => {
@@ -161,11 +190,14 @@ export function CadViewport({
       >
         <canvas
           ref={canvas}
-          aria-label="CAD solid mesh"
+          id="harness-occt-canvas"
+          aria-label="OCCT CAD solid"
           style={{ width: '100%', height: '100%', display: 'block' }}
         />
       </div>
-      <small style={{ padding: '6px 12px' }}>Read-only 3D preview</small>
+      <small style={{ padding: '6px 12px' }}>
+        Read-only 3D preview · Shaded surfaces and CAD edges
+      </small>
     </div>
   );
 }

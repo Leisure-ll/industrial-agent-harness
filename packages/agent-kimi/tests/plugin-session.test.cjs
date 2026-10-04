@@ -29,7 +29,7 @@ function makePlugin({ enabled = true } = {}) {
   };
 }
 
-function startSession(t, plugin, externalServers = []) {
+function startSession(t, plugin, externalServers = [], diagnostics = {}) {
   const shareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-plugin-'));
   t.after(() => fs.rmSync(shareDir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(shareDir, 'config.toml'), 'default_model = "industrial"\n');
@@ -99,12 +99,54 @@ function startSession(t, plugin, externalServers = []) {
       externalServers,
     }),
     factory,
-    { directory: path.join(shareDir, 'logs'), getBrokerTrace: () => [] },
+    { directory: path.join(shareDir, 'logs'), getBrokerTrace: () => [], ...diagnostics },
     plugin ? [plugin] : [],
   );
   t.after(() => session.close());
   return { session, created, events, approvals, shareDir };
 }
+
+test('an industrial turn runs while excluding configured host MCP and application plugins before materialization', async t => {
+  const plugin = {
+    name: 'unavailable-gui',
+    enabled: () => true,
+    toolNames: ['unavailable_click'],
+    materializeSkill: () => assert.fail('Excluded plugin materialized'),
+    toolsFactory: () => assert.fail('Excluded plugin exposed'),
+  };
+  const external = [{ id: 'external.unavailable', tools: [{ id: 'external.unavailable.call' }] }];
+  const industrialRuntime = {
+    cancel() {},
+    async waitForIdle() {},
+    inspect: async () => ({
+      id: 'example',
+      projectId: 'example',
+      domain: 'example',
+      stage: null,
+      status: 'unverified',
+      verificationIds: [],
+      inputHashes: {},
+    }),
+  };
+  const { session, created, events } = startSession(t, plugin, external, { industrialRuntime });
+  await session.run('Use registered industrial tools');
+  const options = created[0].options;
+  assert.ok(options.externalTools.some(t => t.name === 'industrial_action_call'));
+  assert.ok(
+    !options.externalTools.some(
+      t => t.name === 'unavailable_click' || t.name === 'external_tool_call',
+    ),
+  );
+  assert.ok(
+    !fs
+      .readFileSync(path.join(options.shareDir, 'mcp.json'), 'utf8')
+      .includes('external.unavailable'),
+  );
+  assert.ok(events.some(e => e.type === 'text' && e.text.includes('暂不可用')));
+  assert.ok(events.some(e => e.type === 'done'));
+  assert.equal(plugin.enabled(), true);
+  assert.equal(external.length, 1);
+});
 
 test('an enabled plugin contributes skill dir and tools; its approvals are auto-approved', async t => {
   const { session, created, events, approvals } = startSession(t, makePlugin());

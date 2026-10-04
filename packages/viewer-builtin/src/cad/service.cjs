@@ -44,7 +44,8 @@ function createCadPlugins({ projectRoot }) {
         const root = fs.realpathSync(projectRoot());
         const source = readBounded(file, root, artifact.sha256, 16 * 1024 * 1024);
         let mesh = source,
-          companions = [];
+          companions = [],
+          brep;
         if (!/\.stl$/i.test(file)) {
           const manifestFile = file.replace(/\.[^.]+$/, '.cad-preview.json');
           if (!fs.existsSync(manifestFile))
@@ -64,13 +65,31 @@ function createCadPlugins({ projectRoot }) {
             { name: path.basename(manifestFile), sha256: manifest.sha256 },
             { name: path.basename(meshFile), sha256: mesh.sha256 },
           ];
+          const brepFile = file.replace(/\.[^.]+$/, '.brep');
+          const brepHash = data.hashes[path.basename(brepFile)];
+          if (brepHash !== undefined) {
+            if (!/^[a-f0-9]{64}$/.test(brepHash))
+              throw Error('CAD BREP companion hash is invalid.');
+            const shape = readBounded(brepFile, root, brepHash, 16 * 1024 * 1024);
+            const text = utf8(shape.bytes);
+            if (!/^CASCADE Topology V[123],/m.test(text) || text.split('\n').length > 500000)
+              throw Error('Unsupported or oversized CAD BREP companion.');
+            brep = shape.bytes.toString('base64');
+            companions.push({ name: path.basename(brepFile), sha256: shape.sha256 });
+          }
           readBounded(file, root, source.sha256, 16 * 1024 * 1024);
           readBounded(manifestFile, root, manifest.sha256, 256 * 1024);
         }
         return {
           kind: 'cad',
           artifact,
-          data: { name: artifact.name, sha256: source.sha256, ...parseStl(mesh.bytes), companions },
+          data: {
+            name: artifact.name,
+            sha256: source.sha256,
+            ...parseStl(mesh.bytes),
+            companions,
+            brep,
+          },
         };
       },
     },

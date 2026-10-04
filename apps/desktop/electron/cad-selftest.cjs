@@ -51,7 +51,14 @@ async function prepare(config) {
       },
     );
     assert.equal(out.verification.status, 'passed', JSON.stringify(out.action));
-    for (const name of ['model.FCStd', 'model.step', 'model.stl', 'model.cad-preview.json']) {
+    for (const name of [
+      'model.FCStd',
+      'model.step',
+      'model.stl',
+      'model.brep',
+      'model.recipe.json',
+      'model.cad-preview.json',
+    ]) {
       const file = out.artifacts.find(a => path.basename(a.relativePath) === name);
       fs.copyFileSync(path.join(project, file.relativePath), path.join(project, name));
     }
@@ -79,9 +86,25 @@ async function run(window) {
       if (await evaluate(script)) return;
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    throw Error('CAD selftest timed out: ' + script);
+    throw Error(
+      'CAD selftest timed out: ' +
+        script +
+        '; UI=' +
+        (await evaluate(`document.body.innerText.slice(-2000)`)),
+    );
   }
   await wait(`document.querySelector('.ia-domain-pill')?.innerText.includes('CAD')`);
+  const prompt = '修改零件的形状';
+  await evaluate(
+    `(()=>{const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,${JSON.stringify(prompt)});area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+  );
+  await new Promise(resolve => setTimeout(resolve, 70));
+  await evaluate(`document.querySelector('.ia-send').click()`);
+  await wait(`document.querySelector('.ia-flow-error')?.textContent.includes('Settings')`);
+  assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').value`), prompt);
+  assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').disabled`), false);
+  assert.equal(await evaluate(`document.querySelectorAll('.ia-chat-turn').length`), 0);
+
   await evaluate(`document.querySelector('.ia-chat-actions button:last-child').click()`);
   await wait(`Boolean(document.querySelector('.ia-file-tree-toggle'))`);
   await evaluate(`document.querySelector('.ia-file-tree-toggle').click()`);
@@ -97,6 +120,12 @@ async function run(window) {
     );
   }
   await open('model.FCStd');
+  assert.equal(await evaluate(`document.querySelector('.rp-cad canvas').dataset.geometry`), 'brep');
+  assert.match(
+    await evaluate(`document.querySelector('.rp-cad canvas').dataset.engine`),
+    /OCCT.*AIS\/V3d/,
+  );
+  const beforeRotation = (await window.webContents.capturePage()).toPNG();
   const measure = () => evaluate(`Number(document.querySelector('.rp-cad').dataset.zoom)`);
   await verifyNavigation(window, measure);
   await verifyWheel(window, measure, (delta, ctrl) =>
@@ -109,6 +138,11 @@ async function run(window) {
     `(()=>{const node=document.querySelector('.rp-cad-viewport');node.dispatchEvent(new PointerEvent('pointerdown',{pointerId:1,clientX:100,clientY:100,bubbles:true}));node.dispatchEvent(new PointerEvent('pointermove',{pointerId:1,clientX:145,clientY:120,bubbles:true}));node.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,bubbles:true}));})()`,
   );
   await wait(`document.querySelector('.rp-cad').dataset.yaw!==${JSON.stringify(yaw)}`);
+  assert.notDeepEqual(
+    (await window.webContents.capturePage()).toPNG(),
+    beforeRotation,
+    'OCCT must redraw pixels after camera rotation',
+  );
   const rotated = await evaluate(`document.querySelector('.rp-cad').dataset.yaw`);
   await evaluate(
     `(()=>{const node=document.querySelector('.rp-cad-viewport');node.dispatchEvent(new PointerEvent('pointerdown',{pointerId:1,clientX:100,clientY:100,shiftKey:true,bubbles:true}));node.dispatchEvent(new PointerEvent('pointermove',{pointerId:1,clientX:125,clientY:115,shiftKey:true,bubbles:true}));node.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,bubbles:true}));})()`,
@@ -131,6 +165,37 @@ async function run(window) {
     fs.copyFileSync(path.join(project, 'cad-viewer.png'), process.env.HARNESS_CAD_SELFTEST_OUTPUT);
   await open('model.step');
   await open('model.stl');
+  // A real completed Runtime action must publish new files without reopening
+  // the project. Relay its actual result through the production event channel.
+  const { runtime } = createProjectRuntime({ projectDir: project, domain: 'cad' });
+  let exported;
+  try {
+    const state = await runtime.inspect();
+    exported = await runtime.execute(
+      {
+        toolId: 'cad.freecad.export',
+        inputs: { file: 'model.FCStd', expect: { volume: 4000 - 20 * Math.PI } },
+        expectedStateId: state.id,
+      },
+      {
+        scope: {
+          domain: 'cad',
+          projectId: state.projectId,
+          stateId: state.id,
+          tools: ['cad.freecad.export'],
+        },
+        approval: true,
+      },
+    );
+    assert.equal(exported.verification.status, 'passed');
+  } finally {
+    runtime.close();
+  }
+  window.webContents.send('agent:event', { type: 'industrial-result', ...exported });
+  const created = exported.artifacts.find(item => item.kind === 'model.cad.fcstd').relativePath;
+  await wait(
+    `Boolean(document.querySelector('.ia-file-list button[title=${JSON.stringify(created)}]'))`,
+  );
   await evaluate(`document.querySelector('.ia-file-list button[title="bad.stl"]').click()`);
   await wait(`document.body.innerText.includes('Unsupported STL encoding')`);
   assert.equal(
@@ -140,7 +205,7 @@ async function run(window) {
     true,
   );
   console.log(
-    'FreeCAD native build → file tree → Registry → solid mesh → rotation/pan/zoom/wheel/Fit/fullscreen/Esc/failure passed:',
+    'FreeCAD native build → file tree → Registry → OCCT BREP → rotation/pan/zoom/wheel/Fit/fullscreen/Esc/new artifacts/failure passed:',
     project,
   );
 }

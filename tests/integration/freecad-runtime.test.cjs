@@ -300,6 +300,46 @@ test(
       },
     });
     t.after(fixture.close);
+    const resources = path.join(directory, 'resources');
+    fs.mkdirSync(resources);
+    const marker = path.join(directory, 'host-service-started');
+    const trap = path.join(directory, 'trap.cjs');
+    fs.writeFileSync(trap, `require('fs').writeFileSync(${JSON.stringify(marker)}, 'unexpected');`);
+    const {
+      toolSnapshot,
+      hash: surfaceHash,
+    } = require('../../packages/domain-mcp/src/external-client.cjs');
+    const hostTools = toolSnapshot('external.native-trap', [
+      {
+        name: 'call',
+        description: 'Host service unavailable to industrial tasks',
+        inputSchema: { type: 'object', properties: {} },
+      },
+    ]);
+    fs.writeFileSync(
+      path.join(resources, 'external-mcp.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        servers: [
+          {
+            id: 'external.native-trap',
+            title: 'Trap',
+            revision: crypto.randomUUID(),
+            checkedAt: new Date().toISOString(),
+            config: {
+              transport: 'stdio',
+              command: process.execPath,
+              args: [trap],
+              cwd: fs.realpathSync(project),
+              env: {},
+              envRefs: {},
+            },
+            tools: hostTools,
+            surfaceHash: surfaceHash(hostTools),
+          },
+        ],
+      }),
+    );
     const result = await execute(
       process.execPath,
       [
@@ -313,6 +353,7 @@ test(
         'FreeCAD 3D 参数化草图拉伸打孔零件建模',
         '--approval',
         'approve',
+        '--enable-gui',
         '--provider',
         'openai_legacy',
         '--endpoint',
@@ -336,7 +377,7 @@ test(
         env: {
           ...process.env,
           OPENAI_API_KEY: 'local-cad-fixture-key',
-          INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(directory, 'resources'),
+          INDUSTRIAL_HARNESS_CONFIG_DIR: resources,
         },
         timeout: 120000,
         maxBuffer: 4 * 1024 * 1024,
@@ -349,5 +390,170 @@ test(
     assert.equal(engineering.verification.status, 'passed', JSON.stringify(engineering));
     assert.ok(JSON.stringify(fixture.requests).includes('sketch_pad'));
     assert.equal(rows.at(-1).engineering.checkpointId, engineering.checkpoint.id);
+    assert.equal(fs.existsSync(marker), false, 'Unavailable host MCP must not start');
+    assert.ok(
+      rows.find(r => r.type === 'scope').trace.some(t => t.event === 'resource.execution-boundary'),
+    );
+    assert.ok(rows.some(r => r.type === 'execution_policy'));
+  },
+);
+test(
+  'existing part tasks change width and outline in new versions, preserve originals and reject forged recipes',
+  { timeout: 150000 },
+  async t => {
+    const { dir, runtime } = setup(t);
+    const first = await call(runtime, 'build', {
+      recipe: plate,
+      expect: { bounds: [40, 20, 5], volume: 4000 - 20 * Math.PI },
+    });
+    assert.equal(first.verification.status, 'passed');
+    const native = first.artifacts.find(a => a.kind === 'model.cad.fcstd');
+    const original = hash(fs.readFileSync(path.join(dir, native.relativePath)));
+    const wider = await call(runtime, 'edit', {
+      file: native.relativePath,
+      changes: { parameters: { W: 30, R: 3 } },
+      expect: { bounds: [40, 30, 5], volume: 6000 - 45 * Math.PI, solids: 1 },
+    });
+    assert.equal(wider.verification.status, 'passed', JSON.stringify(wider));
+    assert.notEqual(wider.artifacts.find(a => a.kind === 'model.cad.fcstd').sha256, native.sha256);
+    assert.equal(hash(fs.readFileSync(path.join(dir, native.relativePath))), original);
+    const previous = wider.artifacts.find(a => a.kind === 'model.cad.fcstd');
+    const shape = await call(runtime, 'edit', {
+      file: previous.relativePath,
+      changes: {
+        features: [
+          { id: 'Plate', profile: 'circle', radius: 20 },
+          { id: 'Drilled', origin: [0, 0, 0] },
+        ],
+      },
+      expect: { bounds: [40, 40, 5], volume: 1955 * Math.PI, solids: 1 },
+    });
+    assert.equal(shape.verification.status, 'passed', JSON.stringify(shape));
+    assert.equal(shape.verification.metrics.sketchesConstrained, true);
+    assert.equal(hash(fs.readFileSync(path.join(dir, native.relativePath))), original);
+    assert.equal(hash(fs.readFileSync(path.join(dir, previous.relativePath))), previous.sha256);
+    const recipePath = path.join(dir, path.dirname(native.relativePath), 'model.recipe.json');
+    fs.writeFileSync(recipePath, JSON.stringify({ ...plate, parameters: { W: 999 } }));
+    const forged = await call(runtime, 'edit', {
+      file: native.relativePath,
+      changes: { parameters: { W: 25 } },
+    });
+    assert.equal(forged.action.status, 'failed');
+    assert.match(forged.verification.reason, /hashes changed/);
+  },
+);
+test(
+  'real Kimi chat resumes an existing CAD part modification and records independent acceptance',
+  { timeout: 150000 },
+  async t => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cad-chat-tasks-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const project = path.join(directory, 'project');
+    fs.mkdirSync(project);
+    const native = process.env.KIMI_EXECUTABLE;
+    assert.ok(native && fs.existsSync(native), 'Pinned Kimi required');
+    const fixture = await startModel({
+      success: 'CAD_TASK_FINISHED',
+      calls: body => {
+        const text = JSON.stringify(body.messages);
+        const id = [...text.matchAll(/expectedStateId=([a-f0-9-]{36})/g)].at(-1)?.[1];
+        assert.ok(id);
+        const follow = text.includes('把宽度改成30');
+        const file = text.match(/cad-output\/[a-f0-9-]{36}\/model.FCStd/)?.[0];
+        return follow
+          ? [
+              null,
+              null,
+              { name: 'industrial_tool_describe', arguments: { toolId: 'cad.freecad.edit' } },
+              {
+                name: 'industrial_action_call',
+                arguments: {
+                  toolId: 'cad.freecad.edit',
+                  inputsJson: JSON.stringify({
+                    file,
+                    changes: { parameters: { W: 30, R: 3 } },
+                    expect: { bounds: [40, 30, 5], volume: 6000 - 45 * Math.PI, solids: 1 },
+                  }),
+                  expectedStateId: id,
+                },
+              },
+            ]
+          : [
+              { name: 'industrial_tool_describe', arguments: { toolId: 'cad.freecad.build' } },
+              {
+                name: 'industrial_action_call',
+                arguments: {
+                  toolId: 'cad.freecad.build',
+                  inputs: { recipe: plate, expect: { bounds: [40, 20, 5], solids: 1 } },
+                  expectedStateId: id,
+                },
+              },
+            ];
+      },
+    });
+    t.after(fixture.close);
+    const env = {
+      ...process.env,
+      OPENAI_API_KEY: 'local-cad-task-fixture',
+      INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(directory, 'resources'),
+    };
+    async function prompt(task, chatId) {
+      const args = [
+        process.env.HARNESS_FREECAD_TEST_CLI || path.join(repo, 'apps/cli/src/main.cjs'),
+        'run',
+        '--project-dir',
+        project,
+        '--domain',
+        'cad',
+        '--task',
+        task,
+        '--approval',
+        'approve',
+        '--provider',
+        'openai_legacy',
+        '--endpoint',
+        fixture.endpoint,
+        '--model',
+        'controlled-cad-task',
+        '--no-thinking',
+        '--kimi-executable',
+        native,
+        '--timeout-ms',
+        '90000',
+        '--chat-dir',
+        path.join(directory, 'chats'),
+        '--state-dir',
+        path.join(directory, 'state'),
+        '--log-dir',
+        path.join(directory, 'logs'),
+        ...(chatId ? ['--chat-id', chatId] : []),
+      ];
+      const result = await execute(process.execPath, args, {
+        cwd: repo,
+        env,
+        timeout: 120000,
+        maxBuffer: 4 * 1024 * 1024,
+      });
+      const rows = result.stdout.trim().split('\n').map(JSON.parse);
+      assert.equal(rows.at(-1).status, 'finished', result.stdout);
+      return rows;
+    }
+    const first = await prompt('创建带孔安装板 FreeCAD 零件');
+    const model = first
+      .find(r => r.type === 'industrial_result')
+      .artifacts.find(a => a.kind === 'model.cad.fcstd');
+    const before = hash(fs.readFileSync(path.join(project, model.relativePath)));
+    const second = await prompt(
+      '继续把宽度改成30毫米、孔半径改成3毫米，保留原模型，创建新版本并验证',
+      first.at(-1).chatId,
+    );
+    assert.equal(second.at(-1).chatId, first.at(-1).chatId);
+    const result = second.find(r => r.type === 'industrial_result');
+    assert.ok(result, 'Follow-up must actually call the native Runtime');
+    assert.equal(result.action.toolId, 'cad.freecad.edit');
+    assert.equal(result.verification.status, 'passed');
+    assert.equal(result.verification.metrics.boundsY, 30);
+    assert.equal(result.verification.metrics.expectedVolume, true);
+    assert.equal(hash(fs.readFileSync(path.join(project, model.relativePath))), before);
   },
 );

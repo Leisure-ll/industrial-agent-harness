@@ -65,6 +65,14 @@ function resolve(request, registry, previous) {
         (artifactMatch ? 3 : 0),
     };
   });
+  // A reference to the previous result can retain its capability after the
+  // caller rechecks project/domain/stage against the current DomainState.
+  if (!scored.some(item => item.score > 0))
+    for (const candidate of scored)
+      if (request.continuationCapabilityIds?.includes(candidate.item.id)) {
+        candidate.score = 1;
+        candidate.continuation = true;
+      }
   const selected = scored
     .filter(({ score }) => score > 0)
     .sort(
@@ -76,9 +84,9 @@ function resolve(request, registry, previous) {
     )
     .slice(0, requestedDomain && requestedStage ? 3 : 1);
   record('L1', 'capability.resolve', {
-    selected: selected.map(({ item, hits, toolHits, artifactMatch }) => ({
+    selected: selected.map(({ item, hits, toolHits, artifactMatch, continuation }) => ({
       id: item.id,
-      reason: `task: ${hits.join(', ') || 'none'}; tools: ${toolHits.map(tool => tool.id).join(', ') || 'none'}; artifact: ${artifactMatch ? artifactKind : 'none'}`,
+      reason: `${continuation ? 'continue previous capability; ' : ''}task: ${hits.join(', ') || 'none'}; tools: ${toolHits.map(tool => tool.id).join(', ') || 'none'}; artifact: ${artifactMatch ? artifactKind : 'none'}`,
     })),
     excluded: scored
       .filter(({ score }) => !score)
@@ -99,9 +107,11 @@ function resolve(request, registry, previous) {
         ? 'task'
         : selected[0]?.toolHits.length
           ? 'tool'
-          : selected.length
-            ? 'artifact'
-            : 'none',
+          : selected[0]?.continuation
+            ? 'continuation'
+            : selected.length
+              ? 'artifact'
+              : 'none',
     });
   const skills = [...new Set(selected.flatMap(({ item }) => item.skills.map(skill => skill.id)))];
   const tools = [...new Set(selected.flatMap(({ item }) => item.tools.map(tool => tool.id)))];
@@ -190,10 +200,23 @@ function resolveFromState({ task, state, domain, stage }, registry, previous) {
   // Stage-independent tools may bootstrap or inspect an empty project. Selecting
   // them does not infer a trusted engineering stage from task keywords.
   const available = state.stage ? registry : registry.filter(item => item.stages.length === 0);
+  const continuePrevious =
+    previous?.domain === state.domain &&
+    previous?.projectId === state.projectId &&
+    previous?.stage === state.stage &&
+    typeof task === 'string' &&
+    /^(继续|接着|然后|再把|再改)|刚刚|刚才|上一版|上一轮|上个结果|\b(continue|previous version|last result|just created)\b/i.test(
+      task.trim(),
+    );
   const result =
     state.stage || available.length
       ? resolve(
-          { task, domain: state.domain, ...(state.stage ? { stage: state.stage } : {}) },
+          {
+            task,
+            domain: state.domain,
+            ...(state.stage ? { stage: state.stage } : {}),
+            ...(continuePrevious ? { continuationCapabilityIds: previous.capabilityIds } : {}),
+          },
           available,
           previous,
         )
