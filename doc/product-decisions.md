@@ -400,18 +400,25 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 - 恢复条件：具备 Intel Mac 测试机，完成目标架构的安装、首次启动、Domain 安装、运行时与升级验收后，单独恢复 CI、安装包和支持声明。历史版本和历史 CI 记录保留，但不作为当前支持承诺。
 - 边界：Windows x64 的桌面启动验证不代表真实工业 Agent 执行已支持；签名安装器和真实 OTA 仍需单独验收。暂停 Intel Mac 也不替代取消测试时序问题的修复。
 
+## PD-037：项目技能和指令的原生发现
 
-## PD-037：FreeCAD 作为 CAD 首批 3D 零件工具
+- 日期：2026-10-04
+- 状态：已在 macOS Apple Silicon 真实 Kimi 会话验证
+- 来源：用户反馈 Project 根目录 `.skill/`、`.skills/` 无法自动加载，并要求全面扫描 Harness 对 Kimi 原生机制的影响。
+- 决定：Desktop/CLI 共用的适配器映射所选 Project 根的原生技能目录及 `AGENTS.md`，并追加 `.skill/`、`.skills/`。Kimi 继续负责技能解析、摘要、按需读取和优先级；项目技能不增加工业工具权限。通过原生 `--add-dir` 恢复绝对 Project 路径搜索，固定会话 `KIMI_SHARE_DIR` 防止继承环境重定向。
+- 边界：活跃进程不自动刷新技能索引；两个别名目录为 extra scope，低于原生项目与用户 scope。此次 workspace 版本升级使旧聊天开始新上下文段，历史保留。相对 cwd、monorepo 祖先发现、斜杠命令、配置继承和跨 Scope 对话延续尚未完整保持，详见 [兼容性审计](kimi-native-compatibility-audit.md)。
+
+## PD-038：FreeCAD 作为 CAD 首批 3D 零件工具
 
 - 日期：2026-10-04。
 - 状态：已确认，依据用户要求优先接入开源 FreeCAD，并选择 3D 零件建模方向。
 - 理由：CAD 从 Skill 和受限文件预览扩展到可执行、可回读的参数化零件流程。
 - 可观察行为：草图/拉伸/孔/布尔工具走共用持久 Runtime；FCStd/STEP/STL 与独立几何验证保留操作证据，工程文件树可查看实体网格。首批原生平台为 macOS arm64，范围和限制见 [FreeCAD CAD Pack](freecad-domain-pack.md)。
 
-## PD-038：OCCT CAD 查看与连续零件修改
+## PD-039：OCCT CAD 查看与连续零件修改
 
 - 日期：2026-10-04。
-- 状态：已确认；升级 PD-037 的显示与任务范围。
+- 状态：已确认；升级 PD-038 的显示与任务范围。
 - 来源：用户选择开源 OCCT 可视化模块，并要求覆盖真实的零件修改任务。
 - 决定：CAD Viewer 使用官方 OCCT AIS/V3d/TKOpenGles 的本地 WebAssembly，显示 BREP 曲面、CAD 轮廓、深度遮挡和抗锯齿，保留共享导航和全屏状态。完整对应源码、许可证及重编译资料随桌面提供。
 - 连续修改：原配方与模型经哈希绑定；修改参数、轮廓或位置产生新 Action，原件和历史版本保留。缺少 Model API 时明确提示并保留 prompt。同工程、同 Domain 和相同事实阶段下，对上一结果的明确延续可保留仍可用的上一能力；不跨工程/阶段继承工具，禁用资源即时生效。

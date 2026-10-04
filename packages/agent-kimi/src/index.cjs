@@ -19,6 +19,7 @@ const { validatePromptImages, imageContent } = require('./image-input.cjs');
 const { createDiagnosticLog } = require('./diagnostic-log.cjs');
 const { createProcessSandbox } = require('./process-sandbox.cjs');
 const { runtimeTools } = require('./runtime-tools.cjs');
+const { prepareProjectWorkspace } = require('./project-workspace.cjs');
 
 const canonicalNames = {
   'eda.netlist.inspect': 'eda_netlist_inspect',
@@ -98,6 +99,7 @@ function prepareSessionFiles(scope, runtime, persistentDirectory, projectDir, pl
     const skillsDir = materializeSkills(scope, directory, runtime.environment);
     const skillDirs = [
       ...new Set([
+        ...prepareProjectWorkspace(directory, projectDir),
         skillsDir,
         ...enabledPlugins(plugins).map(plugin => plugin.materializeSkill(directory)),
       ]),
@@ -436,7 +438,10 @@ class KimiSession {
               plugins: pluginKey,
               approvalMode,
               ...(this.sessionFactory === createSession
-                ? { executionBoundary: 'seatbelt-workspace-v1' }
+                ? {
+                    executionBoundary: 'seatbelt-workspace-v1',
+                    projectWorkspace: 'inputs-v1',
+                  }
                 : {}),
             }),
           )
@@ -484,6 +489,7 @@ class KimiSession {
             projectDir: this.workDir,
             protectedPaths: this.diagnostics.protectedPaths || [],
             environment: { ...process.env, ...runtime.env },
+            kimiProjectAccess: true,
           });
           this.emitAgent({ type: 'execution-boundary', ...this.processSandbox.boundary });
         }

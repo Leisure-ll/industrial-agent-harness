@@ -17,6 +17,7 @@ const nativeFiles = [
   'tests/integration/external-mcp-kimi.test.cjs',
   'packages/agent-kimi/tests/vision-wire.test.cjs',
   'packages/agent-kimi/tests/parallel-wire.test.cjs',
+  'packages/agent-kimi/tests/project-skills-wire.test.cjs',
   'tests/integration/session-resources-kimi.test.cjs',
   'tests/integration/session-chaos-kimi.test.cjs',
   'tests/integration/chat-resume.test.cjs',
