@@ -58,6 +58,7 @@ async function prepare(config) {
       'model.brep',
       'model.recipe.json',
       'model.cad-preview.json',
+      'model.cad-sketches.json',
     ]) {
       const file = out.artifacts.find(a => path.basename(a.relativePath) === name);
       fs.copyFileSync(path.join(project, file.relativePath), path.join(project, name));
@@ -163,6 +164,7 @@ async function run(window) {
   );
   if (process.env.HARNESS_CAD_SELFTEST_OUTPUT)
     fs.copyFileSync(path.join(project, 'cad-viewer.png'), process.env.HARNESS_CAD_SELFTEST_OUTPUT);
+  await require('./cad-inspection-selftest.cjs').verifyInspection(window, project);
   await open('model.step');
   await open('model.stl');
   // A real completed Runtime action must publish new files without reopening

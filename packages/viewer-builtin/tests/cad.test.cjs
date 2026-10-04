@@ -5,12 +5,94 @@ const os = require('node:os');
 const path = require('node:path');
 const { hash } = require('../src/engineering/read.cjs');
 const { parseStl, createCadPlugins } = require('../src/cad/service.cjs');
+const { parseSketches } = require('../src/cad/sketches.cjs');
 function triangle() {
   const b = Buffer.alloc(134);
   b.writeUInt32LE(1, 80);
   [0, 0, 0, 1, 0, 0, 0, 1, 0].forEach((v, i) => b.writeFloatLE(v, 96 + i * 4));
   return b;
 }
+function sketchData(sourceSha256) {
+  return {
+    schemaVersion: 1,
+    units: 'mm',
+    sourceSha256,
+    sketches: [
+      {
+        name: 'PlateSketch',
+        label: 'PlateSketch',
+        fullyConstrained: true,
+        origin: [0, 0, 0],
+        rotation: [0, 0, 0, 1],
+        geometry: [{ index: 0, construction: false, kind: 'circle', center: [0, 0], radius: 2 }],
+        constraints: [
+          {
+            index: 0,
+            type: 'Radius',
+            value: 2,
+            driving: true,
+            first: 0,
+            firstPos: 0,
+            second: -2000,
+            secondPos: 0,
+            third: -2000,
+            thirdPos: 0,
+          },
+        ],
+      },
+    ],
+  };
+}
+test('native sketch display rejects wrong source identity, invalid coordinates and unbounded constraints', () => {
+  const sha = 'a'.repeat(64),
+    data = sketchData(sha);
+  const parse = () => parseSketches(Buffer.from(JSON.stringify(data)), sha);
+  assert.equal(parse()[0].constraints[0].value, 2);
+  assert.throws(() => parseSketches(Buffer.from(JSON.stringify(data)), 'b'.repeat(64)), /Invalid/);
+  data.sketches[0].geometry[0].radius = 1e20;
+  assert.throws(parse, /Invalid/);
+  data.sketches[0].geometry[0].radius = 2;
+  data.sketches[0].constraints[0].first = 1;
+  assert.throws(parse, /Invalid/);
+  data.sketches[0].constraints = Array(4001).fill(data.sketches[0].constraints[0]);
+  assert.throws(parse, /Invalid/);
+});
+test('sketch companions require declared hashes and remain inside the selected project', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cad-sketch-view-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const file = path.join(root, 'model.FCStd'),
+    preview = path.join(root, 'model.cad-sketches.json');
+  fs.writeFileSync(file, 'model');
+  fs.writeFileSync(path.join(root, 'model.stl'), triangle());
+  const sha = hash(fs.readFileSync(file));
+  fs.writeFileSync(preview, JSON.stringify(sketchData(sha)));
+  const manifest = {
+    schemaVersion: 1,
+    hashes: {
+      'model.FCStd': sha,
+      'model.stl': hash(triangle()),
+      'model.cad-sketches.json': hash(fs.readFileSync(preview)),
+    },
+  };
+  const manifestFile = path.join(root, 'model.cad-preview.json');
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest));
+  const plugin = createCadPlugins({ projectRoot: () => root })[0],
+    artifact = { name: 'model.FCStd', sha256: sha };
+  assert.equal((await plugin.open({ file, artifact })).data.sketches[0].geometry[0].radius, 2);
+  fs.writeFileSync(preview, JSON.stringify(sketchData('b'.repeat(64))));
+  await assert.rejects(plugin.open({ file, artifact }), /changed/);
+  manifest.hashes['model.cad-sketches.json'] = hash(fs.readFileSync(preview));
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest));
+  await assert.rejects(plugin.open({ file, artifact }), /Invalid/);
+  const outside = path.join(root, '..', path.basename(root) + '.json');
+  fs.writeFileSync(outside, JSON.stringify(sketchData(sha)));
+  t.after(() => fs.rmSync(outside, { force: true }));
+  fs.unlinkSync(preview);
+  fs.symlinkSync(outside, preview);
+  await assert.rejects(plugin.open({ file, artifact }), /outside/);
+  fs.unlinkSync(preview);
+  await assert.rejects(plugin.open({ file, artifact }), /ENOENT/);
+});
 test('CAD STL parser rejects nonfinite, excessive and malformed mesh data', () => {
   assert.equal(parseStl(triangle()).triangles, 1);
   const bad = triangle();

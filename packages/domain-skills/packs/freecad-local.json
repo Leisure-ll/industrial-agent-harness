@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "id": "freecad-local",
   "domain": "cad",
-  "version": "1.1.4-pack.1",
+  "version": "1.1.4-pack.2",
   "provider": {
     "id": "freecad-local.runtime",
     "title": "FreeCAD 1.1.4 · persistent native tools",
     "domain": "cad",
-    "version": "1.1.4-pack.1",
+    "version": "1.1.4-pack.2",
     "transport": "runtime",
     "packDirectory": "freecad",
-    "sourceSha256": "d89d3c3be079683cf19b546982a2a6357199d2ae6aa3b1f3cb13ab4ea58421e9",
+    "sourceSha256": "bff8b584ebef78d74ec946cd08b9dd967c3b1251512d4013f666f75904910309",
     "tools": [
       {
         "id": "cad.freecad.build",
@@ -53,8 +53,8 @@
       "runtime"
     ],
     "sourceFiles": {
-      "runtime/index.cjs": "0286afaf69e16e392b967e692fc19ae8c54ddead964f6e2d81d4ffd09bc6859b",
-      "runtime/native.py": "01a06414519d2a47568124cb2fae7b44b8fe2bb110540915cc65919332c4d4d2",
+      "runtime/index.cjs": "392fd01853560067c14053e6b3dda635bf6c39fbb14d6a2b321f27fc2b4adea4",
+      "runtime/native.py": "b271d6760f104e0cc877bf9fa4ace304648047a3c138f7e57412373fcc20dab4",
       "runtime/recipe.cjs": "8d0f0dc69776359a590561c65c9ca51289bdb417294dddf99317438d080670f3"
     }
   },

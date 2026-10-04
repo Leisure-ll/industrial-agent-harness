@@ -73,6 +73,7 @@ export interface KiCadData {
   url: string;
 }
 export interface CadData {
+  sketches?: CadSketch[];
   brep?: string;
   name: string;
   sha256: string;
@@ -80,6 +81,31 @@ export interface CadData {
   bounds: number[];
   triangles: number;
   companions: Array<{ name: string; sha256: string }>;
+}
+export type CadSketchGeometry = { index: number; construction: boolean } & (
+  | { kind: 'line'; start: number[]; end: number[] }
+  | { kind: 'circle'; center: number[]; radius: number }
+  | { kind: 'unsupported'; type: string }
+);
+export interface CadSketch {
+  name: string;
+  label: string;
+  fullyConstrained: boolean;
+  origin: number[];
+  rotation: number[];
+  geometry: CadSketchGeometry[];
+  constraints: Array<{
+    index: number;
+    type: string;
+    value: number;
+    driving: boolean | null;
+    first: number;
+    firstPos: number;
+    second: number;
+    secondPos: number;
+    third: number;
+    thirdPos: number;
+  }>;
 }
 export interface AssetImage {
   name: string;

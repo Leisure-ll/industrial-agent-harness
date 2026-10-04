@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { validateRecipe, validateInputs, applyChanges, guides } = require('./recipe.cjs');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
-const VERSION = '1.1.4-pack.1';
+const VERSION = '1.1.4-pack.2';
 
 function executable(environment) {
   const candidates = [
@@ -345,6 +345,7 @@ function createRuntimePlugin({ environment = process.env } = {}) {
               'model.step',
               'model.stl',
               'model.brep',
+              'model.cad-sketches.json',
               ...(recipe ? ['model.recipe.json'] : []),
             ].map(name => [name, hash(fs.readFileSync(path.join(directory, name)))]),
           );
@@ -363,6 +364,7 @@ function createRuntimePlugin({ environment = process.env } = {}) {
           'model.stl': 'model.cad.stl',
           'model.brep': 'display.cad.brep',
           'model.cad-preview.json': 'display.cad.manifest',
+          'model.cad-sketches.json': 'display.cad.sketches',
           'build.json': 'report.cad.build',
           'readback.json': 'report.cad.readback',
           'inputs.json': 'input.cad.recipe',

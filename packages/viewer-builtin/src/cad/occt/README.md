@@ -6,6 +6,14 @@ Viewer. New Pack artifacts render exact BREP faces with shaded surfaces,
 CAD face boundaries, a depth buffer and 4x MSAA. Direct STL and older generated
 companions render using OCCT AIS_Triangulation.
 
+The MIT bridge also exposes capped X/Y/Z clip planes, AIS face/edge selection,
+BRepGProp length/area, analytic circle/cylinder radii and BRepExtrema minimum
+distance between at most two selected subshapes. Endpoint projection supplies
+read-only SVG dimension annotations. These are nominal geometry measurements,
+not tolerance, assembly or engineering acceptance. STL has no precise topology
+picking. The host owns CSS and device-pixel canvas sizing; Wasm_Window automatic
+CSS scaling is disabled so resizing, inspectors and fullscreen stay aligned.
+
 Memory is bounded to 512 MiB; input to 16 MiB, 100000 triangles and 5000 BREP
 faces. A model is temporary read-only display data. A GPU/parse failure is
 explicit and disables shared navigation. Zoom, pan and rotation are display

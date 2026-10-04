@@ -49,11 +49,19 @@ Desktop 和 CLI 均通过 `createProjectRuntime` 加载 `freecad-local` Pack。B
 
 项目文件树经 Viewer Registry 选择 CAD Viewer。直接打开二进制/ASCII STL；Pack 输出的 FCStd/STEP 使用同名 BREP/STL 与 `*.cad-preview.json`，同时校验模型、曲面和网格 SHA-256。不含配套预览的 FCStd 会明确要求先运行 inspect/export；不含配套预览的 STEP 保留现有受限 STEP 预览。
 
-只读实体显示、拖动旋转、Shift/右键拖动平移、滚轮/触控板缩放、共享缩放/Fit、全屏和 Esc；全屏保留旋转和缩放。使用官方开源 **OCCT 7.9.2 AIS/V3d/TKOpenGles**，按上游 WebGL 示例路径编译本地 WebAssembly，以 WebGL2 显示 BREP 曲面、CAD 轮廓、深度遮挡与 4x MSAA。STL 和旧产物使用 OCCT AIS_Triangulation。文件上限 16 MiB、100000 三角形、5000 BREP 面，WASM 内存上限 512 MiB；加载失败禁用导航，切换文件释放 GPU 对象，无外部网络请求。需 WebGL2；固定来源、完整源码、许可证和重编译说明见 [OCCT renderer](../packages/viewer-builtin/src/cad/occt/README.md)。Viewer 不能编辑模型、精确测量、验证装配或替代 FreeCAD。实际 Desktop 路径在 macOS arm64 Electron 验证，其他 Viewer 平台尚未实测。
+只读实体显示、拖动旋转、Shift/右键拖动平移、滚轮/触控板缩放、共享缩放/Fit、全屏和 Esc；全屏保留旋转和缩放。使用官方开源 **OCCT 7.9.2 AIS/V3d/TKOpenGles**，按上游 WebGL 示例路径编译本地 WebAssembly，以 WebGL2 显示 BREP 曲面、CAD 轮廓、深度遮挡与 4x MSAA。STL 和旧产物使用 OCCT AIS_Triangulation。文件上限 16 MiB、100000 三角形、5000 BREP 面，WASM 内存上限 512 MiB；加载失败禁用导航，切换文件释放 GPU 对象，无外部网络请求。需 WebGL2；固定来源、完整源码、许可证和重编译说明见 [OCCT renderer](../packages/viewer-builtin/src/cad/occt/README.md)。Viewer 不能编辑模型、验证装配或替代 FreeCAD。实际 Desktop 路径在 macOS arm64 Electron 验证，其他 Viewer 平台尚未实测。
+
+## 剖切、选择、测量与草图约束
+
+三维模型页提供 X/Y/Z 封口剖切、位置滑块和反向。切面着色只是临时显示，不创建或修改工程几何。选择模式支持面或边，悬停高亮，点击最多保留两个对象；再点取消，清除选择恢复空状态。OCCT BREP 几何直接计算边长、圆边/圆柱面的半径和直径、面面积，以及两个选中对象之间的**最短距离**；距离端点和数值叠加在模型上，随旋转、平移和缩放更新。它不是中心距或公差验收。STL 可剖切，但没有精确拓扑选择和测量。
+
+`model.cad-sketches.json` 由独立回读进程重开保存后的 FCStd 导出，包含原生几何、局部坐标、世界放置、真实约束索引、尺寸及完全约束状态，声明源 FCStd SHA-256。Runtime 收集为 `display.cad.sketches`；预览 manifest 同时绑定配套文件哈希，Viewer 在当前项目边界内复核来源和内容，不从配方推测草图。草图页支持矩形/圆轮廓、尺寸标注、约束列表与几何联动高亮；拖动平移、滚轮/捏合、共享缩放/Fit、全屏均保持只读。STEP 导入没有原始草图，旧预览缺少配套时禁用草图页并提示运行 inspect/export。
+
+草图 JSON 限 1 MiB、50 张草图、每张 2000 个几何/4000 个约束、合计 10000 项；坐标/尺寸与引用均有界校验。不支持的曲线类型明确标识，不执行源文件或表达式。尺寸显示四位小数，读取模型名义几何，不处理加工公差，不替代持久 Verifier 的结果。模型页与草图页共用工具栏；切换到草图时保留三维剖切、选中对象和相机，切回时继续查看。
 
 ## 回归与 CI
 
-`tests/integration/freecad-runtime.test.cjs` 用真实 FreeCAD 测试草图/拉伸/孔/布尔、FCStd/STEP/BREP 回读、尺寸不通过、拒绝输入与审批、State 失效、取消和历史证据，还覆盖原模型→改宽度/孔径→改圆形轮廓，以及同一 Kimi chat 中的两轮实际原生执行。CI 的模型响应固定以保证可重复，不能据此宣称真实模型推理通过。`apps/desktop/electron/cad-selftest.cjs` 从真实建模产物检查文件树→Registry→OCCT BREP 显示→旋转/平移/缩放/Fit/全屏/Esc/失败状态，并提交「修改零件的形状」验证缺少 API 配置时显示原因、保留输入、恢复发送按钮。解析器与配方边界加入四平台 Portable 回归；CAD 独立 CLI 包加入四平台打包和 Scope 检查。
+`tests/integration/freecad-runtime.test.cjs` 用真实 FreeCAD 测试草图/拉伸/孔/布尔、FCStd/STEP/BREP 回读、尺寸不通过、拒绝输入与审批、State 失效、取消和历史证据，还覆盖原模型→改宽度/孔径→改圆形轮廓，以及同一 Kimi chat 中的两轮实际原生执行。CI 的模型响应固定以保证可重复，不能据此宣称真实模型推理通过。`apps/desktop/electron/cad-selftest.cjs` 从真实建模产物检查文件树→Registry→OCCT BREP 显示→旋转/平移/缩放/Fit/全屏/Esc/失败状态，并提交「修改零件的形状」验证缺少 API 配置时显示原因、保留输入、恢复发送按钮。扩展的 `cad-inspection-selftest.cjs` 通过生产指针处理器和实际 OCCT 屏幕坐标选择，核对 40 mm 边、Ø4 mm 孔、解析最短距离、剖切像素、约束高亮、草图导航、全屏/Esc 状态保留以及查看前后模型哈希不变。解析器与配方边界加入四平台 Portable 回归；CAD 独立 CLI 包加入四平台打包和 Scope 检查。
 
 `scripts/qualify-cad-tasks.cjs` 是另行运行的真实模型验收：真实 API、固定 Kimi、真实 FreeCAD 和独立读回。三轮同一 chat 先提交「修改零件的形状」检查澄清且不执行，再改宽度/孔径，接着把上一版本改成圆板。结果必须具有正确体积、边界、BREP 产物，原件及所有历史模型的哈希保持不变；保存 report.json 和逐轮诊断。提供当前模型 profile、API key 和原生可执行路径，在新目录运行 `node scripts/qualify-cad-tasks.cjs /absolute/new-output-directory`；配置从 `HARNESS_CAD_EVAL_PROFILE` 与 `HARNESS_CAD_EVAL_KEY` 读取，不写入仓库。实际验收记录见 [真实 CAD 任务验收](cad-task-qualification-20261004.md)。
 

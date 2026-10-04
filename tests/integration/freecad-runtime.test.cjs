@@ -63,6 +63,16 @@ test(
     assert.equal(out.state.status, 'verified');
     assert.equal(out.verification.metrics.sketchesConstrained, true);
     const native = out.artifacts.find(a => a.kind === 'model.cad.fcstd');
+    const preview = out.artifacts.find(a => a.kind === 'display.cad.sketches');
+    const sketches = JSON.parse(fs.readFileSync(path.join(dir, preview.relativePath)));
+    assert.equal(sketches.sourceSha256, native.sha256);
+    assert.equal(sketches.sketches[0].geometry.length, 4);
+    assert.deepEqual(sketches.sketches[0].geometry[0].end, [40, 0]);
+    assert.equal(sketches.sketches[0].fullyConstrained, true);
+    assert.deepEqual(
+      sketches.sketches[0].constraints.filter(c => c.type === 'Distance').map(c => c.value),
+      [40, 20],
+    );
     const actionDir = path.dirname(path.join(dir, native.relativePath));
     for (const kind of ['report.cad.build', 'report.cad.readback']) {
       const artifact = out.artifacts.find(a => a.kind === kind);
@@ -79,6 +89,7 @@ test(
       .get(registry.match(file))
       .open({ file, artifact: { id: native.id, name: 'model.FCStd', sha256: native.sha256 } });
     assert.equal(opened.kind, 'cad');
+    assert.equal(opened.data.sketches[0].constraints.length, 11);
     assert.ok(opened.data.triangles > 20);
     const exported = await call(runtime, 'export', {
       file: native.relativePath,

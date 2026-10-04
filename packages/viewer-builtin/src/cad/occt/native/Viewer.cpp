@@ -16,6 +16,18 @@
 #include <TopExp_Explorer.hxx>
 #include <Poly_Triangulation.hxx>
 #include <Poly_Triangle.hxx>
+#include <TopExp.hxx>
+#include <TopTools_IndexedMapOfShape.hxx>
+#include <TopoDS.hxx>
+#include <BRepGProp.hxx>
+#include <GProp_GProps.hxx>
+#include <BRepAdaptor_Curve.hxx>
+#include <BRepAdaptor_Surface.hxx>
+#include <BRepExtrema_DistShapeShape.hxx>
+#include <Graphic3d_ClipPlane.hxx>
+#include <SelectMgr_EntityOwner.hxx>
+#include <StdSelect_BRepOwner.hxx>
+#include <iomanip>
 #include <vector>
 #include <Standard_Failure.hxx>
 #include <emscripten/bind.h>
@@ -31,6 +43,20 @@ class Viewer {
   Handle(Graphic3d_Camera) fitted;
   double fitScale = 1;
   int faces = 0;
+  Handle(AIS_Shape) solid;
+  Handle(Graphic3d_ClipPlane) clip;
+  TopTools_IndexedMapOfShape faceMap, edgeMap;
+  struct Pick { Handle(SelectMgr_EntityOwner) owner; TopoDS_Shape shape; };
+  std::vector<Pick> picks;
+  int selectionMode = 0;
+  void reset() {
+    picks.clear(); faceMap.Clear(); edgeMap.Clear(); solid.Nullify();
+    context->RemoveAll(false);
+    if (!clip.IsNull()) { view->RemoveClipPlane(clip); clip.Nullify(); }
+  }
+  static void point(std::ostream& out, const gp_Pnt& p) {
+    out << '[' << p.X() << ',' << p.Y() << ',' << p.Z() << ']';
+  }
 public:
   Viewer(const std::string& selector) {
     Handle(Aspect_DisplayConnection) display;
@@ -48,11 +74,14 @@ public:
     view->ChangeRenderingParams().NbMsaaSamples = 4;
     view->SetBgGradientColors(Quantity_Color(0.12,0.16,0.22,Quantity_TOC_RGB),
       Quantity_Color(0.035,0.05,0.08,Quantity_TOC_RGB),Aspect_GFM_VER,false);
-    view->SetWindow(new Wasm_Window(selector.c_str()));
+    // React owns CSS layout and the bounded device-pixel backing size. OCCT's
+    // automatic scaling would pin inline CSS dimensions and cover the inspector.
+    view->SetWindow(new Wasm_Window(selector.c_str(),false));
     context = new AIS_InteractiveContext(viewer);
+    context->SetPixelTolerance(6);
   }
   int load(const std::string& filename) {
-    context->RemoveAll(false);
+    reset();
     Handle(AIS_InteractiveObject) object;
     {
       TopoDS_Shape shape;
@@ -64,7 +93,9 @@ public:
         if(++faces > 5000) throw std::runtime_error("OCCT face limit exceeded");
       if(!faces) throw std::runtime_error("OCCT model has no faces");
       BRepMesh_IncrementalMesh mesher(shape,0.12,false,0.25,false);
-      Handle(AIS_Shape) solid = new AIS_Shape(shape);
+      solid = new AIS_Shape(shape);
+      TopExp::MapShapes(shape,TopAbs_FACE,faceMap);
+      TopExp::MapShapes(shape,TopAbs_EDGE,edgeMap);
       solid->Attributes()->SetFaceBoundaryDraw(true);
       solid->Attributes()->SetFaceBoundaryAspect(new Prs3d_LineAspect(
         Quantity_Color(0.09,0.17,0.23,Quantity_TOC_RGB),Aspect_TOL_SOLID,1));
@@ -72,6 +103,7 @@ public:
     }
     object->SetColor(Quantity_Color(0.35,0.65,0.84,Quantity_TOC_RGB));
     context->Display(object,AIS_Shaded,0,false);
+    context->Deactivate(object);
     fit();
     return faces;
   }
@@ -90,9 +122,94 @@ public:
     triangles->ComputeNormals();
     Handle(AIS_Triangulation) object = new AIS_Triangulation(triangles);
     object->SetColor(Quantity_Color(0.35,0.65,0.84,Quantity_TOC_RGB));
-    context->RemoveAll(false);
+    reset();
     context->Display(object,AIS_Shaded,0,false);
     faces=triangles->NbTriangles(); fit(); return faces;
+  }
+  void mode(int value) {
+    if(value!=0 && value!=2 && value!=4) throw std::runtime_error("Invalid CAD selection mode");
+    selectionMode=value;
+    context->ClearDetected(false);
+    context->Deactivate();
+    if(value && !solid.IsNull()) context->Activate(solid,value);
+    view->Redraw();
+  }
+  void hover(int x,int y) {
+    if(!selectionMode || solid.IsNull()) return;
+    context->MoveTo(x,y,view,false); view->Redraw();
+  }
+  std::string select(int x,int y) {
+    if(!selectionMode || solid.IsNull()) return selection();
+    context->MoveTo(x,y,view,false);
+    const auto owner=Handle(StdSelect_BRepOwner)::DownCast(context->DetectedOwner());
+    if(owner.IsNull() || !owner->HasShape()) return selection();
+    const TopoDS_Shape shape=owner->Shape();
+    for(auto it=picks.begin();it!=picks.end();++it) {
+      if(it->shape.IsSame(shape)) {
+        context->AddOrRemoveSelected(it->owner,false); picks.erase(it);
+        view->Redraw(); return selection();
+      }
+    }
+    if(picks.size()==2) {
+      context->AddOrRemoveSelected(picks.front().owner,false); picks.erase(picks.begin());
+    }
+    picks.push_back({owner,shape}); context->AddOrRemoveSelected(owner,false);
+    view->Redraw(); return selection();
+  }
+  void clearSelection() {
+    picks.clear(); context->ClearSelected(false); context->ClearDetected(false); view->Redraw();
+  }
+  std::string selection() {
+    std::ostringstream out; out << std::setprecision(17) << "{\"items\":[";
+    for(size_t i=0;i<picks.size();++i) {
+      if(i) out << ',';
+      const auto& s=picks[i].shape;
+      GProp_GProps props;
+      if(s.ShapeType()==TopAbs_EDGE) {
+        BRepGProp::LinearProperties(s,props);
+        BRepAdaptor_Curve curve(TopoDS::Edge(s));
+        out << "{\"kind\":\"edge\",\"index\":" << edgeMap.FindIndex(s)
+          << ",\"length\":" << props.Mass();
+        if(curve.GetType()==GeomAbs_Circle)
+          out << ",\"radius\":" << curve.Circle().Radius();
+      } else if(s.ShapeType()==TopAbs_FACE) {
+        BRepGProp::SurfaceProperties(s,props);
+        BRepAdaptor_Surface surface(TopoDS::Face(s));
+        out << "{\"kind\":\"face\",\"index\":" << faceMap.FindIndex(s)
+          << ",\"area\":" << props.Mass();
+        if(surface.GetType()==GeomAbs_Cylinder)
+          out << ",\"radius\":" << surface.Cylinder().Radius();
+      } else throw std::runtime_error("Unsupported selected topology");
+      out << ",\"center\":"; point(out,props.CentreOfMass()); out << '}';
+    }
+    out << ']';
+    if(picks.size()==2) {
+      BRepExtrema_DistShapeShape distance(picks[0].shape,picks[1].shape);
+      if(!distance.IsDone() || !distance.NbSolution())
+        throw std::runtime_error("OCCT distance computation failed");
+      out << ",\"distance\":" << distance.Value() << ",\"points\":[";
+      point(out,distance.PointOnShape1(1)); out << ','; point(out,distance.PointOnShape2(1));
+      out << ']';
+    }
+    out << '}'; return out.str();
+  }
+  emscripten::val project(double x,double y,double z) {
+    if(!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(z))
+      throw std::runtime_error("Invalid CAD dimension point");
+    int px,py; view->Convert(x,y,z,px,py);
+    auto result=emscripten::val::array(); result.set(0,px); result.set(1,py); return result;
+  }
+  void section(int axis,double offset,bool flip,bool enabled) {
+    if(axis<0 || axis>2 || !std::isfinite(offset) || std::abs(offset)>1e7)
+      throw std::runtime_error("Invalid CAD section plane");
+    if(clip.IsNull()) {
+      clip=new Graphic3d_ClipPlane(); clip->SetCapping(true);
+      clip->SetCappingColor(Quantity_Color(0.95,0.65,0.24,Quantity_TOC_RGB));
+      view->AddClipPlane(clip);
+    }
+    const double sign=flip?-1:1;
+    clip->SetEquation(Graphic3d_Vec4d(axis==0?sign:0,axis==1?sign:0,axis==2?sign:0,-sign*offset));
+    clip->SetOn(enabled); view->Redraw();
   }
   void fit() {
     view->SetProj(1,-1,1);
@@ -125,5 +242,9 @@ EMSCRIPTEN_BINDINGS(HarnessOCCT) {
   emscripten::class_<Viewer>("Viewer").constructor<std::string>()
     .function("load",&Viewer::load).function("loadMesh",&Viewer::loadMesh).function("fit",&Viewer::fit)
     .function("pose",&Viewer::pose).function("resize",&Viewer::resize)
+    .function("mode",&Viewer::mode).function("hover",&Viewer::hover)
+    .function("select",&Viewer::select).function("selection",&Viewer::selection)
+    .function("clearSelection",&Viewer::clearSelection).function("project",&Viewer::project)
+    .function("section",&Viewer::section)
     .function("dispose",&Viewer::dispose);
 }

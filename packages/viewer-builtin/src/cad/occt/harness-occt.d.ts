@@ -4,6 +4,13 @@ export interface OcctViewer {
   fit(): void;
   pose(yaw: number, pitch: number, zoom: number, x: number, y: number): void;
   resize(): void;
+  mode(mode: number): void;
+  hover(x: number, y: number): void;
+  select(x: number, y: number): string;
+  selection(): string;
+  clearSelection(): void;
+  project(x: number, y: number, z: number): number[];
+  section(axis: number, offset: number, flip: boolean, enabled: boolean): void;
   dispose(): void;
   delete(): void;
 }

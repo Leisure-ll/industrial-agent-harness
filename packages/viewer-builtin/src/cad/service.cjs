@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { readBounded, utf8 } = require('../engineering/read.cjs');
+const { parseSketches } = require('./sketches.cjs');
 const LIMIT = 100000;
 function parseStl(bytes) {
   const vertices = [];
@@ -45,7 +46,8 @@ function createCadPlugins({ projectRoot }) {
         const source = readBounded(file, root, artifact.sha256, 16 * 1024 * 1024);
         let mesh = source,
           companions = [],
-          brep;
+          brep,
+          sketches;
         if (!/\.stl$/i.test(file)) {
           const manifestFile = file.replace(/\.[^.]+$/, '.cad-preview.json');
           if (!fs.existsSync(manifestFile))
@@ -77,6 +79,16 @@ function createCadPlugins({ projectRoot }) {
             brep = shape.bytes.toString('base64');
             companions.push({ name: path.basename(brepFile), sha256: shape.sha256 });
           }
+          const sketchFile = file.replace(/\.[^.]+$/, '.cad-sketches.json');
+          const sketchHash = data.hashes[path.basename(sketchFile)];
+          if (sketchHash !== undefined) {
+            if (!/^[a-f0-9]{64}$/.test(sketchHash))
+              throw Error('CAD sketch companion hash is invalid.');
+            const preview = readBounded(sketchFile, root, sketchHash, 1024 * 1024);
+            const nativeHash = data.hashes[path.basename(file.replace(/\.[^.]+$/, '.FCStd'))];
+            sketches = parseSketches(Buffer.from(utf8(preview.bytes)), nativeHash);
+            companions.push({ name: path.basename(sketchFile), sha256: preview.sha256 });
+          }
           readBounded(file, root, source.sha256, 16 * 1024 * 1024);
           readBounded(manifestFile, root, manifest.sha256, 256 * 1024);
         }
@@ -89,6 +101,7 @@ function createCadPlugins({ projectRoot }) {
             ...parseStl(mesh.bytes),
             companions,
             brep,
+            sketches,
           },
         };
       },
