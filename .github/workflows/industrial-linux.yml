@@ -113,9 +113,11 @@ jobs:
           cp -a "$RUNNER_TEMP/verilator-runtime" "$RUNNER_TEMP/docker-rtl-context/verilator"
           cat > "$RUNNER_TEMP/docker-rtl-context/Dockerfile" <<'DOCKER'
           FROM ubuntu:22.04
-          RUN apt-get update && apt-get install -y --no-install-recommends g++ make perl ccache ca-certificates && rm -rf /var/lib/apt/lists/*
+          RUN apt-get update && apt-get install -y --no-install-recommends g++ make perl python3 ccache ca-certificates && rm -rf /var/lib/apt/lists/*
           COPY verilator /opt/verilator
+          RUN sed -i 's|^PYTHON3 = .*|PYTHON3 = /usr/bin/python3|' /opt/verilator/share/verilator/include/verilated.mk
           ENV PATH="/opt/verilator/bin:${PATH}"
+          ENV CCACHE_DISABLE=1
           DOCKER
           image="industrial-harness-ci-verilator:${GITHUB_SHA}"
           docker build -t "$image" "$RUNNER_TEMP/docker-rtl-context" > "$RUNNER_TEMP/docker-rtl-build.log" 2>&1
