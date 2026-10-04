@@ -5,6 +5,16 @@ function runtimeTools(runtime, getScope, approve, onResult = () => {}) {
   if (!runtime) return [];
   return [
     createExternalTool({
+      name: 'industrial_tool_describe',
+      description:
+        'Load the input guide and example for one canonical Tool in the current Broker allowlist before calling it. This is documentation, not engineering evidence.',
+      parameters: z.object({ toolId: z.string().min(1) }),
+      handler: async ({ toolId }) => ({
+        output: JSON.stringify(runtime.describeTool(toolId, getScope())),
+        message: 'Scoped industrial tool guide loaded.',
+      }),
+    }),
+    createExternalTool({
       name: 'industrial_action_call',
       description:
         'Execute an allowed canonical industrial Tool through the persistent host runtime. Requires the current DomainState identity. Read acceptance from verification, and use returned state/checkpoint identities.',
@@ -26,7 +36,12 @@ function runtimeTools(runtime, getScope, approve, onResult = () => {}) {
           runId: result.run.id,
           actionId: result.action.id,
           actionStatus: result.action.status,
-          artifactSet: result.artifacts.map(({ id, kind, sha256 }) => ({ id, kind, sha256 })),
+          artifactSet: result.artifacts.map(({ id, kind, sha256, relativePath }) => ({
+            id,
+            kind,
+            sha256,
+            relativePath,
+          })),
           verification: result.verification,
           stateId: result.state.id,
           stateStatus: result.state.status,

@@ -17,3 +17,5 @@ Godot 的源场景检查与原生运行检查来自 `packs/godot-local.json`，�
 `loadRegistry()` 同时返回 `runtimePacks`：仅从仓库登记或已校验安装库读取 Runtime 入口及其领域目录，供工业运行时工厂加载；没有额外领域硬编码。
 
 独立 Skill-only Pack 开发、构建、安装与资源验证见 [作者教程](../../doc/pack-authoring.md)。发行物 gate：`node scripts/check-pack-release.cjs`。
+
+CAD 的 `freecad-local` 提供可重建参数配方与三种宿主 Runtime 工具。`transport: runtime` 注册可打包的执行入口与固定源码清单，不生成 MCP 直连服务，见 [FreeCAD CAD Pack](../../doc/freecad-domain-pack.md)。

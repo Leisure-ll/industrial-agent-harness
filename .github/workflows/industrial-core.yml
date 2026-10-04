@@ -31,12 +31,21 @@ jobs:
           node apps/desktop/scripts/setup-kimi.cjs
           cd domain-packs/chip/eda-harness
           uv sync --frozen --no-dev --python 3.13
+      - name: Prepare pinned official FreeCAD runtime
+        run: node scripts/setup-freecad.cjs
+      - name: Build independent CAD CLI for native execution
+        run: node scripts/package-headless.cjs dist/freecad-cli --domain cad
       - name: Verify the real state, action, verification and recovery path
         shell: bash
         run: |
           export KIMI_EXECUTABLE="$GITHUB_WORKSPACE/apps/desktop/.venv-kimi/bin/kimi"
+          export HARNESS_FREECAD_TEST_CLI="$GITHUB_WORKSPACE/dist/freecad-cli/industrial-harness.cjs"
           mkdir -p dist/ci-reports
           pnpm run test:ci -- native 2>&1 | tee dist/ci-reports/native.log
+      - name: Verify real FreeCAD artifacts through the Desktop viewer
+        run: |
+          pnpm --filter @industrial-agent-harness/desktop build
+          pnpm --filter @industrial-agent-harness/desktop test:cad
       - name: Retain native regression evidence
         if: always()
         uses: actions/upload-artifact@v4

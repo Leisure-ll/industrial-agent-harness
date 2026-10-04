@@ -29,6 +29,7 @@ export interface ViewerArtifact {
     | 'godot'
     | 'kicad'
     | 'engineering'
+    | 'cad'
     | 'image'
     | 'sprite'
     | 'animation'
@@ -70,6 +71,14 @@ export interface KiCadData {
   name: string;
   document: 'board' | 'schematic';
   url: string;
+}
+export interface CadData {
+  name: string;
+  sha256: string;
+  vertices: number[];
+  bounds: number[];
+  triangles: number;
+  companions: Array<{ name: string; sha256: string }>;
 }
 export interface AssetImage {
   name: string;
@@ -149,6 +158,7 @@ export type OpenedViewer =
   | { kind: 'godot'; artifact: ViewerArtifact; data: GodotData }
   | { kind: 'kicad'; artifact: ViewerArtifact; data: KiCadData }
   | { kind: 'engineering'; artifact: ViewerArtifact; data: EngineeringData }
+  | { kind: 'cad'; artifact: ViewerArtifact; data: CadData }
   | { kind: 'image' | 'sprite' | 'animation'; artifact: ViewerArtifact; data: AssetData }
   | { kind: DocumentKind; artifact: ViewerArtifact; data: DocumentData };
 

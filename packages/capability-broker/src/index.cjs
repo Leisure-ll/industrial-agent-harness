@@ -187,27 +187,36 @@ function resolveFromState({ task, state, domain, stage }, registry, previous) {
     throw Error('Task domain differs from the bound DomainState.');
   if (stage && stage !== state.stage)
     throw Error('Task stage differs from inspected engineering facts.');
-  const result = state.stage
-    ? resolve({ task, domain: state.domain, stage: state.stage }, registry, previous)
-    : {
-        scope: {
-          version: crypto.randomUUID(),
-          domain: state.domain,
-          stage: null,
-          capabilityIds: [],
-          skills: [],
-          tools: [],
-        },
-        matches: [],
-        contexts: [],
-        trace: [
-          {
-            level: 'L1',
-            event: 'capability.unavailable',
-            detail: { reason: 'StateProvider has not established an engineering stage.' },
+  // Stage-independent tools may bootstrap or inspect an empty project. Selecting
+  // them does not infer a trusted engineering stage from task keywords.
+  const available = state.stage ? registry : registry.filter(item => item.stages.length === 0);
+  const result =
+    state.stage || available.length
+      ? resolve(
+          { task, domain: state.domain, ...(state.stage ? { stage: state.stage } : {}) },
+          available,
+          previous,
+        )
+      : {
+          scope: {
+            version: crypto.randomUUID(),
+            domain: state.domain,
+            stage: null,
+            capabilityIds: [],
+            skills: [],
+            tools: [],
           },
-        ],
-      };
+          matches: [],
+          contexts: [],
+          trace: [
+            {
+              level: 'L1',
+              event: 'capability.unavailable',
+              detail: { reason: 'StateProvider has not established an engineering stage.' },
+            },
+          ],
+        };
+  result.scope.stage = state.stage;
   result.scope.stateId = state.id;
   result.scope.projectId = state.projectId;
   result.trace.unshift({

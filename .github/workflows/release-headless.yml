@@ -55,14 +55,14 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/package-headless.cjs
-          for domain in chip pcb godot; do
+          for domain in chip pcb godot cad; do
             node scripts/package-headless.cjs --domain "$domain"
           done
-          node -e 'for (const name of ["headless", "headless-chip", "headless-pcb", "headless-godot"]) { const p = require(`./dist/${name}/HARNESS-PACKAGE.json`); if (p.sourceDirty !== false || p.sourceCommit !== process.env.GITHUB_SHA) throw Error(`Invalid release source: ${name}`); }'
+          node -e 'for (const name of ["headless", "headless-chip", "headless-pcb", "headless-godot", "headless-cad"]) { const p = require(`./dist/${name}/HARNESS-PACKAGE.json`); if (p.sourceDirty !== false || p.sourceCommit !== process.env.GITHUB_SHA) throw Error(`Invalid release source: ${name}`); }'
           mkdir -p release /tmp/industrial-headless-release-smoke
           asset="industrial-agent-harness-headless-${GITHUB_REF_NAME}.tar.gz"
           tar -czf "release/$asset" -C dist headless
-          for domain in chip pcb godot; do
+          for domain in chip pcb godot cad; do
             tar -czf "release/industrial-agent-harness-cli-${domain}-${GITHUB_REF_NAME}.tar.gz" -C dist "headless-$domain"
             tar -xzf "release/industrial-agent-harness-cli-${domain}-${GITHUB_REF_NAME}.tar.gz" -C /tmp/industrial-headless-release-smoke
           done

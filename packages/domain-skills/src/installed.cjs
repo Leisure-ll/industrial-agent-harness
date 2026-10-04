@@ -8,6 +8,17 @@ const { loadSkillOnlyPacks } = require('./skill-only-packs.cjs');
 const staticSkills = require('./registry.cjs');
 const { listDomains } = require('./domains.cjs');
 
+function repositoryPackDirectory(packDirectory) {
+  // A deployed pnpm package lives below node_modules/.pnpm. Bind its native
+  // resources to the portable release root, never a source checkout above it.
+  for (let directory = __dirname; ; directory = path.dirname(directory)) {
+    if (fs.existsSync(path.join(directory, 'HARNESS-PACKAGE.json')))
+      return path.join(directory, 'domain-packs', packDirectory);
+    if (path.dirname(directory) === directory) break;
+  }
+  return path.resolve(__dirname, '../../../domain-packs', packDirectory);
+}
+
 function loadRegistry() {
   if (!process.env.INDUSTRIAL_HARNESS_PACK_STORE) {
     const providerPacks = loadDomainPacks();
@@ -30,7 +41,7 @@ function loadRegistry() {
           domain: pack.domain,
           version: pack.version,
           runtime: pack.runtime,
-          directory: path.resolve(__dirname, '../../../domain-packs', pack.provider.packDirectory),
+          directory: repositoryPackDirectory(pack.provider.packDirectory),
         })),
     };
   }

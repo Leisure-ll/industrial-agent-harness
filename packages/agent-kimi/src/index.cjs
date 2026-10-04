@@ -372,7 +372,7 @@ class KimiSession {
       const anchor = await this.diagnostics.getContextAnchor?.();
       const engineeringState = await this.diagnostics.industrialRuntime?.inspect();
       const stateContext = engineeringState
-        ? `\nPersisted DomainState (engineering facts): ${JSON.stringify({ schemaVersion: engineeringState.schemaVersion, id: engineeringState.id, projectId: engineeringState.projectId, domain: engineeringState.domain, stage: engineeringState.stage, status: engineeringState.status, verificationIds: engineeringState.verificationIds, inputCount: Object.keys(engineeringState.inputHashes).length })}. Use industrial_action_call with expectedStateId=${engineeringState.id}, toolId from the current Broker allowlist, and inputs={}. The returned verification is engineering acceptance; a stale state requires fresh inspection and scope resolution.`
+        ? `\nPersisted DomainState (engineering facts): ${JSON.stringify({ schemaVersion: engineeringState.schemaVersion, id: engineeringState.id, projectId: engineeringState.projectId, domain: engineeringState.domain, stage: engineeringState.stage, status: engineeringState.status, verificationIds: engineeringState.verificationIds, inputCount: Object.keys(engineeringState.inputHashes).length })}. Use industrial_tool_describe to load the selected tool input guide, then industrial_action_call with expectedStateId=${engineeringState.id}, toolId from the current Broker allowlist, and the declared inputs. Read the returned verification and its stated limits; a stale state requires fresh inspection and scope resolution.`
         : '';
       const context = industrialContext(scope, anchor, runtime.externalServers) + stateContext;
       if (anchor) log.record('context.anchor', anchor);

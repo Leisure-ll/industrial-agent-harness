@@ -24,14 +24,15 @@ function loadDomainPacks() {
       !pack.version ||
       pack.provider?.version !== pack.version ||
       pack.provider?.domain !== pack.domain ||
-      pack.provider?.transport !== 'gateway'
+      !['gateway', 'runtime'].includes(pack.provider?.transport)
     )
       throw Error('Invalid repository Domain Pack declaration.');
     if (
       !/^[a-z0-9][a-z0-9.-]*$/.test(pack.provider.id) ||
       providerIds.has(pack.provider.id) ||
       !/^[a-z0-9][a-z0-9-]*$/.test(pack.provider.packDirectory) ||
-      (pack.provider.backend !== 'godot-local' &&
+      (pack.provider.transport !== 'runtime' &&
+        pack.provider.backend !== 'godot-local' &&
         (!/^[A-Z][A-Z0-9_]*$/.test(pack.provider.directoryEnv) ||
           !/^[A-Z][A-Z0-9_]*$/.test(pack.provider.pythonEnv))) ||
       !/^[a-f0-9]{64}$/.test(pack.provider.sourceSha256) ||
@@ -39,6 +40,12 @@ function loadDomainPacks() {
       !Array.isArray(pack.capabilities)
     )
       throw Error('Invalid Domain Pack provider metadata.');
+    if (pack.provider.transport === 'runtime' && (!pack.runtime || pack.provider.backend))
+      throw Error(
+        'Host runtime providers require a runtime entry and cannot launch an MCP backend.',
+      );
+    if (pack.provider.transport === 'runtime' && !pack.provider.sourceFiles)
+      throw Error('Host runtime providers require pinned source resources.');
     if (pack.provider.backend && !['pcb-bench', 'godot-local'].includes(pack.provider.backend))
       throw Error('Unsupported Domain Pack backend.');
     if (

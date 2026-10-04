@@ -14,3 +14,5 @@ Godot 同时注册 `godot.local`：5 个工具来自仓库固定资源，绑定�
 共享网关、安装、分页与真实验证见 [Chip Pack MCP 接入](../../doc/domain-mcp-integration.md)。
 
 `ExternalMcpRegistry` 是显式用户注册的独立入口，保存在用户私有配置目录；项目不能自行提供启动命令。支持 stdio、Streamable HTTP、SSE 和凭据环境引用。Desktop / CLI 共用注册快照、策略和 `harness.external` Gateway；外部 canonical Tool ID 加入有效 Scope 后，四个入口按需发现/schema/调用/分页，执行前重查 Scope、参数和 live 工具快照。实际调用标为 mutating，沿用 Kimi 审批；图片保持 ImageContent，文字有界、分页并脱敏。外部 host 服务不产生工业验收事实，roots 不是 OS 沙箱。行为、限制与测试见 [外部 MCP](../../doc/external-mcp.md)。
+
+Domain Pack 中 `transport: runtime` 的宿主工具提供方由 Domain Runtime 加载，不进入 MCP server 清单或子进程配置。FreeCAD 通过这一边界复用持久执行与审批，见 [FreeCAD CAD Pack](../../doc/freecad-domain-pack.md)。

@@ -65,3 +65,5 @@ Broker 可以先作为独立本地 Sidecar 实现，再与控制面和 MCP Gatew
 每次解析至少记录任务、Domain State、候选和选中的 Capability、披露的 Skill/Tool、Scope 版本与决策原因。工具调用后关联实际调用、结果、Action、Artifact 和 Verification。Trace 不应把未验证的工具返回包装为成功结论。
 
 评估同时比较完整暴露与渐进式披露：任务成功率、工具选择准确率、无效调用、输入 token、Agent 步数、延迟和上下文大小。减少 token 只是其中一个指标；降低跨领域误选同样重要。
+
+当 StateProvider 的 stage 为 null 时，只能选择明确声明 `stages: []` 的阶段无关能力，用于空工程初始化或检查。Broker 保留真实 stage=null，并继续绑定 Project/State ID；关键词不能使其他阶段工具越权可用。FreeCAD 首批建模按此注册，几何事实仍来自 Runtime 和回读证据。

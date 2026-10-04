@@ -7,6 +7,7 @@ const { spawnSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
 const nativeFiles = [
+  'tests/integration/freecad-runtime.test.cjs',
   'tests/integration/industrial-core-vertical-slice.test.cjs',
   'tests/integration/industrial-core-installed-pack.test.cjs',
   'packages/agent-kimi/tests/process-sandbox.test.cjs',
@@ -147,6 +148,7 @@ async function main(suite) {
     }
     for (const file of [
       process.env.KIMI_EXECUTABLE,
+      process.env.INDUSTRIAL_HARNESS_FREECAD_CMD,
       path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python'),
     ]) {
       if (!file || !fs.existsSync(file)) throw Error(`Missing required native runtime: ${file}`);

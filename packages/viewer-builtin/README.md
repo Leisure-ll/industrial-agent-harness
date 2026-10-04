@@ -11,6 +11,7 @@
 | `src/kicad` | 本地 KiCanvas 隔离 iframe、KiCad 板图/原理图和多页配套文件校验 |
 | `src/godot` | Godot Web Export 隔离 iframe、会话资源管理和 Viewer Bridge |
 | `src/engineering` | Godot 场景/脚本/资源与 PCB 库/制造文件/3D 素材的受限只读预览 |
+| `src/cad` | STL 实体表面和 Pack 生成 FCStd/STEP 的哈希配套网格；旋转、平移、缩放、Fit 与全屏，macOS arm64 Electron 验证 |
 | `src/documents` | 不依赖 Domain 的 CSV/TSV、JSON、JSONL/NDJSON、Markdown、TXT/LOG；只读、原文入口、有界解析与分页 |
 
 `src/api.ts` 定义桌面 Viewer Host 当前需要的接口，`src/viewer-styles.css` 保留 demo 工作台及 Viewer 样式。`fixtures/` 是明确标识的参考数据；`tests/` 检查渲染和文件访问边界。运行：
@@ -32,3 +33,5 @@ Godot 导出和桥接说明见 [Godot Viewer V1](../../doc/godot-viewer.md)。
 PCB 项目内 KiCad 文件的使用、限制与本地运行时来源见 [KiCad Viewer V1](../../doc/kicad-viewer.md)。
 
 领域与素材 Viewer（版图、网表、波形、Godot、图片、图集、动画、KiCad、工程文件）及五种通用文件 Viewer 通过 `src/navigation.tsx` 的 `ViewNavigation` 注册缩放与 Fit。工作区统一呈现缩小、放大、适配和全屏入口；加载期间禁用缩放，切换文件时移除旧控制器。新接入的 Viewer 应实现同一接口，并在真实渲染路径验证按钮、滚轮/捏合和全屏。百分比以当前 Fit 为 100%，波形使用时间轴语义。Godot 放大已挂载的预览，不修改场景相机。通用文档的 Fit 恢复 100% 阅读比例；格式、上限与来源边界见 [通用文件 Viewer](../../doc/document-viewers.md)。
+
+FreeCAD 实体 Viewer 的格式、16 MiB/100000 三角面限制、配套文件哈希和原生执行边界见 [FreeCAD CAD Pack](../../doc/freecad-domain-pack.md)。Viewer 本身不启动 FreeCAD。

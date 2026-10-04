@@ -1,0 +1,343 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { createProjectRuntime } = require('../../packages/harness-core/src/project-runtime.cjs');
+const { createCadPlugins } = require('../../packages/viewer-builtin/src/cad/service.cjs');
+const { createViewerRegistry } = require('../../packages/viewer-core/src/registry.cjs');
+const { hash } = require('../../packages/viewer-builtin/src/engineering/read.cjs');
+const { execFileSync } = require('node:child_process');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const { startModel } = require('./fixtures/domain-mcp-model.cjs');
+const { PackManager } = require('../../packages/pack-manager/src/index.cjs');
+const crypto = require('node:crypto');
+const execute = promisify(execFile);
+const repo = path.resolve(__dirname, '../..');
+if (!process.env.INDUSTRIAL_HARNESS_FREECAD_CMD)
+  throw Error('Native FreeCAD suite requires pinned FreeCAD 1.1.4; tests cannot be skipped.');
+function setup(t) {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-freecad-e2e-')));
+  const { runtime } = createProjectRuntime({ projectDir: dir, domain: 'cad' });
+  t.after(() => {
+    runtime.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  return { dir, runtime };
+}
+async function call(runtime, op, inputs, policy = {}) {
+  const state = await runtime.inspect();
+  return runtime.execute(
+    { toolId: `cad.freecad.${op}`, inputs, expectedStateId: state.id },
+    {
+      scope: {
+        domain: 'cad',
+        projectId: state.projectId,
+        stateId: state.id,
+        tools: [`cad.freecad.${op}`],
+      },
+      approval: true,
+      ...policy,
+    },
+  );
+}
+const plate = {
+  parameters: { L: 40, W: 20, T: 5, R: 2 },
+  features: [
+    { id: 'Plate', op: 'sketch_pad', profile: 'rectangle', length: 'L', width: 'W', height: 'T' },
+    { id: 'Drilled', op: 'hole', base: 'Plate', radius: 'R', height: 'T', origin: [10, 10, 0] },
+  ],
+  result: 'Drilled',
+};
+test(
+  'native FreeCAD constrained sketch, pad and hole persist independent geometry evidence and real viewer artifacts',
+  { timeout: 150000 },
+  async t => {
+    const { dir, runtime } = setup(t);
+    const out = await call(runtime, 'build', {
+      recipe: plate,
+      expect: { volume: 4000 - 20 * Math.PI, solids: 1, bounds: [40, 20, 5] },
+    });
+    assert.equal(out.verification.status, 'passed', JSON.stringify(out.action));
+    assert.equal(out.state.status, 'verified');
+    assert.equal(out.verification.metrics.sketchesConstrained, true);
+    const native = out.artifacts.find(a => a.kind === 'model.cad.fcstd');
+    const registry = createViewerRegistry(createCadPlugins({ projectRoot: () => dir }));
+    const file = path.join(dir, native.relativePath);
+    const opened = await registry
+      .get(registry.match(file))
+      .open({ file, artifact: { id: native.id, name: 'model.FCStd', sha256: native.sha256 } });
+    assert.equal(opened.kind, 'cad');
+    assert.ok(opened.data.triangles > 20);
+    const exported = await call(runtime, 'export', {
+      file: native.relativePath,
+      expect: { volume: 4000 - 20 * Math.PI, solids: 1 },
+    });
+    assert.equal(exported.verification.status, 'passed', JSON.stringify(exported.action));
+    const step = exported.artifacts.find(a => a.kind === 'model.cad.step');
+    const inspected = await call(runtime, 'inspect', {
+      file: step.relativePath,
+      expect: { solids: 1 },
+    });
+    assert.equal(inspected.verification.status, 'passed', JSON.stringify(inspected.action));
+    assert.equal(runtime.listActions().length, 3);
+    assert.equal(runtime.listVerifications().length, 3);
+    assert.ok(runtime.latestCheckpoint());
+  },
+);
+test(
+  'native FreeCAD boolean fuse, cut and common preserve analytic volume',
+  { timeout: 150000 },
+  async t => {
+    const { runtime } = setup(t);
+    const recipe = {
+      features: [
+        { id: 'A', op: 'box', length: 10, width: 10, height: 5 },
+        { id: 'B', op: 'box', length: 10, width: 10, height: 5, origin: [5, 0, 0] },
+        { id: 'C', op: 'common', base: 'A', tool: 'B' },
+        { id: 'D', op: 'cut', base: 'A', tool: 'B' },
+        { id: 'E', op: 'fuse', base: 'D', tool: 'C' },
+      ],
+      result: 'E',
+    };
+    const out = await call(runtime, 'build', {
+      recipe,
+      expect: { volume: 500, solids: 1, bounds: [10, 10, 5] },
+    });
+    assert.equal(out.verification.status, 'passed', JSON.stringify(out.action));
+  },
+);
+test(
+  'native FreeCAD circular sketch placement and wrong dimensional expectation are evaluated on readback',
+  { timeout: 150000 },
+  async t => {
+    const { runtime } = setup(t);
+    const recipe = {
+      features: [
+        {
+          id: 'Round',
+          op: 'sketch_pad',
+          profile: 'circle',
+          radius: 3,
+          height: 10,
+          origin: [10, 20, 0],
+        },
+      ],
+      result: 'Round',
+    };
+    const out = await call(runtime, 'build', {
+      recipe,
+      expect: { volume: 90 * Math.PI, bounds: [6, 6, 10] },
+    });
+    assert.equal(out.verification.status, 'passed', JSON.stringify(out.action));
+    const bad = await call(runtime, 'build', { recipe, expect: { volume: 42 } });
+    assert.equal(bad.action.status, 'completed');
+    assert.equal(bad.verification.status, 'failed');
+    assert.equal(bad.state.status, 'failed');
+    assert.equal(bad.verification.metrics.expectedVolume, false);
+  },
+);
+test('CAD rejected approvals, stale scopes and invalid recipes leave durable failures without engineering acceptance', async t => {
+  const { dir, runtime } = setup(t);
+  const denied = await call(runtime, 'build', { recipe: plate }, { approval: false });
+  assert.equal(denied.action.status, 'failed');
+  assert.deepEqual(denied.artifacts, []);
+  assert.equal(fs.existsSync(path.join(dir, 'cad-output')), false);
+  const out = await call(runtime, 'build', { recipe: { ...plate, script: 'import os' } });
+  assert.equal(out.action.status, 'failed');
+  assert.deepEqual(out.artifacts, []);
+  const state = await runtime.inspect();
+  fs.writeFileSync(path.join(dir, 'new.step'), 'changed');
+  const stale = await runtime.execute(
+    { toolId: 'cad.freecad.build', inputs: { recipe: plate }, expectedStateId: state.id },
+    {
+      scope: {
+        domain: 'cad',
+        projectId: state.projectId,
+        stateId: state.id,
+        tools: ['cad.freecad.build'],
+      },
+      approval: true,
+    },
+  );
+  assert.equal(stale.action.status, 'failed');
+  assert.match(stale.verification.reason, /stale/);
+  assert.equal(runtime.listActions().length, 3);
+});
+test(
+  'CAD malicious FCStd proxies and escaped input paths fail visibly',
+  { timeout: 150000 },
+  async t => {
+    const { dir, runtime } = setup(t);
+    const file = path.join(dir, 'proxy.FCStd');
+    execFileSync('python3', [
+      '-c',
+      'import zipfile,sys; z=zipfile.ZipFile(sys.argv[1],"w"); z.writestr("Document.xml",\'<Document><Objects><Object type="Part::FeaturePython" name="Exploit"/></Objects></Document>\'); z.close()',
+      file,
+    ]);
+    const bad = await call(runtime, 'inspect', { file: 'proxy.FCStd' });
+    assert.equal(bad.verification.status, 'insufficient_evidence');
+    assert.ok(bad.artifacts.some(a => a.kind === 'diagnostic.cad'));
+    const escaped = await call(runtime, 'inspect', { file: '../outside.step' });
+    assert.equal(escaped.action.status, 'failed');
+    assert.match(escaped.verification.reason, /project-relative/);
+  },
+);
+test(
+  'FreeCAD native cancellation closes the owned process group and cannot claim acceptance',
+  { timeout: 150000 },
+  async t => {
+    const { runtime } = setup(t);
+    const execution = call(runtime, 'build', { recipe: plate });
+    const timer = setTimeout(() => runtime.cancel(), 50);
+    const out = await execution;
+    clearTimeout(timer);
+    assert.equal(out.action.status, 'failed');
+    assert.notEqual(out.verification.status, 'passed');
+    assert.equal(runtime.executing, false);
+  },
+);
+test(
+  'signed installed CAD Pack keeps its inventory intact and restores persisted acceptance after reopening',
+  { timeout: 150000 },
+  async t => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'installed-cad-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+    const key = path.join(directory, 'key.pem');
+    fs.writeFileSync(key, privateKey.export({ type: 'pkcs8', format: 'pem' }));
+    const output = path.join(directory, 'release');
+    await execute(process.execPath, [path.join(repo, 'scripts/build-domain-packs.cjs'), output], {
+      cwd: repo,
+      env: {
+        ...process.env,
+        HARNESS_PACK_DOMAINS: 'cad',
+        HARNESS_PACK_SIGNING_KEY_FILE: key,
+        HARNESS_PACK_SIGNING_KEY_ID: 'qualification',
+        HARNESS_PACK_CHANNEL: 'beta',
+      },
+    });
+    const manager = new PackManager({
+      directory: path.join(directory, 'installed'),
+      keys: { qualification: publicKey.export({ type: 'spki', format: 'pem' }) },
+      channel: 'beta',
+    });
+    const fetch = global.fetch;
+    global.fetch = async () => new Response(fs.readFileSync(path.join(output, 'catalog.json')));
+    let entry;
+    try {
+      entry = (await manager.catalog('https://qualification.example/catalog.json')).packs[0];
+    } finally {
+      global.fetch = fetch;
+    }
+    await manager.install(entry, {
+      bytes: fs.readFileSync(path.join(output, path.basename(entry.url))),
+    });
+    const prior = process.env.INDUSTRIAL_HARNESS_PACK_STORE;
+    process.env.INDUSTRIAL_HARNESS_PACK_STORE = manager.directory;
+    t.after(() => {
+      if (prior === undefined) delete process.env.INDUSTRIAL_HARNESS_PACK_STORE;
+      else process.env.INDUSTRIAL_HARNESS_PACK_STORE = prior;
+    });
+    const project = path.join(directory, 'project');
+    fs.mkdirSync(project);
+    const open = () => createProjectRuntime({ projectDir: project, domain: 'cad' }).runtime;
+    let runtime = open();
+    t.after(() => runtime?.close());
+    const out = await call(runtime, 'build', {
+      recipe: plate,
+      expect: { solids: 1, volume: 4000 - 20 * Math.PI },
+    });
+    assert.equal(out.verification.status, 'passed', JSON.stringify(out.action));
+    runtime.close();
+    runtime = null;
+    assert.deepEqual(manager.scan().errors, []);
+    runtime = open();
+    assert.equal((await runtime.inspect()).id, out.state.id);
+    assert.equal(runtime.latestCheckpoint().id, out.checkpoint.id);
+    assert.equal(runtime.listVerifications()[0].status, 'passed');
+    assert.deepEqual(manager.scan().errors, []);
+  },
+);
+test(
+  'real CAD CLI and pinned Kimi progressively describe then execute an approved FreeCAD recipe',
+  { timeout: 150000 },
+  async t => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'kimi-cad-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const project = path.join(directory, 'project');
+    fs.mkdirSync(project);
+    const native =
+      process.env.KIMI_EXECUTABLE || path.join(repo, 'apps/desktop/.venv-kimi/bin/kimi');
+    assert.ok(fs.existsSync(native), 'Pinned Kimi is required; this test cannot be skipped.');
+    const fixture = await startModel({
+      success: 'CAD_GEOMETRY_RECORDED',
+      calls: body => {
+        const id = JSON.stringify(body.messages).match(/expectedStateId=([a-f0-9-]{36})/)?.[1];
+        assert.ok(id);
+        return [
+          { name: 'industrial_tool_describe', arguments: { toolId: 'cad.freecad.build' } },
+          {
+            name: 'industrial_action_call',
+            arguments: {
+              toolId: 'cad.freecad.build',
+              inputs: { recipe: plate, expect: { volume: 4000 - 20 * Math.PI, solids: 1 } },
+              expectedStateId: id,
+            },
+          },
+        ];
+      },
+    });
+    t.after(fixture.close);
+    const result = await execute(
+      process.execPath,
+      [
+        process.env.HARNESS_FREECAD_TEST_CLI || path.join(repo, 'apps/cli/src/main.cjs'),
+        'run',
+        '--project-dir',
+        project,
+        '--domain',
+        'cad',
+        '--task',
+        'FreeCAD 3D 参数化草图拉伸打孔零件建模',
+        '--approval',
+        'approve',
+        '--provider',
+        'openai_legacy',
+        '--endpoint',
+        fixture.endpoint,
+        '--model',
+        'controlled-cad',
+        '--no-thinking',
+        '--kimi-executable',
+        native,
+        '--timeout-ms',
+        '90000',
+        '--chat-dir',
+        path.join(directory, 'chats'),
+        '--state-dir',
+        path.join(directory, 'state'),
+        '--log-dir',
+        path.join(directory, 'logs'),
+      ],
+      {
+        cwd: repo,
+        env: {
+          ...process.env,
+          OPENAI_API_KEY: 'local-cad-fixture-key',
+          INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(directory, 'resources'),
+        },
+        timeout: 120000,
+        maxBuffer: 4 * 1024 * 1024,
+      },
+    );
+    const rows = result.stdout.trim().split('\n').map(JSON.parse);
+    assert.equal(rows.at(-1).status, 'finished', result.stderr + result.stdout);
+    const engineering = rows.find(row => row.type === 'industrial_result');
+    assert.ok(engineering);
+    assert.equal(engineering.verification.status, 'passed', JSON.stringify(engineering));
+    assert.ok(JSON.stringify(fixture.requests).includes('sketch_pad'));
+    assert.equal(rows.at(-1).engineering.checkpointId, engineering.checkpoint.id);
+  },
+);

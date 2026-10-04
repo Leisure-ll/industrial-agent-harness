@@ -115,6 +115,7 @@ if (
     '--godot-selftest',
     '--documents-selftest',
     '--engineering-selftest',
+    '--cad-selftest',
     '--mcp-selftest',
     '--external-mcp-selftest',
     '--agent-log-selftest',
@@ -500,6 +501,9 @@ function getRaster() {
 }
 
 const viewerRegistry = createViewerRegistry([
+  ...require('@industrial-agent-harness/viewer-builtin/runtime/cad').createCadPlugins({
+    projectRoot: () => projectDir,
+  }),
   ...createEngineeringPlugins({ projectRoot: () => projectDir }),
   ...createAssetPlugins({ projectRoot: () => projectDir }),
   {
@@ -1213,6 +1217,8 @@ async function createWindow() {
     require('./documents-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--engineering-selftest'))
     require('./engineering-selftest.cjs').prepare(projectConfigDir());
+  if (process.argv.includes('--cad-selftest'))
+    await require('./cad-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--parallel-selftest'))
     require('./parallel-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--image-input-selftest'))
@@ -1368,6 +1374,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--engineering-selftest')) {
     await require('./engineering-selftest.cjs').run(window);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--cad-selftest')) {
+    await require('./cad-selftest.cjs').run(window);
     app.quit();
     return;
   }

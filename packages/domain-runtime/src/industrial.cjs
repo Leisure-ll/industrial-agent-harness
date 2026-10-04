@@ -254,6 +254,15 @@ class IndustrialRuntime {
       .map(tool => tool.descriptor)
       .filter(tool => !scope || scope.tools.includes(tool.id));
   }
+  describeTool(id, scope) {
+    const tool = this.tools.get(id);
+    if (!tool || !scope?.tools.includes(id))
+      throw Error('Tool is outside the current Broker scope.');
+    return {
+      descriptor: tool.descriptor,
+      guide: tool.guide || { inputs: {}, description: 'This tool accepts an empty inputs object.' },
+    };
+  }
   assertProjectBound() {
     const current = fs.statSync(this.projectDir);
     if (
