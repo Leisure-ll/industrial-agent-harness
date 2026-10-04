@@ -1,6 +1,6 @@
 # P0 工业运行时与执行边界
 
-状态：2026-10-04 的实际实现与本机 macOS 验证。主仓自有贡献按用户选择采用 MIT；第三方边界见根目录 `THIRD_PARTY_NOTICES.md`。本页不声明完整桌面发行包、其他平台或其他领域已经通过工业验收。
+状态：2026-10-04 的实际实现与本机 macOS Apple Silicon（arm64）验证。Intel Mac 暂不支持；主仓自有贡献按用户选择采用 MIT，第三方边界见根目录 `THIRD_PARTY_NOTICES.md`。本页不声明完整桌面发行包、其他平台或其他领域已经通过工业验收。
 
 `harness-core.createProjectRuntime` 从仓库注册或验签安装后的 `loadRegistry.runtimePacks` 加载 Pack 声明的 runtime entry。项目不能注入任意入口。领域实现与 Capability ID 留在 Chip Pack；通用 Factory、Broker、Kimi 与 Runtime 不硬编码领域。CLI 与桌面项目运行时缓存消费同一入口。
 

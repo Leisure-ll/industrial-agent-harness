@@ -2,7 +2,7 @@
 
 CLI 不启动 Electron，也不导入桌面 UI。它面向 Domain Task bench：每次运行绑定一个项目目录和一个 Domain，使用与桌面端相同的 Broker、Kimi Integration 和 Capability Registry，并逐行输出 JSON 事件。
 
-2026-10-04 源码新增受保护的 RTL Runtime。真实 Agent 执行目前需要 macOS；外部 MCP 应用服务和 Computer Use 组合仍需接入工业边界。`--scope-only` 保持无原生依赖的注册预览；真实运行重新读取工程状态。`result.engineering` 和 `industrial_result` 给出工程验证，`result.status` 表示 Agent 回合结束。详见[三轨整改记录](../../doc/harness-quality-three-tracks.md)。
+2026-10-04 源码新增受保护的 RTL Runtime。真实 Agent 执行目前在 macOS Apple Silicon（arm64）验证；Intel Mac 暂不支持，外部 MCP 应用服务和 Computer Use 组合仍需接入工业边界。`--scope-only` 保持无原生依赖的注册预览；真实运行重新读取工程状态。`result.engineering` 和 `industrial_result` 给出工程验证，`result.status` 表示 Agent 回合结束。详见[三轨整改记录](../../doc/harness-quality-three-tracks.md)。
 
 ## GitHub Release 安装
 

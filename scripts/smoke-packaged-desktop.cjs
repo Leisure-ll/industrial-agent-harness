@@ -12,7 +12,11 @@ let executable;
 if (process.platform === 'win32') {
   executable = path.join(output, 'win-unpacked', 'Industrial Agent Harness.exe');
 } else if (process.platform === 'darwin') {
-  const preferred = process.arch === 'arm64' ? ['mac-arm64', 'mac'] : ['mac', 'mac-x64'];
+  if (process.arch !== 'arm64')
+    throw Error(
+      'Packaged Desktop smoke requires Apple Silicon; Intel Mac is temporarily unsupported.',
+    );
+  const preferred = ['mac-arm64', 'mac'];
   const mac =
     preferred.find(name =>
       fs.existsSync(path.join(output, name, 'Industrial Agent Harness.app')),

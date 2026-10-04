@@ -21,7 +21,10 @@ module.exports = {
   asar: true,
   forceCodeSigning: release,
   mac: {
-    target: ['dmg', 'zip'],
+    target: [
+      { target: 'dmg', arch: ['arm64'] },
+      { target: 'zip', arch: ['arm64'] },
+    ],
     category: 'public.app-category.developer-tools',
     hardenedRuntime: true,
     notarize: release,
