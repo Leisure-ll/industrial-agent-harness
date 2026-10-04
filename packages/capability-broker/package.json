@@ -3,5 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "main": "src/index.cjs",
-  "scripts": {"test": "node --test tests/*.test.cjs"}
+  "scripts": {
+    "test": "node --test tests/*.test.cjs"
+  },
+  "dependencies": {
+    "@industrial-agent-harness/contracts": "workspace:*"
+  },
+  "license": "MIT"
 }

@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const { parseArgs } = require('./args.cjs');
 const {
   resolveProjectTask,
+  createProjectRuntime,
   effectiveCapabilities,
   resourceCatalog,
   ResourceSettings,
@@ -24,6 +25,7 @@ const {
 } = require('@industrial-agent-harness/computer-use-bridge');
 const { ObservedContextStore } = require('@industrial-agent-harness/domain-runtime');
 const { runBench } = require('./bench.cjs');
+const { loadArtifacts } = require('./lib/artifact-manifest.cjs');
 const { runMcp } = require('./mcp.cjs');
 const { main: inspectDiagnosticLog } = require('./inspect-log.cjs');
 const { runDomains } = require('./domains.cjs');
@@ -70,65 +72,41 @@ function emit(output, event) {
   output.write(`${JSON.stringify({ schemaVersion: 1, ...event })}\n`);
 }
 
-async function loadArtifacts(manifestFile, projectDir) {
-  if (!manifestFile) return new Map();
-  const entries = JSON.parse(fs.readFileSync(path.resolve(manifestFile), 'utf8'));
-  if (!Array.isArray(entries)) throw Error('Artifact manifest must be a JSON array.');
-  const artifacts = new Map();
-  for (const entry of entries) {
-    if (
-      !entry ||
-      typeof entry.id !== 'string' ||
-      !entry.id ||
-      typeof entry.path !== 'string' ||
-      !['layout', 'netlist', 'waveform'].includes(entry.kind)
-    )
-      throw Error('Invalid artifact manifest entry.');
-    if (artifacts.has(entry.id)) throw Error('Duplicate artifact ID.');
-    const file = fs.realpathSync(path.resolve(projectDir, entry.path));
-    const relativePath = path.relative(projectDir, file);
-    if (
-      !relativePath ||
-      relativePath === '..' ||
-      relativePath.startsWith(`..${path.sep}`) ||
-      path.isAbsolute(relativePath) ||
-      !fs.statSync(file).isFile()
-    )
-      throw Error('Artifact must be a file inside the project.');
-    artifacts.set(entry.id, {
-      file,
-      metadata: {
-        id: entry.id,
-        kind: entry.kind,
-        name: path.basename(file),
-        relativePath,
-        sizeBytes: fs.statSync(file).size,
-      },
-    });
-  }
-  return artifacts;
-}
-
 async function run(
   options,
   output = process.stdout,
   environment = process.env,
   Session = KimiSession,
 ) {
+  let bundle;
   const store =
     options.scopeOnly && options.command !== 'chats'
       ? null
       : new ChatStore(options.chatDir || defaultChatDirectory(environment));
   try {
-    return await runWithStore(options, output, environment, Session, store);
+    const registry = loadRegistry(environment);
+    if (!registry.domains.some(item => item.id === options.domain))
+      throw Error('Choose a valid project domain.');
+    if (options.command !== 'chats' && !options.scopeOnly)
+      bundle = createProjectRuntime({
+        projectDir: fs.realpathSync(path.resolve(options.projectDir)),
+        domain: options.domain,
+        directory: options.stateDir || environment.INDUSTRIAL_HARNESS_STATE_DIR,
+        environment,
+        registry,
+      });
+    return await runWithStore(options, output, environment, Session, store, registry, bundle);
   } finally {
-    store?.close();
+    try {
+      bundle?.runtime.close();
+    } finally {
+      store?.close();
+    }
   }
 }
 
-async function runWithStore(options, output, environment, Session, chats) {
-  const registry = loadRegistry();
-  const capabilities = registry.capabilities;
+async function runWithStore(options, output, environment, Session, chats, registry, bundle) {
+  const capabilities = [...registry.capabilities, ...(bundle?.capabilities || [])];
   const projectDir = fs.realpathSync(path.resolve(options.projectDir));
   if (!fs.statSync(projectDir).isDirectory()) throw Error('Project path must be a directory.');
   const runId = crypto.randomUUID();
@@ -159,7 +137,7 @@ async function runWithStore(options, output, environment, Session, chats) {
     if (!catalog.mcpServers.some(item => item.id === id)) throw Error(`Unknown project MCP: ${id}`);
   const broker = resolveProjectTask(
     options.domain,
-    { task: options.task },
+    { task: options.task, ...(bundle ? { state: await bundle.runtime.inspect() } : {}) },
     previous,
     capabilities,
     disabled,
@@ -167,7 +145,14 @@ async function runWithStore(options, output, environment, Session, chats) {
     registry.domains,
   );
   const scope = broker.scope;
-  send({ type: 'scope', projectDir, scope, matches: broker.matches, trace: broker.trace });
+  send({
+    type: 'scope',
+    projectDir,
+    scope,
+    matches: broker.matches,
+    trace: broker.trace,
+    ...(options.scopeOnly ? { preview: true, executionAuthorized: false } : {}),
+  });
   if (options.scopeOnly) {
     send({ type: 'result', status: 'scoped' });
     return 0;
@@ -324,6 +309,14 @@ async function runWithStore(options, output, environment, Session, chats) {
       () => runtime,
       undefined,
       {
+        industrialRuntime: bundle?.runtime,
+        protectedPaths: bundle?.protectedPaths,
+        onIndustrialResult: result => {
+          scope.stateId = result.state.id;
+          const event = { type: 'industrial_result', ...result };
+          chats.append(turnId, event);
+          send(event);
+        },
         resources: sessionResources,
         directory: options.logDir || environment.INDUSTRIAL_HARNESS_LOG_DIR,
         getBrokerTrace: () => broker.trace,
@@ -356,7 +349,21 @@ async function runWithStore(options, output, environment, Session, chats) {
             ? outcome.result.status
             : 'incomplete';
     chats.finish(turnId, status);
-    send({ type: 'result', status, chatId: chat.id });
+    const state = bundle ? await bundle.runtime.inspect() : null;
+    send({
+      type: 'result',
+      status,
+      chatId: chat.id,
+      ...(state
+        ? {
+            engineering: {
+              stateId: state.id,
+              status: state.status,
+              checkpointId: bundle.runtime.latestCheckpoint()?.id,
+            },
+          }
+        : {}),
+    });
     return status === 'timeout'
       ? 124
       : status === 'interrupted'

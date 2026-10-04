@@ -1,5 +1,17 @@
 # Contracts
 
-Shared types and schemas for project identity, agent events, domain runs, artifacts, capabilities, and errors. Keep contracts independent of UI and runtime implementations.
+Canonical, domain-independent industrial fact schemas with Zod validation and TypeScript declarations.
 
-当前有工件文件观察、观察状态、最小 Checkpoint、原生 Action 记录与 VerificationResult 的 Zod schema。文件状态只说明路径和内容哈希已核对；原生 Action 的 `not_run` 表示尚未进行工程验证。完整 Run、真实工程 Verifier 与领域 State 契约仍需在 Industrial Core Vertical Slice 中补齐。
+Version `'1'` defines Project, Artifact, DomainState, Run, Action, Verification, Checkpoint,
+ToolDescriptor and ActionRequest. Industrial writes use the strict `Industrial*` schemas.
+The Runtime consumes their content identities, tool versions, evidence and metrics; the Broker
+consumes DomainState without creating facts from user intent. Verification distinguishes missing
+evidence from failure and never treats a successful process as engineering acceptance.
+
+Existing Observed schemas and unversioned Action journals remain readable. Historical file
+observations retain `not_run` and are not promoted into verified industrial facts.
+
+See [versioning and compatibility](../../doc/contracts-versioning.md) for fields, migration rules,
+and the difference between industrial schema version `'1'` and Pack container API version `1`.
+
+Validation: `node --test packages/contracts/tests/*.test.cjs`.

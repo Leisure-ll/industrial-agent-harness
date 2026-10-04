@@ -15,15 +15,27 @@ const python =
   path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
 
 test(
-  'real CLI + pinned Kimi invokes registered MCP, approves mutation and retrieves persisted context; rejection has no mutation',
+  'real CLI + pinned Kimi refuses legacy project mutation even after approval; empty engineering state does not disclose legacy tools',
   { timeout: 90000, skip: !fs.existsSync(kimi) || !fs.existsSync(python) },
   async t => {
-    const fixture = await startModel();
+    let activeProject;
+    const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
+    const fixture = await startModel({
+      calls: () => [
+        {
+          name: 'Shell',
+          arguments: {
+            command: `${quote(python)} -c ${quote('import sys; from eda_harness.core.service import Harness; Harness(sys.argv[1]).create_goal("MCP_INTEGRATION_GOAL", {}, [])')} ${quote(activeProject)}`,
+          },
+        },
+      ],
+    });
     t.after(fixture.close);
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-mcp-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
     for (const approval of ['reject', 'approve']) {
       const project = path.join(directory, approval);
+      activeProject = project;
       fs.mkdirSync(project);
       fs.writeFileSync(
         path.join(project, 'eda.yaml'),
@@ -74,20 +86,23 @@ test(
       assert.ok(rows.some(row => row.type === 'approval_decision' && row.decision === approval));
       const requests = fixture.requests.slice(before);
       const tools = requests[0].tools.map(tool => tool.function.name);
-      assert.ok(tools.includes('domain_tool_call'));
+      assert.ok(!tools.includes('domain_tool_call'));
       assert.ok(!tools.includes('run_action'));
       if (approval === 'approve') {
-        assert.ok(JSON.stringify(requests.at(-1).messages).includes('MCP_INTEGRATION_GOAL'));
+        assert.match(
+          JSON.stringify(requests.at(-1).messages),
+          /Operation not permitted|PermissionError/,
+        );
         assert.ok(
           rows.some(
-            row =>
-              row.event?.type === 'tool-result' &&
-              row.event.output?.includes('MCP_INTEGRATION_GOAL'),
+            row => row.event?.type === 'execution-boundary' && row.event.projectWritable === false,
           ),
-          JSON.stringify(rows.filter(row => row.event?.type === 'tool-result')),
         );
-        assert.ok(fs.existsSync(path.join(project, '.eda')));
-      } else assert.ok(!fs.existsSync(path.join(project, '.eda')));
+      }
+      assert.ok(!fs.existsSync(path.join(project, '.eda')));
+      assert.ok(
+        !rows.some(row => row.type === 'industrial_result' && row.verification.status === 'passed'),
+      );
     }
   },
 );

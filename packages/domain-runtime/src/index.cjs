@@ -274,4 +274,9 @@ class ObservedContextStore {
   }
 }
 
-module.exports = { ObservedContextStore, defaultStateDirectory, ...require('./actions.cjs') };
+module.exports = {
+  ObservedContextStore,
+  defaultStateDirectory,
+  ...require('./actions.cjs'),
+  ...require('./industrial.cjs'),
+};

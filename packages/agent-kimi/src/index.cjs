@@ -17,6 +17,8 @@ const {
 } = require('@industrial-agent-harness/domain-mcp');
 const { validatePromptImages, imageContent } = require('./image-input.cjs');
 const { createDiagnosticLog } = require('./diagnostic-log.cjs');
+const { createProcessSandbox } = require('./process-sandbox.cjs');
+const { runtimeTools } = require('./runtime-tools.cjs');
 
 const canonicalNames = {
   'eda.netlist.inspect': 'eda_netlist_inspect',
@@ -67,6 +69,8 @@ function industrialContext(scope, anchor = null, externalServers = []) {
   const withAnchor = value =>
     `${context}\nObserved project checkpoint: ${JSON.stringify(value)}. These are file observations with content hashes, not engineering verification. ${readHint}`;
   let complete = anchor ? withAnchor(anchor) : context;
+  complete +=
+    '\nExecution boundary: native Shell, WriteFile and child MCP processes cannot modify the project. Engineering mutations require industrial_action_call through the host Domain Runtime; unavailable legacy mutations fail visibly. Process success alone is not engineering acceptance.';
   if (anchor && Buffer.byteLength(complete, 'utf8') > MAX_INDUSTRIAL_CONTEXT_BYTES) {
     complete = withAnchor({
       checkpointId: anchor.checkpointId,
@@ -275,6 +279,7 @@ class KimiSession {
     this.toolNames = new Map();
     this.lastToolCall = null;
     this.pendingApprovals = new Map();
+    this.runtimeApprovals = new Map();
     this.pendingQuestions = new Map();
   }
   async run(task, attachments = []) {
@@ -365,7 +370,11 @@ class KimiSession {
       });
       this.emitAgent({ type: 'diagnostic-log', traceId: log.traceId, path: log.file });
       const anchor = await this.diagnostics.getContextAnchor?.();
-      const context = industrialContext(scope, anchor, runtime.externalServers);
+      const engineeringState = await this.diagnostics.industrialRuntime?.inspect();
+      const stateContext = engineeringState
+        ? `\nPersisted DomainState (engineering facts): ${JSON.stringify({ schemaVersion: engineeringState.schemaVersion, id: engineeringState.id, projectId: engineeringState.projectId, domain: engineeringState.domain, stage: engineeringState.stage, status: engineeringState.status, verificationIds: engineeringState.verificationIds, inputCount: Object.keys(engineeringState.inputHashes).length })}. Use industrial_action_call with expectedStateId=${engineeringState.id}, toolId from the current Broker allowlist, and inputs={}. The returned verification is engineering acceptance; a stale state requires fresh inspection and scope resolution.`
+        : '';
+      const context = industrialContext(scope, anchor, runtime.externalServers) + stateContext;
       if (anchor) log.record('context.anchor', anchor);
       const resetReason = !this.session
         ? 'new'
@@ -389,6 +398,8 @@ class KimiSession {
         if (this.session) this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
         await this.session?.close();
         this.session = undefined;
+        this.processSandbox?.close();
+        this.processSandbox = null;
         if (this.sessionConfigDir && !this.persistentSession)
           fs.rmSync(this.sessionConfigDir, { recursive: true, force: true });
         const compatibilityKey = crypto
@@ -402,6 +413,9 @@ class KimiSession {
               mcpRuntime,
               plugins: pluginKey,
               approvalMode,
+              ...(this.sessionFactory === createSession
+                ? { executionBoundary: 'seatbelt-workspace-v1' }
+                : {}),
             }),
           )
           .digest('hex');
@@ -409,7 +423,12 @@ class KimiSession {
         const stored = this.persistentSession;
         if (stored?.initialized) {
           const context = path.join(
-            createKimiPaths(stored.shareDir).sessionDir(this.workDir, stored.id),
+            createKimiPaths(stored.shareDir).sessionDir(
+              this.sessionFactory === createSession
+                ? path.join(fs.realpathSync(stored.shareDir), 'workspace')
+                : this.workDir,
+              stored.id,
+            ),
             'context.jsonl',
           );
           if (!fs.existsSync(context) || !fs.statSync(context).size)
@@ -424,16 +443,45 @@ class KimiSession {
           this.workDir,
           this.plugins,
         );
+        if (this.sessionFactory === createSession) {
+          // External host services can mutate unrelated applications outside this
+          // process boundary. Do not expose them as an industrial execution path.
+          const externalSelected = selectMcpServers(
+            scope,
+            runtime.disabledMcpServers,
+            undefined,
+            runtime.externalServers,
+          ).some(provider => provider.transport === 'external');
+          if (externalSelected || enabledPlugins(this.plugins).length)
+            throw Error(
+              '当前工业执行隔离不支持外部 MCP 服务或应用控制插件。请在本次项目资源设置中停用这些服务后重试；工业修改仅能通过已接入的 Domain Runtime。',
+            );
+          this.processSandbox = createProcessSandbox({
+            executable: runtime.executable || 'kimi',
+            shareDir: this.sessionConfigDir,
+            projectDir: this.workDir,
+            protectedPaths: this.diagnostics.protectedPaths || [],
+            environment: { ...process.env, ...runtime.env },
+          });
+          this.emitAgent({ type: 'execution-boundary', ...this.processSandbox.boundary });
+        }
+        this.nativeWorkDir = this.processSandbox?.workDir || this.workDir;
         this.session = this.sessionFactory({
-          workDir: this.workDir,
+          workDir: this.processSandbox?.workDir || this.workDir,
           ...(this.persistentSession ? { sessionId: this.persistentSession.id } : {}),
-          executable: runtime.executable,
+          executable: this.processSandbox?.executable || runtime.executable,
           shareDir: this.sessionConfigDir,
           model: 'industrial',
           thinking: runtime.profile.thinking,
-          env: runtime.env,
+          env: this.processSandbox?.env || runtime.env,
           yoloMode: approvalMode === 'auto',
           externalTools: [
+            ...runtimeTools(
+              this.diagnostics.industrialRuntime,
+              this.getScope,
+              (descriptor, request) => this.requestRuntimeApproval(descriptor, request),
+              result => this.diagnostics.onIndustrialResult?.(result),
+            ),
             ...externalTools(
               this.getScope,
               this.lookupArtifact,
@@ -460,7 +508,10 @@ class KimiSession {
         log.record('session.ready', { sessionId: this.session.sessionId || null, currentScopeKey });
       } else
         log.record('session.reuse', { sessionId: this.session.sessionId || null, currentScopeKey });
-      const prompt = `${context}\n\nUser task: ${task}${images.length ? '\nAttached images are user-provided visual references, not engineering verification.' : ''}`;
+      const projectContext = this.processSandbox
+        ? `\nBound engineering Project: ${this.workDir}. Native working directory is isolated session scratch; the project/ symlink exposes the real project for reading. Changes to scratch do not modify the engineering Project. Use absolute Project paths or project/ for inspection, and industrial_action_call for authorized engineering mutations.`
+        : '';
+      const prompt = `${context}${projectContext}\n\nUser task: ${task}${images.length ? '\nAttached images are user-provided visual references, not engineering verification.' : ''}`;
       const content = imageContent(prompt, images, runtime.profile.imageInput);
       log.record('prompt', {
         text: prompt,
@@ -517,7 +568,7 @@ class KimiSession {
           fs.existsSync(
             path.join(
               createKimiPaths(this.sessionConfigDir).sessionDir(
-                this.workDir,
+                this.nativeWorkDir || this.workDir,
                 this.persistentSession.id,
               ),
               'context.jsonl',
@@ -547,7 +598,7 @@ class KimiSession {
   captureKimiSnapshot(log, phase, apiKey) {
     if (!this.sessionConfigDir || !this.session?.sessionId) return;
     const sessionDir = path.join(
-      createKimiPaths(this.sessionConfigDir).sessionsDir(this.workDir),
+      createKimiPaths(this.sessionConfigDir).sessionsDir(this.nativeWorkDir || this.workDir),
       this.session.sessionId,
     );
     for (const kind of ['context', 'wire']) {
@@ -743,9 +794,30 @@ class KimiSession {
       throw error;
     }
   }
+  requestRuntimeApproval(descriptor, request) {
+    if (this.lastApprovalMode === 'auto') return Promise.resolve(true);
+    const id = crypto.randomUUID();
+    return new Promise(resolve => {
+      this.pendingApprovals.set(id, 'pending');
+      this.runtimeApprovals.set(id, resolve);
+      this.emitAgent({
+        type: 'approval',
+        id,
+        description: `Execute ${descriptor.id} through the persistent industrial runtime.`,
+        action: descriptor.id,
+        stateId: request.expectedStateId,
+      });
+    });
+  }
   async approve(id, response) {
     if (!['approve', 'approve_for_session', 'reject'].includes(response))
       throw Error('Invalid approval decision.');
+    if (this.runtimeApprovals.has(id)) {
+      this.runtimeApprovals.get(id)(response !== 'reject');
+      this.runtimeApprovals.delete(id);
+      this.resolveApproval(id, response);
+      return;
+    }
     if (!this.turn || this.pendingApprovals.get(id) !== 'pending')
       throw Error('This approval is no longer pending.');
     this.pendingApprovals.set(id, 'submitting');
@@ -759,6 +831,12 @@ class KimiSession {
     }
   }
   interrupt() {
+    this.diagnostics.industrialRuntime?.cancel();
+    for (const [id, resolve] of this.runtimeApprovals) {
+      resolve(false);
+      this.resolveApproval(id, 'reject');
+    }
+    this.runtimeApprovals.clear();
     if (this.running) this.interruptRequested = true;
     this.log?.record('turn.interrupt', {});
     const turn = this.turn;
@@ -786,6 +864,8 @@ class KimiSession {
   }
   async close() {
     if (this.running) this.interruptRequested = true;
+    this.diagnostics.industrialRuntime?.cancel();
+    await this.diagnostics.industrialRuntime?.waitForIdle();
     await this.diagnostics.resources?.remove(this.resourceId);
     await this.closeNative();
   }
@@ -803,10 +883,14 @@ class KimiSession {
     if (this.sessionConfigDir && !this.persistentSession)
       fs.rmSync(this.sessionConfigDir, { recursive: true, force: true });
     this.sessionConfigDir = undefined;
+    this.processSandbox?.close();
+    this.processSandbox = null;
   }
 }
 
 module.exports = {
+  createProcessSandbox,
+  runtimeTools,
   KimiSession,
   externalTools,
   prepareSessionFiles,

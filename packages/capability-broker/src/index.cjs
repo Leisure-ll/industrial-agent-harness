@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { DomainStateSchema } = require('@industrial-agent-harness/contracts');
 
 function mentionsTool(text, toolId) {
   let offset = text.indexOf(toolId);
@@ -180,4 +181,47 @@ function assertToolAllowed(scope, toolId) {
     throw Error(`Tool ${toolId} is outside the current scope.`);
 }
 
-module.exports = { resolve, discloseDetail, assertToolAllowed };
+function resolveFromState({ task, state, domain, stage }, registry, previous) {
+  state = DomainStateSchema.parse(state);
+  if (domain && domain !== state.domain)
+    throw Error('Task domain differs from the bound DomainState.');
+  if (stage && stage !== state.stage)
+    throw Error('Task stage differs from inspected engineering facts.');
+  const result = state.stage
+    ? resolve({ task, domain: state.domain, stage: state.stage }, registry, previous)
+    : {
+        scope: {
+          version: crypto.randomUUID(),
+          domain: state.domain,
+          stage: null,
+          capabilityIds: [],
+          skills: [],
+          tools: [],
+        },
+        matches: [],
+        contexts: [],
+        trace: [
+          {
+            level: 'L1',
+            event: 'capability.unavailable',
+            detail: { reason: 'StateProvider has not established an engineering stage.' },
+          },
+        ],
+      };
+  result.scope.stateId = state.id;
+  result.scope.projectId = state.projectId;
+  result.trace.unshift({
+    level: 'L0',
+    event: 'state.inspect',
+    detail: {
+      stateId: state.id,
+      projectId: state.projectId,
+      status: state.status,
+      stage: state.stage,
+      source: 'domain-state-provider',
+    },
+  });
+  return result;
+}
+
+module.exports = { resolve, resolveFromState, discloseDetail, assertToolAllowed };

@@ -2,9 +2,11 @@
 
 CLI 不启动 Electron，也不导入桌面 UI。它面向 Domain Task bench：每次运行绑定一个项目目录和一个 Domain，使用与桌面端相同的 Broker、Kimi Integration 和 Capability Registry，并逐行输出 JSON 事件。
 
+2026-10-04 源码新增受保护的 RTL Runtime。真实 Agent 执行目前需要 macOS；外部 MCP 应用服务和 Computer Use 组合仍需接入工业边界。`--scope-only` 保持无原生依赖的注册预览；真实运行重新读取工程状态。`result.engineering` 和 `industrial_result` 给出工程验证，`result.status` 表示 Agent 回合结束。详见[三轨整改记录](../../doc/harness-quality-three-tracks.md)。
+
 ## GitHub Release 安装
 
-打开 [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases)，下载最新 `headless-v*` 预发布版本中的 `industrial-agent-harness-headless-<tag>.tar.gz` 和同名 `.sha256` 文件。当前源码接入的 SQLite 观察状态需要 Node.js 22.13 或更新版本；使用下载包无需克隆仓库或安装 pnpm。
+打开 [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases)，下载最新 `headless-v*` 预发布版本中的 `industrial-agent-harness-headless-<tag>.tar.gz` 和同名 `.sha256` 文件。当前源码接入的 SQLite 观察状态需要 Node.js 24 或更新版本；使用下载包无需克隆仓库或安装 pnpm。
 
 ```bash
 sha256sum -c industrial-agent-harness-headless-<tag>.tar.gz.sha256

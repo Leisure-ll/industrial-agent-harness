@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const { spawnSync } = require('node:child_process');
+const { copyReleaseNotices } = require('./release-notices.cjs');
 const {
   capabilities,
   listDomains,
@@ -40,6 +41,7 @@ const result = spawnSync(
 );
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status || 1);
+copyReleaseNotices(target);
 // pnpm legacy deploy can leave its root package linked to the source checkout.
 // Resolve that package inside the portable bundle instead.
 const selfLink = path.join(
@@ -142,6 +144,6 @@ const setup =
   '\nThis domain has no registered industrial MCP provider yet. Scope/Skill and general Kimi tests are supported; do not infer engineering execution readiness.\n';
 fs.writeFileSync(
   path.join(target, 'HEADLESS-README.txt'),
-  `Industrial Agent Harness CLI test package\n\n${binding}\nUse Node.js 22.13 or newer:\n  node industrial-harness.cjs run --project-dir DIR ${domain ? '' : '--domain DOMAIN '}--task TEXT --scope-only\n  node industrial-harness.cjs run --project-dir DIR ${domain ? '' : '--domain DOMAIN '}--task TEXT\n\nAgent execution needs Kimi CLI 1.51.0 and model API credentials. Install it in a separate environment (requires uv):\n  uv venv --python 3.13 /absolute/path/harness-kimi\n  uv pip install --python /absolute/path/harness-kimi/bin/python 'kimi-cli==1.51.0'\n  export KIMI_EXECUTABLE=/absolute/path/harness-kimi/bin/kimi\n\nSet KIMI_API_KEY for the default Kimi provider; other providers use their declared key environment. Do not place keys in task text or command-line arguments.\n\nThis package includes the shared Broker, domain Skill and MCP declarations, Kimi SDK integration, chat persistence and observed-context SQLite store; no Electron or Viewer UI. HARNESS-PACKAGE.json records source identity and whether this is a local uncommitted test build.\n${setup}`,
+  `Industrial Agent Harness CLI test package\n\n${binding}\nUse Node.js 24 or newer:\n  node industrial-harness.cjs run --project-dir DIR ${domain ? '' : '--domain DOMAIN '}--task TEXT --scope-only\n  node industrial-harness.cjs run --project-dir DIR ${domain ? '' : '--domain DOMAIN '}--task TEXT\n\nAgent execution needs Kimi CLI 1.51.0 and model API credentials. Install it in a separate environment (requires uv):\n  uv venv --python 3.13 /absolute/path/harness-kimi\n  uv pip install --python /absolute/path/harness-kimi/bin/python 'kimi-cli==1.51.0'\n  export KIMI_EXECUTABLE=/absolute/path/harness-kimi/bin/kimi\n\nSet KIMI_API_KEY for the default Kimi provider; other providers use their declared key environment. Do not place keys in task text or command-line arguments.\n\nProtected agent execution currently requires macOS Seatbelt. Linux/Windows mutation and host GUI/external MCP combinations remain unavailable until a verified boundary exists. The registered RTL runtime emits persisted action and verification facts; read result.engineering separately from the agent turn status.\n\nThis package includes the shared Broker, domain Skill and MCP declarations, Kimi SDK integration, chat persistence and observed-context SQLite store; no Electron or Viewer UI. HARNESS-PACKAGE.json records source identity and whether this is a local uncommitted test build.\n${setup}`,
 );
 process.stdout.write(`${target}\n`);

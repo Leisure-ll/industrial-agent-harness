@@ -1,6 +1,10 @@
 # 文档目录
 
+项目首页：[English](../README.md) · [简体中文](../README.zh-CN.md)。当前版本为**开发者预览版（Developer Preview）**，许可证见 [MIT License](../LICENSE) 与[第三方清单](../THIRD_PARTY_NOTICES.md)。
+
 这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi SDK 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。Chip Pack、PCB Bench 与 Godot 本地 MCP 已通过共用网关接入 Desktop/CLI；完整 Core Domain Runtime、工业状态闭环及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
+
+2026-10-04 更新：[三轨整改记录](harness-quality-three-tracks.md)记录首条真实 RTL 持久化闭环、发行资源修复、SDK 和配对评测入口。受保护的 Agent 当前支持 macOS；其他领域及平台仍需接入和验收。2026-09-23 评审文件保留为历史基线。
 
 Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.md)，覆盖场景、脚本、库、制造文件和部分 3D 素材；其保真范围与 macOS 验证见该文档。
 
@@ -31,6 +35,11 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [PCB-bench 本地六题诊断](pcb-bench-local-trial-2026-09-30.md) | 六个开发集任务的原生试跑、独立验收与 Harness 缺口 |
 | [外部 MCP](external-mcp.md) | UI/CLI 共用的 stdio/HTTP/SSE 注册、渐进披露、审批、截图与配置边界 |
 | [Domain Pack](domain-pack.md) | 芯片与 PCB 等领域的扩展方式和最小契约 |
+| [Pack 作者教程](pack-authoring.md) | 独立构建、安装和验证外部 Pack，资源与升级兼容 |
+| [工业契约版本](contracts-versioning.md) | v1 工业事实、旧观察数据与 TypeScript 消费 |
+| [P0 工业闭环](p0-industrial-runtime.md) | 真实 RTL、隔离、持久化和失败恢复的范围 |
+| [Node SDK](sdk.md) | 项目绑定、聊天恢复、流事件、取消和 stdio RPC |
+| [配对评测基线](benchmark-baseline.md) | 原生 Kimi/Harness、冻结输入、独立验收与正式结果边界 |
 | [早期开发计划](development-plan.md) | 两份原始 Plan 的阶段性整理；里程碑顺序以新的实施路线图为准 |
 | [产品决策记录](product-decisions.md) | 已确认的用户交互与项目模型决定，包括 Project、目录、Domain 和 Session 的关系 |
 | [架构决策记录](decisions.md) | 已确定的决定、提案间的差异和需要验证的接口 |

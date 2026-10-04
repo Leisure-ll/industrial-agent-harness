@@ -12,7 +12,7 @@
     },
     {
       "id": "cli-in-memory-artifact-manifest",
-      "path": "apps/cli/src/main.cjs",
+      "path": "apps/cli/src/lib/artifact-manifest.cjs",
       "signature": "const artifacts = new Map();",
       "replacement": "Shared Artifact Registry in packages/domain-runtime"
     },

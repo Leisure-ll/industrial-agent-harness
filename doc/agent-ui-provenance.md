@@ -1,5 +1,7 @@
 # Agent 聊天 UI 来源
 
+2026-10-04，仓库所有者明确将本仓使用的 EDA Harness demo 自有代码按 MIT 授权，包括下述改编组件和自有示例源码。授权文本见根目录 `LICENSE`；其中第三方组件继续遵守各自原许可。本次记录与文件补齐发生在 Industrial Agent Harness，未修改或发布私有上游仓库。
+
 实时 Agent 聊天区参考 [`Zhiman-BJ/eda-harness-demo`](https://github.com/Zhiman-BJ/eda-harness-demo) 中 `src/features/replay/ThinkingPreview.tsx`、`PlanTodo.tsx` 和 `ToolPreview.tsx` 的呈现方式。当前代码在 `apps/desktop/src/components/` 下，接收 `@moonshot-ai/kimi-agent-sdk@0.1.8` 的实时事件；没有引入轨迹回放引擎。
 
 `ThinkingPreview.tsx` 和 `TodoList.tsx` 改编了对应组件的交互。工具、审批和状态在 `AgentFlow.tsx` 中通过实时事件展示。上游 demo 的模型配置是针对回放与 Live Agent 的已有流程；本项目的 `ModelSettings.tsx` 独立接入 Electron 设置与 Kimi CLI 配置。

@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const { spawnSync } = require('node:child_process');
+const { copyReleaseNotices, copyDesktopNotices } = require('./release-notices.cjs');
 
 const root = path.resolve(__dirname, '..');
 const target = path.resolve(process.argv[2] || path.join(root, 'dist', 'desktop-stage'));
@@ -32,6 +33,8 @@ const deployed =
       );
 if (deployed.error) throw deployed.error;
 if (deployed.status !== 0) process.exit(deployed.status || 1);
+copyReleaseNotices(target);
+copyDesktopNotices(target);
 for (const name of ['.venv-kimi', '.venv-klayout', 'src', 'scripts', 'viewer-host'])
   fs.rmSync(path.join(target, name), { recursive: true, force: true });
 const requireFromApp = createRequire(path.join(target, 'electron', 'main.cjs'));

@@ -9,6 +9,8 @@ const MAX_EXPANDED = 512 * 1024 * 1024;
 const MAX_FILES = 20000;
 const ID = /^[a-z][a-z0-9-]{0,63}$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.-]+)?$/;
+const RESOURCE_ID = /^[a-z][a-z0-9._-]{0,127}$/;
+const RECEIPT = '.hpack-integrity.json';
 const SHA = /^[a-f0-9]{64}$/;
 
 function defaultPackDirectory(environment = process.env) {
@@ -37,6 +39,7 @@ function safeRelative(value) {
     typeof value !== 'string' ||
     !value ||
     value.includes('\\') ||
+    value.includes(':') ||
     value.includes('\0') ||
     value.startsWith('/') ||
     value.split('/').some(part => !part || part === '.' || part === '..') ||
@@ -60,23 +63,74 @@ function validateBundle(bundle) {
     !Array.isArray(bundle.providerPacks)
   )
     throw Error('Invalid Domain Pack manifest.');
-  for (const capability of bundle.capabilities)
-    if (capability?.domain !== bundle.domain || typeof capability.id !== 'string')
-      throw Error('Invalid Domain capability.');
-  for (const skill of bundle.skills)
+  const skillIds = new Set();
+  const skillDirectories = new Set();
+  for (const skill of bundle.skills) {
     if (
       skill?.domain !== bundle.domain ||
-      typeof skill.id !== 'string' ||
-      !safeRelative(skill.file).endsWith('/SKILL.md')
+      !RESOURCE_ID.test(skill.id || '') ||
+      skillIds.has(skill.id) ||
+      typeof skill.title !== 'string' ||
+      !skill.title ||
+      !safeRelative(skill.file).startsWith('skills/') ||
+      !skill.file.endsWith('/SKILL.md') ||
+      skillDirectories.has(path.posix.dirname(skill.file))
     )
       throw Error('Invalid Domain Skill.');
-  for (const pack of bundle.providerPacks)
+    skillIds.add(skill.id);
+    skillDirectories.add(path.posix.dirname(skill.file));
+  }
+  const capabilityIds = new Set();
+  for (const capability of bundle.capabilities) {
+    if (
+      capability?.domain !== bundle.domain ||
+      !RESOURCE_ID.test(capability.id || '') ||
+      capabilityIds.has(capability.id) ||
+      !Array.isArray(capability.stages) ||
+      capability.stages.some(stage => typeof stage !== 'string' || !stage) ||
+      !Array.isArray(capability.keywords) ||
+      capability.keywords.some(word => typeof word !== 'string' || !word) ||
+      !Number.isFinite(capability.priority) ||
+      !Array.isArray(capability.skills) ||
+      capability.skills.some(skill => !skillIds.has(skill?.id)) ||
+      !Array.isArray(capability.tools) ||
+      capability.tools.some(
+        tool =>
+          !RESOURCE_ID.test(tool?.id || '') ||
+          (tool.risk === 'mutating' && !tool.verification?.length),
+      )
+    )
+      throw Error('Invalid Domain capability.');
+    capabilityIds.add(capability.id);
+  }
+  const providerIds = new Set();
+  for (const pack of bundle.providerPacks) {
     if (
       pack?.domain !== bundle.domain ||
       pack?.provider?.domain !== bundle.domain ||
+      !RESOURCE_ID.test(pack.id || '') ||
+      providerIds.has(pack.id) ||
       !safeRelative(pack.provider.packDirectory)
     )
       throw Error('Invalid Domain provider.');
+    if (pack.runtime && (!pack.runtime.entry || !safeRelative(pack.runtime.entry).endsWith('.cjs')))
+      throw Error('Invalid Domain runtime entry.');
+    providerIds.add(pack.id);
+  }
+  for (const skill of bundle.skills) {
+    if (!skill.external) continue;
+    const external = skill.external;
+    const pack = bundle.providerPacks.find(pack => pack.id === external.providerPackId);
+    if (
+      !pack ||
+      !safeRelative(external.resourcePath).startsWith('skills/') ||
+      !pack.provider.resourceRoots?.includes(external.resourcePath) ||
+      !Object.hasOwn(pack.provider.sourceFiles || {}, `${external.resourcePath}/SKILL.md`) ||
+      typeof external.nativeToolPrefix !== 'string' ||
+      !RESOURCE_ID.test(external.nativeToolPrefix)
+    )
+      throw Error('Invalid external Skill resource declaration.');
+  }
   return bundle;
 }
 
@@ -137,6 +191,8 @@ function signCatalog(payload, keyId, privateKey) {
 }
 
 function createArchive(sourceDirectory) {
+  if (!fs.lstatSync(sourceDirectory).isDirectory())
+    throw Error('Pack source must be an ordinary directory.');
   const bundle = validateBundle(
     JSON.parse(fs.readFileSync(path.join(sourceDirectory, 'bundle.json'), 'utf8')),
   );
@@ -148,6 +204,7 @@ function createArchive(sourceDirectory) {
       .sort((a, b) => a.name.localeCompare(b.name))) {
       const name = relative ? `${relative}/${entry.name}` : entry.name;
       safeRelative(name);
+      if (name === RECEIPT) throw Error('Reserved Pack receipt path.');
       if (entry.isDirectory()) visit(path.join(directory, entry.name), name);
       else if (entry.isFile()) {
         const bytes = fs.readFileSync(path.join(directory, entry.name));
@@ -173,6 +230,7 @@ function createArchive(sourceDirectory) {
     { level: 9 },
   );
   if (compressed.length > MAX_COMPRESSED) throw Error('Domain Pack archive exceeds size limits.');
+  decodeArchive(compressed);
   return compressed;
 }
 
@@ -193,6 +251,7 @@ function decodeArchive(compressed) {
   const seen = new Set();
   const files = archive.files.map(file => {
     const name = safeRelative(file.path);
+    if (name === RECEIPT) throw Error('Reserved Pack receipt path.');
     if (
       seen.has(name) ||
       !SHA.test(file.sha256 || '') ||
@@ -208,14 +267,79 @@ function decodeArchive(compressed) {
       throw Error('Domain Pack file verification failed.');
     return { path: name, bytes, mode: file.mode };
   });
+  for (const file of files) {
+    let parent = path.posix.dirname(file.path);
+    while (parent !== '.') {
+      if (seen.has(parent)) throw Error('Conflicting Pack file paths.');
+      parent = path.posix.dirname(parent);
+    }
+  }
   const manifest = files.find(file => file.path === 'bundle.json');
   if (!manifest) throw Error('Missing Domain Pack manifest.');
   const bundle = validateBundle(JSON.parse(manifest.bytes.toString('utf8')));
   if (bundle.domain !== archive.domain || bundle.version !== archive.version)
     throw Error('Domain Pack identity mismatch.');
-  for (const skill of bundle.skills)
+  for (const skill of bundle.skills) {
     if (!seen.has(skill.file)) throw Error(`Missing Domain Skill: ${skill.id}`);
+    const resources = files.filter(file =>
+      file.path.startsWith(path.posix.dirname(skill.file) + '/'),
+    );
+    if (
+      resources.length > 2000 ||
+      resources.some(file => file.bytes.length > 8 * 1024 * 1024) ||
+      resources.reduce((sum, file) => sum + file.bytes.length, 0) > 32 * 1024 * 1024
+    )
+      throw Error('Skill resource size limit exceeded.');
+  }
+  for (const pack of bundle.providerPacks)
+    if (!files.some(file => file.path.startsWith(`domain-packs/${pack.provider.packDirectory}/`)))
+      throw Error(`Missing Domain provider: ${pack.id}`);
+  for (const pack of bundle.providerPacks)
+    if (
+      pack.runtime &&
+      !seen.has(`domain-packs/${pack.provider.packDirectory}/${pack.runtime.entry}`)
+    )
+      throw Error(`Missing Domain runtime: ${pack.id}`);
   return { bundle, files };
+}
+
+function verifyInstalledFiles(directory) {
+  // Older v1 installations have no receipt. Still reject every link and special
+  // file; reinstalling an archive adds content hashes without rewriting facts.
+  const actual = [];
+  let total = 0;
+  function visit(file, relative = '') {
+    const info = fs.lstatSync(file);
+    if (info.isSymbolicLink()) throw Error('Installed Pack cannot contain symlinks.');
+    if (info.isDirectory()) {
+      for (const name of fs.readdirSync(file))
+        visit(path.join(file, name), relative ? `${relative}/${name}` : name);
+    } else if (info.isFile()) {
+      total += info.size;
+      if (total > MAX_EXPANDED || actual.length > MAX_FILES)
+        throw Error('Installed Pack exceeds size limits.');
+      if (relative !== RECEIPT) actual.push(relative);
+    } else throw Error('Installed Pack contains a special file.');
+  }
+  visit(directory);
+  const receiptFile = path.join(directory, RECEIPT);
+  if (!fs.existsSync(receiptFile)) return;
+  const receipt = JSON.parse(fs.readFileSync(receiptFile, 'utf8'));
+  if (
+    receipt?.schemaVersion !== 1 ||
+    !SHA.test(receipt.archiveSha256 || '') ||
+    !Array.isArray(receipt.files)
+  )
+    throw Error('Invalid installed Pack receipt.');
+  const expected = receipt.files.map(file => safeRelative(file.path));
+  if (JSON.stringify(actual.sort()) !== JSON.stringify(expected.sort()))
+    throw Error('Installed Pack resource inventory differs.');
+  for (const file of receipt.files)
+    if (
+      !SHA.test(file.sha256 || '') ||
+      digest(fs.readFileSync(path.join(directory, ...file.path.split('/')))) !== file.sha256
+    )
+      throw Error(`Installed Pack resource changed: ${file.path}`);
 }
 
 async function download(url, expectedSize, maxBytes = MAX_COMPRESSED) {
@@ -363,6 +487,7 @@ class PackManager {
     for (const [domain, version] of Object.entries(state.active)) {
       try {
         const location = path.join(this.directory, domain, version);
+        verifyInstalledFiles(location);
         const bundle = validateBundle(
           JSON.parse(fs.readFileSync(path.join(location, 'bundle.json'), 'utf8')),
         );
@@ -446,6 +571,15 @@ class PackManager {
             mode: file.mode === 'executable' ? 0o700 : 0o600,
           });
         }
+        fs.writeFileSync(
+          path.join(staging, RECEIPT),
+          JSON.stringify({
+            schemaVersion: 1,
+            archiveSha256: digest(archive),
+            files: files.map(file => ({ path: file.path, sha256: digest(file.bytes) })),
+          }),
+          { flag: 'wx', mode: 0o600 },
+        );
         const replaced = fs.existsSync(target);
         if (replaced) fs.renameSync(target, backup);
         try {

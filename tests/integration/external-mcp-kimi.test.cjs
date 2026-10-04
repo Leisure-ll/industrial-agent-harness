@@ -7,20 +7,20 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { ExternalMcpRegistry } = require('../../packages/domain-mcp/src/index.cjs');
 const { startModel } = require('./fixtures/domain-mcp-model.cjs');
-const execute = promisify(execFile),
-  root = path.resolve(__dirname, '../..');
+const execute = promisify(execFile);
+const root = path.resolve(__dirname, '../..');
 const entry = process.env.INDUSTRIAL_HARNESS_TEST_CLI || path.join(root, 'apps/cli/src/main.cjs');
 const kimi = process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
 const server = path.join(__dirname, 'fixtures/external-mcp-server.cjs');
 
 test(
-  'CLI registration feeds real pinned Kimi: approval protects host mutation and MCP images reach the model',
+  'real CLI refuses enabled host services without calling the model; disabling them starts the protected Kimi session',
   { timeout: 90000, skip: !fs.existsSync(kimi) },
   async t => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-external-kimi-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-    const configs = path.join(directory, 'settings'),
-      marker = path.join(directory, 'host-click.json');
+    const configs = path.join(directory, 'settings');
+    const marker = path.join(directory, 'host-click.json');
     const file = path.join(directory, 'mcp.json');
     fs.writeFileSync(
       file,
@@ -44,105 +44,104 @@ test(
       env: environment,
     });
     assert.equal(JSON.parse(added.stdout).servers[0].id, 'external.computer-use');
-    const tools = new ExternalMcpRegistry(configs).records()[0].tools;
-    const screenshot = tools.find(tool => tool.name === 'screenshot').id,
-      click = tools.find(tool => tool.name === 'click').id;
-    const fixture = await startModel({
-      success: 'EXTERNAL_MCP_CONFIRMED',
-      calls: [
-        { name: 'external_tool_list', arguments: {} },
-        { name: 'external_tool_describe', arguments: { toolId: screenshot } },
-        { name: 'external_tool_call', arguments: { toolId: screenshot, arguments: {} } },
-        { name: 'external_tool_describe', arguments: { toolId: click } },
-        { name: 'external_tool_call', arguments: { toolId: click, arguments: { x: 40, y: 60 } } },
-      ],
-    });
+    assert.ok(
+      new ExternalMcpRegistry(configs).records()[0].tools.some(tool => tool.name === 'click'),
+    );
+    const fixture = await startModel({ calls: [], success: 'PROTECTED_SESSION_READY' });
     t.after(fixture.close);
     const project = path.join(directory, 'project');
     fs.mkdirSync(project);
-    for (const approval of ['reject', 'approve']) {
-      const before = fixture.requests.length;
-      const args = [
-        entry,
-        'run',
-        '--project-dir',
-        project,
-        '--domain',
-        'chip',
-        '--task',
-        'Use the host screenshot and click',
-        '--provider',
-        'openai_legacy',
-        '--endpoint',
-        fixture.endpoint,
-        '--model',
-        'controlled-external',
-        '--image-input',
-        '--no-thinking',
-        '--approval',
-        approval,
-        '--kimi-executable',
-        kimi,
-        '--timeout-ms',
-        '30000',
-        '--chat-dir',
-        path.join(directory, 'chats'),
-        '--log-dir',
-        path.join(directory, 'logs'),
-        '--state-dir',
-        path.join(directory, 'state'),
-      ];
-      const { stdout, stderr } = await execute(process.execPath, args, {
+    const args = approval => [
+      entry,
+      'run',
+      '--project-dir',
+      project,
+      '--domain',
+      'chip',
+      '--task',
+      'Use the host screenshot and click',
+      '--provider',
+      'openai_legacy',
+      '--endpoint',
+      fixture.endpoint,
+      '--model',
+      'controlled-external',
+      '--no-thinking',
+      '--approval',
+      approval,
+      '--kimi-executable',
+      kimi,
+      '--timeout-ms',
+      '30000',
+      '--chat-dir',
+      path.join(directory, 'chats'),
+      '--state-dir',
+      path.join(directory, 'state'),
+      '--log-dir',
+      path.join(directory, 'logs'),
+    ];
+    const invoke = values =>
+      execute(process.execPath, values, {
         cwd: os.tmpdir(),
         env: environment,
         timeout: 45000,
         maxBuffer: 4 * 1024 * 1024,
       });
+    for (const approval of ['reject', 'approve']) {
+      await assert.rejects(invoke(args(approval)), error => {
+        assert.equal(error.code, 1);
+        const rows = error.stdout.trim().split('\n').map(JSON.parse);
+        assert.equal(rows.at(-1).status, 'error');
+        assert.ok(
+          rows.some(row => row.event?.type === 'error' && /外部 MCP/.test(row.event.message)),
+        );
+        return true;
+      });
+      assert.equal(fixture.requests.length, 0);
+      assert.ok(!fs.existsSync(marker));
+    }
+    for (const policy of ['once', 'persisted']) {
+      if (policy === 'persisted') {
+        const disabled = await invoke([
+          entry,
+          'mcp',
+          'disable',
+          'external.computer-use',
+          '--project-dir',
+          project,
+        ]);
+        assert.ok(
+          JSON.parse(disabled.stdout).settings.effective.mcpServers.includes(
+            'external.computer-use',
+          ),
+        );
+      }
+      const before = fixture.requests.length;
+      const values = [
+        ...args('approve'),
+        ...(policy === 'once' ? ['--disable-mcp', 'external.computer-use'] : []),
+      ];
+      if (process.platform !== 'darwin') {
+        await assert.rejects(
+          invoke(values),
+          error => error.code === 1 && /verified process write boundary/.test(error.stdout),
+        );
+        continue;
+      }
+      const { stdout, stderr } = await invoke(values);
       const rows = stdout.trim().split('\n').map(JSON.parse);
       assert.equal(rows.at(-1).status, 'finished', stdout + stderr);
-      assert.ok(rows.some(row => row.type === 'approval_decision' && row.decision === approval));
-      const requests = fixture.requests.slice(before);
-      assert.ok(requests[0].tools.some(tool => tool.function.name === 'external_tool_call'));
+      assert.equal(fixture.requests.length, before + 1);
       assert.ok(
-        !requests[0].tools.some(tool => ['click', 'screenshot'].includes(tool.function.name)),
+        !fixture.requests.at(-1).tools.some(tool => tool.function.name === 'external_tool_call'),
       );
-      if (approval === 'reject') assert.ok(!fs.existsSync(marker));
-      else {
-        assert.deepEqual(JSON.parse(fs.readFileSync(marker)).arguments, { x: 40, y: 60 });
-        assert.ok(
-          requests.some(request =>
-            JSON.stringify(request.messages).includes('data:image/png;base64,'),
-          ),
-          'MCP image must reach model input, not become a text placeholder.',
-        );
-        assert.ok(rows.some(row => row.event?.type === 'tool-result'));
-      }
+      assert.ok(!rows[0].scope.tools.some(id => id.startsWith('external.')));
+      assert.ok(
+        rows.some(
+          row => row.event?.type === 'execution-boundary' && row.event.projectWritable === false,
+        ),
+      );
+      assert.ok(!fs.existsSync(marker));
     }
-    const disabled = await execute(
-      process.execPath,
-      [entry, 'mcp', 'disable', 'external.computer-use', '--project-dir', project],
-      { env: environment },
-    );
-    assert.ok(
-      JSON.parse(disabled.stdout).settings.effective.mcpServers.includes('external.computer-use'),
-    );
-    const scoped = await execute(
-      process.execPath,
-      [
-        entry,
-        'run',
-        '--project-dir',
-        project,
-        '--domain',
-        'chip',
-        '--task',
-        'Use host screenshot',
-        '--scope-only',
-      ],
-      { env: environment },
-    );
-    assert.ok(
-      !JSON.parse(scoped.stdout.split('\n')[0]).scope.tools.some(id => id.startsWith('external.')),
-    );
   },
 );

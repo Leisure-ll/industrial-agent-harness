@@ -3,10 +3,14 @@
   "version": "0.0.0",
   "private": true,
   "main": "src/index.cjs",
-  "scripts": {"test": "node --test tests/*.test.cjs"},
+  "scripts": {
+    "test": "node --test tests/*.test.cjs"
+  },
   "dependencies": {
+    "@industrial-agent-harness/domain-runtime": "workspace:*",
     "@industrial-agent-harness/capability-broker": "workspace:*",
     "@industrial-agent-harness/domain-skills": "workspace:*",
     "@industrial-agent-harness/domain-mcp": "workspace:*"
-  }
+  },
+  "license": "MIT"
 }

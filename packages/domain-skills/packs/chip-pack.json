@@ -201,7 +201,9 @@
       "id": "chip.eda.inspect",
       "title": "Inspect EDA project and environment",
       "domain": "chip",
-      "stages": ["engineering"],
+      "stages": [
+        "engineering"
+      ],
       "priority": 20,
       "keywords": [
         "eda",
@@ -332,9 +334,16 @@
       "id": "chip.eda.setup",
       "title": "Initialize an EDA project",
       "domain": "chip",
-      "stages": ["engineering"],
+      "stages": [
+        "engineering"
+      ],
       "priority": 20,
-      "keywords": ["initialize project", "初始化工程", "初始化芯片", "eda setup"],
+      "keywords": [
+        "initialize project",
+        "初始化工程",
+        "初始化芯片",
+        "eda setup"
+      ],
       "skills": [
         {
           "id": "chip.eda.operate",
@@ -456,7 +465,9 @@
       "id": "chip.eda.run",
       "title": "Run EDA actions",
       "domain": "chip",
-      "stages": ["engineering"],
+      "stages": [
+        "engineering"
+      ],
       "priority": 20,
       "keywords": [
         "run_action",
@@ -653,7 +664,9 @@
       "id": "chip.eda.history",
       "title": "Manage EDA goals and historical states",
       "domain": "chip",
-      "stages": ["engineering"],
+      "stages": [
+        "engineering"
+      ],
       "priority": 20,
       "keywords": [
         "checkout state",
@@ -805,9 +818,15 @@
       "id": "chip.eda.viewer",
       "title": "Launch EDA external viewer",
       "domain": "chip",
-      "stages": ["engineering"],
+      "stages": [
+        "engineering"
+      ],
       "priority": 20,
-      "keywords": ["open_viewer", "launch viewer", "打开外部查看器"],
+      "keywords": [
+        "open_viewer",
+        "launch viewer",
+        "打开外部查看器"
+      ],
       "skills": [
         {
           "id": "chip.eda.operate",
@@ -925,5 +944,8 @@
         "Use persisted EDA context and acceptance evidence; Core file observations remain not_run."
       ]
     }
-  ]
+  ],
+  "runtime": {
+    "entry": "runtime/index.cjs"
+  }
 }
