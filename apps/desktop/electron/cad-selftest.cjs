@@ -127,6 +127,8 @@ async function run(window) {
     path.join(project, 'cad-viewer.png'),
     (await window.webContents.capturePage()).toPNG(),
   );
+  if (process.env.HARNESS_CAD_SELFTEST_OUTPUT)
+    fs.copyFileSync(path.join(project, 'cad-viewer.png'), process.env.HARNESS_CAD_SELFTEST_OUTPUT);
   await open('model.step');
   await open('model.stl');
   await evaluate(`document.querySelector('.ia-file-list button[title="bad.stl"]').click()`);

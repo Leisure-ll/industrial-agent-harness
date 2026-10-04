@@ -81,22 +81,28 @@ function nativeCall(command, directory, operation, request, signal) {
     `(version 1)\n(allow default)\n(deny network*)\n(deny appleevent-send)\n(deny file-write*)\n(allow file-write* (subpath ${JSON.stringify(directory)}) (literal "/dev/null"))\n`,
   );
   return new Promise((resolve, reject) => {
-    const child = spawn('/usr/bin/sandbox-exec', ['-f', profile, command, script], {
-      cwd: directory,
-      detached: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: {
-        PATH: '/usr/bin:/bin',
-        HOME: home,
-        TMPDIR: temporary + '/',
-        FREECAD_USER_HOME: home,
-        FREECAD_USER_DATA: data,
-        FREECAD_USER_TEMP: temporary,
-        PYTHONNOUSERSITE: '1',
-        PYTHONDONTWRITEBYTECODE: '1',
-        QT_QPA_PLATFORM: 'offscreen',
+    // FreeCAD 1.1 otherwise creates the Qt global versioned cache before applying
+    // FREECAD_USER_TEMP. This official option keeps that initialization under HOME.
+    const child = spawn(
+      '/usr/bin/sandbox-exec',
+      ['-f', profile, command, '--keep-deprecated-paths', script],
+      {
+        cwd: directory,
+        detached: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          PATH: '/usr/bin:/bin',
+          HOME: home,
+          TMPDIR: temporary + '/',
+          FREECAD_USER_HOME: home,
+          FREECAD_USER_DATA: data,
+          FREECAD_USER_TEMP: temporary,
+          PYTHONNOUSERSITE: '1',
+          PYTHONDONTWRITEBYTECODE: '1',
+          QT_QPA_PLATFORM: 'offscreen',
+        },
       },
-    });
+    );
     let log = '',
       cancelled = false,
       overflow = false,

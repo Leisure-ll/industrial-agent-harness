@@ -10,7 +10,7 @@
     "version": "1.1.4-pack.1",
     "transport": "runtime",
     "packDirectory": "freecad",
-    "sourceSha256": "97cfdb65009cddc4b060f2f95791805dc6e2a5e0e24f3c2f914fe091e2f9addf",
+    "sourceSha256": "34fca7a23149f44a8b6a621021c6866900d1a70d244b6f6fab97158755a0958a",
     "tools": [
       {
         "id": "cad.freecad.build",
@@ -44,7 +44,7 @@
       "runtime"
     ],
     "sourceFiles": {
-      "runtime/index.cjs": "e32c58ea8663f71b099aaff50d440ee2383110b655ddd0ac9f5ea1486f913264",
+      "runtime/index.cjs": "c73027521d2d70b449231b1b68be46f8473bcdd433363b7612d7e89c1f380fd4",
       "runtime/native.py": "db7213e55afe8420d4981c7a2accb45cec89d90660d472860ba1df259880daf4",
       "runtime/recipe.cjs": "6858090d5af8ff47c4b5c35fcf1546b238bf614831f649cd5c87376157069336"
     }

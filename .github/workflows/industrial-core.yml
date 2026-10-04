@@ -47,9 +47,11 @@ jobs:
           mkdir -p dist/ci-reports
           pnpm run test:ci -- native 2>&1 | tee dist/ci-reports/native.log
       - name: Verify real FreeCAD artifacts through the Desktop viewer
+        shell: bash
         run: |
           pnpm --filter @industrial-agent-harness/desktop build
-          pnpm --filter @industrial-agent-harness/desktop test:cad
+          export HARNESS_CAD_SELFTEST_OUTPUT="$GITHUB_WORKSPACE/dist/ci-reports/cad-viewer.png"
+          pnpm --filter @industrial-agent-harness/desktop test:cad 2>&1 | tee dist/ci-reports/cad-viewer.log
       - name: Collect native FreeCAD startup diagnostics
         if: failure()
         run: |

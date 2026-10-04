@@ -165,10 +165,7 @@ export function CadViewport({
           style={{ width: '100%', height: '100%', display: 'block' }}
         />
       </div>
-      <small style={{ padding: '6px 12px' }}>
-        Read-only tessellated surface · Source SHA-256 {data.sha256.slice(0, 12)} · Mesh display
-        does not establish mechanical verification.
-      </small>
+      <small style={{ padding: '6px 12px' }}>Read-only 3D preview</small>
     </div>
   );
 }

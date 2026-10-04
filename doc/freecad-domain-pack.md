@@ -56,4 +56,4 @@ Desktop 和 CLI 均通过 `createProjectRuntime` 加载 `freecad-local` Pack。B
 
 macOS 15 与 26 arm64 native CI 通过 `scripts/setup-freecad.cjs` 下载官方 arm64 DMG，校验固定 SHA-256 `071343b4abb70492b75c973f41eaf1d2528f9b9c7ea018d22a4f46ae14d27ac0`，只读挂载并把可执行路径提供给测试。原生测试缺少依赖直接失败，不以 skip 代替成功；CI 下载二进制不会进入 Pack 发行档案。
 
-FreeCAD 的 macOS 配置路径不只依赖 `HOME`。桥接器在启动前创建 Action 内独立配置、数据与临时目录，通过上游 `FREECAD_USER_HOME`、`FREECAD_USER_DATA`、`FREECAD_USER_TEMP` 指定路径；系统沙箱仍只允许写入本次 Action。建模和独立回读均记录并检查 FreeCAD 实际采用的配置、数据、缓存、宏与临时路径，避免依赖用户已有的全局目录或加载其宏。初次全新 CI 环境曾在初始化阶段 SIGSEGV；崩溃栈位于初始化异常报告中的 Python 路径读取，不能据此判定操作系统不兼容。失败保留退出信号、系统诊断与未验收状态。
+FreeCAD 的 macOS 配置路径不只依赖 `HOME`。桥接器在启动前创建 Action 内独立配置、数据与临时目录，通过上游 `FREECAD_USER_HOME`、`FREECAD_USER_DATA`、`FREECAD_USER_TEMP` 指定路径，并使用官方 `--keep-deprecated-paths`，避免 FreeCAD 1.1 在采用自定义缓存前创建 Qt 全局版本目录；系统沙箱仍只允许写入本次 Action。建模和独立回读均记录并检查 FreeCAD 实际采用的配置、数据、缓存、宏与临时路径，避免依赖用户已有的全局目录或加载其宏。初次全新 CI 环境曾在初始化阶段 SIGSEGV；崩溃栈位于初始化异常报告中的 Python 路径读取，不能据此判定操作系统不兼容。失败保留退出信号、系统诊断与未验收状态，CI 同时保留真实 Viewer 截图与日志。
