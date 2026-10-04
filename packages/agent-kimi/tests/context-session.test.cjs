@@ -89,7 +89,8 @@ test('equivalent Broker scope keeps the session; a changed effective scope repla
   assert.equal(events.find(event => event.type === 'tool-result').outputBytes, 13000);
   const logPath = events.find(event => event.type === 'diagnostic-log').path;
   const logRows = fs.readFileSync(logPath, 'utf8').trim().split('\n').map(JSON.parse);
-  assert.equal(fs.statSync(logPath).mode & 0o777, 0o600);
+  // POSIX permission bits are not represented by Windows stat().
+  if (process.platform !== 'win32') assert.equal(fs.statSync(logPath).mode & 0o777, 0o600);
   assert.deepEqual(
     logRows.map(row => row.sequence),
     Array.from({ length: logRows.length }, (_, index) => index + 1),

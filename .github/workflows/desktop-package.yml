@@ -1,24 +1,7 @@
 name: Desktop install smoke
 
 on:
-  push:
-    paths:
-      - '.github/workflows/desktop-package.yml'
-      - 'apps/desktop/**'
-      - 'packages/**'
-      - 'scripts/stage-desktop.cjs'
-      - 'scripts/smoke-packaged-desktop.cjs'
-      - 'electron-builder.config.cjs'
-      - 'pnpm-lock.yaml'
-  pull_request:
-    paths:
-      - '.github/workflows/desktop-package.yml'
-      - 'apps/desktop/**'
-      - 'packages/**'
-      - 'scripts/stage-desktop.cjs'
-      - 'scripts/smoke-packaged-desktop.cjs'
-      - 'electron-builder.config.cjs'
-      - 'pnpm-lock.yaml'
+  workflow_call:
 
 jobs:
   packaged-first-run:
@@ -31,6 +14,7 @@ jobs:
           - runner: windows-2025
             platform: windows
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,6 +41,16 @@ jobs:
         run: |
           & .\apps\desktop\node_modules\.bin\electron-builder.cmd --projectDir dist/desktop-stage-ci --config "$env:GITHUB_WORKSPACE\electron-builder.config.cjs" --win dir --publish never
       - name: Verify installed application first run
+        shell: bash
         run: |
-          node scripts/smoke-packaged-desktop.cjs
-          node scripts/smoke-packaged-desktop.cjs --domains
+          mkdir -p dist/ci-reports
+          node scripts/smoke-packaged-desktop.cjs 2>&1 | tee dist/ci-reports/desktop-first-run.log
+          node scripts/smoke-packaged-desktop.cjs --domains 2>&1 | tee dist/ci-reports/desktop-domains.log
+      - name: Retain installed application evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: dist/ci-reports/
+          if-no-files-found: warn
+          retention-days: 14

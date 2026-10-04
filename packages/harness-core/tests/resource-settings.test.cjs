@@ -55,7 +55,8 @@ test('global defaults, project overrides and inherit persist and affect actual B
   assert.deepEqual(restarted.snapshot(catalog, a).effective.skills, []);
   restarted.set(catalog, { ...setting, mode: 'disabled' }, a);
   assert.deepEqual(restarted.snapshot(catalog, a).effective.skills, [setting.id]);
-  assert.equal(fs.statSync(store.file).mode & 0o777, 0o600);
+  // POSIX permission bits are not represented by Windows stat().
+  if (process.platform !== 'win32') assert.equal(fs.statSync(store.file).mode & 0o777, 0o600);
   assert.throws(() => store.set(catalog, { ...setting, mode: 'inherit' }), /Global resources/);
   assert.throws(
     () => store.set(catalog, { ...setting, id: 'missing', mode: 'enabled' }, a),

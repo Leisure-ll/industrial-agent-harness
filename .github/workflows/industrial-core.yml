@@ -1,15 +1,10 @@
 name: Industrial Core acceptance
 
 on:
-  push:
-  pull_request:
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: industrial-core-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   native-vertical-slice:
@@ -37,8 +32,16 @@ jobs:
           cd domain-packs/chip/eda-harness
           uv sync --frozen --no-dev --python 3.13
       - name: Verify the real state, action, verification and recovery path
+        shell: bash
         run: |
-          test -f tests/integration/industrial-core-vertical-slice.test.cjs
-          test -f tests/integration/industrial-core-installed-pack.test.cjs
-          pnpm run test:industrial-core
-          node --test packages/agent-kimi/tests/process-sandbox.test.cjs packages/domain-runtime/tests/industrial-recovery.test.cjs tests/integration/license-materials.test.cjs tests/integration/domain-mcp-kimi.test.cjs tests/integration/external-mcp-kimi.test.cjs
+          export KIMI_EXECUTABLE="$GITHUB_WORKSPACE/apps/desktop/.venv-kimi/bin/kimi"
+          mkdir -p dist/ci-reports
+          pnpm run test:ci -- native 2>&1 | tee dist/ci-reports/native.log
+      - name: Retain native regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: industrial-native-arm64
+          path: dist/ci-reports/
+          if-no-files-found: warn
+          retention-days: 14

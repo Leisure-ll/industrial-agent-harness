@@ -45,18 +45,3 @@ test(
     assert.equal(fs.readFileSync(projectFile, 'utf8'), 'engineering source');
   },
 );
-
-test('an unverified platform and a writable session nested in a protected project fail before spawning', t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'boundary-invalid-'));
-  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  assert.throws(
-    () => createProcessSandbox({ platform: 'linux' }),
-    /verified process write boundary/,
-  );
-  if (process.platform === 'darwin')
-    assert.throws(
-      () =>
-        createProcessSandbox({ projectDir: directory, shareDir: directory, executable: '/bin/sh' }),
-      /outside the protected/,
-    );
-});

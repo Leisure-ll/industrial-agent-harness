@@ -34,11 +34,23 @@ if (
   throw Error('Invalid headless output directory.');
 if (fs.existsSync(target)) throw Error(`Output already exists: ${target}`);
 fs.mkdirSync(path.dirname(target), { recursive: true });
-const result = spawnSync(
-  'pnpm',
-  ['--filter', '@industrial-agent-harness/cli', 'deploy', '--legacy', '--prod', target],
-  { cwd: root, stdio: 'inherit' },
-);
+const deployArgs = [
+  '--filter',
+  '@industrial-agent-harness/cli',
+  'deploy',
+  '--legacy',
+  '--prod',
+  target,
+];
+// Windows cannot execute a pnpm.cmd shim through spawnSync without a shell.
+// Reuse pnpm's JS entry point to preserve each argument verbatim (including paths with spaces).
+const pnpmEntry = process.env.npm_execpath;
+if (process.platform === 'win32' && !pnpmEntry) {
+  throw Error('On Windows, package through pnpm run package:headless.');
+}
+const result = pnpmEntry
+  ? spawnSync(process.execPath, [pnpmEntry, ...deployArgs], { cwd: root, stdio: 'inherit' })
+  : spawnSync('pnpm', deployArgs, { cwd: root, stdio: 'inherit' });
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status || 1);
 copyReleaseNotices(target);

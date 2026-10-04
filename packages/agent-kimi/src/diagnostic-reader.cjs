@@ -53,7 +53,11 @@ function canonicalDirectory(directory) {
   let parent = path.resolve(directory);
   while (true) {
     try {
-      return path.join(fs.realpathSync(parent), path.relative(parent, path.resolve(directory)));
+      // Match promises.realpath below, including Windows 8.3 path expansion.
+      return path.join(
+        fs.realpathSync.native(parent),
+        path.relative(parent, path.resolve(directory)),
+      );
     } catch (error) {
       if (error.code !== 'ENOENT' || path.dirname(parent) === parent) throw error;
       parent = path.dirname(parent);

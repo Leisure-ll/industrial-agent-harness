@@ -21,7 +21,13 @@ function buildZipAsset(dir, binaryContent) {
   fs.mkdirSync(staging, { recursive: true });
   fs.writeFileSync(path.join(staging, 'munim-computer-use'), binaryContent, { mode: 0o755 });
   const zipFile = path.join(dir, 'munim-computer-use-macos-universal.zip');
-  execFileSync('zip', ['-q', zipFile, 'munim-computer-use'], { cwd: staging });
+  if (process.platform === 'win32') {
+    execFileSync(
+      path.join(process.env.SystemRoot, 'System32', 'tar.exe'),
+      ['-a', '-cf', zipFile, 'munim-computer-use'],
+      { cwd: staging },
+    );
+  } else execFileSync('zip', ['-q', zipFile, 'munim-computer-use'], { cwd: staging });
   return fs.readFileSync(zipFile);
 }
 
@@ -117,7 +123,7 @@ test('installBridge downloads, verifies, extracts; ensureInstalled is idempotent
   assert.equal(installed.version.tag, 'v9.9.9');
   const second = await ensureInstalled(target, env, () => {}, http.get);
   assert.equal(second.cached, true);
-  assert.equal(fs.statSync(first.binary).mode & 0o777, 0o755);
+  if (process.platform !== 'win32') assert.equal(fs.statSync(first.binary).mode & 0o777, 0o755);
 });
 
 test('a transport error rejects the install instead of crashing the process', async t => {

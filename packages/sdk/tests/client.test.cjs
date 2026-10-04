@@ -25,6 +25,24 @@ const drain = async handle => {
   for await (const event of handle.events) rows.push(event);
   return rows;
 };
+async function assertStopped(pid) {
+  const deadline = Date.now() + 2000;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(pid, 0);
+      // An orphaned Linux zombie is dead; PID 1 owns its eventual reaping.
+      if (process.platform === 'linux') {
+        const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+        if (/\) Z /.test(stat)) return;
+      }
+    } catch (error) {
+      if (['ESRCH', 'ENOENT'].includes(error.code)) return;
+      throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.fail(`Tool descendant ${pid} is still running after cleanup.`);
+}
 
 test('SDK uses actual transport events, keeps chat/run identities, and passes task text without shell interpretation', async t => {
   const client = setup(t);
@@ -82,7 +100,7 @@ test(
       await assert.rejects(handle.result, { code: reason === 'cancel' ? 'CANCELLED' : 'TIMEOUT' });
       await collecting;
       assert.ok(pid);
-      assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+      await assertStopped(pid);
     }
   },
 );
@@ -95,9 +113,7 @@ test(
     const handle = client.run({ task: 'orphan', timeoutMs: 2000 });
     const rows = await drain(handle);
     await handle.result;
-    assert.throws(() => process.kill(rows.find(row => row.type === 'child').pid, 0), {
-      code: 'ESRCH',
-    });
+    await assertStopped(rows.find(row => row.type === 'child').pid);
   },
 );
 

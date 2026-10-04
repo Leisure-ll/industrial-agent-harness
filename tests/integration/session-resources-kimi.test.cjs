@@ -23,6 +23,8 @@ test(
   { skip: !fs.existsSync(executable), timeout: 60000 },
   async t => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'native-session-budget-'));
+    const projectDir = path.join(directory, 'project');
+    fs.mkdirSync(projectDir);
     const config = path.join(directory, 'config');
     const resources = new SessionResourceManager({
       directory: config,
@@ -40,7 +42,7 @@ test(
       await model.close();
       fs.rmSync(directory, { recursive: true, force: true });
     });
-    const chat = chats.create(directory, 'test');
+    const chat = chats.create(projectDir, 'test');
     const profile = validateProfile({
       provider: 'openai_legacy',
       endpoint: model.endpoint,
@@ -58,7 +60,7 @@ test(
     };
     const events = [];
     session = new KimiSession(
-      directory,
+      projectDir,
       () => ({ domain: 'test', stage: 'test', capabilityIds: [], skills: [], tools: [] }),
       () => null,
       () => null,
@@ -81,7 +83,7 @@ test(
       path.join(root, 'apps/cli/src/main.cjs'),
       'run',
       '--project-dir',
-      directory,
+      projectDir,
       '--domain',
       'godot',
       '--task',

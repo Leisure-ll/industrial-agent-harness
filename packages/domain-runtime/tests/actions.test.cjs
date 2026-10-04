@@ -7,11 +7,16 @@ const { ActionJournal } = require('../src/index.cjs');
 
 test('native Action records survive restart and failure never becomes engineering acceptance', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-action-journal-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  let reopened;
   const project = path.join(root, 'project');
   fs.mkdirSync(project);
   const directory = path.join(root, 'state');
   const journal = new ActionJournal(project, 'godot', { directory });
+  t.after(() => {
+    journal.close();
+    reopened?.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
   const ok = await journal.execute(
     'godot.game.run_scene',
     { scenePath: 'main.tscn' },
@@ -33,8 +38,7 @@ test('native Action records survive restart and failure never becomes engineerin
   assert.deepEqual(ok.artifactSet, []);
   assert.equal(failed.actionStatus, 'failed');
   journal.close();
-  const reopened = new ActionJournal(project, 'godot', { directory });
-  t.after(() => reopened.close());
+  reopened = new ActionJournal(project, 'godot', { directory });
   const records = reopened.list();
   assert.deepEqual(
     records.map(item => item.status),
