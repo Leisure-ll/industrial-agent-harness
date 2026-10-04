@@ -1,12 +1,12 @@
 name: Repository structure
 
 on:
-  push:
-  pull_request:
+  workflow_call:
 
 jobs:
   structure:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - name: Check scaffold
@@ -41,12 +41,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y iverilog
       - name: Paired benchmark engineering smoke
-        run: pnpm run test:benchmark
-      - name: Build and test MVP
-        run: |
-          pnpm --filter @industrial-agent-harness/desktop build
-          pnpm test
-          pnpm test:external-mcp
+        run: pnpm run test:ci -- benchmark
+      - name: Build Desktop renderer
+        run: pnpm --filter @industrial-agent-harness/desktop build
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -60,6 +57,12 @@ jobs:
           cd domain-packs/pcb
           uv sync --frozen --no-dev --python 3.13
           cd ../..
-          pnpm test:mcp
-      - name: Domain execution scope gate
-        run: node --test tests/integration/domain-mcp-scope.test.cjs
+          pnpm run test:ci -- transport
+      - name: Retain verifier evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-regression
+          path: dist/ci-reports/
+          if-no-files-found: warn
+          retention-days: 14

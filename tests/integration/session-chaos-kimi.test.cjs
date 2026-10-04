@@ -24,6 +24,8 @@ test(
   { skip: process.platform === 'win32' || !fs.existsSync(executable), timeout: 30000 },
   async t => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'kimi-dirty-session-'));
+    const projectDir = path.join(directory, 'project');
+    fs.mkdirSync(projectDir);
     const resources = new SessionResourceManager({
       directory: path.join(directory, 'resources'),
       limits: { maxConcurrent: 2, maxResident: 2, idleMs: 10000, minFreeMemoryBytes: 0 },
@@ -42,7 +44,7 @@ test(
       fs.rmSync(directory, { recursive: true, force: true });
     });
     const make = model => {
-      const chat = chats.create(directory, 'test');
+      const chat = chats.create(projectDir, 'test');
       const profile = validateProfile({
         provider: 'openai_legacy',
         endpoint: model.endpoint,
@@ -60,7 +62,7 @@ test(
       };
       const events = [];
       const agent = new KimiSession(
-        directory,
+        projectDir,
         () => ({ domain: 'test', stage: 'test', capabilityIds: [], skills: [], tools: [] }),
         () => null,
         () => null,

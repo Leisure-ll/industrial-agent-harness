@@ -1,0 +1,97 @@
+name: Harness CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harness-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository:
+    uses: ./.github/workflows/structure.yml
+
+  portable:
+    name: Portable (${{ matrix.platform }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+          - runner: macos-15
+            platform: darwin
+            arch: arm64
+          - runner: windows-2025
+            platform: win32
+            arch: x64
+    env:
+      HARNESS_CI_PLATFORM: ${{ matrix.platform }}
+      HARNESS_CI_ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install pinned dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Shared packages, CLI, SDK and platform boundaries
+        shell: bash
+        run: |
+          mkdir -p dist/ci-reports
+          pnpm run test:ci -- portable 2>&1 | tee dist/ci-reports/portable.log
+      - name: Verify independent packaged CLI consumers
+        shell: bash
+        run: |
+          pnpm run smoke:ci-packages 2>&1 | tee dist/ci-reports/packages.log
+      - name: Retain regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/ci-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  desktop:
+    uses: ./.github/workflows/desktop-package.yml
+
+  industrial:
+    uses: ./.github/workflows/industrial-core.yml
+
+  all-checks-passed:
+    name: All checks passed
+    if: always()
+    needs: [repository, portable, desktop, industrial]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      REQUIRED_JOBS: ${{ toJSON(needs) }}
+    steps:
+      - name: Require every regression layer to succeed
+        run: |
+          node <<'NODE'
+          const jobs = JSON.parse(process.env.REQUIRED_JOBS);
+          for (const [name, job] of Object.entries(jobs)) {
+            console.log(`${name}: ${job.result}`);
+          }
+          if (Object.values(jobs).some(job => job.result !== 'success')) {
+            process.exit(1);
+          }
+          NODE

@@ -38,6 +38,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [Pack 作者教程](pack-authoring.md) | 独立构建、安装和验证外部 Pack，资源与升级兼容 |
 | [工业契约版本](contracts-versioning.md) | v1 工业事实、旧观察数据与 TypeScript 消费 |
 | [P0 工业闭环](p0-industrial-runtime.md) | 真实 RTL、隔离、持久化和失败恢复的范围 |
+| [CI 回归与托管环境](ci-regression.md) | 四种原生 OS/架构环境、分层门禁、测试证据与覆盖缺口 |
 | [Node SDK](sdk.md) | 项目绑定、聊天恢复、流事件、取消和 stdio RPC |
 | [配对评测基线](benchmark-baseline.md) | 原生 Kimi/Harness、冻结输入、独立验收与正式结果边界 |
 | [早期开发计划](development-plan.md) | 两份原始 Plan 的阶段性整理；里程碑顺序以新的实施路线图为准 |

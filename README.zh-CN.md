@@ -139,7 +139,7 @@ pnpm run test:release
 pnpm run format:check
 ```
 
-[工业 Core 门禁](.github/workflows/industrial-core.yml)另需 macOS Apple Silicon、Kimi 和上文的原生依赖。部分可选原生测试需要额外工具，跳过不代表支持。安全问题按 [SECURITY.md](SECURITY.md) 的流程报告。
+[Harness CI 门禁](.github/workflows/ci.yml)在 Linux x64/arm64、macOS arm64、Windows x64 执行共享包与独立 CLI 包回归，在 macOS/Windows 验证桌面安装，在 Apple Silicon 验证工业 Core 闭环。[CI 回归说明](doc/ci-regression.md)列出依赖、保留证据与明确的覆盖缺口；跳过不代表支持。安全问题按 [SECURITY.md](SECURITY.md) 的流程报告。
 
 ## 预览版范围
 

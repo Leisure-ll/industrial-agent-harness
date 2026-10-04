@@ -15,6 +15,8 @@ test(
   { timeout: 90000, skip: !fs.existsSync(executable) },
   async t => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-real-resume-'));
+    const projectDir = path.join(directory, 'project');
+    fs.mkdirSync(projectDir);
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
     const requests = [];
     let interruptNext = false,
@@ -73,7 +75,7 @@ test(
         path.join(root, 'apps/cli/src/main.cjs'),
         'run',
         '--project-dir',
-        directory,
+        projectDir,
         '--domain',
         'godot',
         '--task',
@@ -157,7 +159,7 @@ test(
     assert.ok(JSON.stringify(resumed.messages).includes('Changed model. Reply ACK.'));
     const store = new ChatStore(path.join(directory, 'chats'));
     t.after(() => store.close());
-    const history = store.history(chatId, directory, 'godot');
+    const history = store.history(chatId, projectDir, 'godot');
     assert.equal(history.turns.length, 6);
     assert.equal(history.turns[4].status, 'interrupted');
     assert.equal(history.turns[5].status, 'finished');

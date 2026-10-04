@@ -139,7 +139,7 @@ pnpm run test:release
 pnpm run format:check
 ```
 
-The [industrial Core gate](.github/workflows/industrial-core.yml) additionally requires macOS with Apple Silicon, Kimi and the native dependencies described above. Some optional native tests require extra tools; a skipped test does not establish support. Report security issues through the process in [SECURITY.md](SECURITY.md).
+The [Harness CI gate](.github/workflows/ci.yml) runs shared-package and packaged CLI regressions on Linux x64/arm64, macOS arm64 and Windows x64, desktop installation on macOS/Windows, and the industrial Core path on Apple Silicon. [CI regression coverage](doc/ci-regression.md) documents dependencies, retained evidence and explicit coverage gaps; a skipped test does not establish support. Report security issues through the process in [SECURITY.md](SECURITY.md).
 
 ## Preview scope
 
