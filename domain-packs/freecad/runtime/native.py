@@ -120,6 +120,9 @@ def build(recipe):
 try:
     version = '.'.join(App.Version()[:3])
     if version != '1.1.4': raise ValueError('Expected FreeCAD 1.1.4; got ' + version)
+    runtime_paths = {key: App.ConfigGet(key) for key in ['UserConfigPath', 'UserAppData', 'UserCachePath', 'UserMacroPath', 'AppTempPath']}
+    if any(os.path.commonpath([ROOT, os.path.realpath(value)]) != ROOT for value in runtime_paths.values()):
+        raise ValueError('FreeCAD user paths escaped the Action directory')
     if request['operation'] == 'verify':
         doc, result = safe_document(os.path.join(ROOT, 'model.FCStd'))
         native = metrics(result.Shape)
@@ -128,7 +131,7 @@ try:
         step = metrics(shape)
         mesh = Mesh.Mesh(os.path.join(ROOT, 'model.stl'))
         sketches = [dict(name=o.Name, fullyConstrained=bool(o.FullyConstrained)) for o in doc.Objects if o.TypeId == 'Sketcher::SketchObject']
-        write('readback.json', dict(version=version, native=native, step=step, mesh=dict(facets=mesh.CountFacets), sketches=sketches))
+        write('readback.json', dict(version=version, runtimePaths=runtime_paths, native=native, step=step, mesh=dict(facets=mesh.CountFacets), sketches=sketches))
     else:
         if request['operation'] == 'build': doc, result, sketches = build(request['recipe'])
         else:
@@ -143,7 +146,7 @@ try:
         if len(triangles) > 100000: raise ValueError('CAD mesh exceeds 100000 triangles')
         mesh = Mesh.Mesh([(vertices[a],vertices[b],vertices[c]) for a,b,c in triangles])
         mesh.write(os.path.join(ROOT, 'model.stl'))
-        write('build.json', dict(version=version, original=original, sketches=sketches))
+        write('build.json', dict(version=version, runtimePaths=runtime_paths, original=original, sketches=sketches))
     sys.stdout.flush()
     os._exit(0)
 except BaseException as error:

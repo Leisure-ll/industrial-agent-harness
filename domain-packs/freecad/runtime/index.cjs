@@ -68,7 +68,11 @@ function nativeCall(command, directory, operation, request, signal) {
   const script = path.join(directory, 'native.py');
   fs.copyFileSync(path.join(__dirname, 'native.py'), script);
   const home = path.join(directory, 'home');
-  fs.mkdirSync(home, { recursive: true });
+  const data = path.join(home, 'data');
+  const temporary = path.join(directory, 'temp');
+  // FreeCAD's Qt paths on macOS do not follow HOME alone. These directories
+  // must exist before startup or FreeCAD discards its custom-path overrides.
+  for (const location of [home, data, temporary]) fs.mkdirSync(location, { recursive: true });
   const profile = path.join(directory, 'native.sb');
   // The fixed bridge can write only its new Action directory; project inputs,
   // runtime evidence and unrelated user files remain protected from native code.
@@ -84,7 +88,10 @@ function nativeCall(command, directory, operation, request, signal) {
       env: {
         PATH: '/usr/bin:/bin',
         HOME: home,
-        TMPDIR: directory + '/',
+        TMPDIR: temporary + '/',
+        FREECAD_USER_HOME: home,
+        FREECAD_USER_DATA: data,
+        FREECAD_USER_TEMP: temporary,
         PYTHONNOUSERSITE: '1',
         PYTHONDONTWRITEBYTECODE: '1',
         QT_QPA_PLATFORM: 'offscreen',

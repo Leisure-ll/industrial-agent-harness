@@ -63,6 +63,16 @@ test(
     assert.equal(out.state.status, 'verified');
     assert.equal(out.verification.metrics.sketchesConstrained, true);
     const native = out.artifacts.find(a => a.kind === 'model.cad.fcstd');
+    const actionDir = path.dirname(path.join(dir, native.relativePath));
+    for (const kind of ['report.cad.build', 'report.cad.readback']) {
+      const artifact = out.artifacts.find(a => a.kind === kind);
+      const report = JSON.parse(fs.readFileSync(path.join(dir, artifact.relativePath)));
+      assert.equal(Object.keys(report.runtimePaths).length, 5);
+      for (const location of Object.values(report.runtimePaths)) {
+        const relative = path.relative(actionDir, fs.realpathSync(location));
+        assert.ok(relative && !relative.startsWith('..') && !path.isAbsolute(relative), location);
+      }
+    }
     const registry = createViewerRegistry(createCadPlugins({ projectRoot: () => dir }));
     const file = path.join(dir, native.relativePath);
     const opened = await registry

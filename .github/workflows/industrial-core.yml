@@ -8,7 +8,11 @@ permissions:
 
 jobs:
   native-vertical-slice:
-    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     env:
       HARNESS_REQUIRE_CORE_NATIVE: '1'
@@ -58,7 +62,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: industrial-native-arm64
+          name: industrial-native-arm64-${{ matrix.os }}
           path: dist/ci-reports/
           if-no-files-found: warn
           retention-days: 14
