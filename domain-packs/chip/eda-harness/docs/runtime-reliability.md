@@ -66,6 +66,10 @@ limits but does not have Docker memory quotas or daemon-wide admission.
 
 An action owns its named container regardless of the Docker client's exit state.
 Every completion, timeout, cancellation and client crash attempts bounded removal.
+On a native Linux host, managed containers use the calling UID/GID, so private
+bind-mounted inputs stay readable and work artifacts remain owned by the caller.
+Project scripts must write inside `/work`; ORFS scripts can set `WORK_HOME=/work/orfs`
+instead of writing into the image's root-owned installation directory.
 The runtime captures Docker's OOM/exit state before removing the container. It uses
 explicit removal instead of auto-removal to preserve that evidence. Read-only doctor,
 capability and inventory probes also clean their named containers in a finally block.

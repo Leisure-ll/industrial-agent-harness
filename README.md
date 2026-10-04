@@ -35,6 +35,8 @@ pnpm dev
 
 CLI 支持按 Chip / PCB / Godot 分包下载，默认绑定对应领域；[headless-v0.2.0-preview.4](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/headless-v0.2.0-preview.4) 包含共用外部 MCP 注册及 Chip 0.6.1 的资源、容器清理与等价修复，历史包不自动更新。构建与使用见 [按领域下载 CLI](doc/domain-cli-downloads.md)。
 
+原生 x86-64 Linux 的 Chip CLI 提供 [wget 单命令安装](domain-packs/chip/README.md#linux-single-command-install)：入口校验固定的自解压安装文件，自动准备私有 Node/uv、内置 Chip Pack 的 Python/Kimi 环境和 EDA 镜像。Ubuntu/Debian systemd 主机可自动补装 curl 和 Docker；已有可访问的 Docker 直接复用。安装文件携带 Linux UID/GID 修复，模型凭据与工程/PDK 由使用者配置；验证范围和公开预览下载见 [Linux 安装版说明](releases/chip-linux-installer-v0.1.0-preview.1.md)。
+
 完整芯片 MCP 另以 [Chip Pack 0.6.1 Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.1-preview.1) 独立发布，包含 EDA Harness 25 工具服务、领域 Skill 和 Kimi 适配生成器；[安装说明](domain-packs/chip/README.md)列出 uv 与工具镜像的准备步骤。它可用于芯片场景；桌面与无 UI Core 已通过共享网关把 Chip Pack 纳入 Broker Scope；独立领域包保留自己的运行时。采用运行时修复需同时重建 EDA 工具镜像，见 [迁移与验证范围](domain-packs/chip/eda-harness/docs/runtime-reliability.md)。
 
 左侧 Projects 可绑定多个本地目录；首次启动会显示从 EDA Harness demo 提取的精简 Sobel 芯片示例。右侧工作区和其中的文件树默认收起，按需打开；文件树随当前项目切换。点击普通文件预览源码，点击项目内的 GDS、Yosys JSON 或 VCD 等工程产物会自动打开对应 Viewer。Sobel 示例中附有同一设计的网表、波形和版图产物。
