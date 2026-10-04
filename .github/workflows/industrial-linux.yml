@@ -113,7 +113,7 @@ jobs:
           cp -a "$RUNNER_TEMP/verilator-runtime" "$RUNNER_TEMP/docker-rtl-context/verilator"
           cat > "$RUNNER_TEMP/docker-rtl-context/Dockerfile" <<'DOCKER'
           FROM ubuntu:22.04
-          RUN apt-get update && apt-get install -y --no-install-recommends g++ make ca-certificates && rm -rf /var/lib/apt/lists/*
+          RUN apt-get update && apt-get install -y --no-install-recommends g++ make perl ca-certificates && rm -rf /var/lib/apt/lists/*
           COPY verilator /opt/verilator
           ENV PATH="/opt/verilator/bin:${PATH}"
           DOCKER
