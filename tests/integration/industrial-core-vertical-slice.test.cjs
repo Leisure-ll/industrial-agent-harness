@@ -11,6 +11,7 @@ const { promisify } = require('node:util');
 const { startModel } = require('./fixtures/domain-mcp-model.cjs');
 const execute = promisify(execFile);
 const root = path.resolve(__dirname, '../..');
+const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
 function workspace(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-real-rtl-'));
@@ -21,6 +22,74 @@ function workspace(t) {
   const open = () =>
     new IndustrialRuntime(project, 'chip', { directory: path.join(directory, 'state'), ...plugin });
   return { directory, project, plugin, open };
+}
+
+function simulationGate(directory, project) {
+  const ready = path.join(directory, 'simulation-ready.json');
+  const release = path.join(directory, 'simulation-release');
+  const python =
+    process.env.INDUSTRIAL_HARNESS_EDA_PYTHON ||
+    path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
+  const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
+  const command =
+    'exec ' +
+    [python, path.join(__dirname, 'fixtures/native-simulation-gate.py'), ready, release]
+      .map(quote)
+      .join(' ');
+  const file = path.join(project, 'tb/counter_tb.sv');
+  const source = fs.readFileSync(file, 'utf8');
+  assert.ok(source.includes('  initial begin\n'));
+  // Hold the actual compiled Verilator simulation, with a real descendant in
+  // its owned process group. No mocked execution or engineering result.
+  fs.writeFileSync(
+    file,
+    source.replace(
+      '  initial begin\n',
+      '  initial begin\n    if ($system(' +
+        JSON.stringify(command) +
+        ') != 0) $fatal(1, "simulation gate failed");\n',
+    ),
+  );
+  return { ready, release: () => fs.writeFileSync(release, 'continue\n') };
+}
+
+async function waitForSimulation(ready, pending) {
+  let settled;
+  void pending.then(
+    result => {
+      settled = result;
+    },
+    error => {
+      settled = { error: String(error) };
+    },
+  );
+  const deadline = Date.now() + 45000;
+  while (!fs.existsSync(ready)) {
+    if (settled) throw Error('Native execution ended before readiness: ' + JSON.stringify(settled));
+    if (Date.now() >= deadline) throw Error('Timed out waiting for the real simulation: ' + ready);
+    await sleep(20);
+  }
+  assert.equal(settled, undefined, 'The simulation must still be running at the handshake.');
+  const processInfo = JSON.parse(fs.readFileSync(ready, 'utf8'));
+  for (const pid of Object.values(processInfo)) assert.ok(Number.isSafeInteger(pid) && pid > 0);
+  assert.equal(processInfo.parentPid, processInfo.processGroupId);
+  return processInfo;
+}
+
+async function assertProcessesExited(processInfo) {
+  const pids = [processInfo.pid, processInfo.parentPid];
+  const alive = pid => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (error) {
+      if (error.code === 'ESRCH') return false;
+      throw error;
+    }
+  };
+  const deadline = Date.now() + 5000;
+  while (pids.some(alive) && Date.now() < deadline) await sleep(20);
+  assert.deepEqual(pids.filter(alive), [], 'Owned simulation and descendant must both be gone.');
 }
 
 test(
@@ -112,50 +181,111 @@ test(
   },
 );
 
+test('cancellation before native startup records failure without starting a tool', async t => {
+  const { project, plugin, open } = workspace(t);
+  const runtime = open();
+  t.after(() => runtime.close());
+  const state = await runtime.inspect();
+  const scope = resolveFromState(
+    { task: 'simulation assertions', state },
+    plugin.capabilities,
+  ).scope;
+  const pending = runtime.execute(
+    { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
+    { scope, approval: true },
+  );
+  runtime.cancel();
+  const result = await pending;
+  assert.equal(result.action.status, 'failed');
+  assert.equal(result.verification.status, 'insufficient_evidence');
+  assert.match(result.action.diagnostics.join(), /cancelled before native execution/);
+  assert.deepEqual(result.artifacts, []);
+  assert.equal(fs.existsSync(path.join(project, '.eda')), false);
+});
+
 test(
-  'real native cancellation waits for owned cleanup; input changes during native execution never become current acceptance',
+  'real native cancellation waits for simulation readiness and owned descendant cleanup',
   { timeout: 120000 },
   async t => {
-    const { project, plugin, open } = workspace(t);
+    const { directory, project, plugin, open } = workspace(t);
+    const gate = simulationGate(directory, project);
     const runtime = open();
-    t.after(() => runtime.close());
-    let state = await runtime.inspect();
-    let scope = resolveFromState(
-      { task: 'simulation assertions', state },
-      plugin.capabilities,
-    ).scope;
-    const pending = runtime.execute(
-      { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
-      { scope, approval: true },
-    );
-    const cancel = setTimeout(() => runtime.cancel(), 600);
-    t.after(() => clearTimeout(cancel));
-    const cancelled = await pending;
-    assert.equal(cancelled.action.status, 'failed');
-    assert.equal(cancelled.verification.status, 'insufficient_evidence');
-    const reports = cancelled.artifacts
-      .filter(item => item.kind === 'report.execution')
-      .flatMap(item => JSON.parse(runtime.readArtifact(item.id).content.toString()));
-    assert.ok(
-      reports.some(item => item.status === 'CANCELLED'),
-      JSON.stringify(reports),
-    );
-    state = await runtime.inspect();
-    scope = resolveFromState({ task: 'simulation assertions', state }, plugin.capabilities).scope;
-    const edited = runtime.execute(
-      { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
-      { scope, approval: true },
-    );
-    const change = setTimeout(
-      () =>
-        fs.appendFileSync(path.join(project, 'rtl/counter.sv'), '\n// concurrent input change\n'),
-      1200,
-    );
-    t.after(() => clearTimeout(change));
-    const result = await edited;
-    assert.equal(result.verification.status, 'insufficient_evidence');
-    assert.equal(result.state.status, 'stale');
-    assert.equal(result.state.id, result.checkpoint.state.id);
+    try {
+      const state = await runtime.inspect();
+      const scope = resolveFromState(
+        { task: 'simulation assertions', state },
+        plugin.capabilities,
+      ).scope;
+      const pending = runtime.execute(
+        { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
+        { scope, approval: true },
+      );
+      const processInfo = await waitForSimulation(gate.ready, pending);
+      runtime.cancel();
+      const cancelled = await pending;
+      await runtime.waitForIdle();
+      await assertProcessesExited(processInfo);
+      assert.equal(cancelled.action.status, 'failed');
+      assert.equal(cancelled.verification.status, 'insufficient_evidence');
+      const reports = cancelled.artifacts
+        .filter(item => item.kind === 'report.execution')
+        .flatMap(item => JSON.parse(runtime.readArtifact(item.id).content.toString()));
+      assert.ok(
+        reports.some(item => item.status === 'CANCELLED' && item.argv[0].endsWith('/Vcounter_tb')),
+        JSON.stringify(reports),
+      );
+      assert.notEqual((await runtime.inspect()).status, 'verified');
+    } finally {
+      runtime.cancel();
+      try {
+        await runtime.waitForIdle();
+      } finally {
+        runtime.close();
+      }
+    }
+  },
+);
+
+test(
+  'input changes after real simulation readiness never become current acceptance',
+  { timeout: 120000 },
+  async t => {
+    const { directory, project, plugin, open } = workspace(t);
+    const gate = simulationGate(directory, project);
+    const runtime = open();
+    try {
+      const state = await runtime.inspect();
+      const scope = resolveFromState(
+        { task: 'simulation assertions', state },
+        plugin.capabilities,
+      ).scope;
+      const pending = runtime.execute(
+        { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: state.id },
+        { scope, approval: true },
+      );
+      const processInfo = await waitForSimulation(gate.ready, pending);
+      fs.appendFileSync(path.join(project, 'rtl/counter.sv'), '\n// concurrent input change\n');
+      gate.release();
+      const result = await pending;
+      await assertProcessesExited(processInfo);
+      assert.equal(result.action.status, 'completed');
+      assert.equal(result.verification.status, 'insufficient_evidence');
+      assert.match(result.verification.reason, /inputs changed during execution/);
+      assert.ok(result.artifacts.some(item => item.kind === 'waveform.vcd'));
+      assert.equal(result.state.status, 'stale');
+      assert.notEqual(
+        result.state.inputHashes['rtl/counter.sv'],
+        state.inputHashes['rtl/counter.sv'],
+      );
+      assert.equal(result.state.id, result.checkpoint.state.id);
+    } finally {
+      runtime.cancel();
+      try {
+        await runtime.waitForIdle();
+      } finally {
+        runtime.close();
+      }
+    }
   },
 );
 

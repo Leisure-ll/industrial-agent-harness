@@ -24,6 +24,8 @@ node --test tests/integration/license-materials.test.cjs
 
 Core 集成测试使用真正的 CLI/Kimi 和本地确定性模型响应推动调用，随后执行真实 Verilator；不使用外网模型凭据，不将这些受控响应当成模型能力评测。CI 的 mandatory macOS gate 要求固定 CLI/Python 与 Verilator；没有安装不能以跳过替代通过。
 
+取消与执行中输入变化的集成测试使用真实 Verilator 仿真中的就绪握手，取代固定延时。仿真通过测试专用后代进程通知已启动，并等待测试释放；取消用例检查仿真执行报告为 `CANCELLED`、仿真与后代均已退出、工程验证仍为不足证据。输入变化用例在收到就绪信号后修改源文件，再释放仿真，检查真实仿真完成仍不能建立当前工程验收。启动前取消另行检查无原生执行和空产物集；所有握手等待都有超时上限。
+
 安装态 Pack 库存不可变：Python 桥接禁止生成 bytecode/cache，项目产物与 Core SQLite/CAS 放在包外。安装 `.hpack` 后，通过包外 `INDUSTRIAL_HARNESS_EDA_PYTHON` 指向按其 uv.lock 准备的 Python 环境；不能在验签后的 Pack 内创建 `.venv`。源码开发 checkout 的默认 `.venv` 仅用于开发。安装态集成测试实际执行 Verilator 后重新扫描库存、重开 Factory 与读取验收历史。
 
 剩余边界：Runtime 插件属于可信代码，host 执行没有替任意第三方 Pack/恶意 testbench提供完整 OS 沙箱；网络、秘密读取也不在本次写入边界内。当前只接入 RTL 验证，没有授权源码修复 Tool，没有其他领域的规范 Core verifier。主仓与 EDA Harness/demo 自有贡献已获 MIT 授权，但不能替代无授权外部 actor 或第三方二进制的源码/告示义务。三平台发行物和完整第三方依赖 SBOM仍需独立资格验证。
