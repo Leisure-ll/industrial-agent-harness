@@ -20,7 +20,12 @@ async function main() {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'installed-chip-consumer-'));
   let fixture;
   try {
-    const project = path.join(directory, 'engineering project');
+    // The pinned Verilator's host --build command splits a spaced Mdir.
+    // Docker uses its fixed /workspace mount and supports the spaced host path.
+    const project = path.join(
+      directory,
+      receipt.image ? 'engineering project' : 'engineering-project',
+    );
     fs.cpSync(path.join(__dirname, '../tests/integration/fixtures/industrial-rtl'), project, {
       recursive: true,
     });
@@ -132,6 +137,7 @@ async function main() {
           checkpointPersisted: true,
           processBoundary: boundary.mechanism,
           executionBackend: receipt.image ? 'docker' : 'local',
+          projectPathIncludesSpaces: project.includes(' '),
           image: receipt.image,
           model: 'controlled-local-fixture',
         },

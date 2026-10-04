@@ -35,6 +35,7 @@ wget -O install-chip-linux.sh https://github.com/Zhiman-BJ/industrial-agent-harn
 ## 尚未集成
 
 - 用户模型密钥、工程、PDK、约束及工程专用验收规则需自行提供；安装检查不等于工程签核。
+- 默认 Docker 后端已实测带空格的宿主工程路径。可选的本地 Verilator 5.026 后端要求工程/构建路径不含空格；其原生 Make 调用会拆分带空格的目录。`--skip-image` 仍只保证 CLI/MCP 安装。
 - 原生斜杠命令仍受输入包装影响；部分原生 Hook/插件/配置没有自动继承。相对 cwd 和 monorepo 祖先指令仍有兼容限制。详见 [兼容性审计](https://github.com/Zhiman-BJ/industrial-agent-harness/blob/chip-linux-installer-v0.1.0-preview.2/doc/kimi-native-compatibility-audit.md)。
 - Scope 变化重建原生会话、保留聊天展示历史，是预期行为。本次升级旧会话首次运行也会开始新上下文段。
 - 受保护 Agent 中的旧 MCP 修改、外部 MCP host 服务和 Computer Use 仍未接入完整 Runtime；注册 25 工具并不表示所有工业修改可直接使用。
