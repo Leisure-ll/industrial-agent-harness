@@ -24,6 +24,7 @@ function createProcessSandbox({
   protectedPaths = [],
   environment = process.env,
   platform = process.platform,
+  kimiProjectAccess = false,
 }) {
   if (platform !== 'darwin' || !fs.existsSync('/usr/bin/sandbox-exec'))
     throw Error(
@@ -60,12 +61,14 @@ function createProcessSandbox({
   const target = executablePath(executable, environment);
   fs.writeFileSync(
     wrapper,
-    `#!/bin/sh\nexec /usr/bin/sandbox-exec -f ${quoteShell(profile)} ${quoteShell(target)} "$@"\n`,
+    `#!/bin/sh\nexec /usr/bin/sandbox-exec -f ${quoteShell(profile)} ${quoteShell(target)}${kimiProjectAccess ? ` --add-dir ${quoteShell(project)}` : ''} "$@"\n`,
     { mode: 0o500 },
   );
   return {
     executable: wrapper,
-    env: { ...environment, TMPDIR: scratch + path.sep },
+    // SDK 0.1.8 applies env after its shareDir option. Pin this value so an
+    // inherited KIMI_SHARE_DIR cannot redirect native storage/configuration.
+    env: { ...environment, KIMI_SHARE_DIR: share, TMPDIR: scratch + path.sep },
     directory,
     workDir,
     boundary: {
