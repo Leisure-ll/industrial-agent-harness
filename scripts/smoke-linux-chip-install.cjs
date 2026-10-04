@@ -134,7 +134,23 @@ async function main() {
     const engineering = rows.find(
       row => row.type === 'industrial_result' && row.action.toolId === 'chip.rtl.verify',
     );
-    assert.equal(engineering?.verification.status, 'passed', JSON.stringify(engineering));
+    if (engineering?.verification.status !== 'passed') {
+      const failures = (engineering?.artifacts || [])
+        .filter(item => item.kind === 'log.tool')
+        .map(item => ({
+          sha256: item.sha256,
+          log: fs.readFileSync(path.join(project, item.relativePath), 'utf8').slice(-16384),
+        }));
+      fs.mkdirSync(path.dirname(path.resolve(output)), { recursive: true });
+      fs.writeFileSync(
+        output + '.failure.json',
+        JSON.stringify({ engineering, failures }, null, 2) + '\n',
+      );
+      throw Error(
+        'Installed RTL verification failed: ' +
+          JSON.stringify({ verification: engineering?.verification, failures }),
+      );
+    }
     assert.equal(rows.at(-1).engineering.checkpointId, engineering.checkpoint.id);
     const boundary = rows.find(row => row.event?.type === 'execution-boundary')?.event;
     assert.equal(boundary?.mechanism, 'bubblewrap-seccomp');
