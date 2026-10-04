@@ -399,3 +399,11 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 - 决定：桌面构建与首次启动 CI 目标保留 macOS Apple Silicon（arm64）和 Windows x64。移除 Intel Mac CI runner；macOS 安装器只构建 arm64，签名发行在 Apple Silicon 原生 runner 上执行；发行 Pack 目录不声明 `darwin-x64`。中英文首页、安装指南与执行边界同步说明 Intel Mac 暂不支持。
 - 恢复条件：具备 Intel Mac 测试机，完成目标架构的安装、首次启动、Domain 安装、运行时与升级验收后，单独恢复 CI、安装包和支持声明。历史版本和历史 CI 记录保留，但不作为当前支持承诺。
 - 边界：Windows x64 的桌面启动验证不代表真实工业 Agent 执行已支持；签名安装器和真实 OTA 仍需单独验收。暂停 Intel Mac 也不替代取消测试时序问题的修复。
+
+## PD-037：项目技能和指令的原生发现
+
+- 日期：2026-10-04
+- 状态：已在 macOS Apple Silicon 真实 Kimi 会话验证
+- 来源：用户反馈 Project 根目录 `.skill/`、`.skills/` 无法自动加载，并要求全面扫描 Harness 对 Kimi 原生机制的影响。
+- 决定：Desktop/CLI 共用的适配器映射所选 Project 根的原生技能目录及 `AGENTS.md`，并追加 `.skill/`、`.skills/`。Kimi 继续负责技能解析、摘要、按需读取和优先级；项目技能不增加工业工具权限。通过原生 `--add-dir` 恢复绝对 Project 路径搜索，固定会话 `KIMI_SHARE_DIR` 防止继承环境重定向。
+- 边界：活跃进程不自动刷新技能索引；两个别名目录为 extra scope，低于原生项目与用户 scope。此次 workspace 版本升级使旧聊天开始新上下文段，历史保留。相对 cwd、monorepo 祖先发现、斜杠命令、配置继承和跨 Scope 对话延续尚未完整保持，详见 [兼容性审计](kimi-native-compatibility-audit.md)。

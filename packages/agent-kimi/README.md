@@ -10,7 +10,11 @@ Harness 外部工具返回最多 16 KiB UTF-8 JSON；能力详情可按 `skills`
 
 每轮生成一份完整的 JSONL 诊断日志，保留 Broker Trace、实际送入 SDK 的提示、SDK 暴露的原始事件和未截断的工具结果。固定 CLI 版本的 `context.jsonl` 与 `wire.jsonl` 也在每轮结束时保存受限权限的快照，日志记录路径、字节数及 SHA-256；快照失败会显式记录。日志路径通过 `diagnostic-log` 事件给 CLI 与桌面 Debug 模式。已知 API Key 和常见凭据字段会脱敏；日志仍含工程数据。若提供观察状态回调，提示中会附带最小 Checkpoint 锚点，`industrial_context_read` 可按页取回；该工具只报告文件哈希观察，不报告工程验收结论。
 
-每个 SDK 会话使用独立 Kimi share directory（Desktop/CLI 提供持久目录，未提供持久回调的调用方使用临时目录）：复制模型配置，以 `extra_skill_dirs` 添加经过 Project 禁用策略和 Broker Scope 筛选的仓库 Skill，并生成会话 `mcp.json`。Kimi 原有的项目/用户 Skill 搜索路径仍可使用。关闭会话只删除临时目录，持久目录仅在明确删除聊天时清理；用户的 `~/.kimi` 不会被改写。当前默认注册 Chip Pack；会话配置绑定绝对项目路径、当前 Tool Scope 和固定运行时。普通任务与禁用后的 Scope 不加载它。MCP 文本分段被转换为聊天可见文本，原始 SDK 记录保留。详见 [MCP 接入](../../doc/domain-mcp-integration.md)。
+每个 SDK 会话使用独立 Kimi share directory（Desktop/CLI 提供持久目录，未提供持久回调的调用方使用临时目录）：复制模型配置，以 `extra_skill_dirs` 添加经过 Project 禁用策略和 Broker Scope 筛选的仓库 Skill，并生成会话 `mcp.json`。会话 workspace 映射所选 Project 根目录的 `.kimi/skills`、`.claude/skills`、`.codex/skills`、`.agents/skills`、`AGENTS.md`（缺失时使用 `agents.md`）和 `.kimi/AGENTS.md`，由 Kimi 原生发现、解析和处理同名优先级；同时以绝对路径追加 `.skill/`、`.skills/`，支持 `<name>/SKILL.md` 与 `<name>.md` 布局。摘要先披露，正文按需读取，资源引用保留在原项目中；这些项目技能不授予工业工具权限，也不进入 Broker 注册技能的启停清单。原生用户 Skill 路径继续由 Kimi 发现；`.skill/` 与 `.skills/` 作为 extra scope，优先级低于原生项目及用户 scope。
+
+会话通过 Kimi 原生 `--add-dir` 注册真实 Project，使 Glob 能搜索其绝对路径；工作目录仍是隔离 workspace。`KIMI_SHARE_DIR` 固定为实际会话目录，避免 SDK 0.1.8 的 env 优先级覆盖 shareDir。上述映射在新建或重开原生进程时更新，运行中的技能索引不会自动刷新。升级后的工作区版本参与兼容键，旧聊天开始一个新上下文段并保留历史。映射仅覆盖所选 Project 根目录；绑定仓库子目录时的祖先指令、相对 cwd、原生斜杠命令等剩余限制见 [Kimi 原生机制审计](../../doc/kimi-native-compatibility-audit.md)。
+
+关闭会话只删除临时目录，持久目录仅在明确删除聊天时清理；用户的 `~/.kimi` 不会被改写。当前默认注册 Chip Pack；会话配置绑定绝对项目路径、当前 Tool Scope 和固定运行时。普通任务与禁用后的 Scope 不加载它。MCP 文本分段被转换为聊天可见文本，原始 SDK 记录保留。详见 [MCP 接入](../../doc/domain-mcp-integration.md)。
 
 `DiagnosticReader` 提供当前项目的运行列表、原始记录分页及 UTF-8 分段读取；只读语义投影提供时间线、上下文和调用/返回配对，不改写原始日志。上下文从同项目同 Trace 的固定原生快照读取，验证路径、大小及 SHA-256；无压缩且当前提示及全部 Checkpoint 保留时，按步骤边界展示保存的消息。该视图不是完整 HTTP 请求记录，不猜测缺失的上下文或工具定义。索引缓存有界，完整语义内容只缓存一轮；原始记录最多 64 MiB，单记录 16 MiB，上下文快照最多 64 MiB；逐步骤消息关联最多 200,000 项。SDK/UI 双重记录只在展示中去重。支持范围与 UI 限额见 [桌面文档](../../apps/desktop/README.md)。
 

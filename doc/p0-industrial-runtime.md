@@ -12,6 +12,8 @@ Action 记录输入内容身份、实际 Verilator 版本、参数、Run/Action 
 
 macOS 使用真正的 Seatbelt 进程边界：Kimi 及其 Shell/WriteFile/子进程只可写独立 session/scratch，实际 Project 与工业元数据只读。固定 CLI 启动时要求工作目录可写，所以 native cwd 使用稳定的 session `workspace`，其中 `project/` 是只读真实工程的符号链接；Prompt 明确两者含义。工程写入仍由宿主 Runtime 完成。native 历史按稳定 workspace 关联，新的边界版本参与会话兼容键。
 
+会话还映射所选 Project 根目录的原生技能目录和 `AGENTS.md`，并追加 `.skill/`、`.skills/`，由 Kimi 继续处理摘要、正文和优先级。启动包装器通过原生 `--add-dir` 注册 Project 的规范绝对路径，并固定 `KIMI_SHARE_DIR`，恢复项目搜索且避免继承环境重定向会话存储。Seatbelt 的只读工程边界继续生效。剩余兼容性差异见 [Kimi 原生机制审计](kimi-native-compatibility-audit.md)。
+
 遗留 Domain MCP 的修改继承只读边界并可见失败，不能靠 Prompt 放行。尚未形成 Runtime 闭环的领域不自动获得写入能力。外部 MCP host 服务与应用控制插件在真实受保护会话中被明确拒绝，其其他进程/远程副作用尚未纳入工业审计；不能用未经验证的旧功能回避边界。Linux/Windows 工业 Kimi 执行在启动前拒绝，直到存在同等的真实进程边界与对应发行验证。
 
 实际验证入口：
