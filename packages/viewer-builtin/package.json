@@ -13,6 +13,7 @@
     "remark-gfm": "4.0.1"
   },
   "exports": {
+    "./browser": "./src/browser/BrowserViewport.tsx",
     "./layout": "./src/layout/LayoutViewport.tsx",
     "./netlist": "./src/netlist/NetlistViewport.tsx",
     "./waveform": "./src/waveform/WaveformViewport.tsx",

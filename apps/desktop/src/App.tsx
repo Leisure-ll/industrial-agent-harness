@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Activity,
   Bug,
@@ -9,6 +18,7 @@ import {
   FilePlus2,
   Folder,
   FolderOpen,
+  Globe,
   Maximize,
   Minimize,
   Moon,
@@ -25,6 +35,11 @@ import {
   X,
 } from 'lucide-react';
 import { ViewerCanvas, type ViewNavigation } from '@industrial-agent-harness/viewer-builtin/canvas';
+const BrowserWorkspace = lazy(() =>
+  import('@industrial-agent-harness/viewer-builtin/browser').then(module => ({
+    default: module.BrowserWorkspace,
+  })),
+);
 import type {
   AgentEvent,
   ChatHistory,
@@ -96,6 +111,7 @@ export function App() {
   const [isViewerReady, setViewerReady] = useState(false);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
   const [fileTreeOpen, setFileTreeOpen] = useState(false);
   const workspace = useRef<HTMLElement>(null);
   const [viewerFullscreen, setViewerFullscreen] = useState(false);
@@ -540,6 +556,17 @@ export function App() {
   const selectedDomain = fixedDomain;
   const domainFor = (id?: string | null) => domains.find(item => item.id === id);
   const activeFileName = sourceFile?.name || selectedArtifact?.name;
+  const browserVisible =
+    !settingsOpen &&
+    !modelSettingsOpen &&
+    !resourceSettingsOpen &&
+    !domainManagerOpen &&
+    !coreUpdateOpen &&
+    !logOpen &&
+    !projectDraft;
+  useEffect(() => {
+    setBrowserOpen(false);
+  }, [activeProjectId]);
   const todo = latestEvent(agentEvents, 'todo');
   const visibleProjectFiles = useMemo(() => {
     const hidden = [...collapsedDirs];
@@ -565,6 +592,7 @@ export function App() {
   }
 
   function selectArtifact(id: string) {
+    setBrowserOpen(false);
     setSourceFile(undefined);
     setSelectedArtifactId(id);
     setRightOpen(true);
@@ -667,6 +695,7 @@ export function App() {
     }
   }
   async function selectProjectFile(relative: string) {
+    setBrowserOpen(false);
     setError('');
     setRightOpen(true);
     try {
@@ -1134,6 +1163,17 @@ export function App() {
               >
                 {rightOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
               </button>
+              <button
+                title="Open browser"
+                aria-label="Open browser"
+                disabled={!activeProjectId}
+                onClick={() => {
+                  setBrowserOpen(true);
+                  setRightOpen(true);
+                }}
+              >
+                <Globe size={16} />
+              </button>
             </div>
           </header>
           {page === 'project' && activeProject ? (
@@ -1350,9 +1390,9 @@ export function App() {
           <section ref={workspace} className="ia-viewer ia-workspace">
             <header className="ia-viewer-header">
               <div>
-                <File size={14} />
-                <b>{activeFileName || 'Workspace'}</b>
-                {activeFileName && (
+                {browserOpen ? <Globe size={14} /> : <File size={14} />}
+                <b>{browserOpen ? 'Browser' : activeFileName || 'Workspace'}</b>
+                {!browserOpen && activeFileName && (
                   <button
                     className="ia-icon"
                     onClick={() => {
@@ -1368,7 +1408,7 @@ export function App() {
               </div>
               <div className="ia-workspace-actions">
                 {fullscreenError && <span role="status">{fullscreenError}</span>}
-                {activeViewer && (
+                {(browserOpen || activeViewer) && (
                   <div className="ia-view-navigation" aria-label="Viewer zoom controls">
                     <button
                       aria-label="Zoom out"
@@ -1402,6 +1442,14 @@ export function App() {
                   </div>
                 )}
                 <button
+                  title={browserOpen ? 'Show file' : 'Open browser'}
+                  aria-label={browserOpen ? 'Show file' : 'Open workspace browser'}
+                  disabled={!activeProjectId}
+                  onClick={() => setBrowserOpen(value => !value)}
+                >
+                  {browserOpen ? <File size={15} /> : <Globe size={15} />}
+                </button>
+                <button
                   onClick={() => void toggleViewerFullscreen()}
                   title={viewerFullscreen ? 'Exit viewer fullscreen' : 'Fullscreen viewer'}
                   aria-label={viewerFullscreen ? 'Exit viewer fullscreen' : 'Fullscreen viewer'}
@@ -1423,10 +1471,21 @@ export function App() {
             </header>
             <div className="ia-workspace-body">
               <div className="ia-workspace-content">
-                <div className="ia-workspace-breadcrumb">
-                  {sourceFile?.path || selectedProjectFile || projectName}
-                </div>
-                {sourceFile ? (
+                {!browserOpen && (
+                  <div className="ia-workspace-breadcrumb">
+                    {sourceFile?.path || selectedProjectFile || projectName}
+                  </div>
+                )}
+                {browserOpen && activeProjectId ? (
+                  <Suspense fallback={<div className="ia-workspace-empty">Opening browser…</div>}>
+                    <BrowserWorkspace
+                      projectId={activeProjectId}
+                      visible={browserVisible}
+                      onReady={viewerReady}
+                      onNavigation={setViewNavigation}
+                    />
+                  </Suspense>
+                ) : sourceFile ? (
                   <div className="ia-source-panel">
                     {sourceFile.content == null ? (
                       <p>Binary file · no text preview available.</p>
@@ -1441,6 +1500,7 @@ export function App() {
                       <ViewerCanvas
                         key={selectedArtifactId}
                         onNavigation={setViewNavigation}
+                        visible={browserVisible}
                         opened={activeViewer}
                         onReady={viewerReady}
                         onError={setError}
@@ -1456,7 +1516,7 @@ export function App() {
                     {error || 'Open the file tree to browse this project.'}
                   </div>
                 )}
-                {selectedArtifact && (
+                {!browserOpen && selectedArtifact && (
                   <footer className="ia-viewer-footer">
                     {selectedArtifact.kind.toUpperCase()} ·{' '}
                     {activeViewer && isViewerReady

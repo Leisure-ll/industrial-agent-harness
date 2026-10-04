@@ -32,6 +32,7 @@ export interface ViewerArtifact {
     | 'image'
     | 'sprite'
     | 'animation'
+    | 'browser'
     | DocumentKind;
   name: string;
   design: string;
@@ -143,6 +144,7 @@ export interface DocumentData {
 }
 
 export type OpenedViewer =
+  | { kind: 'browser'; artifact: ViewerArtifact; data: BrowserData }
   | { kind: 'layout'; artifact: ViewerArtifact; data: LayoutMeta }
   | { kind: 'netlist'; artifact: ViewerArtifact; data: NetlistData }
   | { kind: 'waveform'; artifact: ViewerArtifact; data: WaveformData }
@@ -153,6 +155,25 @@ export type OpenedViewer =
   | { kind: DocumentKind; artifact: ViewerArtifact; data: DocumentData };
 
 export interface ViewerHostApi {
+  browserState(request: { projectId: string }): Promise<BrowserSnapshot>;
+  browserOpen(request: {
+    projectId: string;
+    url?: string;
+    reuse?: boolean;
+  }): Promise<BrowserSnapshot>;
+  browserCommand(request: {
+    projectId: string;
+    tabId: string;
+    action: string;
+    url?: string;
+  }): Promise<BrowserSnapshot>;
+  browserPresent(request: {
+    projectId: string;
+    ownerId: string;
+    bounds: { x: number; y: number; width: number; height: number } | null;
+  }): Promise<void>;
+  onBrowserChanged(callback: (state: BrowserSnapshot) => void): () => void;
+  onBrowserShortcut(callback: (event: { projectId: string; action: string }) => void): () => void;
   open(request: { artifactId: string }): Promise<OpenedViewer>;
   openExternalArtifact(artifactId: string): Promise<{ launched: true }>;
   render(request: {
@@ -329,6 +350,26 @@ export interface ProjectBinding {
   domain?: string | null;
   disabledSkills?: string[];
   disabledMcpServers?: string[];
+}
+
+export interface BrowserData {
+  projectId: string;
+  url: string;
+}
+export interface BrowserSnapshot {
+  projectId: string;
+  revision: number;
+  activeId: string | null;
+  tabs: Array<{
+    id: string;
+    url: string;
+    title: string;
+    loading: boolean;
+    error: string;
+    canGoBack: boolean;
+    canGoForward: boolean;
+    zoomPercent: number;
+  }>;
 }
 export interface GuiPluginState {
   enabled: boolean;

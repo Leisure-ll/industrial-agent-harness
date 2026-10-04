@@ -4,6 +4,8 @@ Viewer 层让用户在 Harness 内直接检查工程产物，并保持产物来�
 
 ## 展示策略
 
+桌面另提供领域无关的[内置浏览器 V1](browser-viewer.md)，用于 HTTP/HTTPS、localhost 和项目 HTML。HTML 格式由 Registry 选择；URL 标签是工作区浏览视图，不伪造工业 Artifact 或 Verification。Chromium 原生视图与持久浏览器 session 位于 Desktop adapter，Viewer Core/CLI 无 Electron 依赖。复用共享缩放/Fit/全屏，保留页面状态，并在项目切换、隐藏或设置遮罩期间撤下网页视图。
+
 | 场景 | Harness 内部展示 | 专业软件承担 |
 | --- | --- | --- |
 | 芯片设计 | 波形、Yosys 网表、报告、DEF/GDS 局部版图、层与对象选择 | 完整版图编辑、工艺设置、复杂时序或物理调试界面 |

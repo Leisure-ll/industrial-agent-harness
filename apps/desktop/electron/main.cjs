@@ -101,8 +101,14 @@ const {
 } = require('./model-config.cjs');
 const { readBindings, addBinding, saveBindings } = require('./project-bindings.cjs');
 const { resolveProjectFile, listProjectFiles, readSourcePreview } = require('./project-files.cjs');
+const { BrowserManager } = require('./browser.cjs');
+const { SCHEME: browserScheme } = require('./browser-policy.cjs');
 
 protocol.registerSchemesAsPrivileged([
+  {
+    scheme: browserScheme,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+  },
   {
     scheme: 'app',
     privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
@@ -114,6 +120,7 @@ if (
     '--kicad-selftest',
     '--godot-selftest',
     '--documents-selftest',
+    '--browser-selftest',
     '--engineering-selftest',
     '--mcp-selftest',
     '--external-mcp-selftest',
@@ -182,6 +189,7 @@ let contextStore;
 let projectDir;
 let projectBindings = { projects: [], activeId: null };
 let mainWindow;
+let browserManager;
 const coreUpdater = new CoreUpdater({
   updater: app.isPackaged ? require('electron-updater').autoUpdater : null,
   packaged: app.isPackaged,
@@ -314,6 +322,7 @@ function projectSnapshot() {
   return { ...projectBindings, projectDir: projectDir || null };
 }
 function clearProjectArtifacts() {
+  browserManager?.hide();
   contextStore?.close();
   contextStore = undefined;
   artifacts.clear();
@@ -555,10 +564,40 @@ const viewerRegistry = createViewerRegistry([
     }),
   },
   // Generic formats are fallbacks; preserve specialized JSON/HTML detection.
+  {
+    id: 'browser',
+    matches: file => /\.html?$/i.test(file),
+    open: async ({ artifact, file }) => {
+      const project = { ...activeProject(), path: projectDir };
+      const url = await browserManager.files.register(project, file, artifact.sha256);
+      if (activeProject()?.id !== project.id) throw Error('Project changed; reopen the HTML file.');
+      return { artifact, kind: 'browser', data: { projectId: project.id, url } };
+    },
+  },
   ...createDocumentPlugins({ projectRoot: () => projectDir }),
 ]);
 
 function registerHandlers() {
+  function browserRequest(event, request, allowHide = false) {
+    if (
+      event.sender !== mainWindow?.webContents ||
+      event.senderFrame !== mainWindow.webContents.mainFrame
+    )
+      throw Error('Browser controls require the main app window.');
+    if (!allowHide && (!activeProject() || request?.projectId !== activeProject().id))
+      throw Error('Browser belongs to the selected project.');
+  }
+  for (const [channel, method] of [
+    ['state', 'state'],
+    ['open', 'open'],
+    ['command', 'command'],
+    ['present', 'present'],
+  ]) {
+    ipcMain.handle(`browser:${channel}`, (event, request) => {
+      browserRequest(event, request, channel === 'present' && request?.bounds === null);
+      return browserManager[method](channel === 'state' ? request.projectId : request);
+    });
+  }
   function diagnosticProject(event, request) {
     if (
       event.sender !== mainWindow?.webContents ||
@@ -1211,6 +1250,8 @@ async function createWindow() {
     void startGuiInstall();
   if (process.argv.includes('--documents-selftest'))
     require('./documents-selftest.cjs').prepare(projectConfigDir());
+  if (process.argv.includes('--browser-selftest'))
+    require('./browser-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--engineering-selftest'))
     require('./engineering-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--parallel-selftest'))
@@ -1255,6 +1296,7 @@ async function createWindow() {
     },
   });
   mainWindow = window;
+  browserManager = new BrowserManager({ electron: require('electron'), window, activeProject });
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
   if (process.argv.includes('--packaged-smoke')) {
@@ -1363,6 +1405,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--documents-selftest')) {
     await require('./documents-selftest.cjs').run(window);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--browser-selftest')) {
+    await require('./browser-selftest.cjs').run(window, browserManager);
     app.quit();
     return;
   }
@@ -1753,6 +1800,7 @@ app.on('before-quit', event => {
   event.preventDefault();
   if (shutdownPromise) return;
   raster?.close();
+  browserManager?.close();
   viewerProtocol?.close();
   godotRuntime.close();
   kicadRuntime.close();

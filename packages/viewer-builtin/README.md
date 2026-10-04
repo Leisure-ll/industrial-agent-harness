@@ -1,9 +1,12 @@
 # Built-in Viewers
 
+内置浏览器的 React Viewport 使用共享 `ViewNavigation`；项目 HTML 由 Registry 选择，URL 入口复用工作区。Chromium/session/原生 bounds 属于 Desktop adapter；包内不引入 Electron。格式、来源边界及当前手动浏览范围见[内置浏览器 V1](../../doc/browser-viewer.md)。
+
 这里是正式的内置 Viewer 实现路径。首批直接迁入并使用三种 EDA Viewer：
 
 | 模块 | 渲染能力 |
 | --- | --- |
+| `src/browser` | HTTP/HTTPS、localhost 和项目 HTML 浏览器；多标签及共享导航，原生 Chromium 由 Desktop adapter 承接；见[内置浏览器 V1](../../doc/browser-viewer.md) |
 | `src/layout` | KLayout Python `LayoutView` 按视口渲染 GDS |
 | `src/netlist` | netlistsvg 在独立 worker 中渲染 Yosys JSON 网表 |
 | `src/waveform` | 本地 Surfer WASM 通过受限页面查看 VCD 等波形 |

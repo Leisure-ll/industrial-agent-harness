@@ -4,6 +4,9 @@ import type { OpenedViewer } from './api';
 import { ViewNavigationContext } from './navigation';
 import type { ViewNavigation } from './navigation';
 export type { ViewNavigation } from './navigation';
+const BrowserViewport = lazy(() =>
+  import('./browser/BrowserViewport').then(module => ({ default: module.BrowserViewport })),
+);
 
 const LayoutViewport = lazy(() =>
   import('./layout/LayoutViewport').then(module => ({ default: module.LayoutViewport })),
@@ -62,6 +65,7 @@ export const ViewerCanvas = memo(function ViewerCanvas({
   onReady: () => void;
   onError: (message: string) => void;
   onNavigation?: (value: ViewNavigation | null) => void;
+  visible?: boolean;
 }) {
   return (
     <ViewNavigationContext value={onNavigation}>
@@ -75,14 +79,18 @@ export const ViewerCanvas = memo(function ViewerCanvas({
 });
 function ViewerContent({
   opened,
+  visible,
   onReady,
   onError,
 }: {
   opened: OpenedViewer;
   onReady: () => void;
   onError: (message: string) => void;
+  visible?: boolean;
 }) {
   switch (opened.kind) {
+    case 'browser':
+      return <BrowserViewport data={opened.data} visible={visible} onReady={onReady} />;
     case 'layout':
       return <LayoutViewport meta={opened.data} onReady={onReady} onError={onError} />;
     case 'netlist':

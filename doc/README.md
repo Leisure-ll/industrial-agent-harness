@@ -23,6 +23,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [系统架构](architecture.md) | Kimi Code、桌面端、Broker、工业运行时与领域包的职责和数据流 |
 | [Capability Broker](capability-broker.md) | Capability 解析、skill 与 MCP 工具的渐进式披露、Scope 和 Trace |
 | [Viewer 层](viewer-layer.md) | 内置查看、关键产物预览、外部打开与证据边界 |
+| [内置浏览器 V1](browser-viewer.md) | 多标签网页/localhost/项目 HTML、独立会话、原生 Chromium 与工作区导航边界 |
 | [通用文件 Viewer](document-viewers.md) | CSV/TSV、JSON、JSONL、Markdown、TXT/LOG 的只读查看、分页与文件边界 |
 | [素材 Viewer](godot-assets-viewers.md) | 图片预览、图集切分、动画播放与 Godot 文本资源支持范围 |
 | [KiCad Viewer V1](kicad-viewer.md) | PCB domain 的本地板图/原理图查看、文件边界与运行时来源 |

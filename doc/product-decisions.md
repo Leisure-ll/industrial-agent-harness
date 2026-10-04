@@ -417,3 +417,11 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 - Linux 执行：bubblewrap/seccomp 保留原生 Kimi 循环和模型网络，工程和 Runtime 文件只读，宿主 Unix socket 和 namespace 重配置被拒绝；工业动作进入宿主 Runtime。安装前验证用户命名空间，安装后验证受保护 Kimi 启动，不降级为旧版无隔离模式。
 - 发布门禁：Ubuntu 22.04 x86-64 真实 Agent/Verilator、工程写入与 Unix socket 拒绝、持久事实/失败/取消/恢复，以及实际安装 CLI、项目 Skill 正文按需加载、Checkpoint 和重复安装。其他发行版自动依赖准备范围不等于逐版本完成工业验收。
 - 边界：此入口只提供 Chip CLI；不含模型凭据、用户工程、PDK 或签核规则。外部 MCP host 服务、应用控制插件和旧 MCP 修改继续服从已记录限制；Scope 切换仍按预期建立新上下文段。
+
+## PD-039：工作区内置浏览器
+
+- 日期：2026-10-04
+- 状态：V1 已实现，macOS Apple Silicon 源码版 Electron 实测通过；Windows/Linux 打包运行待验证
+- 来源：用户明确要求参考 Codex 或 Kimi，为 Industrial Harness 增加内置浏览器。
+- 决定：在当前项目的工作区内提供多标签浏览器、地址栏、HTTP/HTTPS/localhost 导航、前进后退、刷新/停止与共享缩放/Fit/全屏。普通项目 HTML 通过 Registry 打开，Godot Web Export 保留优先级。项目浏览器独立持久会话，隐藏/切换文件/全屏保留页面状态；切换项目与设置遮罩撤下原生视图。网页不获得 Harness/工业工具 API，来源与配套资源受项目文件、摘要和读取上限约束。
+- 限界：本次为用户明确要求的工作区浏览功能，不改变 Industrial Core Vertical Slice 的完成状态。V1 为手动浏览，Agent 的 DOM/点击/输入/截图控制、下载、设备权限、DevTools 与注释尚未接入；实现和实测范围见[内置浏览器 V1](browser-viewer.md)。

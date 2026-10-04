@@ -1,6 +1,20 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 const api = {
+  browserState: request => ipcRenderer.invoke('browser:state', request),
+  browserOpen: request => ipcRenderer.invoke('browser:open', request),
+  browserCommand: request => ipcRenderer.invoke('browser:command', request),
+  browserPresent: request => ipcRenderer.invoke('browser:present', request),
+  onBrowserChanged: callback => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('browser:changed', listener);
+    return () => ipcRenderer.removeListener('browser:changed', listener);
+  },
+  onBrowserShortcut: callback => {
+    const listener = (_event, event) => callback(event);
+    ipcRenderer.on('browser:shortcut', listener);
+    return () => ipcRenderer.removeListener('browser:shortcut', listener);
+  },
   open: request => ipcRenderer.invoke('viewer:open', request),
   openExternalArtifact: artifactId => ipcRenderer.invoke('viewer:external-open', { artifactId }),
   render: request => ipcRenderer.invoke('viewer:render', request),

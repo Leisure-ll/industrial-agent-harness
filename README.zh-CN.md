@@ -102,11 +102,12 @@ Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v
 
 ## 已接入的 Viewer
 
-从当前工程的文件树打开产物，自动选择对应 Viewer。查看器共用缩放、Fit 与全屏操作，查看不改变源码或验证结果。
+从当前工程的文件树打开产物，自动选择对应 Viewer。查看器共用缩放、Fit 与全屏操作，查看不改变源码或验证结果。聊天或工作区标题栏的 🌐 按钮可直接浏览网页和 localhost。
 
 | Viewer                                      | 输入                                                                           | 查看能力与限制                                                           |
 | ------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
 | [芯片版图](doc/viewer-eda-reference.md)     | GDS/GDSII、OAS/OASIS                                                           | 按视口渲染和图层选择，需要 KLayout Python。                              |
+| [内置浏览器](doc/browser-viewer.md) | HTTP/HTTPS、localhost、项目 HTML/HTM；Godot Web Export 保留专用 Viewer | 多标签、地址栏、前进/后退、刷新/停止、缩放/Fit/全屏；内置 Electron Chromium，独立项目登录会话与 HTML 资源校验。V1 手动浏览，下载/设备权限禁用，Agent 控制待接入。已实测 macOS arm64 源码运行；Windows/Linux 打包运行待验证。 |
 | [网表](doc/viewer-eda-reference.md)         | Yosys `write_json` 输出                                                        | 独立 worker 中生成 netlistsvg 图，普通 JSON 使用文档查看器。             |
 | [波形](doc/viewer-eda-reference.md)         | VCD、FST、GHW                                                                  | 内置 Surfer WASM，查看信号与时间轴。                                     |
 | [KiCad](doc/kicad-viewer.md)                | `.kicad_pcb`、`.kicad_sch` 与工程子页                                          | 本地 KiCanvas 展示图层、网络和符号，只读 2D 查看，无需安装 KiCad。       |

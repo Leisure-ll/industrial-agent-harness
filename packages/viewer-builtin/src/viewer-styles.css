@@ -2758,3 +2758,140 @@
   color: #8ac5ed;
   font-weight: 600;
 }
+.rp-browser {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  color: var(--ia-text);
+  background: var(--ia-bg);
+  text-align: left;
+}
+.rp-stage > .rp-browser {
+  height: 100%;
+}
+.rp-browser-tabs {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 7px 0;
+  overflow-x: auto;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--ia-border);
+}
+.rp-browser-tab {
+  display: flex;
+  align-items: center;
+  min-width: 70px;
+  max-width: 170px;
+  border-radius: 6px 6px 0 0;
+}
+.rp-browser-tab.active {
+  background: var(--ia-raised);
+  box-shadow: inset 0 -2px var(--ia-accent, #5979df);
+}
+.rp-browser button {
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  border-radius: 4px;
+  padding: 6px;
+}
+.rp-browser button:hover {
+  background: var(--ia-raised);
+}
+.rp-browser button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.rp-browser-tab button[role='tab'] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  flex: 1;
+}
+.rp-browser-tab span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rp-browser-new {
+  flex-shrink: 0;
+}
+.rp-browser-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px;
+  border-bottom: 1px solid var(--ia-border);
+  flex-shrink: 0;
+}
+.rp-browser-toolbar button {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+}
+.rp-browser-toolbar input {
+  flex: 1;
+  min-width: 30px;
+  width: 0;
+  background: var(--ia-raised);
+  color: var(--ia-text);
+  border: 1px solid var(--ia-border);
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 11px;
+}
+.rp-browser-surface {
+  position: relative;
+  flex: 1;
+  min-height: 100px;
+  overflow: hidden;
+}
+.rp-browser-empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+  color: var(--ia-muted);
+  font-size: 12px;
+}
+.rp-browser-empty h3 {
+  color: var(--ia-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+.rp-browser-empty p {
+  max-width: 330px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.rp-browser-empty button {
+  border: 1px solid var(--ia-border);
+}
+.rp-browser-loading {
+  padding: 20px;
+  color: var(--ia-muted);
+  font-size: 12px;
+}
+.rp-browser-error {
+  padding: 8px 12px;
+  color: #bf4656;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.rp-browser-status {
+  padding: 6px 12px;
+  border-top: 1px solid var(--ia-border);
+  color: var(--ia-muted);
+  font-size: 10px;
+  flex-shrink: 0;
+}

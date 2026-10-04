@@ -102,11 +102,12 @@ Build your own Pack with the [Pack authoring tutorial](doc/pack-authoring.md). D
 
 ## Viewers
 
-Viewers open from the active project's file tree. They share zoom, Fit and fullscreen controls and leave source files and verification results unchanged.
+Viewers open from the active project's file tree. They share zoom, Fit and fullscreen controls and leave source files and verification results unchanged. Use the globe button in the chat or workspace title bar to browse websites and localhost within the workbench.
 
 | Viewer                                               | Inputs                                                                                                       | Viewing features and limits                                                                                                    |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
 | [Chip layout](doc/viewer-eda-reference.md)           | GDS/GDSII, OAS/OASIS                                                                                         | Viewport rendering and layer selection; requires KLayout Python.                                                               |
+| [Built-in browser](doc/browser-viewer.md) | HTTP/HTTPS, localhost and project HTML/HTM; Godot Web Export keeps its specialized viewer | Tabs, address bar, back/forward, reload/stop, zoom, Fit and fullscreen; bundled Electron Chromium with separate project login sessions and checked HTML resources. Manual browsing only; downloads and device permissions disabled, Agent control pending. Source runtime verified on macOS arm64; Windows/Linux packages pending. |
 | [Netlist](doc/viewer-eda-reference.md)               | Yosys `write_json` output                                                                                    | netlistsvg diagrams in a worker; ordinary JSON uses the document viewer.                                                       |
 | [Waveform](doc/viewer-eda-reference.md)              | VCD, FST, GHW                                                                                                | Signal and timeline inspection with bundled Surfer WASM.                                                                       |
 | [KiCad](doc/kicad-viewer.md)                         | `.kicad_pcb`, `.kicad_sch` and project subsheets                                                             | Local KiCanvas layer, net and symbol inspection; read-only 2D viewing, no KiCad install required.                              |
