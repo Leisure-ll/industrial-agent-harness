@@ -126,13 +126,20 @@ function nativeCall(command, directory, operation, request, signal) {
       signal?.removeEventListener('abort', cancel);
       reject(error);
     });
-    child.on('close', code => {
+    child.on('close', (code, exitSignal) => {
       clearTimeout(timer);
       clearTimeout(escalation);
       signal?.removeEventListener('abort', cancel);
       kill('SIGKILL');
-      fs.writeFileSync(path.join(directory, `${operation}.log`), log);
-      resolve({ code, cancelled, overflow });
+      const termination = `Native process exit code=${code}, signal=${exitSignal || 'none'}, cancelled=${cancelled}, overflow=${overflow}.`;
+      fs.writeFileSync(path.join(directory, `${operation}.log`), log + '\n' + termination);
+      resolve({
+        code,
+        exitSignal,
+        cancelled,
+        overflow,
+        diagnostic: termination + ' ' + log.slice(-2000),
+      });
     });
   });
 }
@@ -296,7 +303,8 @@ function createRuntimePlugin({ environment = process.env } = {}) {
           diagnostics: [
             succeeded
               ? 'FreeCAD build/export and separate readback completed.'
-              : 'FreeCAD failed, timed out or was cancelled; no acceptance claim.',
+              : 'FreeCAD failed, timed out or was cancelled; no acceptance claim. ' +
+                (second?.diagnostic || first.diagnostic),
           ],
           artifacts: Object.entries(kinds)
             .filter(([name]) => fs.existsSync(path.join(directory, name)))
