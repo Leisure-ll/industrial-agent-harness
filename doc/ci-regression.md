@@ -53,3 +53,5 @@ KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" pnpm run test:ci -- nati
 本仓库使用自己的 Node 测试与现有工业契约，未复制上游的特定服务、密钥、Windows 观察项或自托管环境。
 
 FreeCAD 首批 native suite 和实际 Electron CAD Viewer 加入 macOS arm64 原生门禁。CI 下载并校验官方 FreeCAD 1.1.4 DMG 的固定 SHA，只读挂载提供 `freecadcmd`；缺少依赖会失败。配方/STL/文件边界及 CAD CLI 包的 Scope 检查加入四平台 Portable 层。详见 [FreeCAD 接入与回归](freecad-domain-pack.md)。
+
+FreeCAD 1.1.4 的原生 CAD/RTL/Kimi 综合门禁使用 `macos-26`；四平台 Portable 与 Desktop macOS 打包仍固定 `macos-15`。这一差异来自实际 macOS 15 FreeCAD 启动 SIGSEGV，不宣称该系统已有 CAD 原生资格，详见 FreeCAD 接入文档。
