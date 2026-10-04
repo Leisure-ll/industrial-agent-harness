@@ -92,7 +92,9 @@ jobs:
           const oldReceipt = JSON.parse(fs.readFileSync(`${previous}/install-receipt.json`));
           const newReceipt = JSON.parse(fs.readFileSync(`${current}/install-receipt.json`));
           const entry = fs.readFileSync(launcher, 'utf8');
-          if (entry.includes(previous) || !entry.includes(current)) throw Error('Upgrade did not switch the managed launcher.');
+          // The fixture prefixes contain spaces, escaped by the Bash launcher.
+          const quotedPath = value => value.replaceAll(' ', '\\ ');
+          if (entry.includes(quotedPath(previous)) || !entry.includes(quotedPath(current))) throw Error('Upgrade did not switch the managed launcher.');
           fs.writeFileSync('dist/linux-chip-release/upgrade-verification.json', JSON.stringify({
             status: 'PASS', previousRelease: 'chip-linux-installer-v0.1.0-preview.1',
             previousPackage: oldReceipt.package, currentPackage: newReceipt.package,
