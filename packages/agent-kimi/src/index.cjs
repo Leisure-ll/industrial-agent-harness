@@ -483,8 +483,8 @@ class KimiSession {
           plugins,
         );
         if (this.sessionFactory === createSession) {
-          // External host services can mutate unrelated applications outside this
-          // process boundary. Do not expose them as an industrial execution path.
+          // Native child MCP gateways stay outside the industrial boundary.
+          // Registered services instead use the audited host Runtime.
           const externalSelected = selectMcpServers(
             scope,
             runtime.disabledMcpServers,
@@ -509,6 +509,14 @@ class KimiSession {
           this.emitAgent({ type: 'execution-boundary', ...this.processSandbox.boundary });
         }
         this.nativeWorkDir = this.processSandbox?.workDir || this.workDir;
+        const hostedTools = runtimeTools(
+          this.diagnostics.industrialRuntime,
+          this.getScope,
+          (descriptor, request) => this.requestRuntimeApproval(descriptor, request),
+          result => this.diagnostics.onIndustrialResult?.(result),
+          { imageInput: Boolean(runtime.profile.imageInput) },
+        );
+        this.hostRuntimeTools = new Set(hostedTools.map(tool => tool.name));
         this.session = this.sessionFactory({
           workDir: this.processSandbox?.workDir || this.workDir,
           projectDir: this.workDir,
@@ -521,13 +529,7 @@ class KimiSession {
           env: this.processSandbox?.env || runtime.env,
           yoloMode: approvalMode === 'auto',
           externalTools: [
-            ...runtimeTools(
-              this.diagnostics.industrialRuntime,
-              this.getScope,
-              (descriptor, request) => this.requestRuntimeApproval(descriptor, request),
-              result => this.diagnostics.onIndustrialResult?.(result),
-              { imageInput: Boolean(runtime.profile.imageInput) },
-            ),
+            ...hostedTools,
             ...externalTools(
               this.getScope,
               this.lookupArtifact,
@@ -705,13 +707,24 @@ class KimiSession {
         this.emitAgent({ type: 'thinking', text: event.payload.think });
     } else if (event.type === 'ApprovalRequest') {
       this.pendingApprovals.set(event.payload.id, 'pending');
-      if (this.lastApprovalMode === 'auto' || this.activePluginTools?.has(event.payload.sender)) {
-        // Enabling the plugin is the authorization: auto-approve its tool
-        // approvals for this session instead of surfacing them to the user.
+      const hostedApproval =
+        event.payload.harness_callback === true && this.hostRuntimeTools?.has(event.payload.sender);
+      if (
+        hostedApproval ||
+        this.lastApprovalMode === 'auto' ||
+        this.activePluginTools?.has(event.payload.sender)
+      ) {
+        // Harness Runtime callbacks enforce Scope and approval inside their
+        // handlers. Preserve that boundary instead of adding an MCP transport
+        // approval before discovery or before recording a rejected Action.
         this.log?.record('approval.auto', {
           sender: event.payload.sender,
           id: event.payload.id,
-          reason: this.lastApprovalMode === 'auto' ? 'user_mode' : 'enabled_plugin',
+          reason: hostedApproval
+            ? 'host_runtime_boundary'
+            : this.lastApprovalMode === 'auto'
+              ? 'user_mode'
+              : 'enabled_plugin',
         });
         this.approve(event.payload.id, 'approve_for_session').catch(error =>
           this.emitAgent({ type: 'approval_error', id: event.payload.id, message: String(error) }),

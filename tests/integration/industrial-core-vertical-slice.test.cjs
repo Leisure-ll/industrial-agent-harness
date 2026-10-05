@@ -457,7 +457,13 @@ test(
         timeout: 90000,
         maxBuffer: 4 * 1024 * 1024,
       },
-    );
+    ).catch(error => {
+      // Node's Error inspector truncates large JSONL stdout before the final
+      // error row. Keep the useful tail in CI so failures remain diagnosable.
+      t.diagnostic('CLI stdout tail:\n' + String(error.stdout || '').slice(-24000));
+      t.diagnostic('CLI stderr tail:\n' + String(error.stderr || '').slice(-8000));
+      throw error;
+    });
     const rows = result.stdout.trim().split('\n').map(JSON.parse);
     assert.equal(rows.at(-1).status, 'finished', result.stderr + result.stdout);
     assert.deepEqual(fs.readFileSync(path.join(project, 'rtl/counter.sv')), before);

@@ -108,7 +108,7 @@ jobs:
           JS
           node scripts/smoke-linux-chip-install.cjs "$RUNNER_TEMP/installed chip" "$RUNNER_TEMP/chip-bin/industrial-harness-chip" dist/linux-chip-release/verification.json
           node scripts/smoke-workspace-cli.cjs "$RUNNER_TEMP/chip-bin/industrial-harness-chip" chip dist/linux-chip-release/workspace-verification.json
-          KIMI_EXECUTABLE="$RUNNER_TEMP/installed chip/cli/domain-packs/chip/.venv-kimi/bin/kimi" INDUSTRIAL_HARNESS_TEST_CLI="$RUNNER_TEMP/installed chip/cli/industrial-harness.cjs" node --test tests/integration/external-mcp-kimi.test.cjs
+          KIMI_EXECUTABLE="" INDUSTRIAL_HARNESS_TEST_CLI="$RUNNER_TEMP/installed chip/cli/industrial-harness.cjs" node --test tests/integration/external-mcp-kimi.test.cjs
           bash dist/linux-chip-release/industrial-harness-chip-linux-install.run --skip-image --prefix "$RUNNER_TEMP/installed chip" --bin-dir "$RUNNER_TEMP/chip-bin"
           cp "$RUNNER_TEMP/installed chip/install-receipt.json" dist/linux-chip-release/install-receipt.json
       - name: Verify installed host Docker execution alongside the protected Agent

@@ -42,7 +42,7 @@ jobs:
       - name: Verify common workspace and MCP in packaged CLIs
         shell: bash
         run: |
-          export KIMI_EXECUTABLE="$GITHUB_WORKSPACE/apps/desktop/.venv-kimi/bin/kimi"
+          unset KIMI_EXECUTABLE
           for domain in chip pcb; do
             node scripts/package-headless.cjs "dist/workspace-$domain" --domain "$domain"
             node scripts/smoke-workspace-cli.cjs "$GITHUB_WORKSPACE/dist/workspace-$domain/industrial-harness.cjs" "$domain" "dist/ci-reports/workspace-$domain.json"
@@ -67,7 +67,7 @@ jobs:
       - name: Verify external MCP through the real Desktop settings and approval flow
         shell: bash
         run: |
-          export KIMI_EXECUTABLE="$GITHUB_WORKSPACE/apps/desktop/.venv-kimi/bin/kimi"
+          export KIMI_EXECUTABLE="$(node -p "require('./packages/agent-kimi/src/code-session.cjs').bundledExecutable()")"
           pnpm --filter @industrial-agent-harness/desktop test:external-mcp 2>&1 | tee dist/ci-reports/external-mcp-desktop.log
       - name: Collect native FreeCAD startup diagnostics
         if: failure()

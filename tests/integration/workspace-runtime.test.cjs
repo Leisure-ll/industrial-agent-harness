@@ -3,6 +3,7 @@ const test = require('node:test'),
 const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
+const { createRequire } = require('node:module');
 const { execFile } = require('node:child_process'),
   { promisify } = require('node:util');
 const { createProjectRuntime } = require('../../packages/harness-core/src/index.cjs');
@@ -259,7 +260,12 @@ for (const domain of ['chip', 'pcb'])
       });
       t.after(model.close);
       const kimi =
-        process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+        process.env.KIMI_EXECUTABLE ||
+        createRequire(
+          fs.realpathSync(
+            process.env.INDUSTRIAL_HARNESS_TEST_CLI || path.join(root, 'apps/cli/src/main.cjs'),
+          ),
+        )('@industrial-agent-harness/agent-kimi').bundledExecutable();
       assert.ok(fs.existsSync(kimi));
       const { stdout, stderr } = await execute(
         process.execPath,

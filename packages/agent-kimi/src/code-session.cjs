@@ -542,6 +542,7 @@ class CodeSession {
         emit('ApprovalRequest', {
           id: p.approval_id,
           sender: toolName(p.tool_name),
+          harness_callback: p.tool_name?.startsWith('mcp__harness_adapter__') === true,
           action: p.action,
           description:
             typeof p.tool_input_display === 'string'
