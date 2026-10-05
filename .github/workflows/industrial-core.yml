@@ -55,6 +55,9 @@ jobs:
           export HARNESS_FREECAD_TEST_CLI="$GITHUB_WORKSPACE/dist/freecad-cli/industrial-harness.cjs"
           mkdir -p dist/ci-reports
           pnpm run test:ci -- native 2>&1 | tee dist/ci-reports/native.log
+      - name: Verify packaged headless Agent through its production process boundary
+        shell: bash
+        run: node --test tests/integration/headless-package-kimi.test.cjs 2>&1 | tee dist/ci-reports/headless-native.log
       - name: Verify real FreeCAD artifacts through the Desktop viewer
         shell: bash
         run: |

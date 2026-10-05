@@ -75,6 +75,11 @@ jobs:
           export KIMI_EXECUTABLE="$(node -p "require('./packages/agent-kimi/src/code-session.cjs').bundledExecutable()")"
           pnpm run test:ci -- native-linux
           node --test tests/integration/linux-chip-bootstrap.test.cjs
+      - name: Verify packaged headless Agent through its production process boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/integration/headless-package-kimi.test.cjs 2>&1 | tee dist/ci-reports/headless-native.log
       - name: Build clean immutable installer and verify actual installed consumer
         shell: bash
         run: |

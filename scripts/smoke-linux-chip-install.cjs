@@ -55,9 +55,9 @@ async function main() {
         const id = JSON.stringify(body.messages).match(/expectedStateId=([a-f0-9-]{36})/)?.[1];
         assert.ok(id, 'Installed consumer must receive the real DomainState identity.');
         return [
-          { name: 'ReadFile', arguments: { path: skill } },
-          { name: 'Shell', arguments: { command: 'printf bypass > project/rtl/counter.sv' } },
-          { name: 'Shell', arguments: { command: 'docker info' } },
+          { name: 'Read', arguments: { path: skill } },
+          { name: 'Bash', arguments: { command: 'printf bypass > project/rtl/counter.sv' } },
+          { name: 'Bash', arguments: { command: 'docker info' } },
           {
             name: 'industrial_action_call',
             arguments: { toolId: 'chip.environment.check', inputs: {}, expectedStateId: id },

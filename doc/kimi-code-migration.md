@@ -75,3 +75,5 @@
 对齐后的验证：全仓 245 项，243 通过、0 失败；2 项跳过分别为仅 Linux 适用的 Unix socket 隔离和未配置的可选 KLayout Viewer。12 项架构检查和配对模型驱动共 13 项通过。真实 RTL Core 与旧 mutation 拒绝 9 项通过，包括实际 Verilator、取消/恢复、审批与工程只读边界。项目技能、提问、压缩、资源和异常隔离集成通过；外部 MCP 在当前主分支的受保护会话中继续拒绝（不将旧直连回归当作当前工业授权）。
 
 最终 macOS arm64 未签名 `.app` 重新打包后通过归档内隔离启动器验证：实际 Code 2.1.1、认证宿主 MCP 回调、2 次审批、原生问题跳过、Bash 写入 session workspace、Web 资源读取和进程重启后恢复。源码格式检查、Desktop TypeScript/Vite 构建及 frozen lockfile 安装通过。Linux 安装器完成脚本语法检查，完整安装与其原生隔离验收留给 Linux CI；签名、安装器与 OTA 未在本次本地运行。
+
+PR CI 补查：通用打包门禁在 Linux x64/arm64、macOS arm64 和 Windows x64 上验证包外 Broker/Skill 入口、依赖闭包和真实随包内核的 `--version`。受保护的完整 Agent 对话放在 macOS 和 Linux x64 原生门禁中独立执行，并检查 `projectWritable: false`；测试不跳过，也不放宽生产隔离。Linux 安装消费验收改用新版原生 `Read`/`Bash`，继续验证技能按需读取、项目写入拒绝、Agent 无 Docker 权限、宿主环境检查与实际 RTL 验证。
