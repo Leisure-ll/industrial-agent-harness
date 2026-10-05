@@ -8,7 +8,7 @@ async function startModel(options = {}) {
     let raw = ''; for await (const chunk of request) raw += chunk;
     const body = JSON.parse(raw); requests.push(body);
     const results = body.messages.filter(message => message.role === 'tool');
-    const rejected = results.some(message => /The tool call is rejected by the user|rejected|denied/i.test(JSON.stringify(message.content)));
+    const rejected = options.stopOnRejection !== false && results.some(message => /The tool call is rejected by the user|rejected|denied/i.test(JSON.stringify(message.content)));
     const index = results.length;
     const calls = (typeof options.calls === 'function' ? options.calls(body) : options.calls) || [
       {name: 'domain_tool_describe', arguments: {toolId: 'eda.harness.create_goal'}},

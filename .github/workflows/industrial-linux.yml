@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y bubblewrap curl autoconf flex bison help2man libfl-dev g++ make
+          sudo apt-get install -y bubblewrap ripgrep curl autoconf flex bison help2man libfl-dev g++ make
           bwrap --unshare-user --unshare-pid --ro-bind / / --proc /proc --dev /dev -- /bin/true
           curl -fL --retry 3 https://github.com/verilator/verilator/archive/refs/tags/v5.026.tar.gz -o "$RUNNER_TEMP/verilator.tar.gz"
           printf '87fdecf3967007d9ee8c30191ff2476f2a33635d0e0c6e3dbf345cc2f0c50b78  %s\n' "$RUNNER_TEMP/verilator.tar.gz" | sha256sum -c -

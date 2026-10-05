@@ -50,6 +50,8 @@ async function main() {
     fs.writeFileSync(path.join(project, 'AGENTS.md'), 'RELEASE_PROJECT_GUIDANCE\n');
     const before = fs.readFileSync(path.join(project, 'rtl/counter.sv'));
     fixture = await startModel({
+      // Native write/Docker permission errors are expected; still exercise the host actions.
+      stopOnRejection: false,
       success: 'INSTALLED_CHIP_VERIFIED',
       calls: body => {
         const id = JSON.stringify(body.messages).match(/expectedStateId=([a-f0-9-]{36})/)?.[1];

@@ -80,7 +80,13 @@ async function prepare(config) {
   });
 }
 async function run(window) {
-  const evaluate = script => window.webContents.executeJavaScript(script, true);
+  const evaluate = async script => {
+    try {
+      return await window.webContents.executeJavaScript(script, true);
+    } catch (error) {
+      throw Error('CAD selftest renderer script failed: ' + script, { cause: error });
+    }
+  };
   async function wait(script) {
     const end = Date.now() + 25000;
     while (Date.now() < end) {

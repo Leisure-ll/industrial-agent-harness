@@ -23,7 +23,7 @@ while (( $# )); do
 Industrial Harness Chip Linux complete installer
 Usage: bash install-chip-linux.sh [--prefix DIRECTORY] [--bin-dir DIRECTORY] [--skip-image]
 Installs CLI, Chip Pack, private Node/Python/Kimi and the native EDA image.
-On Ubuntu/Debian hosts, installs missing curl and bubblewrap via apt; Docker setup needs systemd.
+On Ubuntu/Debian hosts, installs missing curl, bubblewrap and ripgrep via apt; Docker setup needs systemd.
 Run as the intended user; sudo is requested only for missing system dependencies.
 Existing accessible Docker is reused. Model credentials and project/PDK are supplied separately.
   --system-only       Prepare/check system dependencies without installing the CLI
@@ -54,13 +54,13 @@ prepare_root() {
 }
 need_docker=false
 if ! "$skip_image" && ! command -v docker >/dev/null; then need_docker=true; fi
-if "$need_docker" || ! command -v curl >/dev/null || ! command -v bwrap >/dev/null; then
+if "$need_docker" || ! command -v curl >/dev/null || ! command -v bwrap >/dev/null || ! command -v rg >/dev/null; then
   [[ -r /etc/os-release ]] || fail 'Cannot identify this Linux distribution.'
   # shellcheck disable=SC1091
   . /etc/os-release
   case "${ID:-}:${VERSION_ID:-}" in
     ubuntu:22.04|ubuntu:24.04|ubuntu:26.04|debian:12|debian:13) ;;
-    *) fail 'Automatic system dependencies support Ubuntu 22.04/24.04/26.04 and Debian 12/13. Install curl and Docker first on other distributions.' ;;
+    *) fail 'Automatic system dependencies support Ubuntu 22.04/24.04/26.04 and Debian 12/13. Install curl, bubblewrap, ripgrep and Docker first on other distributions.' ;;
   esac
   if "$need_docker"; then
     [[ -d /run/systemd/system ]] || fail 'Automatic Docker setup needs a systemd host. In containers, supply an accessible Docker daemon first.'
@@ -73,7 +73,7 @@ if "$need_docker" || ! command -v curl >/dev/null || ! command -v bwrap >/dev/nu
   prepare_root
   printf 'Preparing missing system dependencies with the official apt repositories\n'
   run_as_root apt-get -o DPkg::Lock::Timeout=60 update
-  run_as_root env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install -y --no-install-recommends ca-certificates curl bubblewrap
+  run_as_root env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install -y --no-install-recommends ca-certificates curl bubblewrap ripgrep
   if "$need_docker"; then
     suite=${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}
     [[ "$suite" =~ ^[a-z]+$ ]] || fail 'Cannot determine the Docker repository suite.'

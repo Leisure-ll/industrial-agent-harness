@@ -21,7 +21,7 @@ Usage: bash industrial-harness-chip-linux-install.run [options]
   --skip-image        Install CLI/MCP only; do not build/check the EDA image
   --help              Show this help
 
-Requires x86-64 Linux, bash, curl, tar, sha256sum, awk, flock, bubblewrap and usable Docker.
+Requires x86-64 Linux, bash, curl, tar, sha256sum, awk, flock, bubblewrap, ripgrep and usable Docker.
 Installs private Node 24.12.0, uv 0.11.6, Python 3.13, bundled Kimi Code 2.1.1 and Chip Pack.
 Does not change model credentials, projects, shell profiles or the Docker engine.
 HELP
@@ -50,7 +50,7 @@ done
 [[ "$prefix" == /* && "$bin_dir" == /* ]] || fail 'Use absolute installation paths.'
 [[ "$prefix" != / && "$prefix" != "$HOME" && "$prefix" != "$bin_dir" ]] || fail 'Choose a dedicated installation directory.'
 [[ ! -L "$prefix" && ! -L "$bin_dir" ]] || fail 'Installation directories cannot be symbolic links.'
-for program in curl tar sha256sum awk flock tail mktemp bwrap; do
+for program in curl tar sha256sum awk flock tail mktemp bwrap rg; do
   command -v "$program" >/dev/null || fail "Missing prerequisite: $program"
 done
 bwrap --unshare-user --unshare-pid --ro-bind / / --proc /proc --dev /dev -- /bin/true \

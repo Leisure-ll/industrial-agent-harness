@@ -66,6 +66,7 @@ test('managed helper upgrades select the real client when an older helper is alr
   const programs = {
     uname: 'if [[ "$1" == -s ]]; then echo Linux; else echo x86_64; fi',
     bwrap: 'exit 0',
+    rg: 'exit 0',
     flock: 'exit 0',
     wget: 'exit 99',
     sha256sum: 'exit 99',
