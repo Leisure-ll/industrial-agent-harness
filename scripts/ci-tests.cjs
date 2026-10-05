@@ -183,9 +183,9 @@ async function main(suite) {
   for (const tool of suite === 'benchmark'
     ? ['iverilog', 'vvp']
     : suite.startsWith('native')
-      ? ['verilator']
+      ? ['verilator', 'rg']
       : []) {
-    const result = spawnSync(tool, [tool === 'verilator' ? '--version' : '-V'], {
+    const result = spawnSync(tool, [tool === 'verilator' || tool === 'rg' ? '--version' : '-V'], {
       encoding: 'utf8',
     });
     if (result.error || result.status !== 0) throw Error(`Missing required verifier: ${tool}`);
