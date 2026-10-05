@@ -11,7 +11,9 @@ const { image } = require('./fixtures/external-mcp-server.cjs');
 const execute = promisify(execFile),
   root = path.resolve(__dirname, '../..');
 const entry = process.env.INDUSTRIAL_HARNESS_TEST_CLI || path.join(root, 'apps/cli/src/main.cjs');
-const kimi = process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+const kimi =
+  process.env.KIMI_EXECUTABLE ||
+  require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
 const server = path.join(__dirname, 'fixtures/external-mcp-server.cjs');
 test(
   'real CLI and pinned Kimi: registered external MCP is discoverable in protected execution; approvals, images, durable Actions and disable policy work',

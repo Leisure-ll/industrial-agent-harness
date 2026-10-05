@@ -5,4 +5,6 @@ packages:
 # the development workspace. CI installs the frozen lockfile explicitly.
 verifyDepsBeforeRun: false
 allowBuilds:
+  '@moonshot-ai/kimi-code': true
   electron-winstaller: false
+  node-pty: true

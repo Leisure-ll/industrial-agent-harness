@@ -40,12 +40,12 @@ Desktop / CLI → 共享资源策略和 Broker → 当前 Scope → Kimi 独立�
 Gateway 使用依赖锁中的官方 MCP ClientSession、stdio transport 和 FastMCP；不自建 Agent loop 或工业运行时。
 它只向 Kimi 提供四个固定工具：
 
-| 工具 | 功能 |
-| --- | --- |
-| `domain_tool_list` | 当前 Scope 的 canonical ID、摘要、风险，不加载所有参数 schema |
-| `domain_tool_describe` | 加载一个允许工具的上游 schema；项目路径由 Harness 绑定 |
-| `domain_tool_call` | 校验范围与参数后调用；例如 `eda.harness.run_action` 映射到上游 `run_action` |
-| `domain_tool_result_read` | 分页读取本会话内较大的原始响应 |
+| 工具                      | 功能                                                                        |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `domain_tool_list`        | 当前 Scope 的 canonical ID、摘要、风险，不加载所有参数 schema               |
+| `domain_tool_describe`    | 加载一个允许工具的上游 schema；项目路径由 Harness 绑定                      |
+| `domain_tool_call`        | 校验范围与参数后调用；例如 `eda.harness.run_action` 映射到上游 `run_action` |
+| `domain_tool_result_read` | 分页读取本会话内较大的原始响应                                              |
 
 检查、初始化、执行、历史和外部 Viewer 启动按任务选择不同 Scope。执行组包含读取、初始化、目标/决策和 Run 管理；历史 checkout 与外部 Viewer 启动需要各自任务范围。
 get_operational_context 返回的是 EDA 持久化上下文；Core 的 SQLite 文件观察继续明确标为 `not_run`。模型压缩与会话持久化仍由 Kimi 管理。
@@ -54,9 +54,9 @@ get_operational_context 返回的是 EDA 持久化上下文；Core 的 SQLite �
 
 Gateway 对 describe 与 call 都检查固定的当前 Scope；模型参数不能增加权限。项目路径由调用层注入，拒绝另一项目的 project_path；额外参数如 approval 通过上游 JSON Schema 拒绝。
 全局/项目 MCP 禁用会在 Broker 解析前移除相应工具，两个入口随后都不生成该服务器配置。Scope 或运行时目录改变会更换 Kimi 会话兼容性键。
-正在执行的会话不能改变资源配置，切换项目不会改变后台会话的绑定。Gateway 每次调用重新检查项目路径，退出时 SDK 清理 stdio 子进程；已提交 EDA 作业遵循领域运行时自己的生命周期。
+正在执行的会话不能改变资源配置，切换项目不会改变后台会话的绑定。Gateway 每次调用重新检查项目路径，退出时 Kimi Code 服务清理 stdio 子进程；已提交 EDA 作业遵循领域运行时自己的生命周期。
 
-固定 Kimi CLI 1.51.0 对每次 MCP 调用请求审批，UI 使用原有审批条目，CLI 使用原有 approval policy。
+固定 Kimi Code 2.1.1 的 manual 模式对 MCP 调用请求审批，UI 使用原有审批条目，CLI 使用原有 approval policy。
 工业动作始终由 EDA Runtime 执行。Gateway 45 秒调用超时不重试；超时可能已经提交，先检查 existing runs。Run SUCCESS 与 acceptance PASS 分开处理。
 
 参数限制 64 KiB，单次输出 16 KiB；较大响应保存在独立会话目录，缓存总量与单响应上限 4 MiB。返回 responseId、大小与摘要，再按字符 offset 读取最多 8000 字符，并再次限制 UTF-8 输出大小。

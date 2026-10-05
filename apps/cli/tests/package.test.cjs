@@ -4,8 +4,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const { startModel } = require('../../../tests/integration/fixtures/domain-mcp-model.cjs');
+const execute = promisify(execFile);
 
-test('packaged headless entry runs outside the workspace with Broker and Skill resources', t => {
+test('packaged headless entry runs outside the workspace with Broker, Skills and bundled real Kimi Code', async t => {
   const root = path.resolve(__dirname, '../../..');
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-headless-test-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -56,5 +60,53 @@ test('packaged headless entry runs outside the workspace with Broker and Skill r
   assert.equal(
     fs.existsSync(path.join(target, 'node_modules/@industrial-agent-harness/desktop')),
     false,
+  );
+  const model = await startModel({ calls: [], success: 'PACKAGED_CODE_OK' });
+  t.after(model.close);
+  const project = path.join(directory, 'project');
+  fs.mkdirSync(project);
+  const { stdout } = await execute(
+    process.execPath,
+    [
+      path.join(target, 'industrial-harness.cjs'),
+      'run',
+      '--project-dir',
+      project,
+      '--domain',
+      'godot',
+      '--task',
+      'Reply PACKAGED_CODE_OK without tools',
+      '--provider',
+      'openai_legacy',
+      '--endpoint',
+      model.endpoint,
+      '--model',
+      'controlled',
+      '--no-thinking',
+      '--chat-dir',
+      path.join(directory, 'chats'),
+      '--state-dir',
+      path.join(directory, 'state'),
+      '--log-dir',
+      path.join(directory, 'logs'),
+    ],
+    {
+      cwd: os.tmpdir(),
+      timeout: 30000,
+      env: {
+        ...process.env,
+        KIMI_EXECUTABLE: '',
+        OPENAI_API_KEY: 'package-local-fixture',
+        INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(directory, 'settings'),
+      },
+    },
+  );
+  const rows = stdout.trim().split('\n').map(JSON.parse);
+  assert.equal(rows.at(-1).status, 'finished');
+  assert.ok(rows.some(row => row.event?.text === 'PACKAGED_CODE_OK'));
+  assert.equal(model.requests.length, 1);
+  assert.equal(
+    JSON.parse(fs.readFileSync(path.join(target, 'HARNESS-PACKAGE.json'))).agentRuntime.version,
+    '2.1.1',
   );
 });

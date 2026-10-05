@@ -84,7 +84,8 @@ const skillsRoot = path.dirname(
 const mcp = deployedRequire.resolve('@industrial-agent-harness/domain-mcp');
 const runtime = deployedRequire.resolve('@industrial-agent-harness/domain-runtime');
 const contracts = createRequire(runtime).resolve('@industrial-agent-harness/contracts');
-for (const file of [entry, mcp, runtime, contracts])
+const kimiEntry = deployedRequire.resolve('@moonshot-ai/kimi-code/dist/main.mjs');
+for (const file of [entry, mcp, runtime, contracts, kimiEntry])
   if (!fs.existsSync(file)) throw Error(`Incomplete headless package: ${file}`);
 
 if (domain) {
@@ -124,6 +125,11 @@ fs.writeFileSync(
     {
       schemaVersion: 1,
       domain: domain || null,
+      agentRuntime: {
+        package: '@moonshot-ai/kimi-code',
+        version: '2.1.1',
+        transport: 'server-api-v1',
+      },
       builtAt: new Date().toISOString(),
       sourceCommit: revision.status === 0 ? revision.stdout.trim() : null,
       sourceDirty: dirty.status === 0 ? Boolean(dirty.stdout.trim()) : null,
@@ -156,6 +162,6 @@ const setup =
   '\nThis domain has no registered industrial MCP provider yet. Scope/Skill and general Kimi tests are supported; do not infer engineering execution readiness.\n';
 fs.writeFileSync(
   path.join(target, 'HEADLESS-README.txt'),
-  `Industrial Agent Harness CLI test package\n\n${binding}\nUse Node.js 24 or newer:\n  node industrial-harness.cjs run --project-dir DIR ${domain ? '' : '--domain DOMAIN '}--task TEXT --scope-only\n  node industrial-harness.cjs run --project-dir DIR ${domain ? '' : '--domain DOMAIN '}--task TEXT\n\nAgent execution needs Kimi CLI 1.51.0 and model API credentials. Install it in a separate environment (requires uv):\n  uv venv --python 3.13 /absolute/path/harness-kimi\n  uv pip install --python /absolute/path/harness-kimi/bin/python 'kimi-cli==1.51.0'\n  export KIMI_EXECUTABLE=/absolute/path/harness-kimi/bin/kimi\n\nSet KIMI_API_KEY for the default Kimi provider; other providers use their declared key environment. Do not place keys in task text or command-line arguments.\n\nProtected agent execution requires macOS Seatbelt or Linux x86-64 bubblewrap/seccomp with enabled unprivileged user namespaces. Windows agent execution and the separate host GUI plugin remain unavailable. Registered external MCP runs through the audited host Runtime. Every domain also has shared project initialization, guarded file edits and declared local/Docker tasks. The registered RTL runtime emits persisted action and verification facts; read result.engineering separately from the agent turn status.\n\nThis package includes the shared Broker, domain Skill and MCP declarations, Kimi SDK integration, chat persistence and observed-context SQLite store; no Electron or Viewer UI. HARNESS-PACKAGE.json records source identity and whether this is a local uncommitted test build.\n${setup}`,
+  `Industrial Agent Harness CLI test package\n\n${binding}\nUse Node.js 24 or newer:\n  node industrial-harness.cjs run --project-dir DIR ${domain ? '' : '--domain DOMAIN '}--task TEXT --scope-only\n  node industrial-harness.cjs run --project-dir DIR ${domain ? '' : '--domain DOMAIN '}--task TEXT\n\nKimi Code 2.1.1 is included in this package. Agent execution needs model API credentials; no separate Python Kimi CLI is required. A KIMI_EXECUTABLE override must be version 2.1.1.\n\nSet KIMI_API_KEY for the default Kimi provider; other providers use their declared key environment. Do not place keys in task text or command-line arguments.\n\nProtected agent execution requires macOS Seatbelt or Linux x86-64 bubblewrap/seccomp with enabled unprivileged user namespaces. Windows agent execution and the separate host GUI plugin remain unavailable. Registered external MCP runs through the audited host Runtime. Every domain also has shared project initialization, guarded file edits and declared local/Docker tasks. The registered RTL runtime emits persisted action and verification facts; read result.engineering separately from the agent turn status.\n\nThis package includes the shared Broker, domain Skill and MCP declarations, Kimi Code Server API integration, chat persistence and observed-context SQLite store; no Electron or Viewer UI. HARNESS-PACKAGE.json records source identity and whether this is a local uncommitted test build.\n${setup}`,
 );
 process.stdout.write(`${target}\n`);

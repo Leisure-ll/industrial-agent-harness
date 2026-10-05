@@ -9,7 +9,7 @@ const { validateProfile, writeCliConfig, sessionEnv } = require('../src/model-co
 
 test(
   'real native sessions overlap; completion and interruption stay isolated',
-  { skip: !process.env.KIMI_EXECUTABLE, timeout: 45000 },
+  { skip: false, timeout: 45000 },
   async t => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kimi-parallel-wire-'));
     const incoming = [];

@@ -24,7 +24,7 @@ node headless/industrial-harness.cjs run \
   --task 'Inspect netlist signals' --scope-only
 ```
 
-macOS 可用 `shasum -a 256 -c` 代替 `sha256sum -c`。解压后整个 `headless/` 目录可移动，运行时不依赖原仓库。真实 Agent 运行还需单独安装 Kimi CLI，并设置 `KIMI_EXECUTABLE`、`KIMI_API_KEY`；当前 Release 仅发布无 UI Harness，不包含工业软件。发布工作流在 Linux 上解压并烟测；其他系统尚无 Release 包测试承诺。
+macOS 可用 `shasum -a 256 -c` 代替 `sha256sum -c`。解压后整个 `headless/` 目录可移动，运行时不依赖原仓库。当前源码构建的包内含 Kimi Code 2.1.1，实际 Agent 需模型 API key；`KIMI_EXECUTABLE` 是可选的同版本覆盖。历史 Release 按随包说明使用旧 CLI；本包不包含工业软件。发布工作流在 Linux 上解压并烟测；其他系统尚无 Release 包测试承诺。
 
 ## 开发与场景 Suite
 

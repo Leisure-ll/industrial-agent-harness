@@ -10,13 +10,13 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 
 当前里程碑是 **Industrial Core Vertical Slice**。2026-09-23 的架构评审材料已核对并纳入以下四页；它们是现状、约束、路线和验收的主入口，旧版开发计划保留为背景资料。
 
-| 当前评审文档 | 用途 |
-| --- | --- |
-| [现状与缺口](01-current-state-and-gaps.md) | 已实现的 Workbench MVP、缺失的工业内核与替换方向 |
-| [架构不变量](02-architecture-invariants.md) | 硬约束、当前 Gate 和已有 Prototype 的限界 |
-| [实施路线图](03-implementation-roadmap.md) | P0–P3 顺序及首条真实 Vertical Slice 的交付条件 |
-| [Definition of Done 与架构测试](04-definition-of-done-and-architecture-tests.md) | 模块完成标准、CI 门禁与尚未满足的 E2E Gate |
-| [Prototype Register](prototype-register.json) | 机器可读的现有捷径、冻结范围和替换目标 |
+| 当前评审文档                                                                     | 用途                                             |
+| -------------------------------------------------------------------------------- | ------------------------------------------------ |
+| [现状与缺口](01-current-state-and-gaps.md)                                       | 已实现的 Workbench MVP、缺失的工业内核与替换方向 |
+| [架构不变量](02-architecture-invariants.md)                                      | 硬约束、当前 Gate 和已有 Prototype 的限界        |
+| [实施路线图](03-implementation-roadmap.md)                                       | P0–P3 顺序及首条真实 Vertical Slice 的交付条件   |
+| [Definition of Done 与架构测试](04-definition-of-done-and-architecture-tests.md) | 模块完成标准、CI 门禁与尚未满足的 E2E Gate       |
+| [Prototype Register](prototype-register.json)                                    | 机器可读的现有捷径、冻结范围和替换目标           |
 
 | 文档 | 内容 |
 | --- | --- |

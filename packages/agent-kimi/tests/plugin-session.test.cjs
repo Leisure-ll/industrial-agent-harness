@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { z } = require('zod');
-const { createKimiPaths } = require('@moonshot-ai/kimi-agent-sdk');
+const { createKimiPaths } = require('../src/legacy-paths.cjs');
 const { KimiSession } = require('../src/index.cjs');
 
 function makePlugin({ enabled = true } = {}) {

@@ -30,7 +30,7 @@ node industrial-harness.cjs mcp remove external.computer-use
       "command": "/absolute/path/to/mcp-server",
       "args": [],
       "cwd": "/absolute/existing/directory",
-      "envRefs": {"SERVICE_TOKEN": "COMPUTER_USE_TOKEN"}
+      "envRefs": { "SERVICE_TOKEN": "COMPUTER_USE_TOKEN" }
     }
   }
 }
@@ -46,7 +46,7 @@ node industrial-harness.cjs mcp remove external.computer-use
     "remote-host": {
       "url": "https://example.com/mcp",
       "type": "http",
-      "headerEnv": {"Authorization": "COMPUTER_USE_AUTH"}
+      "headerEnv": { "Authorization": "COMPUTER_USE_AUTH" }
     }
   }
 }
@@ -70,7 +70,7 @@ PNG/JPEG/WebP 原生 MCP ImageContent 继续传给 Kimi 模型，最多四张；
 
 注册存于 `~/.industrial-agent-harness/external-mcp.json`，与同目录 `resource-settings.json` 共用；`INDUSTRIAL_HARNESS_CONFIG_DIR` 可隔离二者，CLI 管理命令支持 `--config-dir`。POSIX 文件 0600，原子替换并用跨进程锁；损坏时明确失败，不静默覆盖。项目不保存启动命令。最多 16 个服务、每个 128 个工具、总计 512 个工具；超限或不支持的 schema 拒绝注册。会话私有配置包含执行所需凭据，不写入用户 `~/.kimi`。
 
-`pnpm test:external-mcp` 检查实际 stdio/HTTP/SSE、共享策略、越权/参数/快照变化、分页、脱敏及损坏。安装固定 Kimi CLI 1.51.0 后，还运行真实 Kimi 审批、拒绝后无 host 修改和 MCP 图片进入模型请求的测试；原生 CI 缺少 CLI 时直接失败。
+`pnpm test:external-mcp` 检查实际 stdio/HTTP/SSE、共享策略、越权/参数/快照变化、分页、脱敏及损坏。使用随依赖安装的 Kimi Code 2.1.1，还运行真实 Kimi 审批、拒绝后无 host 修改和 MCP 图片进入模型请求的测试。原生 CI 缺少固定内核时直接失败。
 
 macOS Desktop：构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:external-mcp`，验证实际表单添加、CLI 共享读取、项目禁用、两次实际调用审批、无参分页默认值、图片输入、运行中拒绝修改、刷新/移除。发现和 schema 读取不启动服务，不请求修改审批。原生 macOS CI 强制该界面链路；受控模型与 MCP fixture 不代表任意供应商 computer-use 安装兼容性或屏幕录制/辅助功能权限已就绪。
 

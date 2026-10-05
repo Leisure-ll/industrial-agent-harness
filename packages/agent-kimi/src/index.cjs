@@ -1,8 +1,10 @@
 const {
   createSession,
   createExternalTool,
-  createKimiPaths,
-} = require('@moonshot-ai/kimi-agent-sdk');
+  bundledExecutable,
+  KIMI_CODE_VERSION,
+} = require('./code-session.cjs');
+const { createKimiPaths } = require('./legacy-paths.cjs');
 const { z } = require('zod');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
@@ -428,7 +430,7 @@ class KimiSession {
           previousScopeKey: this.currentScopeKey || null,
           currentScopeKey,
         });
-        if (this.session) this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
+        if (this.session) await this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
         await this.session?.close();
         this.session = undefined;
         this.processSandbox?.close();
@@ -439,9 +441,15 @@ class KimiSession {
           .createHash('sha256')
           .update(
             JSON.stringify({
+              runtime: `kimi-code-server-v1:${KIMI_CODE_VERSION}`,
               scope: currentScopeKey,
               profile: runtime.profile,
-              executable: runtime.executable || 'kimi',
+              executable:
+                !runtime.executable ||
+                runtime.executable === 'kimi' ||
+                runtime.executable === bundledExecutable()
+                  ? `@moonshot-ai/kimi-code@${KIMI_CODE_VERSION}`
+                  : runtime.executable,
               disabledMcpServers: runtime.disabledMcpServers || [],
               mcpRuntime,
               plugins: pluginKey,
@@ -457,7 +465,7 @@ class KimiSession {
           .digest('hex');
         this.persistentSession = this.diagnostics.resolveSession?.(compatibilityKey);
         const stored = this.persistentSession;
-        if (stored?.initialized) {
+        if (stored?.initialized && this.sessionFactory !== createSession) {
           const context = path.join(
             createKimiPaths(stored.shareDir).sessionDir(
               this.sessionFactory === createSession
@@ -493,7 +501,10 @@ class KimiSession {
               '当前工业执行隔离不支持外部 MCP 服务或应用控制插件。请在本次项目资源设置中停用这些服务后重试；工业修改仅能通过已接入的 Domain Runtime。',
             );
           this.processSandbox = createProcessSandbox({
-            executable: runtime.executable || 'kimi',
+            executable:
+              !runtime.executable || runtime.executable === 'kimi'
+                ? bundledExecutable()
+                : runtime.executable,
             shareDir: this.sessionConfigDir,
             projectDir: this.workDir,
             protectedPaths: this.diagnostics.protectedPaths || [],
@@ -508,6 +519,7 @@ class KimiSession {
           ...(this.persistentSession ? { sessionId: this.persistentSession.id } : {}),
           executable: this.processSandbox?.executable || runtime.executable,
           shareDir: this.sessionConfigDir,
+          resumeRequired: Boolean(stored?.initialized),
           model: 'industrial',
           thinking: runtime.profile.thinking,
           env: this.processSandbox?.env || runtime.env,
@@ -567,7 +579,10 @@ class KimiSession {
       const consume = async () => {
         for await (const event of turn) {
           if (this.turn !== turn) return { status: 'cancelled' };
-          log.record('sdk.event', redactImagePayloads(event));
+          log.record(
+            event.type === 'NativeEvent' ? 'kimi-code.event' : 'sdk.event',
+            redactImagePayloads(event),
+          );
           this.emitEvent(event);
         }
         return await turn.result;
@@ -599,19 +614,20 @@ class KimiSession {
         for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
         for (const [id, question] of this.pendingQuestions)
           if (question.state === 'pending') this.resolveQuestion(id, 'expired');
-        this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
+        await this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
         if (
           this.persistentSession &&
           this.sessionConfigDir &&
-          fs.existsSync(
-            path.join(
-              createKimiPaths(this.sessionConfigDir).sessionDir(
-                this.nativeWorkDir || this.workDir,
-                this.persistentSession.id,
+          (this.session?.contextInitialized ||
+            fs.existsSync(
+              path.join(
+                createKimiPaths(this.sessionConfigDir).sessionDir(
+                  this.nativeWorkDir || this.workDir,
+                  this.persistentSession.id,
+                ),
+                'context.jsonl',
               ),
-              'context.jsonl',
-            ),
-          )
+            ))
         )
           this.diagnostics.sessionInitialized?.(this.persistentSession.id);
         log.record('run.end', {
@@ -633,8 +649,29 @@ class KimiSession {
       }
     }
   }
-  captureKimiSnapshot(log, phase, apiKey) {
+  async captureKimiSnapshot(log, phase, apiKey) {
     if (!this.sessionConfigDir || !this.session?.sessionId) return;
+    if (this.session.diagnosticSnapshot) {
+      try {
+        const rows = await this.session.diagnosticSnapshot();
+        if (!rows) return;
+        let content = rows.map(row => JSON.stringify(row)).join('\n') + '\n';
+        if (apiKey) content = content.replaceAll(apiKey, '[REDACTED_API_KEY]');
+        const target = path.join(path.dirname(log.file), `${log.traceId}.${phase}.context.jsonl`);
+        fs.writeFileSync(target, content, { flag: 'wx', mode: 0o600 });
+        log.record('kimi.snapshot', {
+          phase,
+          kind: 'context',
+          format: 'kimi-code-server-v1',
+          path: target,
+          bytes: Buffer.byteLength(content),
+          sha256: crypto.createHash('sha256').update(content).digest('hex'),
+        });
+      } catch (error) {
+        log.record('kimi.snapshot_error', { phase, kind: 'context', message: String(error) });
+      }
+      return;
+    }
     const sessionDir = path.join(
       createKimiPaths(this.sessionConfigDir).sessionsDir(this.nativeWorkDir || this.workDir),
       this.session.sessionId,
@@ -748,7 +785,7 @@ class KimiSession {
       if (typeof value.output === 'string') output = value.output;
       else {
         const parts = Array.isArray(value.output) ? value.output : [];
-        imageCount = parts.filter(part => part?.type === 'image_url').length;
+        imageCount = parts.filter(part => ['image_url', 'image'].includes(part?.type)).length;
         output = parts
           .filter(part => part?.type === 'text')
           .map(part => part.text)
@@ -820,7 +857,7 @@ class KimiSession {
       throw Error('Answer every question before continuing.');
     this.pendingQuestions.set(id, { ...pending, state: 'submitting' });
     try {
-      // Kimi CLI 1.51.0 uses QuestionRequest.id as its Wire RPC id.
+      // The transport adapts the existing question identifier to its native API.
       await this.turn.respondQuestion(id, id, answers);
       this.log?.record('question.response', { id, answers });
       this.resolveQuestion(id, skipped ? 'skipped' : 'answered', answers);
@@ -930,6 +967,8 @@ module.exports = {
   createProcessSandbox,
   runtimeTools,
   KimiSession,
+  bundledExecutable,
+  KIMI_CODE_VERSION,
   externalTools,
   prepareSessionFiles,
   boundedJson,

@@ -29,13 +29,6 @@ node industrial-harness.cjs run --project-dir /absolute/project --task '检查�
 
 所有包需要 Node.js 24+。实际 Agent 另需 Kimi CLI **1.51.0** 和模型 API key；可先用 `--scope-only` 测试注册而不启动模型。当前源码的受保护 Agent 已在 macOS Apple Silicon（arm64）验证，Intel Mac 暂不支持；通用归档不代表 Intel Mac 已通过运行验收，已有 Release 仍以各自版本说明为准。可使用 uv 在包外的独立目录安装：
 
-```sh
-uv venv --python 3.13 /absolute/path/harness-kimi
-uv pip install --python /absolute/path/harness-kimi/bin/python 'kimi-cli==1.51.0'
-export KIMI_EXECUTABLE=/absolute/path/harness-kimi/bin/kimi
-```
-
-Windows 可执行文件位于该环境的 `Scripts` 下，尚未验证 Windows 发行包路径。Chip MCP 安装、审批与调用见 [MCP 接入](domain-mcp-integration.md)。
 原有多领域 Headless 包继续保留供跨领域 Bench，独立 Chip Pack 也保留用于直接运行 EDA Harness。
 
 本地构建与校验：

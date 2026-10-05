@@ -12,10 +12,12 @@ const {
 } = require('../../packages/agent-kimi/src/model-config.cjs');
 const { startModel } = require('./fixtures/domain-mcp-model.cjs');
 const root = path.resolve(__dirname, '../..');
-const kimi = process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+const kimi =
+  process.env.KIMI_EXECUTABLE ||
+  require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
 
 test(
-  'pinned Kimi Wire question reaches the user and resumes after the answer in native auto-approval mode',
+  'pinned Kimi Code question reaches the user and resumes after the answer in native auto-approval mode',
   { timeout: 45000, skip: !fs.existsSync(kimi) },
   async t => {
     let asked = false;

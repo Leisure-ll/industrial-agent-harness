@@ -151,7 +151,6 @@ Godot 作为 Viewer-only Domain 注册。项目文件树识别完整的 Godot We
 
 PNG/JPEG/WebP 打开图片 Viewer，顶部切换图片、图集和动画模式；图集手动设置网格、选帧；动画支持动作选择、播放、逐帧、倍率和循环。受支持的 Godot 动画文本资源及可选 `.sprite.json` 通过独立插件注册，读取真实帧与时序；不猜测动作、不运行脚本、不修改项目。支持范围与限制见 [素材 Viewer](godot-assets-viewers.md)。
 
-
 ## PD-013：PCB domain 的 KiCad Viewer V1
 
 - 日期：2026-09-28
@@ -237,7 +236,6 @@ Settings 提供全局资源默认值；项目详情页提供继承、启用、�
 Model API 的 Image input 提供 Auto / Enabled / Disabled。Auto 只识别已核对的模型与 API 组合：当前为官方 MiniMax OpenAI-compatible endpoint 上的 M3 / M3.1 Flash preview，旧 M3 配置自动获得能力；其他模型保守默认不支持。用户可手动声明其他视觉模型支持；这不为纯文本模型增加视觉能力。修改模型、Provider 或 URL 后重新采用 Auto。声明开启时写入 Kimi 的 image_in 能力，并通过固定 SDK 的多模态 ContentPart 发送内联图片，由原生 Provider 处理协议；不增加独立模型客户端或 Agent loop。
 
 带图实际输入与图片哈希保留在 Agent log，图片是用户提供的参考，不成为工程验证事实。自动识别依据 [MiniMax 官方兼容接口文档](https://platform.minimax.cn/docs/api-reference/text-openai-api)；不据此承诺任意代理、视觉模型或其他平台的兼容性。
-
 
 ## PD-021：持久聊天与 Kimi 原生会话恢复
 
@@ -357,6 +355,7 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 - 来源：用户要求先支持 macOS 与 Windows，安装时可多选 Domain、安装后可补装，并支持 OTA 升级。
 - 决定：桌面安装流程允许一次选择多个 Domain；已安装后可查看缺失 Domain 并补装。Core 与 Domain Pack 分开发布与升级，更新不得打断正在运行的工业 Action。每个平台的安装与更新能力须以真实发行包验证后再标为可用。
 - 方案：[安装、补装与 OTA 规划](installation-and-ota-plan.md)细化首次启动多选、独立 Pack 管理、健康状态与更新流程；其中下载安装源、后台下载策略等实现参数仍待验证。
+
 ## PD-032：PCB MCP 与完整设计 Skill 对齐 PCB-bench
 
 - 日期：2026-09-29
@@ -481,3 +480,11 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 - 决定：初始化、受控编辑、声明 CLI 任务和证据进入共享 Runtime；专业软件、模型、规范、验收和小众 ISA/SRAM/MPW 配方由环境、项目或领域 Skill 负责。
 - 行为：空工程获得 project.work；编辑核对原 SHA-256，旧验收变 stale，历史保留；任务在输入快照和独立输出目录运行，只有声明的 checks-json 才能验收，退出码本身不通过。Desktop/CLI 共用 Factory 和 Scope 刷新。
 - MCP：升级 PD-040 的外部服务限制。注册的 stdio/HTTP/SSE 经宿主 Runtime 的 Scope/参数/快照/审批检查，记录未验收响应；支持图片、分页和禁用。独立应用控制插件仍不可用，可信宿主服务的外部副作用不被项目 roots 隔离。
+
+## PD-036：Kimi Code 迁移保留聊天历史并开启新原生上下文
+
+- 日期：2026-10-05
+- 状态：共享接入已实现，验收范围见 [迁移记录](kimi-code-migration.md)
+- 来源：用户明确要求开始迁移至新版开源 CLI。
+- 决定：固定 2.1.1 随依赖安装，Desktop/CLI 共用会话 API。旧消息与日志继续可读，首次继续旧聊天提示新上下文段；不静默导入旧上下文。审批、问题、停止与后台会话隔离保留；进程死亡明确失败，不自动重提修改。
+- 诊断：新快照展示“已保存对话”，不宣称能重建完整模型请求；历史快照保留原来的只读解释。

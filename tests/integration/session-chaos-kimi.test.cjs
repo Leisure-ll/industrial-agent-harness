@@ -16,7 +16,8 @@ const { startModel } = require('./fixtures/session-resource-model.cjs');
 const execute = promisify(execFile);
 const root = path.resolve(__dirname, '../..');
 const executable =
-  process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+  process.env.KIMI_EXECUTABLE ||
+  require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 test(
@@ -84,16 +85,8 @@ test(
     await first.agent.run('Remember DIRTY_MEMORY_MARKER.');
     assert.equal(first.events.at(-1).type, 'done');
     const nativeId = first.agent.session.sessionId;
-    const { stdout } = await execute('ps', ['-axo', 'pid=,ppid=,comm=']);
-    const owned = stdout
-      .split('\n')
-      .map(line => line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/))
-      .filter(
-        match =>
-          match && Number(match[2]) === process.pid && /(?:kimi|python)(?:\s|$)/i.test(match[3]),
-      );
-    assert.equal(owned.length, 1, 'only the first test-owned native process is selected');
-    const firstPid = Number(owned[0][1]);
+    const firstPid = first.agent.session.child.pid;
+    assert.ok(firstPid > 0, 'select the process owned by this exact session');
     firstModel.hold();
     const firstRun = first.agent.run('Wait for a response that will be interrupted.');
     await firstModel.waitForRequests(2);
@@ -101,14 +94,14 @@ test(
     await secondModel.waitForRequests(1);
     process.kill(firstPid, 'SIGKILL');
     await delay(150);
-    // Exercise the pinned SDK's unsettled-result edge rather than assuming
-    // signal termination is equivalent to a clean native completion.
-    assert.equal(first.agent.running, true);
-    const stopStarted = Date.now();
+    // Process death must settle immediately; Stop remains idempotent afterward.
     await Promise.all([first.agent.interrupt(), first.agent.interrupt()]);
-    t.diagnostic(`Production Stop fallback settled in ${Date.now() - stopStarted} ms.`);
     await firstRun;
-    assert.equal(first.events.at(-1).result.status, 'cancelled');
+    assert.ok(
+      first.events.some(
+        event => event.type === 'error' && /process exited|connection closed/.test(event.message),
+      ),
+    );
     assert.equal(first.agent.running, false);
     assert.equal(second.agent.running, true);
     assert.equal(resources.snapshot().active, 1);

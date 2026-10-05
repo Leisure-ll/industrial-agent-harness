@@ -9,7 +9,9 @@ const { DiagnosticReader } = require('../../packages/agent-kimi/src/diagnostic-r
 const { startModel } = require('./fixtures/domain-mcp-model.cjs');
 const execute = promisify(execFile);
 const root = path.resolve(__dirname, '../..');
-const kimi = process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+const kimi =
+  process.env.KIMI_EXECUTABLE ||
+  require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
 const python =
   process.env.INDUSTRIAL_HARNESS_PCB_GATEWAY_PYTHON ||
   path.join(root, 'domain-packs/pcb/.venv/bin/python');
@@ -50,9 +52,9 @@ test(
             name: 'industrial_capability_detail',
             arguments: { capabilityId: 'pcb.bench.operate', section: 'skills' },
           },
-          { name: 'ReadFile', arguments: { path: skillPath } },
+          { name: 'Read', arguments: { path: skillPath } },
           {
-            name: 'ReadFile',
+            name: 'Read',
             arguments: {
               path: path.join(path.dirname(skillPath), 'references/layout.md'),
               n_lines: 15,
@@ -156,7 +158,7 @@ test(
         assert.ok(!content(requests[1]).includes('## Build and verify'));
         assert.ok(
           content(requests[2]).includes('## Build and verify'),
-          'Skill body reaches the model only after ReadFile',
+          'Skill body reaches the model only after Read',
         );
         const reference = fs
           .readFileSync(
@@ -202,8 +204,8 @@ test(
           view.entries.map(entry => entry.title),
           [
             'industrial_capability_detail',
-            'ReadFile',
-            'ReadFile',
+            'Read',
+            'Read',
             'domain_tool_list',
             'domain_tool_describe',
             'domain_tool_call',

@@ -19,7 +19,8 @@ const { startModel } = require('../tests/integration/fixtures/session-resource-m
 const execute = promisify(execFile);
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const executable =
-  process.env.KIMI_EXECUTABLE || path.resolve(__dirname, '../apps/desktop/.venv-kimi/bin/kimi');
+  process.env.KIMI_EXECUTABLE ||
+  require('../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
 const limits = {
   maxConcurrent: 4,
   maxResident: 6,
@@ -124,7 +125,7 @@ async function worker() {
 }
 
 async function processSample(hosts) {
-  const { stdout } = await execute('ps', ['-axo', 'pid=,ppid=,rss=,pcpu=,comm=']);
+  const { stdout } = await execute('ps', ['-axo', 'pid=,ppid=,rss=,pcpu=,args=']);
   const rows = stdout
     .split('\n')
     .map(line => {
@@ -152,7 +153,9 @@ async function processSample(hosts) {
   } while (changed);
   const tree = rows.filter(row => owned.has(row.pid));
   const native = tree.filter(
-    row => !hosts.includes(row.pid) && /(?:^|\/)(?:python[\d.]*|kimi)(?:\s|$)/i.test(row.command),
+    row =>
+      !hosts.includes(row.pid) &&
+      /(?:^|\/)(?:python[\d.]*|kimi(?:-code)?)(?:\s|$)/i.test(row.command),
   );
   return { tree, native };
 }

@@ -235,6 +235,7 @@ function projectEvents(records, snapshots = new Map()) {
         fields: [field('error', '读取错误', native.error)],
       });
     else if (native) {
+      const conversationOnly = native[0]?.format === 'kimi-code-server-v1';
       const messages = native.filter(row =>
         ['_system_prompt', 'system', 'user', 'assistant', 'tool'].includes(row.role),
       );
@@ -259,11 +260,13 @@ function projectEvents(records, snapshots = new Map()) {
       contexts.push({
         id: `snapshot:${lastSnapshot.sequence}`,
         kind: 'context',
-        title: `结束时会话上下文 · ${messages.length} 条消息`,
+        title: `${conversationOnly ? '结束时已保存对话' : '结束时会话上下文'} · ${messages.length} 条消息`,
         at: lastSnapshot.at,
         sequences: [lastSnapshot.sequence],
         fields: allFields,
-        note: '来自 Kimi 原生 context.jsonl 快照。包含保存的系统指令与消息；工具定义及完整 HTTP 请求未由该快照提供。',
+        note: conversationOnly
+          ? '来自 Kimi Code 消息 API 的已保存对话；不代表完整模型上下文、系统指令或 HTTP 请求。'
+          : '来自 Kimi 原生 context.jsonl 快照。包含保存的系统指令与消息；工具定义及完整 HTTP 请求未由该快照提供。',
       });
       // Checkpoints are storage boundaries, not HTTP request records. Only map this
       // turn when the prompt and all step boundaries survive without compaction.
@@ -274,6 +277,7 @@ function projectEvents(records, snapshots = new Map()) {
         i > userIndex && row.role === '_checkpoint' ? [i] : [],
       );
       if (
+        !conversationOnly &&
         userIndex >= 0 &&
         boundaries.length === steps.size &&
         messages.length * steps.size <= 200000 &&
