@@ -259,7 +259,6 @@ function sessionContext(entry) {
   );
   return entry.context;
 }
-const projectRuntimes = new ProjectRuntimes(contextStoreOptions());
 async function resolveSessionTask(entry, request, registry) {
   entry.runtimeBundle = projectRuntimes.get(entry.project, registry);
   const state = entry.runtimeBundle ? await entry.runtimeBundle.runtime.inspect() : null;
@@ -290,6 +289,13 @@ const resourceSettings = new ResourceSettings(
     : undefined,
 );
 const externalRegistry = new ExternalMcpRegistry(path.dirname(resourceSettings.file));
+const projectRuntimes = new ProjectRuntimes({
+  ...contextStoreOptions(),
+  environment: {
+    ...process.env,
+    INDUSTRIAL_HARNESS_CONFIG_DIR: path.dirname(resourceSettings.file),
+  },
+});
 const sessionResources = new SessionResourceManager({
   directory: path.dirname(resourceSettings.file),
 });
@@ -868,6 +874,7 @@ function registerHandlers() {
     changingResources = true;
     try {
       await sessions.reset();
+      projectRuntimes.close();
       if (operation === 'add') return await externalRegistry.add(request?.configuration);
       if (typeof request?.id !== 'string') throw Error('Choose an external MCP service.');
       return operation === 'refresh'
@@ -1099,8 +1106,19 @@ function registerHandlers() {
         {
           industrialRuntime: entry.runtimeBundle?.runtime,
           protectedPaths: entry.runtimeBundle?.protectedPaths,
-          onIndustrialResult: result => {
-            entry.scope.stateId = result.state.id;
+          onIndustrialResult: async result => {
+            const registry = currentRegistry();
+            const refreshed = resolveProjectTask(
+              entry.project.domain,
+              { ...entry.resolvedRequest, state: result.state },
+              entry.scope,
+              [...registry.capabilities, ...entry.runtimeBundle.capabilities],
+              projectResourcePolicy(entry.project),
+              entry.externalServers,
+              registry.domains,
+            );
+            Object.assign(entry.scope, refreshed.scope);
+            entry.trace.push(...refreshed.trace);
             entry.agent.emit({ type: 'industrial-result', ...result });
           },
           resources: sessionResources,

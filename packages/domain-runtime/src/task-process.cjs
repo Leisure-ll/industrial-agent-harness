@@ -1,0 +1,276 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawn, spawnSync } = require('node:child_process');
+const { hash } = require('./workspace-files.cjs');
+
+function executable(command, environment) {
+  const candidates = command.includes(path.sep)
+    ? [path.resolve(command)]
+    : (environment.PATH || process.env.PATH || '')
+        .split(path.delimiter)
+        .map(dir => path.join(dir, command));
+  for (const file of candidates)
+    try {
+      fs.accessSync(file, fs.constants.X_OK);
+      if (fs.statSync(file).isFile()) return fs.realpathSync(file);
+    } catch {}
+  throw Error('Task executable is unavailable: ' + command);
+}
+function taskEnvironment(environment, input, work) {
+  const names = ['PATH', 'LANG', 'LC_ALL', 'TZ', 'SystemRoot'];
+  return {
+    ...Object.fromEntries(
+      names.filter(name => environment[name]).map(name => [name, environment[name]]),
+    ),
+    HOME: path.join(work, 'home'),
+    TMPDIR: path.join(work, 'tmp'),
+    HARNESS_INPUT_DIR: input,
+    HARNESS_OUTPUT_DIR: work,
+    PYTHONDONTWRITEBYTECODE: '1',
+    PYTHONNOUSERSITE: '1',
+    CMAKE_BUILD_PARALLEL_LEVEL: '1',
+  };
+}
+function filter() {
+  if (process.arch !== 'x64')
+    throw Error('Protected local tasks on Linux are qualified only on x86-64.');
+  const instructions = [],
+    add = (code, jt, jf, k) => instructions.push([code, jt, jf, k]);
+  add(0x20, 0, 0, 4);
+  add(0x15, 1, 0, 0xc000003e);
+  add(0x06, 0, 0, 0x80000000);
+  add(0x20, 0, 0, 0);
+  add(0x45, 0, 1, 0x40000000);
+  add(0x06, 0, 0, 0x80000000);
+  // Offline tasks cannot open host service sockets, ptrace or create new mounts.
+  for (const number of [41, 101, 155, 165, 166, 272, 308, 428, 429, 430, 431, 432, 433, 442]) {
+    add(0x15, 0, 1, number);
+    add(0x06, 0, 0, 0x00050001);
+  }
+  add(0x06, 0, 0, 0x7fff0000);
+  const bytes = Buffer.alloc(instructions.length * 8);
+  instructions.forEach(([code, jt, jf, k], i) => {
+    bytes.writeUInt16LE(code, i * 8);
+    bytes[i * 8 + 2] = jt;
+    bytes[i * 8 + 3] = jf;
+    bytes.writeUInt32LE(k, i * 8 + 4);
+  });
+  return bytes;
+}
+function localCommand(argv, directory, work, environment) {
+  const target = executable(argv[0], environment);
+  const identity = { executable: target, sha256: hash(fs.readFileSync(target)) };
+  if (process.platform === 'darwin' && fs.existsSync('/usr/bin/sandbox-exec')) {
+    const profile = path.join(directory, 'task.sb');
+    fs.writeFileSync(
+      profile,
+      `(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* (subpath ${JSON.stringify(work)}) (literal "/dev/null"))\n(deny network*)\n(deny appleevent-send)\n`,
+    );
+    return { argv: ['/usr/bin/sandbox-exec', '-f', profile, target, ...argv.slice(1)], identity };
+  }
+  if (process.platform === 'linux') {
+    const bwrap = executable('bwrap', environment);
+    const seccomp = path.join(directory, 'task.seccomp');
+    fs.writeFileSync(seccomp, filter());
+    return {
+      argv: [
+        bwrap,
+        '--unshare-all',
+        '--die-with-parent',
+        '--new-session',
+        '--cap-drop',
+        'ALL',
+        '--ro-bind',
+        '/',
+        '/',
+        '--proc',
+        '/proc',
+        '--dev',
+        '/dev',
+        '--bind',
+        work,
+        work,
+        '--chdir',
+        work,
+        '--seccomp',
+        '3',
+        '--',
+        target,
+        ...argv.slice(1),
+      ],
+      identity,
+      seccomp,
+    };
+  }
+  throw Error('Protected local task execution is unavailable on this platform.');
+}
+function runProcess(argv, { cwd, env, timeoutMs, signal, seccomp }) {
+  return new Promise(resolve => {
+    const startedAt = new Date().toISOString();
+    let child,
+      timer,
+      fd,
+      log = '',
+      status = null,
+      resolved = false;
+    const stop = reason => {
+      status ||= reason;
+      if (!child?.pid) return;
+      try {
+        process.kill(-child.pid, 'SIGKILL');
+      } catch {
+        child.kill('SIGKILL');
+      }
+    };
+    const finish = (exitCode, processSignal, error) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', cancel);
+      if (fd !== undefined) fs.closeSync(fd);
+      resolve({
+        startedAt,
+        endedAt: new Date().toISOString(),
+        exitCode,
+        signal: processSignal,
+        status: status || (error ? 'START_FAILED' : exitCode === 0 ? 'COMPLETED' : 'FAILED'),
+        log: log + (error ? '\n' + error.message : ''),
+      });
+    };
+    const cancel = () => stop('CANCELLED');
+    try {
+      if (signal?.aborted) {
+        status = 'CANCELLED';
+        return finish(null, null);
+      }
+      if (seccomp) fd = fs.openSync(seccomp, 'r');
+      child = spawn(argv[0], argv.slice(1), {
+        cwd,
+        env,
+        detached: true,
+        stdio: seccomp ? ['ignore', 'pipe', 'pipe', fd] : ['ignore', 'pipe', 'pipe'],
+      });
+      const append = bytes => {
+        log += bytes.toString('utf8');
+        if (Buffer.byteLength(log) > 1024 * 1024) {
+          log = log.slice(0, 524288);
+          stop('OUTPUT_LIMIT');
+        }
+      };
+      child.stdout.on('data', append);
+      child.stderr.on('data', append);
+      child.on('error', error => finish(null, null, error));
+      // Reap descendants even when a script exits while its child keeps pipes open.
+      child.on('exit', () => {
+        try {
+          process.kill(-child.pid, 'SIGKILL');
+        } catch {}
+      });
+      child.on('close', (code, sig) => finish(code, sig));
+      signal?.addEventListener('abort', cancel, { once: true });
+      timer = setTimeout(() => stop('TIMEOUT'), timeoutMs);
+    } catch (error) {
+      finish(null, null, error);
+    }
+  });
+}
+async function executeTask(task, { directory, input, work, actionId, environment, signal }) {
+  const container = task.runtime.kind === 'docker';
+  const inputRoot = container ? '/inputs' : input,
+    outputRoot = container ? '/work' : work;
+  const argv = task.command.map(arg =>
+    arg.replaceAll('{input}', inputRoot).replaceAll('{output}', outputRoot),
+  );
+  const env = taskEnvironment(environment, input, work);
+  fs.mkdirSync(env.HOME);
+  fs.mkdirSync(env.TMPDIR);
+  let command, identity, cleanup, seccomp;
+  if (container) {
+    if ([input, work].some(file => file.includes(',')))
+      throw Error('Docker bind paths cannot contain commas.');
+    const docker = executable('docker', environment);
+    const inspection = spawnSync(
+      docker,
+      ['image', 'inspect', '--format', '{{.Id}}', task.runtime.image],
+      {
+        env: {
+          ...env,
+          ...(environment.DOCKER_HOST ? { DOCKER_HOST: environment.DOCKER_HOST } : {}),
+        },
+        encoding: 'utf8',
+        timeout: 10000,
+      },
+    );
+    if (inspection.status !== 0 || !/^sha256:[a-f0-9]{64}$/.test(inspection.stdout.trim()))
+      throw Error(
+        'Docker image is unavailable to the trusted host runtime: ' +
+          String(inspection.stderr || inspection.error || '').slice(0, 4096),
+      );
+    identity = { image: task.runtime.image, imageId: inspection.stdout.trim() };
+    const name = 'industrial-task-' + actionId;
+    command = [
+      docker,
+      'run',
+      '--rm',
+      '--name',
+      name,
+      '--network',
+      'none',
+      '--cap-drop',
+      'ALL',
+      '--security-opt',
+      'no-new-privileges',
+      '--cpus',
+      String(task.runtime.cpus),
+      '--memory',
+      task.runtime.memoryMb + 'm',
+      '--pids-limit',
+      String(task.runtime.pids),
+      '--read-only',
+      '--tmpfs',
+      '/tmp:rw,nosuid,nodev,size=128m',
+      ...(typeof process.getuid === 'function'
+        ? ['--user', `${process.getuid()}:${process.getgid()}`]
+        : []),
+      '--mount',
+      `type=bind,src=${input},dst=/inputs,readonly`,
+      '--mount',
+      `type=bind,src=${work},dst=/work`,
+      '--workdir',
+      '/work',
+      '--env',
+      'HOME=/work/home',
+      '--env',
+      'HARNESS_INPUT_DIR=/inputs',
+      '--env',
+      'HARNESS_OUTPUT_DIR=/work',
+      '--env',
+      'PYTHONDONTWRITEBYTECODE=1',
+      '--entrypoint',
+      argv[0],
+      identity.imageId,
+      ...argv.slice(1),
+    ];
+    if (environment.DOCKER_HOST) env.DOCKER_HOST = environment.DOCKER_HOST;
+    cleanup = () =>
+      spawnSync(docker, ['rm', '--force', name], { env, timeout: 10000, stdio: 'ignore' });
+  } else {
+    const local = localCommand(argv, directory, work, environment);
+    command = local.argv;
+    identity = local.identity;
+    seccomp = local.seccomp;
+  }
+  try {
+    const result = await runProcess(command, {
+      cwd: work,
+      env,
+      timeoutMs: task.timeoutMs,
+      signal,
+      seccomp,
+    });
+    return { ...result, argv, runtime: task.runtime, identity };
+  } finally {
+    cleanup?.();
+  }
+}
+module.exports = { executeTask };

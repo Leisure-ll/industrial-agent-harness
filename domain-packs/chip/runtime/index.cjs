@@ -71,6 +71,7 @@ function createRuntimePlugin({ environment = process.env } = {}) {
   }
   return {
     matchesProject: projectDir => fs.existsSync(path.join(projectDir, 'eda.yaml')),
+    workspaceProtectedPaths: projectDir => [path.join(projectDir, '.eda')],
     stateProvider: ({ projectDir }) => call('inspect', projectDir),
     tools: [
       {

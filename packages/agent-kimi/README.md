@@ -4,7 +4,7 @@ Thin integration around `@moonshot-ai/kimi-agent-sdk`, pinned to `0.1.8` in this
 
 当前已接入会话启动、流式文本、工具事件、审批与中断入口。有效 Broker Scope（domain、stage、capability、skill、tool）或模型配置变化时创建新会话；仅 Scope 版本号变化会复用原会话。只注册当前 Scope 对应的 Harness 外部工具，工具处理器再次校验当前 Scope。需要本机 Kimi CLI 才能做真实会话验证。
 
-P0 的实际工业会话采用 macOS Seatbelt，或 Linux x86-64 的 bubblewrap/seccomp：真实 Kimi/原生 Shell/WriteFile/子 MCP 只能写隔离 session/scratch，实际工程只读；宿主 `industrial_action_call` 以当前 DomainState ID、Scope 和审批进入持久 Runtime。固定 Kimi 要求 cwd 可写，所以使用稳定 session workspace，Prompt 明确原 Project 的绝对路径与只读 project/ 链接。Linux 需要 bwrap 与可用的非特权 user/PID namespace；不可用则启动失败，不降级为无隔离执行。Linux 子进程不能创建宿主 Unix socket 连接，TCP/UDP 模型连接和内部 socketpair 保留。原生上下文恢复及快照按 workspace 关联。Windows 仍拒绝启动；已注册 Runtime 的会话在披露、配置和 Skill/Tool 装载之前排除外部 MCP host 服务与应用控制插件，保留用户配置并记录原因，Runtime 工具继续可用。其他受保护会话仍明确拒绝未支持的 host 配置。旧 Domain MCP mutation 也受此只读边界限制。详见 [安全边界](../../SECURITY.md) 和 [实际闭环](../../doc/p0-industrial-runtime.md)。
+P0 的实际工业会话采用 macOS Seatbelt，或 Linux x86-64 的 bubblewrap/seccomp：真实 Kimi/原生 Shell/WriteFile/子 MCP 只能写隔离 session/scratch，实际工程只读；宿主 `industrial_action_call` 以当前 DomainState ID、Scope 和审批进入持久 Runtime。固定 Kimi 要求 cwd 可写，所以使用稳定 session workspace，Prompt 明确原 Project 的绝对路径与只读 project/ 链接。Linux 需要 bwrap 与可用的非特权 user/PID namespace；不可用则启动失败，不降级为无隔离执行。Linux 子进程不能创建宿主 Unix socket 连接，TCP/UDP 模型连接和内部 socketpair 保留。原生上下文恢复及快照按 workspace 关联。Windows 仍拒绝启动；显式注册外部 MCP 经宿主 Runtime 调用，保留审批、Scope/参数/快照检查和持久 Action，响应不建立工程验收；独立应用控制插件仍被排除。旧 Domain MCP mutation 也受此只读边界限制。详见 [安全边界](../../SECURITY.md) 和 [实际闭环](../../doc/p0-industrial-runtime.md)。
 
 Harness 外部工具返回最多 16 KiB UTF-8 JSON；能力详情可按 `skills`、`tools`、`verification` 分段获取。每轮 Industrial Context 最多 8 KiB。SDK 的上下文占用和压缩事件会汇总为 `context-metrics`；界面工具结果截断会标注原始字节数。这些外部工具边界不作用于 Kimi 原生工具；已注册 Domain MCP 网关另有 16 KiB 输出和原始响应分页限制，也不改写 Kimi 的上下文压缩。
 
@@ -24,7 +24,7 @@ Harness 外部工具返回最多 16 KiB UTF-8 JSON；能力详情可按 `skills`
 
 Desktop/CLI 通过 `resolveSession` / `sessionInitialized` 回调提供共享聊天索引中的不透明运行时身份。有效 Scope 与模型配置兼容时，把原 session ID 和持久 share directory 交给 SDK 恢复；不兼容时产生新段。已初始化的上下文丢失会报错，不默默创建空上下文。接口与验证见 [聊天持久化](../../doc/chat-persistence.md)。
 
-运行时接受有效外部 MCP 快照，经 domain-mcp 生成私有 Gateway 配置；revision、连接配置、工具 schema 和引用环境值参与会话兼容性，运行中的 adapter 也在下一轮检测变化。Industrial Context 只给发现入口，不倾倒全部 schema。真实 MCP 截图经 Kimi 原生多模态进入视觉模型；审批由固定 CLI 处理。已知外部凭据加入诊断 JSONL 脱敏，观察保持未验证。见 [外部 MCP](../../doc/external-mcp.md)。
+运行时接受有效外部 MCP 快照；受保护会话使用宿主 Runtime，旧 Gateway 保留协议测试。revision、连接配置、工具 schema 和引用环境值参与会话兼容性，运行中的 adapter 也在下一轮检测变化。Industrial Context 只给发现入口，不倾倒全部 schema。真实 MCP 截图经 Kimi 原生多模态进入视觉模型；受保护会话复用 Runtime 宿主审批入口。已知外部凭据加入诊断 JSONL 脱敏，观察保持未验证。见 [外部 MCP](../../doc/external-mcp.md)。
 
 日志索引以 64 KiB 块扫描，跨块记录只在完整时拼接一次；追加记录增量更新分类统计。序号与语义 ID 使用索引查询，长字段的 UTF-8 分页最多复用一个已编码字段。缓存仍按文件身份和变化失效，保留原有大小、路径与快照哈希校验。性能证据见[全仓优化记录](../../doc/repository-optimization.md)。
 
@@ -32,7 +32,7 @@ Desktop/CLI 通过 `resolveSession` / `sessionInitialized` 回调提供共享聊
 
 Desktop/CLI 通过 `diagnostics.resources` 注入 Core 的共享资源管理器，Kimi 只在获得执行及常驻额度后启动原生 Prompt。启用该管理器必须同时提供持久会话回调；空闲关闭不删除持久目录，下一轮仍使用固定 SDK 的原生恢复。`onIdleRelease` 允许宿主释放观察数据库连接，`close()` 释放原生进程和资源租约。详见[多会话资源保护](../../doc/session-resource-guards.md)。
 
-`KimiSession` 仍保留已有横切插件注入 API 与受控会话测试。已注册工业 Runtime 的会话不加载应用控制插件，也不加载外部 MCP；不改动用户保存的 enable/disable 配置，记录 `resource.filtered` 与可见提示。不能通过插件宿主 callback 绕过工业授权与审计。将这些侧效应纳入 Runtime 后，才可声明这些服务在真实工业会话可用。
+`KimiSession` 仍保留已有横切插件注入 API 与受控会话测试。已注册工业 Runtime 的会话不加载应用控制插件；外部 MCP 经 Runtime 宿主入口加载，不改动用户保存的 enable/disable 配置，记录 `resource.filtered` 与可见提示。不能通过插件宿主 callback 绕过工业授权与审计。外部 MCP 每次调用已有 Action/响应证据，不能据此把宿主副作用当成工程通过。
 
 Kimi Wire `QuestionRequest` 进入当前会话的待答状态，`answerQuestion` 调用固定 SDK 的 `respondQuestion`，支持重试、跳过和完成后的过期处理。固定 Kimi CLI 1.51.0 将问题 ID 同时用作 RPC 请求 ID；真实 Wire 回答链路已验证。`approvalMode=auto` 传给 SDK 的 `yoloMode`，不改变问题需要用户作答的语义。
 

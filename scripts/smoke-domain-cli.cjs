@@ -68,7 +68,13 @@ try {
     const catalog = JSON.parse(
       execFileSync(process.execPath, ['-e', inspect], { cwd: temporary, encoding: 'utf8' }),
     );
-    assert.ok(catalog.skills.every(skill => skill.domain === domain));
+    assert.ok(catalog.skills.every(skill => skill.domain === domain || skill.domain === '*'));
+    assert.deepEqual(
+      catalog.skills.filter(skill => skill.domain === '*').map(skill => skill.id),
+      ['project.work'],
+      'Every isolated domain package must ship the shared workspace Skill.',
+    );
+    assert.ok(fs.existsSync(path.join(skillsRoot, 'skills/project-work/SKILL.md')));
     assert.ok(catalog.capabilities.every(item => item === domain));
     assert.deepEqual(
       catalog.domains.map(item => item.id),
@@ -82,7 +88,7 @@ try {
       'Packaged native runtime entries must resolve inside the extracted release.',
     );
     if (domain === 'chip') {
-      assert.equal(catalog.skills.length, 4);
+      assert.equal(catalog.skills.length, 5);
       assert.equal(
         fs.existsSync(
           path.join(
@@ -95,7 +101,7 @@ try {
       assert.deepEqual(run(['--disable-mcp', 'chip-pack.eda'])[0].scope.tools, []);
     } else assert.equal(fs.existsSync(path.join(path.dirname(entry), 'domain-packs/chip')), false);
     if (domain === 'pcb') {
-      assert.equal(catalog.skills.length, 2);
+      assert.equal(catalog.skills.length, 3);
       assert.equal(fs.existsSync(path.join(packageRoot, 'domain-packs/pcb/uv.lock')), true);
       const pcbScope = extra =>
         execFileSync(
@@ -115,7 +121,7 @@ try {
       assert.ok(!pcbScope(['--disable-skill', 'pcb.design.e2e']).skills.includes('pcb.design.e2e'));
     }
     if (domain === 'godot') {
-      assert.equal(catalog.skills.length, 2);
+      assert.equal(catalog.skills.length, 3);
       assert.equal(catalog.packs.length, 1);
       assert.equal(
         fs.existsSync(path.join(packageRoot, 'domain-packs/godot/src/runtime.cjs')),

@@ -105,3 +105,5 @@ CLI 与桌面版已默认注册同一 `chip-pack.eda`，按 Chip 项目与任务
 ## 会话资源保护
 
 CLI 与同一配置目录的 Desktop/其他 CLI 共用执行和常驻额度，默认 4/6；达到上限时以既有错误事件和非零退出码明确拒绝，不启动原生 Prompt。单次 CLI 结束时关闭 Kimi 并释放额度，保留聊天和原生上下文供恢复。额度、内存准入、配置项和真实进程压测见[多会话资源保护](../../doc/session-resource-guards.md)。
+
+真实运行在所有领域中提供 project.initialize、project.files.read/apply、project.tasks.inspect、project.task.run。空目录无需专业配置；共享 project.work Skill 用 harness.tasks.json 声明任务、读失败并修复重跑。格式、历史与离线限制见[共享工程底座](../../doc/shared-workspace.md)。

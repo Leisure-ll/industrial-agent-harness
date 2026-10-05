@@ -88,7 +88,10 @@ function externalSecrets(servers, environment = process.env) {
             .map(([, value]) => value)
         : []),
     ])
-    .filter(value => typeof value === 'string' && value.length >= 4);
+    .filter(value => typeof value === 'string' && value.length >= 4)
+    .flatMap(value =>
+      /^Bearer\s+(\S+)$/i.test(value) ? [value, value.replace(/^Bearer\s+/i, '')] : [value],
+    );
 }
 
 async function connectExternal(server, projectDir, environment = process.env) {

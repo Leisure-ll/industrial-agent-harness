@@ -153,7 +153,7 @@ The [Harness CI gate](.github/workflows/ci.yml) runs shared-package and packaged
 
 - **Platforms:** desktop build and first-run CI targets are macOS with Apple Silicon (arm64) and Windows x64. Intel Mac is temporarily unsupported; no Intel installers or Pack catalog targets will be published. Support can resume after installation and runtime validation on an Intel test machine. Signed installers and real upgrades still need separate acceptance.
 - **Protected execution:** macOS uses Seatbelt; Linux x86-64 uses bubblewrap/seccomp and requires unprivileged user namespaces. Windows protected Agent execution remains unavailable.
-- **Tool compatibility:** legacy MCP writes are blocked; enabled external MCP services and Computer Use are refused in protected sessions pending Runtime integration.
+- **Tool compatibility:** legacy domain MCP writes remain blocked; all domains have approved workspace edits and declared task execution. Registered external MCP uses audited host Runtime calls; the separate Computer Use plugin remains unavailable.
 - **Engineering acceptance:** the first Core path verifies declared RTL/testbench assertions and evidence. Coverage sufficiency, physical signoff and other domains' complete workflows are pending.
 - **Packaging and evaluation:** local unsigned desktop checks and controlled model fixtures are documented. Signed releases, end-to-end cross-platform qualification and formal paid model comparisons remain separate work.
 
@@ -164,3 +164,5 @@ See the [validation record](doc/harness-quality-three-tracks.md) for exact teste
 Project-owned contributions are licensed under the **[MIT License](LICENSE)**, including the authorized EDA Harness and EDA Harness demo code.
 
 Bundled renderers, fonts, dependencies and separately installed tools retain their own licenses. The complete distribution is not MIT-only; consult [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the relevant provenance records. External private PCB resources are not granted a public license by this repository.
+
+Shared initialization, editing, declared local/Docker tasks and external MCP are documented in [Shared workspace](doc/shared-workspace.md). Packaged consumer CI exercises empty-project creation, failing checks and repair; specialized tools, models and sign-off remain Pack/project responsibilities.

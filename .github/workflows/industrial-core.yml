@@ -39,6 +39,15 @@ jobs:
         run: node scripts/setup-freecad.cjs
       - name: Build independent CAD CLI for native execution
         run: node scripts/package-headless.cjs dist/freecad-cli --domain cad
+      - name: Verify common workspace and MCP in packaged CLIs
+        shell: bash
+        run: |
+          export KIMI_EXECUTABLE="$GITHUB_WORKSPACE/apps/desktop/.venv-kimi/bin/kimi"
+          for domain in chip pcb; do
+            node scripts/package-headless.cjs "dist/workspace-$domain" --domain "$domain"
+            node scripts/smoke-workspace-cli.cjs "$GITHUB_WORKSPACE/dist/workspace-$domain/industrial-harness.cjs" "$domain" "dist/ci-reports/workspace-$domain.json"
+          done
+          INDUSTRIAL_HARNESS_TEST_CLI="$GITHUB_WORKSPACE/dist/workspace-chip/industrial-harness.cjs" node --test tests/integration/external-mcp-kimi.test.cjs
       - name: Verify the real state, action, verification and recovery path
         shell: bash
         run: |
@@ -52,6 +61,11 @@ jobs:
           pnpm --filter @industrial-agent-harness/desktop build
           export HARNESS_CAD_SELFTEST_OUTPUT="$GITHUB_WORKSPACE/dist/ci-reports/cad-viewer.png"
           pnpm --filter @industrial-agent-harness/desktop test:cad 2>&1 | tee dist/ci-reports/cad-viewer.log
+      - name: Verify external MCP through the real Desktop settings and approval flow
+        shell: bash
+        run: |
+          export KIMI_EXECUTABLE="$GITHUB_WORKSPACE/apps/desktop/.venv-kimi/bin/kimi"
+          pnpm --filter @industrial-agent-harness/desktop test:external-mcp 2>&1 | tee dist/ci-reports/external-mcp-desktop.log
       - name: Collect native FreeCAD startup diagnostics
         if: failure()
         run: |
