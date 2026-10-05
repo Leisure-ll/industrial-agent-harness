@@ -85,7 +85,7 @@ KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" \
 
 The tests run real RTL simulation and check assertions, waveforms, failure handling, installed Pack integrity and restart recovery. Model responses come from a controlled local provider, so these tests do not spend model API credits or measure model capability. See the [industrial runtime guide](doc/p0-industrial-runtime.md) for real-task setup and evidence boundaries.
 
-For Linux x86-64 Chip users, the [one-command installer](releases/chip-linux-installer-v0.1.0-preview.2.md) prepares private runtimes, the protected Agent and the EDA image.
+For Linux x86-64 Chip users, the [one-command installer](releases/chip-linux-installer-v0.1.0-preview.3.md) prepares private runtimes, the protected Agent and the EDA image.
 
 Prefer a packaged preview? Browse [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases) and follow that version's instructions. [Headless installation](apps/cli/README.md#github-release-安装) and [domain CLI packages](doc/domain-cli-downloads.md) cover checksums and external dependencies. Existing archives do not acquire newer source features automatically.
 

@@ -458,7 +458,9 @@ class IndustrialRuntime {
     });
     run = { ...run, endedAt: action.endedAt, status: action.status };
     let next = state;
-    if (permitted)
+    // Read-only host diagnostics are recorded as Actions/Checkpoints, but must
+    // not replace a design's accepted state, artifacts or verification evidence.
+    if (permitted && tool.descriptor.risk === 'mutating')
       next = DomainStateSchema.parse({
         ...state,
         id: crypto.randomUUID(),

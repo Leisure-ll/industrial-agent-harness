@@ -41,5 +41,32 @@ test(
       namespaceDenied: true,
     });
     assert.equal(connected, false);
+    // Exercise the installed helper body under the actual inherited seccomp/
+    // no_new_privs boundary. Docker remains forbidden, without invoking sg/audit.
+    const bootstrap = path.resolve(__dirname, '../../../domain-packs/chip/linux-bootstrap.sh');
+    const helperBody = fs
+      .readFileSync(bootstrap, 'utf8')
+      .split("cat <<'WRAPPER'\n")[1]
+      .split('\nWRAPPER')[0];
+    const helper = path.join(directory, 'docker');
+    fs.writeFileSync(
+      helper,
+      `#!/bin/bash\nset -euo pipefail\ndocker_binary=/usr/bin/false\n${helperBody}\n`,
+      { mode: 0o755 },
+    );
+    const shell = createProcessSandbox({
+      executable: '/bin/bash',
+      projectDir: path.join(directory, 'project'),
+      shareDir: path.join(directory, 'share'),
+    });
+    t.after(() => shell.close());
+    const checked = await execute(
+      shell.executable,
+      ['-c', `"$1" info; code=$?; echo "HELPER_EXIT=$code"`, 'helper-probe', helper],
+      { env: shell.env },
+    );
+    assert.match(checked.stdout, /HELPER_EXIT=77/);
+    assert.match(checked.stderr, /protected Agent.*host Domain Runtime/);
+    assert.doesNotMatch(checked.stderr, /Cannot open audit interface/);
   },
 );

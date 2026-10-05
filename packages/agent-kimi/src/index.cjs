@@ -71,7 +71,7 @@ function industrialContext(scope, anchor = null, externalServers = []) {
     `${context}\nObserved project checkpoint: ${JSON.stringify(value)}. These are file observations with content hashes, not engineering verification. ${readHint}`;
   let complete = anchor ? withAnchor(anchor) : context;
   complete +=
-    '\nExecution boundary: native Shell, WriteFile and child MCP processes cannot modify the project. Engineering mutations require industrial_action_call through the host Domain Runtime; unavailable legacy mutations fail visibly. Process success alone is not engineering acceptance.';
+    '\nExecution boundary: native Shell, WriteFile and child MCP processes cannot modify the project or access host Docker. A Docker permission denial in those processes is expected and does not establish host Runtime failure. Use an in-scope read-only environment Tool through industrial_action_call for host readiness. Engineering mutations also require industrial_action_call through the host Domain Runtime; unavailable legacy mutations fail visibly. Process success and environment readiness alone are not engineering acceptance.';
   if (anchor && Buffer.byteLength(complete, 'utf8') > MAX_INDUSTRIAL_CONTEXT_BYTES) {
     complete = withAnchor({
       checkpointId: anchor.checkpointId,

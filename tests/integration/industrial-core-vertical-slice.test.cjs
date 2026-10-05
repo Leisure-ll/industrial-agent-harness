@@ -114,7 +114,7 @@ test(
       { task: 'Run RTL simulation verification assertions', state },
       plugin.capabilities,
     );
-    assert.deepEqual(resolution.scope.tools, ['chip.rtl.verify']);
+    assert.deepEqual(resolution.scope.tools, ['chip.rtl.verify', 'chip.environment.check']);
     const result = await runtime.execute(
       { toolId: resolution.scope.tools[0], inputs: {}, expectedStateId: state.id },
       { scope: resolution.scope, approval: true },
