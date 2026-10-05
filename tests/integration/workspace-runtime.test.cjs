@@ -163,12 +163,13 @@ test(
       }
     };
     for (const mode of ['cancel', 'exit']) {
+      const marker = path.join(project, 'owned-task-' + mode);
       fs.writeFileSync(
         path.join(project, 'runner.cjs'),
         `const fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process');
-      const child=spawn(${JSON.stringify(process.execPath)},['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});
+      const child=spawn(${JSON.stringify(process.execPath)},['-e','setInterval(()=>{},1000)',process.argv[2]],{stdio:'inherit'});
       fs.writeFileSync(path.join(process.env.HARNESS_OUTPUT_DIR,'ready.json'),JSON.stringify({parent:process.pid,child:child.pid}));
-      ${mode === 'exit' ? 'setTimeout(()=>process.exit(0),300)' : 'setInterval(()=>{},1000)'};`,
+      ${mode === 'exit' ? "setInterval(()=>{if(fs.existsSync(path.join(process.env.HARNESS_OUTPUT_DIR,'release')))process.exit(0)},10)" : 'setInterval(()=>{},1000)'};`,
       );
       fs.writeFileSync(
         path.join(project, 'harness.tasks.json'),
@@ -176,7 +177,7 @@ test(
           schemaVersion: '1',
           tasks: {
             test: {
-              command: [process.execPath, '{input}/runner.cjs'],
+              command: [process.execPath, '{input}/runner.cjs', marker],
               inputs: ['runner.cjs'],
               timeoutMs: 5000,
             },
@@ -184,16 +185,47 @@ test(
         }),
       );
       const pending = run('project.task.run', { task: 'test' });
-      let ready;
+      let ready, readyFile;
       const deadline = Date.now() + 5000;
       while (!ready && Date.now() < deadline) {
         const action = bundle.runtime.listActions().find(action => action.status === 'running');
-        const file = action && path.join(project, '.harness-runs', action.id, 'work', 'ready.json');
-        if (file && fs.existsSync(file)) ready = JSON.parse(fs.readFileSync(file));
+        readyFile = action && path.join(project, '.harness-runs', action.id, 'work', 'ready.json');
+        if (readyFile && fs.existsSync(readyFile)) ready = JSON.parse(fs.readFileSync(readyFile));
         else await sleep(10);
       }
       assert.ok(ready, 'Actual task process must report readiness before cancellation.');
+      let hostPids = Object.values(ready);
+      if (process.platform === 'linux') {
+        // The task reports PIDs from its private namespace. Resolve only its
+        // marker-bound parent/child to host PIDs before testing process cleanup.
+        hostPids = fs
+          .readdirSync('/proc')
+          .filter(name => /^\d+$/.test(name))
+          .flatMap(name => {
+            try {
+              const command = fs.readFileSync(`/proc/${name}/cmdline`, 'utf8').split('\0');
+              if (!command.includes(marker)) return [];
+              const status = fs.readFileSync(`/proc/${name}/status`, 'utf8');
+              const namespace = status
+                .match(/^NSpid:\s+(.+)$/m)?.[1]
+                .trim()
+                .split(/\s+/)
+                .map(Number);
+              return namespace?.length > 1 && Object.values(ready).includes(namespace.at(-1))
+                ? [Number(name)]
+                : [];
+            } catch {
+              return [];
+            }
+          });
+        assert.equal(
+          hostPids.length,
+          2,
+          'Both owned namespace processes must map to actual host PIDs.',
+        );
+      }
       if (mode === 'cancel') bundle.runtime.cancel();
+      else fs.writeFileSync(path.join(path.dirname(readyFile), 'release'), 'exit');
       const result = await pending;
       await bundle.runtime.waitForIdle();
       assert.equal(result.action.status, mode === 'cancel' ? 'failed' : 'completed');
@@ -203,9 +235,9 @@ test(
       );
       assert.equal(report.status, mode === 'cancel' ? 'CANCELLED' : 'COMPLETED');
       const reaped = Date.now() + 3000;
-      while (Object.values(ready).some(alive) && Date.now() < reaped) await sleep(20);
+      while (hostPids.some(alive) && Date.now() < reaped) await sleep(20);
       assert.deepEqual(
-        Object.values(ready).filter(alive),
+        hostPids.filter(alive),
         [],
         'Owned parent and background child must be gone.',
       );

@@ -163,7 +163,7 @@ test(
     const yaml = path.join(project, 'eda.yaml');
     fs.writeFileSync(
       yaml,
-      fs.readFileSync(yaml, 'utf8').replace('timeout_seconds: 30', 'timeout_seconds: 1'),
+      fs.readFileSync(yaml, 'utf8').replace('timeout_seconds: 60', 'timeout_seconds: 1'),
     );
     const runtime = open();
     t.after(() => runtime.close());
