@@ -32,7 +32,7 @@ wget -O install-chip-linux.sh https://github.com/Zhiman-BJ/industrial-agent-harn
 
 ## 限制
 
-- 本安装入口覆盖 Linux x86-64 Chip；其他领域的独立 CLI 见 headless-v0.2.0-preview.6。Windows 的原生 Agent/任务执行尚未资格验证。
+- 本安装入口覆盖 Linux x86-64 Chip；其他领域的独立 CLI 见 headless-v0.2.0-preview.7。Windows 的原生 Agent/任务执行尚未资格验证。
 - 任务依赖和 Docker 镜像必须事先准备。通用 JSON 检查只验收所声明断言；生产签核、ISA 参考模型、PDK、SRAM/pad 与专业规则仍由工程提供。本地任务仅限制时间和日志，CPU/内存/PID 配额使用 Docker。
 - 外部 MCP 是用户信任的宿主服务，MCP roots 提供上下文，不限制服务访问工程之外的系统；服务所需软件、认证和操作系统权限由用户配置。
 - 模型原生 Shell/WriteFile 保持原有隔离边界，工业执行与项目修改使用共享 Runtime 入口。
