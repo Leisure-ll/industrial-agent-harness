@@ -116,6 +116,7 @@ if (
     '--godot-selftest',
     '--documents-selftest',
     '--language-selftest',
+    '--ui-selftest',
     '--engineering-selftest',
     '--cad-selftest',
     '--mcp-selftest',
@@ -1202,6 +1203,8 @@ function registerHandlers() {
 }
 
 async function createWindow() {
+  if (process.argv.includes('--ui-selftest'))
+    require('./ui-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--mcp-selftest'))
     await require('./mcp-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--external-mcp-selftest'))
@@ -1393,6 +1396,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--language-selftest')) {
     await require('./language-selftest.cjs').run(window, dialog);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--ui-selftest')) {
+    await require('./ui-selftest.cjs').run(window, dialog);
     app.quit();
     return;
   }
