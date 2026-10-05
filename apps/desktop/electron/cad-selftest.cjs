@@ -132,7 +132,6 @@ async function run(window) {
     await evaluate(`document.querySelector('.rp-cad canvas').dataset.engine`),
     /OCCT.*AIS\/V3d/,
   );
-  const beforeRotation = (await window.webContents.capturePage()).toPNG();
   const measure = () => evaluate(`Number(document.querySelector('.rp-cad').dataset.zoom)`);
   await verifyNavigation(window, measure);
   await verifyWheel(window, measure, (delta, ctrl) =>
@@ -140,13 +139,31 @@ async function run(window) {
       `(()=>{const event=new WheelEvent('wheel',{deltaY:${delta},ctrlKey:${ctrl},cancelable:true});document.querySelector('.rp-cad-viewport').dispatchEvent(event);return event.defaultPrevented;})()`,
     ),
   );
+  // React publishes the camera attributes before its effect schedules the
+  // native pose update. Let the fitted view paint, then compare only canvas
+  // pixels so unrelated UI updates cannot satisfy the redraw assertion.
+  await evaluate(
+    `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+  );
+  const canvasRect = await evaluate(`(() => {
+    const r = document.querySelector('.rp-cad canvas').getBoundingClientRect();
+    return { x: Math.ceil(r.x), y: Math.ceil(r.y), width: Math.floor(r.width), height: Math.floor(r.height) };
+  })()`);
+  const captureCanvas = async () => (await window.webContents.capturePage(canvasRect)).toPNG();
+  const beforeRotation = await captureCanvas();
   const yaw = await evaluate(`document.querySelector('.rp-cad').dataset.yaw`);
   await evaluate(
     `(()=>{const node=document.querySelector('.rp-cad-viewport');node.dispatchEvent(new PointerEvent('pointerdown',{pointerId:1,clientX:100,clientY:100,bubbles:true}));node.dispatchEvent(new PointerEvent('pointermove',{pointerId:1,clientX:145,clientY:120,bubbles:true}));node.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,bubbles:true}));})()`,
   );
   await wait(`document.querySelector('.rp-cad').dataset.yaw!==${JSON.stringify(yaw)}`);
+  const redrawDeadline = Date.now() + 15000;
+  let afterRotation = await captureCanvas();
+  while (afterRotation.equals(beforeRotation) && Date.now() < redrawDeadline) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    afterRotation = await captureCanvas();
+  }
   assert.notDeepEqual(
-    (await window.webContents.capturePage()).toPNG(),
+    afterRotation,
     beforeRotation,
     'OCCT must redraw pixels after camera rotation',
   );
