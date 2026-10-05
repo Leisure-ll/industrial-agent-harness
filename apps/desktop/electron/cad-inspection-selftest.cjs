@@ -37,7 +37,7 @@ async function verifyInspection(window, project) {
       const p={pointerId:1,clientX:r.left+x,clientY:r.top+y,bubbles:true};
       node.dispatchEvent(new PointerEvent('pointerdown',p));node.dispatchEvent(new PointerEvent('pointerup',p));
       await new Promise(resolve=>setTimeout(resolve,2));
-      const item=[...document.querySelectorAll('.rp-cad-measure-item')].at(-1);
+      const item=[...document.querySelectorAll('.rp-cad-measure-overlay [data-kind]')].at(-1);
       if(item && (${predicate})) return {x,y,...item.dataset};
       if(++attempts>6000)break;
     }
@@ -45,7 +45,9 @@ async function verifyInspection(window, project) {
   })()`);
   await evaluate(`document.querySelector('button[aria-label="Fit viewer"]').click()`);
   await pause();
-  assert.equal(await evaluate(`Boolean(document.querySelector('.rp-cad-measurements'))`), false);
+  const viewportWidth = await evaluate(
+    `document.querySelector('.rp-cad-viewport').getBoundingClientRect().width`,
+  );
   assert.equal(
     await evaluate(`document.querySelector('button[aria-label="尺寸测量"]').disabled`),
     false,
@@ -62,11 +64,13 @@ async function verifyInspection(window, project) {
     await evaluate(`document.querySelector('select[aria-label="测量对象"]').value`),
     '2',
   );
-  await set('测量对象', 4);
-  assert.match(
-    await evaluate(`document.querySelector('.rp-cad-measurements').textContent`),
-    /点击模型上的面/,
+  assert.equal(await evaluate(`Boolean(document.querySelector('.rp-cad-model aside'))`), false);
+  assert.equal(
+    await evaluate(`document.querySelector('.rp-cad-viewport').getBoundingClientRect().width`),
+    viewportWidth,
+    'enabling measurement must not take width away from the model',
   );
+  await set('测量对象', 4);
   const face = await scan('Number(item.dataset.area)>0');
   const areas = [200, 100, 800 - 4 * Math.PI, 20 * Math.PI];
   assert.ok(
@@ -77,36 +81,42 @@ async function verifyInspection(window, project) {
   await set('测量对象', 2);
   const edge = await scan('Math.abs(Number(item.dataset.length)-40)<1e-6');
   assert.equal(edge.kind, 'edge');
-  assert.equal(await evaluate(`document.querySelectorAll('.rp-cad-measure-item').length`), 1);
+  assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '1');
   assert.match(
     await evaluate(`document.querySelector('.rp-cad-measure-overlay').textContent`),
     /边长 40 mm/,
   );
-  assert.equal(await evaluate(`Boolean(document.querySelector('.rp-cad-distance'))`), false);
+  assert.equal(
+    await evaluate(`Boolean(document.querySelector('.rp-cad-distance-overlay'))`),
+    false,
+  );
   const circle = await scan('Math.abs(Number(item.dataset.radius)-2)<1e-6');
   await pause(); // The measurement overlay projects endpoints on the next animation frame.
   assert.ok(Math.abs(Number(circle.length) - 4 * Math.PI) < 1e-6);
-  assert.equal(await evaluate(`document.querySelectorAll('.rp-cad-measure-item').length`), 1);
+  assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '1');
   assert.match(
     await evaluate(`document.querySelector('.rp-cad-measure-overlay').textContent`),
     /直径 Ø 4 mm/,
   );
-  assert.equal(await evaluate(`Boolean(document.querySelector('.rp-cad-distance'))`), false);
+  assert.equal(
+    await evaluate(`Boolean(document.querySelector('.rp-cad-distance-overlay'))`),
+    false,
+  );
   assert.equal(
     await evaluate(`document.querySelectorAll('.rp-cad-measure-overlay line').length`),
     0,
   );
   await set('测量类型', 'distance');
-  assert.equal(await evaluate(`document.querySelectorAll('.rp-cad-measure-item').length`), 0);
+  assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '0');
   await pick(edge);
   await pick(circle);
-  assert.equal(await evaluate(`document.querySelectorAll('.rp-cad-measure-item').length`), 2);
+  assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '2');
   assert.match(
     await evaluate(`document.querySelector('.rp-cad-measure-overlay').textContent`),
     /最短距离/,
   );
   const distance = await evaluate(
-    `Number(document.querySelector('.rp-cad-distance').dataset.distance)`,
+    `Number(document.querySelector('.rp-cad-distance-overlay').dataset.distance)`,
   );
   assert.ok(
     [8, Math.sqrt(89)].some(v => Math.abs(v - distance) < 1e-6),
@@ -145,7 +155,7 @@ async function verifyInspection(window, project) {
     true,
   );
   assert.equal(
-    await evaluate(`Number(document.querySelector('.rp-cad-distance').dataset.distance)`),
+    await evaluate(`Number(document.querySelector('.rp-cad-distance-overlay').dataset.distance)`),
     distance,
   );
   fs.writeFileSync(
@@ -161,7 +171,7 @@ async function verifyInspection(window, project) {
     ),
     'false',
   );
-  assert.equal(await evaluate(`Boolean(document.querySelector('.rp-cad-measurements'))`), false);
+  assert.equal(await evaluate(`Boolean(document.querySelector('.rp-cad-model aside'))`), false);
   assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '0');
   await evaluate(`document.querySelector('input[aria-label="剖切"]').click()`);
   await pause();

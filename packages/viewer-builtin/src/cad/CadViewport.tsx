@@ -285,6 +285,7 @@ export function CadViewport({
                 测量类型{' '}
                 <select
                   aria-label="测量类型"
+                  title="单对象尺寸只测量当前选择；两对象最短距离连接最近点，不是孔中心距。"
                   value={measurementType}
                   disabled={!ready}
                   onChange={e => {
@@ -435,7 +436,7 @@ export function CadViewport({
               {measurementType === 'distance' &&
               measurement.distance !== undefined &&
               projected.length === 2 ? (
-                <g className="rp-cad-distance-overlay">
+                <g className="rp-cad-distance-overlay" data-distance={measurement.distance}>
                   <line
                     x1={projected[0][0]}
                     y1={projected[0][1]}
@@ -456,7 +457,16 @@ export function CadViewport({
                 measurement.items.map(
                   (item, i) =>
                     projected[i] && (
-                      <text key={i} x={projected[i][0]} y={projected[i][1] - 12}>
+                      <text
+                        key={`${item.kind}-${item.index}`}
+                        data-kind={item.kind}
+                        data-index={item.index}
+                        data-length={item.length}
+                        data-radius={item.radius}
+                        data-area={item.area}
+                        x={projected[i][0]}
+                        y={projected[i][1] - 12}
+                      >
                         {item.radius !== undefined
                           ? `直径 Ø ${number(item.radius * 2)} mm`
                           : item.length !== undefined
@@ -468,48 +478,6 @@ export function CadViewport({
               )}
             </svg>
           </div>
-          {mode !== 0 && (
-            <aside className="rp-cad-inspector rp-cad-measurements">
-              <h4>{measurementType === 'size' ? '单对象尺寸' : '两对象最短距离'}</h4>
-              <p>
-                {measurementType === 'distance'
-                  ? '依次选择两个对象，绿色虚线连接它们的最近点；数值表示最短距离，不是边长或孔中心距。'
-                  : mode === 4
-                    ? '点击模型上的面，查看面积或圆柱面的直径。'
-                    : '点击模型上的边，查看长度或圆边的直径。'}
-                {measurementType === 'size' && '每次只测量当前对象；点击其他对象会替换上次选择。'}
-              </p>
-              {measurement.items.map((item, i) => (
-                <div
-                  key={`${item.kind}-${item.index}`}
-                  className="rp-cad-measure-item"
-                  data-kind={item.kind}
-                  data-index={item.index}
-                  data-length={item.length}
-                  data-radius={item.radius}
-                  data-area={item.area}
-                >
-                  <strong>
-                    {i + 1}. {item.kind === 'face' ? '面' : '边'} #{item.index}
-                  </strong>
-                  {item.length !== undefined && <span>边长 {number(item.length)} mm</span>}
-                  {item.area !== undefined && <span>面积 {number(item.area)} mm²</span>}
-                  {item.radius !== undefined && (
-                    <>
-                      <span>半径 {number(item.radius)} mm</span>
-                      <span>直径 {number(item.radius * 2)} mm</span>
-                    </>
-                  )}
-                </div>
-              ))}
-              {measurementType === 'distance' && measurement.distance !== undefined && (
-                <output data-distance={measurement.distance} className="rp-cad-distance">
-                  最短距离 <strong>{number(measurement.distance)} mm</strong>
-                </output>
-              )}
-              <small>依据当前 BREP 几何计算 · mm / mm²</small>
-            </aside>
-          )}
         </div>
         <small className="rp-cad-note">
           拖动旋转 · Shift/右键拖动平移 · 滚轮缩放

@@ -139,20 +139,6 @@
   line-height: 1.6;
   opacity: 0.75;
 }
-.rp-cad-measure-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--ia-border, #34404c);
-}
-.rp-cad-distance {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 0;
-  color: #63caaa;
-}
 .rp-cad-note {
   flex-shrink: 0;
   background: var(--ia-bg, #10181e);
