@@ -57,6 +57,8 @@ test('session exposes project skill roots without copying or changing project fi
   assert.deepEqual(extra, [
     fs.realpathSync(path.join(project, '.skill')),
     fs.realpathSync(path.join(project, '.skills')),
+    fs.realpathSync(path.join(project, '.claude/skills')),
+    fs.realpathSync(path.join(project, '.codex/skills')),
     path.join(session, 'skills'),
   ]);
   for (const brand of ['.kimi', '.claude', '.codex', '.agents']) {
@@ -88,7 +90,12 @@ test('session exposes project skill roots without copying or changing project fi
     JSON.parse(
       fs.readFileSync(path.join(session, 'config.toml'), 'utf8').split('\n')[0].split(' = ')[1],
     ),
-    [fs.realpathSync(path.join(project, '.skills')), path.join(session, 'skills')],
+    [
+      fs.realpathSync(path.join(project, '.skills')),
+      fs.realpathSync(path.join(project, '.claude/skills')),
+      fs.realpathSync(path.join(project, '.codex/skills')),
+      path.join(session, 'skills'),
+    ],
   );
   assert.match(
     fs.readFileSync(path.join(project, '.agents/skills/local-guide/SKILL.md'), 'utf8'),

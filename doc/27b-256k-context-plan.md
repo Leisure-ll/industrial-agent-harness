@@ -2,7 +2,7 @@
 
 状态：2026-09-25，本 PR 的上下文适配、诊断日志、只读状态续接及真实模型评测已实施。完整工业 Action/Verifier Vertical Slice 仍由[现有 Core 路线图](03-implementation-roadmap.md)负责，不能用本 PR 的文件观察代替。
 
-2026-10-05 补充：下文保留为旧内核阶段的历史记录。新版 Kimi Code 迁移遵循 [PD-037](product-decisions.md#pd-037信任-kimi-原生内核迁移验收聚焦外壳兼容)：信任原生压缩能力，验收配置、事件、身份、工具、停止和恢复的外壳兼容；远端压缩质量和检索测评为可选诊断。当前验证见 [迁移记录](kimi-code-migration.md)。
+2026-10-05 补充：下文保留为旧内核阶段的历史记录。新版 Kimi Code 迁移遵循 [PD-047](product-decisions.md#pd-047信任-kimi-原生内核迁移验收聚焦外壳兼容)：信任原生压缩能力，验收配置、事件、身份、工具、停止和恢复的外壳兼容；远端压缩质量和检索测评为可选诊断。当前验证见 [迁移记录](kimi-code-migration.md)。
 
 ## 目标与边界
 

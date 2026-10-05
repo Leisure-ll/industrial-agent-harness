@@ -8,6 +8,8 @@ const { spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const nativeFiles = [
   'tests/integration/workspace-runtime.test.cjs',
+  'tests/integration/agent-question-kimi.test.cjs',
+  'tests/integration/compaction-compat-kimi.test.cjs',
   'tests/integration/freecad-runtime.test.cjs',
   'tests/integration/industrial-core-vertical-slice.test.cjs',
   'tests/integration/industrial-core-installed-pack.test.cjs',
@@ -34,6 +36,8 @@ const linuxNativeFiles = [
   'tests/integration/workspace-runtime.test.cjs',
   'tests/integration/domain-mcp-kimi.test.cjs',
   'tests/integration/external-mcp-kimi.test.cjs',
+  'tests/integration/agent-question-kimi.test.cjs',
+  'tests/integration/compaction-compat-kimi.test.cjs',
   'packages/agent-kimi/tests/process-sandbox.test.cjs',
   'packages/agent-kimi/tests/linux-process-sandbox.test.cjs',
   'packages/agent-kimi/tests/project-skills-wire.test.cjs',

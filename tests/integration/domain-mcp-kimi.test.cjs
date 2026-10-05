@@ -25,7 +25,7 @@ test(
     const fixture = await startModel({
       calls: () => [
         {
-          name: 'Shell',
+          name: 'Bash',
           arguments: {
             command: `${quote(python)} -c ${quote('import sys; from eda_harness.core.service import Harness; Harness(sys.argv[1]).create_goal("MCP_INTEGRATION_GOAL", {}, [])')} ${quote(activeProject)}`,
           },

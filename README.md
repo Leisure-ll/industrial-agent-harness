@@ -40,7 +40,7 @@ flowchart LR
 
 ## Quick start
 
-Use **Node.js 24+** and **pnpm 11.1.3**. Agent execution additionally requires **uv**, **Python 3.13**, the pinned Kimi CLI and a model API configuration. Protected agent execution is available on **macOS with Apple Silicon (arm64)** and **Linux x86-64 with bubblewrap**; see [preview scope](#preview-scope) before trying other platforms.
+Use **Node.js 24+** and **pnpm 11.1.3**. Kimi Code 2.1.1 is bundled; Agent execution needs model API settings. Chip MCP separately needs **uv** and **Python 3.13**. Protected agent execution is available on **macOS with Apple Silicon (arm64)** and **Linux x86-64 with bubblewrap**; see [preview scope](#preview-scope) before trying other platforms.
 
 ```sh
 git clone https://github.com/Zhiman-BJ/industrial-agent-harness.git
@@ -72,7 +72,7 @@ Open **Settings → Model API** to configure your model, then add a local projec
 
 **Settings → Language** switches between English, 简体中文 and Follow system immediately. The app remembers your preference; switching preserves drafts, running tasks and viewer state. Harness controls and dialogs are localized; project files, conversations, tool output and embedded third-party interfaces retain their original content. See [desktop languages](doc/desktop-languages.md).
 
-The setup command installs **Kimi CLI 1.51.0**; the integration uses **Kimi Agent SDK 0.1.8**. Layout viewing additionally needs KLayout Python: run `pnpm --filter @industrial-agent-harness/desktop setup:layout` or set `KLAYOUT_PYTHON`.
+The setup command verifies the bundled **Kimi Code 2.1.1** runtime; Desktop and CLI share the authenticated Server API integration. No separate Python Kimi installation is needed. See the [migration record](doc/kimi-code-migration.md) for history, diagnostics and compatibility. Layout viewing additionally needs KLayout Python: run `pnpm --filter @industrial-agent-harness/desktop setup:layout` or set `KLAYOUT_PYTHON`.
 
 ### 3. Verify the real RTL path on macOS with Apple Silicon
 
@@ -81,8 +81,7 @@ After setting up Kimi above, prepare Verilator, a C++ toolchain and the Chip Pyt
 ```sh
 brew install verilator
 (cd domain-packs/chip/eda-harness && uv sync --frozen --no-dev --python 3.13)
-KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" \
-  HARNESS_REQUIRE_CORE_NATIVE=1 pnpm run test:industrial-core
+HARNESS_REQUIRE_CORE_NATIVE=1 pnpm run test:industrial-core
 ```
 
 The tests run real RTL simulation and check assertions, waveforms, failure handling, installed Pack integrity and restart recovery. Model responses come from a controlled local provider, so these tests do not spend model API credits or measure model capability. See the [industrial runtime guide](doc/p0-industrial-runtime.md) for real-task setup and evidence boundaries.

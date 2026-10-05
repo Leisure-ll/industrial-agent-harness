@@ -176,7 +176,7 @@ for (const scenario of [
   );
 
 test(
-  'real noninteractive CLI dismisses native questions without reporting a question error',
+  'real noninteractive CLI preserves native questions as needs_input without reporting a question error',
   { timeout: 30000 },
   async t => {
     let asked = false;
@@ -204,13 +204,15 @@ test(
     t.after(fixture.close);
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-cli-question-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-    const { stdout } = await promisify(execFile)(
+    const project = path.join(directory, 'project');
+    fs.mkdirSync(project);
+    const result = await promisify(execFile)(
       process.execPath,
       [
         path.join(root, 'apps/cli/src/main.cjs'),
         'run',
         '--project-dir',
-        directory,
+        project,
         '--domain',
         'godot',
         '--task',
@@ -241,14 +243,16 @@ test(
           INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(directory, 'settings'),
         },
       },
-    );
+    ).catch(error => {
+      assert.equal(error.code, 2);
+      return error;
+    });
+    assert.equal(result.code, 2);
+    const { stdout } = result;
     const rows = stdout.trim().split('\n').map(JSON.parse);
-    assert.equal(rows.at(-1).status, 'finished');
+    assert.equal(rows.at(-1).status, 'needs_input');
     assert.equal(rows.filter(row => row.type === 'question_error').length, 0, stdout);
-    assert.ok(
-      rows.some(row => row.event?.type === 'question-resolved' && row.event.decision === 'skipped'),
-    );
-    assert.equal(fixture.requests.length, 2);
-    assert.match(JSON.stringify(fixture.requests.at(-1).messages), /dismissed/i);
+    assert.ok(rows.some(row => row.type === 'needs_input' && row.questions.length === 1));
+    assert.equal(fixture.requests.length, 1);
   },
 );

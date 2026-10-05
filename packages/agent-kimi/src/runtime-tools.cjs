@@ -1,4 +1,4 @@
-const { createExternalTool } = require('@moonshot-ai/kimi-agent-sdk');
+const { createExternalTool } = require('./code-session.cjs');
 const { z } = require('zod');
 
 function runtimeTools(

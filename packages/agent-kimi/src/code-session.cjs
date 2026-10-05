@@ -353,7 +353,10 @@ class CodeSession {
         { mode: 0o600 },
       );
     }
-    if (this.options.projectDir && path.resolve(this.options.projectDir) !== path.resolve(this.options.workDir))
+    if (
+      this.options.projectDir &&
+      path.resolve(this.options.projectDir) !== path.resolve(this.options.workDir)
+    )
       await this.request(`workspaces/${encodeURIComponent(workspaceId)}/add-dir`, {
         method: 'POST',
         body: { path: this.options.projectDir, persist: false },

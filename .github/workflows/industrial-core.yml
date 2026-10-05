@@ -51,7 +51,7 @@ jobs:
       - name: Verify the real state, action, verification and recovery path
         shell: bash
         run: |
-          export KIMI_EXECUTABLE="$GITHUB_WORKSPACE/apps/desktop/.venv-kimi/bin/kimi"
+          export KIMI_EXECUTABLE="$(node -p "require('./packages/agent-kimi/src/code-session.cjs').bundledExecutable()")"
           export HARNESS_FREECAD_TEST_CLI="$GITHUB_WORKSPACE/dist/freecad-cli/industrial-harness.cjs"
           mkdir -p dist/ci-reports
           pnpm run test:ci -- native 2>&1 | tee dist/ci-reports/native.log

@@ -44,8 +44,6 @@ jobs:
         run: pnpm run test:ci -- benchmark
       - name: Build Desktop renderer
         run: pnpm --filter @industrial-agent-harness/desktop build
-      - name: Native questions and compaction compatibility
-        run: node --test tests/integration/agent-question-kimi.test.cjs tests/integration/compaction-compat-kimi.test.cjs
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'

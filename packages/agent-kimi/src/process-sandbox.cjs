@@ -99,7 +99,12 @@ function createProcessSandbox({
   return {
     executable: wrapper,
     // Pin both generations of the native home setting to session storage.
-    env: { ...environment, KIMI_SHARE_DIR: share, KIMI_CODE_HOME: share, TMPDIR: scratch + path.sep },
+    env: {
+      ...environment,
+      KIMI_SHARE_DIR: share,
+      KIMI_CODE_HOME: share,
+      TMPDIR: scratch + path.sep,
+    },
     directory,
     workDir,
     boundary: {

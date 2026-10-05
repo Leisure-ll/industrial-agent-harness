@@ -14,7 +14,7 @@ function createExternalTool({ parameters, handler, ...descriptor }) {
   return {
     ...descriptor,
     parameters: z.toJSONSchema(parameters, { target: 'draft-7' }),
-    handler: args => handler(parameters.parse(args)),
+    handler: async args => handler(parameters.parse(args)),
   };
 }
 

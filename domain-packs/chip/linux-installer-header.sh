@@ -22,7 +22,7 @@ Usage: bash industrial-harness-chip-linux-install.run [options]
   --help              Show this help
 
 Requires x86-64 Linux, bash, curl, tar, sha256sum, awk, flock, bubblewrap and usable Docker.
-Installs private Node 24.12.0, uv 0.11.6, Python 3.13, Kimi CLI 1.51.0 and Chip Pack.
+Installs private Node 24.12.0, uv 0.11.6, Python 3.13, bundled Kimi Code 2.1.1 and Chip Pack.
 Does not change model credentials, projects, shell profiles or the Docker engine.
 HELP
 }
@@ -128,14 +128,17 @@ export UV_CACHE_DIR="$prefix/cache/uv"
 export UV_PYTHON_INSTALL_DIR="$prefix/runtime/python"
 export UV_NO_PROGRESS=1
 
-stage='Python, MCP and Kimi installation'
-printf '[3/5] Installing Chip MCP dependencies and Kimi CLI 1.51.0\n'
+stage='Python, MCP and bundled Kimi verification'
+printf '[3/5] Installing Chip MCP dependencies and bundled Kimi Code 2.1.1\n'
 (cd "$pack/eda-harness"; uv sync --frozen --no-dev --managed-python --python 3.13)
-uv venv --allow-existing --managed-python --python 3.13 "$pack/.venv-kimi"
-uv pip install --python "$pack/.venv-kimi/bin/python" 'kimi-cli==1.51.0'
 "$pack/eda-harness/.venv/bin/python" "$pack/scripts/mcp-smoke.py" > "$prefix/logs/mcp-smoke.log" 2>&1
-export KIMI_EXECUTABLE="$pack/.venv-kimi/bin/kimi"
-"$KIMI_EXECUTABLE" --version
+export KIMI_EXECUTABLE="$(node - "$cli" <<'JS'
+const path = require('node:path');
+const entry = require.resolve('@industrial-agent-harness/agent-kimi', {paths:[process.argv[2]]});
+process.stdout.write(require(path.join(path.dirname(entry), 'code-session.cjs')).bundledExecutable());
+JS
+)"
+node "$KIMI_EXECUTABLE" --version
 
 image_id=''
 if ! "$skip_image"; then
@@ -177,7 +180,7 @@ const {createProcessSandbox} = require(path.join(path.dirname(agent), 'process-s
 const sandbox = createProcessSandbox({executable:kimi, projectDir, shareDir, protectedPaths:[cli], kimiProjectAccess:true});
 try {
  const result=spawnSync(sandbox.executable,['--version'],{env:sandbox.env,encoding:'utf8'});
- if(result.status!==0 || !result.stdout.includes('1.51.0')) throw Error(result.stderr || 'Protected Kimi startup failed');
+ if(result.status!==0 || !result.stdout.includes('2.1.1')) throw Error(result.stderr || 'Protected Kimi startup failed');
  fs.writeFileSync(path.join(shareDir,'process-boundary.json'),JSON.stringify(sandbox.boundary,null,2)+'\n');
 } finally {sandbox.close();}
 JS
@@ -203,7 +206,7 @@ from pathlib import Path
 from datetime import datetime,timezone
 prefix,digest,image,image_id,launcher=sys.argv[1:]
 root=Path(prefix)
-record={"status":"INSTALLED","finished_at":datetime.now(timezone.utc).isoformat(),"payload_sha256":digest,"package":json.loads((root/"cli/HARNESS-PACKAGE.json").read_text()),"node":"24.12.0","uv":"0.11.6","kimi":"1.51.0","mcp_smoke":"PASS","cli_scope":"PASS","protected_kimi_startup":"PASS","process_boundary":json.loads((root/"check-config/process-boundary.json").read_text()),"image":image if image_id else None,"image_id":image_id or None,"image_inventory":"PASS" if image_id else "NOT_TESTED","launcher":launcher,"engineering_acceptance":"NOT_RUN"}
+record={"status":"INSTALLED","finished_at":datetime.now(timezone.utc).isoformat(),"payload_sha256":digest,"package":json.loads((root/"cli/HARNESS-PACKAGE.json").read_text()),"node":"24.12.0","uv":"0.11.6","kimi":"2.1.1","mcp_smoke":"PASS","cli_scope":"PASS","protected_kimi_startup":"PASS","process_boundary":json.loads((root/"check-config/process-boundary.json").read_text()),"image":image if image_id else None,"image_id":image_id or None,"image_inventory":"PASS" if image_id else "NOT_TESTED","launcher":launcher,"engineering_acceptance":"NOT_RUN"}
 (root/"install-receipt.json").write_text(json.dumps(record,indent=2)+"\n")
 PY
 printf '\nInstallation complete. Launcher: %s\n' "$launcher"

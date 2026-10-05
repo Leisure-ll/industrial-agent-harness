@@ -290,7 +290,8 @@ test(
     const project = path.join(directory, 'project');
     fs.mkdirSync(project);
     const native =
-      process.env.KIMI_EXECUTABLE || path.join(repo, 'apps/desktop/.venv-kimi/bin/kimi');
+      process.env.KIMI_EXECUTABLE ||
+      require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
     assert.ok(fs.existsSync(native), 'Pinned Kimi is required; this test cannot be skipped.');
     const fixture = await startModel({
       success: 'CAD_GEOMETRY_RECORDED',

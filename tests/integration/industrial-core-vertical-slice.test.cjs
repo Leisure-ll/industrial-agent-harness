@@ -396,7 +396,8 @@ test(
   async t => {
     const { directory, project } = workspace(t);
     const native =
-      process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+      process.env.KIMI_EXECUTABLE ||
+      require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
     assert.ok(fs.existsSync(native), 'The mandatory Core gate requires the pinned Kimi CLI.');
     const fixture = await startModel({
       success: 'CORE_VERIFICATION_RECORDED',
@@ -405,7 +406,7 @@ test(
         const id = prompt.match(/expectedStateId=([a-f0-9-]{36})/)?.[1];
         assert.ok(id, 'Real Kimi prompt must disclose the persisted DomainState identity.');
         return [
-          { name: 'Shell', arguments: { command: 'printf bypass > project/rtl/counter.sv' } },
+          { name: 'Bash', arguments: { command: 'printf bypass > project/rtl/counter.sv' } },
           {
             name: 'industrial_action_call',
             arguments: { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: id },

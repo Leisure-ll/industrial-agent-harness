@@ -40,7 +40,7 @@ flowchart LR
 
 ## 快速开始
 
-准备 **Node.js 24+** 和 **pnpm 11.1.3**。实际运行 Agent 还需 **uv**、**Python 3.13**、固定版本的 Kimi CLI 和模型 API 配置。受保护的 Agent 支持 **macOS Apple Silicon（arm64）** 与具备 bubblewrap 的 **Linux x86-64**；使用其他平台前请查看[预览版范围](#预览版范围)。
+准备 **Node.js 24+** 和 **pnpm 11.1.3**。Kimi Code 2.1.1 随依赖安装，实际运行 Agent 需模型 API 配置；Chip MCP 另需 **uv** 和 **Python 3.13**。受保护的 Agent 支持 **macOS Apple Silicon（arm64）** 与具备 bubblewrap 的 **Linux x86-64**；使用其他平台前请查看[预览版范围](#预览版范围)。
 
 ```sh
 git clone https://github.com/Zhiman-BJ/industrial-agent-harness.git
@@ -72,7 +72,7 @@ pnpm dev
 
 在 **Settings → Model API** 配置模型，再添加本地工程并选择领域。打开右侧工作区即可浏览文件；查看文件不需要模型 API Key。
 
-准备脚本安装 **Kimi CLI 1.51.0**，接入层使用 **Kimi Agent SDK 0.1.8**。版图查看另需 KLayout Python，可运行 `pnpm --filter @industrial-agent-harness/desktop setup:layout`，或设置 `KLAYOUT_PYTHON`。
+准备脚本检查随包 **Kimi Code 2.1.1**，桌面和 CLI 共用认证 Server API 接入，不需要单独安装 Python Kimi。历史、诊断与兼容性边界见[迁移记录](doc/kimi-code-migration.md)。版图查看另需 KLayout Python，可运行 `pnpm --filter @industrial-agent-harness/desktop setup:layout`，或设置 `KLAYOUT_PYTHON`。
 
 ### 3. 在 macOS Apple Silicon 验证真实 RTL 闭环
 
@@ -81,8 +81,7 @@ pnpm dev
 ```sh
 brew install verilator
 (cd domain-packs/chip/eda-harness && uv sync --frozen --no-dev --python 3.13)
-KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" \
-  HARNESS_REQUIRE_CORE_NATIVE=1 pnpm run test:industrial-core
+HARNESS_REQUIRE_CORE_NATIVE=1 pnpm run test:industrial-core
 ```
 
 测试运行真实 RTL 仿真，检查断言、波形、失败处理、安装态 Pack 完整性和重启恢复。模型响应来自本地受控提供方，不消耗模型 API 额度，也不用于衡量模型能力。真实任务的准备方式和证据边界见[工业运行时说明](doc/p0-industrial-runtime.md)。

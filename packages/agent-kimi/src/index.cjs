@@ -467,12 +467,7 @@ class KimiSession {
         const stored = this.persistentSession;
         if (stored?.initialized && this.sessionFactory !== createSession) {
           const context = path.join(
-            createKimiPaths(stored.shareDir).sessionDir(
-              this.sessionFactory === createSession
-                ? path.join(fs.realpathSync(stored.shareDir), 'workspace')
-                : this.workDir,
-              stored.id,
-            ),
+            createKimiPaths(stored.shareDir).sessionDir(this.workDir, stored.id),
             'context.jsonl',
           );
           if (!fs.existsSync(context) || !fs.statSync(context).size)
@@ -516,6 +511,7 @@ class KimiSession {
         this.nativeWorkDir = this.processSandbox?.workDir || this.workDir;
         this.session = this.sessionFactory({
           workDir: this.processSandbox?.workDir || this.workDir,
+          projectDir: this.workDir,
           ...(this.persistentSession ? { sessionId: this.persistentSession.id } : {}),
           executable: this.processSandbox?.executable || runtime.executable,
           shareDir: this.sessionConfigDir,

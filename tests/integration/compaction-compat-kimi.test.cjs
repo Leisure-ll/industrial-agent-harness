@@ -15,6 +15,8 @@ test(
   async t => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-native-compaction-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const project = path.join(directory, 'project');
+    fs.mkdirSync(project);
     const summary = 'NATIVE_COMPACTION_SUMMARY_MARKER';
     const isCompaction = body =>
       JSON.stringify(body.messages.at(-1)?.content).includes('Create a handoff summary');
@@ -34,7 +36,7 @@ test(
         path.join(root, 'apps/cli/src/main.cjs'),
         'run',
         '--project-dir',
-        directory,
+        project,
         '--domain',
         'godot',
         '--task',

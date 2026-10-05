@@ -39,6 +39,25 @@ async function child(archive, directory, endpoint) {
       }),
     ],
   };
+  let sandbox;
+  if (process.platform === 'darwin') {
+    const projectDir = path.join(directory, 'project');
+    fs.mkdirSync(projectDir);
+    const { createProcessSandbox } = agentRequire('./process-sandbox.cjs');
+    sandbox = createProcessSandbox({
+      executable: agentRequire('./code-session.cjs').bundledExecutable(),
+      shareDir: directory,
+      projectDir,
+      kimiProjectAccess: true,
+      environment: { ...process.env, ...options.env },
+    });
+    Object.assign(options, {
+      executable: sandbox.executable,
+      workDir: sandbox.workDir,
+      projectDir,
+      env: sandbox.env,
+    });
+  }
   let session = createSession(options);
   const sessions = [session];
   let approvals = 0;
@@ -66,7 +85,7 @@ async function child(archive, directory, endpoint) {
     assert.ok(approvals >= 1, 'native Bash must request approval');
     assert.equal(questions, 1, 'the packaged question must be explicitly dismissed');
     assert.equal(
-      fs.readFileSync(path.join(directory, 'packaged-code.txt'), 'utf8').trim(),
+      fs.readFileSync(path.join(options.workDir, 'packaged-code.txt'), 'utf8').trim(),
       'PACKAGED_CODE_OK',
     );
     // Also read the real web assets from inside app.asar, rather than only --version.
@@ -92,6 +111,7 @@ async function child(archive, directory, endpoint) {
     );
   } finally {
     await Promise.allSettled(sessions.map(item => item.close()));
+    sandbox?.close();
   }
 }
 
