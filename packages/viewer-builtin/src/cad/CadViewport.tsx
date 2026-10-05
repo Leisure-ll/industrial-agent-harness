@@ -77,7 +77,7 @@ export function CadViewport({
     else
       run(viewer => {
         viewer.fit();
-        setView(initialView);
+        setView({ ...initialView });
       });
   };
   useWheelZoom(host, ready && tab === 'model' ? zoom : undefined);

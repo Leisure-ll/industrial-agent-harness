@@ -143,6 +143,7 @@ async function runWithStore(options, output, environment, Session, chats, regist
     disabled,
     externalServers,
     registry.domains,
+    { protectedIndustrial: Session === KimiSession },
   );
   const scope = broker.scope;
   send({
@@ -231,14 +232,15 @@ async function runWithStore(options, output, environment, Session, chats, regist
       externalServers,
       approvalMode: options.approval === 'auto' ? 'auto' : 'ask',
     };
-    if (options.enableGui && bundle)
+    const protectedIndustrial = Boolean(bundle || Session === KimiSession);
+    if (options.enableGui && protectedIndustrial)
       send({
         type: 'execution_policy',
         unavailable: ['application-control'],
         reason:
-          'Application control is unavailable in protected industrial execution; Runtime tools remain available.',
+          'Application control is unavailable in protected industrial execution; project inspection and registered Runtime tools remain available.',
       });
-    if (options.enableGui && !bundle) {
+    if (options.enableGui && !protectedIndustrial) {
       const guiDir =
         environment.GUI_BRIDGE_DIR ||
         path.join(os.homedir(), '.industrial-agent-harness', 'gui-bridge');

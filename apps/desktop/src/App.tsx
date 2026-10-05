@@ -55,6 +55,7 @@ import { ModelSettings } from './components/ModelSettings';
 import { ProjectDetails } from './components/ProjectDetails';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { DomainPill } from './components/DomainPill';
+import { WorkspaceDivider } from './components/WorkspaceDivider';
 import { appendDisplayEvents, latestEvent } from './agent-events';
 import { mergeHistoryEvents } from './chat-history';
 
@@ -98,6 +99,7 @@ export function App() {
   const [rightOpen, setRightOpen] = useState(false);
   const [fileTreeOpen, setFileTreeOpen] = useState(false);
   const workspace = useRef<HTMLElement>(null);
+  const [workspaceWidth, setWorkspaceWidth] = useState<number | null>(null);
   const [viewerFullscreen, setViewerFullscreen] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
   const [viewNavigation, setViewNavigation] = useState<ViewNavigation | null>(null);
@@ -1372,7 +1374,19 @@ export function App() {
           )}
         </main>
         {rightOpen && (
-          <section ref={workspace} className="ia-viewer ia-workspace">
+          <WorkspaceDivider
+            workspace={workspace}
+            width={workspaceWidth}
+            onChange={setWorkspaceWidth}
+            fullscreen={viewerFullscreen}
+          />
+        )}
+        {rightOpen && (
+          <section
+            ref={workspace}
+            className="ia-viewer ia-workspace"
+            style={workspaceWidth === null ? undefined : { flexBasis: workspaceWidth }}
+          >
             <header className="ia-viewer-header">
               <div>
                 <File size={14} />

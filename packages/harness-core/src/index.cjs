@@ -49,6 +49,7 @@ function resolveProjectTask(
   disabled = {},
   external = [],
   validDomains = listDomains(registry),
+  execution = {},
 ) {
   if (!validDomains.some(item => item.id === domain)) throw Error('Choose a valid project domain.');
   if (request?.domain && request.domain !== domain)
@@ -62,17 +63,18 @@ function resolveProjectTask(
   const enabledExternal = external.filter(
     server => !(disabled.mcpServers || []).includes(server.id),
   );
-  // A factual DomainState means this request uses the protected industrial
-  // Runtime. Host services cannot join that execution scope yet.
-  const extensions = request?.state ? [] : enabledExternal;
-  if (request?.state && enabledExternal.length)
+  // Process protection also applies when a Pack has no registered Runtime.
+  // Keep host services out of disclosure before the agent starts.
+  const protectedIndustrial = Boolean(request?.state || execution.protectedIndustrial);
+  const extensions = protectedIndustrial ? [] : enabledExternal;
+  if (protectedIndustrial && enabledExternal.length)
     result.trace.push({
       level: 'L0',
       event: 'resource.execution-boundary',
       detail: {
         unavailableMcpServers: enabledExternal.map(server => server.id),
         reason:
-          'External host services are unavailable in protected industrial execution; registered Runtime tools remain available.',
+          'External host services are unavailable in protected industrial execution; project inspection and registered Runtime tools remain available.',
       },
     });
   if (extensions.length) {

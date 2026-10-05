@@ -7,15 +7,22 @@ const { ExternalMcpRegistry } = require('@industrial-agent-harness/harness-core'
 const { startModel } = require('../../../tests/integration/fixtures/domain-mcp-model.cjs');
 const { saveBindings } = require('./project-bindings.cjs');
 const { saveProfile, defaults } = require('./model-config.cjs');
+const { saveSettings } = require('./harness-settings.cjs');
 let fixture, evidence, settings, marker, configuration;
 const calls = [];
 async function prepare(config, modelDirectory, resources) {
-  fixture = await startModel({ calls, success: 'EXTERNAL_MCP_CONFIRMED' });
+  fixture = await startModel({ calls, success: 'PROTECTED_PROJECT_ANALYSIS' });
   settings = resources;
   evidence = path.dirname(config);
   marker = path.join(evidence, 'host-click.json');
   const directory = path.join(config, 'external-project');
   fs.mkdirSync(directory, { recursive: true });
+  const readme = path.join(directory, 'README.md');
+  fs.writeFileSync(readme, 'PCB_PROJECT_ANALYSIS_INPUT\n');
+  calls.push({ name: 'ReadFile', arguments: { path: readme } });
+  // Enabled but deliberately unavailable: protected turns must never launch it.
+  process.env.GUI_BRIDGE_BIN = path.join(evidence, 'forbidden-gui');
+  saveSettings(modelDirectory, { guiPluginEnabled: true, approvalMode: 'ask' });
   saveBindings(config, {
     activeId: 'external-chip',
     projects: [
@@ -23,7 +30,7 @@ async function prepare(config, modelDirectory, resources) {
         id: 'external-chip',
         name: 'External MCP test',
         path: fs.realpathSync(directory),
-        domain: 'chip',
+        domain: 'pcb',
       },
     ],
   });
@@ -96,17 +103,7 @@ async function run(window) {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', INDUSTRIAL_HARNESS_CONFIG_DIR: settings },
     });
     assert.equal(JSON.parse(listed.stdout).servers[0].id, 'external.computer-use');
-    const registry = new ExternalMcpRegistry(settings),
-      tools = registry.records()[0].tools;
-    const screenshot = tools.find(tool => tool.name === 'screenshot').id,
-      click = tools.find(tool => tool.name === 'click').id;
-    calls.push(
-      { name: 'external_tool_list', arguments: {} },
-      { name: 'external_tool_describe', arguments: { toolId: screenshot } },
-      { name: 'external_tool_call', arguments: { toolId: screenshot, arguments: {} } },
-      { name: 'external_tool_describe', arguments: { toolId: click } },
-      { name: 'external_tool_call', arguments: { toolId: click, arguments: { x: 40, y: 60 } } },
-    );
+    const registry = new ExternalMcpRegistry(settings);
     fs.writeFileSync(
       path.join(evidence, 'external-mcp-settings.png'),
       (await window.webContents.capturePage()).toPNG(),
@@ -131,32 +128,28 @@ async function run(window) {
     await evaluate(
       `window.viewerHost.resourceSet({projectId:'external-chip',kind:'mcp',id:'external.computer-use',mode:'inherit'})`,
     );
+    const protectedScope = await evaluate(
+      `window.viewerHost.resolve({task:'分析一下当前项目'}).then(result=>result.scope)`,
+    );
+    assert.ok(!protectedScope.tools.some(id => id.startsWith('external.')));
     await evaluate(`document.querySelector('.ia-project-start').click()`);
     await wait(`Boolean(document.querySelector('.ia-composer textarea'))`);
     await evaluate(
-      `(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'Use the host screenshot and click');area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+      `(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'分析一下当前项目，读取 README.md');area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
     );
     await evaluate(`document.querySelector('.ia-send').click()`);
-    for (let index = 0; index < calls.length; index++) {
-      await wait(`Boolean(document.querySelector('.ia-approval button'))`);
-      if (index === 0) {
-        const rejected = await evaluate(
-          `window.viewerHost.externalMcpRemove('external.computer-use').then(()=>false,error=>String(error))`,
-        );
-        assert.match(rejected, /running|active|stop|busy/i);
-      }
-      await evaluate(`document.querySelector('.ia-approval button').click()`);
-      await wait(`!document.querySelector('.ia-approval')`);
-    }
     await wait(
-      `document.querySelector('.ia-agent-flow')?.innerText.includes('EXTERNAL_MCP_CONFIRMED')&&!document.querySelector('button[title="Stop agent"]')`,
+      `document.querySelector('.ia-agent-flow')?.innerText.includes('PROTECTED_PROJECT_ANALYSIS')&&!document.querySelector('button[title="Stop agent"]')`,
     );
-    assert.deepEqual(JSON.parse(fs.readFileSync(marker)).arguments, { x: 40, y: 60 });
-    assert.ok(
-      fixture.requests.some(request =>
-        JSON.stringify(request.messages).includes('data:image/png;base64,'),
-      ),
-    );
+    assert.ok(!fs.existsSync(marker));
+    assert.equal(fixture.requests.length, 2);
+    assert.match(JSON.stringify(fixture.requests.at(-1).messages), /PCB_PROJECT_ANALYSIS_INPUT/);
+    assert.ok(!fixture.requests[0].tools.some(tool => tool.function.name === 'external_tool_call'));
+    const flow = await evaluate(`document.querySelector('.ia-agent-flow').innerText`);
+    assert.match(flow, /暂不可用/);
+    assert.ok(!flow.includes('当前工业执行隔离不支持'));
+    assert.equal(registry.records().length, 1);
+    assert.equal((await evaluate(`window.viewerHost.guiState()`)).enabled, true);
     fs.writeFileSync(
       path.join(evidence, 'external-mcp-chat.png'),
       (await window.webContents.capturePage()).toPNG(),
@@ -179,9 +172,9 @@ async function run(window) {
         desktop: true,
         cliShared: true,
         pinnedKimi: true,
-        approvals: calls.length,
-        nativeImage: true,
-        busyChangeRejected: true,
+        filteredHostResources: true,
+        projectRead: true,
+        preferencesRetained: true,
         screenshotDirectory: evidence,
       }),
     );

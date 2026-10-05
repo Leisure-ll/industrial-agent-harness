@@ -121,6 +121,7 @@ async function run(window) {
     );
   }
   await open('model.FCStd');
+  await require('./cad-resize-selftest.cjs').verifyResize(window, project);
   assert.equal(await evaluate(`document.querySelector('.rp-cad canvas').dataset.geometry`), 'brep');
   assert.match(
     await evaluate(`document.querySelector('.rp-cad canvas').dataset.engine`),

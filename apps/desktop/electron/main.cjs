@@ -269,6 +269,7 @@ async function resolveSessionTask(entry, request, registry) {
     projectResourcePolicy(entry.project),
     entry.externalServers,
     registry.domains,
+    { protectedIndustrial: true },
   );
 }
 function notifySessions() {

@@ -32,10 +32,17 @@ test('protected Runtime scopes exclude configured host services without changing
     createdAt: new Date().toISOString(),
   };
   const policy = { skills: [], mcpServers: [] };
-  const call = request =>
-    resolveProjectTask('example', request, undefined, registry, policy, external, [
-      { id: 'example' },
-    ]);
+  const call = (request, execution) =>
+    resolveProjectTask(
+      'example',
+      request,
+      undefined,
+      registry,
+      policy,
+      external,
+      [{ id: 'example' }],
+      execution,
+    );
   assert.deepEqual(call({ task: 'prepare' }).scope.tools, [
     'example.prepare',
     'external.example.call',
@@ -49,6 +56,11 @@ test('protected Runtime scopes exclude configured host services without changing
         t.detail.unavailableMcpServers.includes('external.example'),
     ),
   );
+  assert.deepEqual(policy, { skills: [], mcpServers: [] });
+  assert.equal(external.length, 1);
+  const withoutRuntime = call({ task: 'prepare' }, { protectedIndustrial: true });
+  assert.deepEqual(withoutRuntime.scope.tools, ['example.prepare']);
+  assert.ok(withoutRuntime.trace.some(t => t.event === 'resource.execution-boundary'));
   assert.deepEqual(policy, { skills: [], mcpServers: [] });
   assert.equal(external.length, 1);
 });

@@ -43,7 +43,7 @@
 
 **优先级 P2，源码确认的产品兼容性限制，未改变。** Harness 生成单一 `industrial` provider/model 的 TOML，并生成仅含选中服务的 `mcp.json`。它不读取用户原来的 Kimi 配置。原生 Hook、loop control、技能合并设置、自定义模型别名和自定义 Agent 配置不会自动继承。原生插件由 `get_share_dir()/plugins` 查找，所以 `~/.kimi/plugins` 也不会随着私有 share 自动加载。原有 OAuth 及会话数据同样没有自动迁移入口。
 
-这里要区分两种技能来源：用户 `.kimi/skills`、`.agents/skills` 等目录由原生用户技能发现继续处理；安装在原生 plugins 目录中的技能和工具不是同一条路径。本次修复没有把原生插件目录或全局 MCP 直接连接进工业会话。真实受保护会话仍明确拒绝当前未纳入 Runtime 的外部 MCP host 服务和 Harness 应用控制插件。
+这里要区分两种技能来源：用户 `.kimi/skills`、`.agents/skills` 等目录由原生用户技能发现继续处理；安装在原生 plugins 目录中的技能和工具不是同一条路径。本次修复没有把原生插件目录或全局 MCP 直接连接进工业会话。真实受保护会话在启动前跳过当前未纳入 Runtime 的外部 MCP host 服务和 Harness 应用控制插件，保留用户设置与可用项目工具。
 
 建议声明一份配置兼容清单，逐项支持可继承设置；涉及进程、Hook 或外部服务的能力经过现有执行政策接入。全量链接 `~/.kimi` 会同时引入凭据、插件执行和 MCP，不能作为兼容性修复。
 

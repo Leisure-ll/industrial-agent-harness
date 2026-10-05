@@ -18,7 +18,7 @@ Linux x86-64 使用 bubblewrap 的只读宿主挂载、独立 user/PID/IPC names
 
 Chip RTL Scope 另提供 `chip.environment.check`，通过同一 `industrial_action_call` 在宿主 Runtime 检查声明的 RTL 输入、工具及 Docker。该只读 Action 使用 `inputs: {}`，仍核对项目、Scope 和当前 State；结果位于 Action diagnostics，Verification 为 `not_run`。检查成功或失败均保留原工程 State、产物与验收身份，同时记录新的 Action/Checkpoint。Agent 的 Shell 和子 MCP Docker 拒绝属于预期边界，不能据此断言宿主 Runtime 故障。该入口要求已有 `eda.yaml` 和 StateProvider 确认的 RTL 阶段；不新增工程初始化、RTL 写入或物理设计 Tool。
 
-遗留 Domain MCP 的修改继承只读边界并可见失败，不能靠 Prompt 放行。尚未形成 Runtime 闭环的领域不自动获得写入能力。外部 MCP host 服务与应用控制插件在真实受保护会话中被明确拒绝，其其他进程/远程副作用尚未纳入工业审计。Windows 工业 Kimi 执行仍在启动前拒绝。
+遗留 Domain MCP 的修改继承只读边界并可见失败，不能靠 Prompt 放行。尚未形成 Runtime 闭环的领域不自动获得写入能力。外部 MCP host 服务与应用控制插件在真实受保护会话启动前被排除并提示，包括尚无 Runtime 的项目；用户配置保留，项目分析与已接入 Runtime 工具继续执行。其其他进程/远程副作用尚未纳入工业审计。Windows 工业 Kimi 执行仍在启动前拒绝。
 
 实际验证入口：
 

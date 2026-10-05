@@ -291,7 +291,7 @@ class KimiSession {
     const { runtime, plugins, excluded } = require('./execution-policy.cjs').executionPolicy(
       this.getRuntime(),
       this.plugins,
-      Boolean(this.diagnostics.industrialRuntime),
+      Boolean(this.diagnostics.industrialRuntime || this.sessionFactory === createSession),
     );
     if (!runtime.apiKey) throw Error('Set a model API key before running Kimi.');
     const approvalMode = runtime.approvalMode || 'ask';
@@ -379,7 +379,7 @@ class KimiSession {
         log.record('resource.filtered', { ...excluded, reason: 'protected-industrial-execution' });
         this.emitAgent({
           type: 'text',
-          text: '本轮使用项目内已接入的工业工具。外部 MCP 服务和应用控制在当前隔离下暂不可用。\n',
+          text: '本轮使用当前项目可用工具。外部 MCP 服务和应用控制在当前隔离下暂不可用。\n',
         });
       }
       const anchor = await this.diagnostics.getContextAnchor?.();

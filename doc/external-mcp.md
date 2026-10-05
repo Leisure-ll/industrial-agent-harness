@@ -1,6 +1,6 @@
 # 外部 MCP：Desktop / CLI 共用注册
 
-2026-10-04 边界更新：以下注册、管理与协议实现仍保留。实际受保护的工业 Kimi 会话会拒绝启用外部 MCP 应用服务；这类宿主服务须接入工业 Action 与证据边界后才能恢复组合执行。已注册服务可在项目中停用，CLI 用 `--disable-mcp external.<名称>`。下文的执行证据属于此前版本的协议验收，当前限制见[安全边界](../SECURITY.md)。
+2026-10-05 边界更新：以下注册、管理与协议实现仍保留。所有真实受保护 Kimi 会话会在披露和启动前跳过外部 MCP 应用服务及应用控制插件，保留用户设置，提示原因后继续项目分析及可用 Runtime 工具；不再要求用户手动停用后重试。这类宿主服务须接入工业 Action 与证据边界后才能恢复组合执行。下文的执行证据属于此前版本的协议验收，当前限制见[安全边界](../SECURITY.md)。
 
 外部服务可显式注册一次，在 Desktop 和 Chip / PCB / Godot CLI 包中共用。支持本地 stdio、Streamable HTTP 和旧 SSE；使用固定的官方 TypeScript MCP SDK 1.30.1。不自动安装服务、软件镜像或申请操作系统授权，也不读取项目里的任意 MCP 启动配置。
 
@@ -70,6 +70,6 @@ PNG/JPEG/WebP 原生 MCP ImageContent 继续传给 Kimi 模型，最多四张、
 
 注册存于 `~/.industrial-agent-harness/external-mcp.json`，与同目录 `resource-settings.json` 共用；`INDUSTRIAL_HARNESS_CONFIG_DIR` 可隔离二者，CLI 管理命令支持 `--config-dir`。POSIX 文件 0600，原子替换并用跨进程锁；损坏时明确失败，不静默覆盖。项目不保存启动命令。最多 16 个服务、每个 128 个工具、总计 512 个工具；超限或不支持的 schema 拒绝注册。会话私有配置包含执行所需凭据，不写入用户 `~/.kimi`。
 
-`pnpm test:external-mcp` 检查实际 stdio/HTTP/SSE、共享策略、越权/参数/快照变化、分页、脱敏及损坏。安装固定 Kimi CLI 1.51.0 后，还运行真实 Kimi 审批、拒绝后无 host 修改和 MCP 图片进入模型请求的测试；缺少 CLI 时该项明确跳过。
+`pnpm test:external-mcp` 检查实际 stdio/HTTP/SSE、共享策略、越权/参数/快照变化、分页、脱敏及损坏。安装固定 Kimi CLI 1.51.0 后，还验证无 Runtime 的 PCB 项目在外部服务和 GUI 启用时实际读取项目、保持隔离、无 host 修改且用户配置不变；缺少 CLI 时该项明确跳过。
 
-macOS Desktop：构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:external-mcp`，验证实际表单添加、CLI 共享读取、项目禁用、五次 Kimi 审批、图片输入、运行中拒绝修改、刷新/移除。受控模型与 MCP fixture 不代表任意供应商 computer-use 安装兼容性或屏幕录制/辅助功能权限已就绪。
+macOS Desktop：构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:external-mcp`，验证实际表单添加、CLI 共享读取、项目禁用、启用外部服务与 GUI 后 PCB 项目仍可通过真实 Kimi 读取 README、资源筛选提示、设置保留、刷新/移除。受控模型与 MCP fixture 不代表任意供应商 computer-use 安装兼容性或屏幕录制/辅助功能权限已就绪。

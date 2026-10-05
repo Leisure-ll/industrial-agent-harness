@@ -14,7 +14,7 @@ const kimi = process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-
 const server = path.join(__dirname, 'fixtures/external-mcp-server.cjs');
 
 test(
-  'real CLI refuses enabled host services without calling the model; disabling them starts the protected Kimi session',
+  'real CLI analyses a project without a Runtime while filtering enabled host services and GUI; preferences stay intact',
   { timeout: 90000, skip: !fs.existsSync(kimi) },
   async t => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-external-kimi-'));
@@ -47,19 +47,25 @@ test(
     assert.ok(
       new ExternalMcpRegistry(configs).records()[0].tools.some(tool => tool.name === 'click'),
     );
-    const fixture = await startModel({ calls: [], success: 'PROTECTED_SESSION_READY' });
-    t.after(fixture.close);
     const project = path.join(directory, 'project');
     fs.mkdirSync(project);
+    const readme = path.join(project, 'README.md');
+    fs.writeFileSync(readme, 'PCB_PROJECT_ANALYSIS_INPUT\n');
+    const fixture = await startModel({
+      calls: [{ name: 'ReadFile', arguments: { path: readme } }],
+      success: 'PROTECTED_SESSION_READY',
+    });
+    t.after(fixture.close);
     const args = approval => [
       entry,
       'run',
       '--project-dir',
       project,
       '--domain',
-      'chip',
+      'pcb',
       '--task',
-      'Use the host screenshot and click',
+      '分析一下当前项目，读取 README.md',
+      '--enable-gui',
       '--provider',
       'openai_legacy',
       '--endpoint',
@@ -87,20 +93,7 @@ test(
         timeout: 45000,
         maxBuffer: 4 * 1024 * 1024,
       });
-    for (const approval of ['reject', 'approve']) {
-      await assert.rejects(invoke(args(approval)), error => {
-        assert.equal(error.code, 1);
-        const rows = error.stdout.trim().split('\n').map(JSON.parse);
-        assert.equal(rows.at(-1).status, 'error');
-        assert.ok(
-          rows.some(row => row.event?.type === 'error' && /外部 MCP/.test(row.event.message)),
-        );
-        return true;
-      });
-      assert.equal(fixture.requests.length, 0);
-      assert.ok(!fs.existsSync(marker));
-    }
-    for (const policy of ['once', 'persisted']) {
+    for (const policy of ['enabled', 'once', 'persisted']) {
       if (policy === 'persisted') {
         const disabled = await invoke([
           entry,
@@ -131,7 +124,8 @@ test(
       const { stdout, stderr } = await invoke(values);
       const rows = stdout.trim().split('\n').map(JSON.parse);
       assert.equal(rows.at(-1).status, 'finished', stdout + stderr);
-      assert.equal(fixture.requests.length, before + 1);
+      assert.equal(fixture.requests.length, before + 2);
+      assert.match(JSON.stringify(fixture.requests.at(-1).messages), /PCB_PROJECT_ANALYSIS_INPUT/);
       assert.ok(
         !fixture.requests.at(-1).tools.some(tool => tool.function.name === 'external_tool_call'),
       );
@@ -142,6 +136,17 @@ test(
         ),
       );
       assert.ok(!fs.existsSync(marker));
+      assert.ok(rows.some(row => row.type === 'execution_policy'));
+      assert.ok(!rows.some(row => row.type === 'gui_install'));
+      assert.match(fs.readFileSync(readme, 'utf8'), /PCB_PROJECT_ANALYSIS_INPUT/);
+      if (policy === 'enabled') {
+        assert.ok(rows[0].trace.some(row => row.event === 'resource.execution-boundary'));
+        assert.ok(rows.some(row => row.event?.type === 'text' && /暂不可用/.test(row.event.text)));
+        const log = rows.find(row => row.event?.type === 'diagnostic-log').event.path;
+        assert.match(fs.readFileSync(log, 'utf8'), /resource.filtered/);
+        assert.equal(new ExternalMcpRegistry(configs).records().length, 1);
+        assert.ok(!fs.existsSync(path.join(configs, 'resource-settings.json')));
+      }
     }
   },
 );
