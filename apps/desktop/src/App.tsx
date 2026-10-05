@@ -59,7 +59,7 @@ import { DomainPill } from './components/DomainPill';
 import { appendDisplayEvents, latestEvent } from './agent-events';
 import { mergeHistoryEvents } from './chat-history';
 import { useLanguage } from './i18n/I18nProvider';
-import type { LanguagePreference } from './i18n/core';
+import { languageOptions, normalizePreference } from './i18n/core';
 
 type Theme = 'light' | 'dark';
 type ProjectFile = { path: string; name: string; depth: number; directory: boolean };
@@ -1007,11 +1007,14 @@ export function App() {
                     id="ia-language"
                     aria-label={t('Language')}
                     value={preference}
-                    onChange={event => setPreference(event.target.value as LanguagePreference)}
+                    onChange={event => setPreference(normalizePreference(event.target.value))}
                   >
                     <option value="system">{t('Follow system')}</option>
-                    <option value="zh-CN">简体中文</option>
-                    <option value="en">English</option>
+                    {languageOptions.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="ia-settings-row">

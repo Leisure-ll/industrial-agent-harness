@@ -106,7 +106,7 @@ Build your own Pack with the [Pack authoring tutorial](doc/pack-authoring.md). D
 
 Viewers open from the active project's file tree. They share zoom, Fit and fullscreen controls and leave source files and verification results unchanged.
 
-Harness-owned Viewer controls follow **Settings → Language** (English / 简体中文). Switching keeps zoom, selection and other view state; embedded upstream interfaces keep their own language. See [language scope](doc/desktop-languages.md).
+Harness-owned Viewer controls follow **Settings → Language** (English / 简体中文). Switching keeps zoom, selection and other view state; embedded upstream interfaces keep their own language. Languages and Desktop/Viewer translations share one [configuration](apps/desktop/i18n.config.json); see [language scope and maintenance](doc/desktop-languages.md).
 
 | Viewer                                               | Inputs                                                                                                       | Viewing features and limits                                                                                                    |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |

@@ -68,4 +68,4 @@ Viewer 描述至少说明：稳定 ID、可处理的产物类型、所需配套�
 
 ## 自有控件的展示语言
 
-Desktop 使用 `viewer-builtin/canvas` 打开 Registry 已选择的 Viewer，并通过通用的 `viewer-builtin/text` Context 传入展示翻译与语言。`text` API 仅依赖 React，不选择 Viewer、不导入 Desktop/Kimi/工业状态/Runtime，也不改变输入和命令。语言字典分别属于 Desktop 和 Viewer 自有文案，语言偏好属于 Desktop；边界门禁允许这两个通用展示入口，继续禁止直接导入具体 Viewer 做分派。切换语言更新已挂载的自有控件，保留缩放、选择和运行时状态。范围与生产路径验证见[桌面语言切换](desktop-languages.md)。
+Desktop 使用 `viewer-builtin/canvas` 打开 Registry 已选择的 Viewer，并通过通用的 `viewer-builtin/text` Context 传入展示翻译与语言。`text` API 仅依赖 React，不选择 Viewer、不导入 Desktop/Kimi/工业状态/Runtime，也不改变输入和命令。Desktop 的 `i18n.config.json` 集中声明语言及 Desktop/Viewer 的自有译文，语言偏好属于 Desktop，Viewer 仅消费回调；边界门禁允许这两个通用展示入口，继续禁止直接导入具体 Viewer 做分派。切换语言更新已挂载的自有控件，保留缩放、选择和运行时状态。范围、配置维护及生产路径验证见[桌面语言切换](desktop-languages.md)。

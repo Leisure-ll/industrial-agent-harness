@@ -13,6 +13,7 @@ module.exports = {
     'electron/**/*.cjs',
     'node_modules/**/*',
     'package.json',
+    'i18n.config.json',
     'LICENSE',
     'THIRD_PARTY_NOTICES.md',
     'licenses/**/*',

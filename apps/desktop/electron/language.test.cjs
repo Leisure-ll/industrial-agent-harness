@@ -56,18 +56,92 @@ test('translations preserve data, interpolate once, and fall back for unknown me
   assert.equal(translate('en', 'New chat in {0}'), 'New chat in {0}');
 });
 
-test('both catalogs have nonempty translations and matching interpolation parameters', async () => {
-  const { messages } = await import('../src/i18n/messages.ts');
-  const { viewerMessages } = await import('@industrial-agent-harness/viewer-builtin/text-messages');
+test('configuration translations use registered locales and matching interpolation parameters', () => {
+  const { messages, locales, fallbackLocale } = require('../i18n.config.json');
   const parameters = text => [...text.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
-  for (const [key, pair] of Object.entries({ ...messages, ...viewerMessages })) {
-    assert.equal(pair.length, 2, key);
+  assert.ok(Object.hasOwn(locales, fallbackLocale));
+  assert.ok(!Object.hasOwn(locales, 'system'), 'system is reserved for following the OS');
+  for (const [locale, definition] of Object.entries(locales)) {
+    assert.doesNotThrow(() => new Intl.DateTimeFormat(locale));
+    assert.ok(definition.label.trim(), locale);
     assert.ok(
-      pair.every(value => typeof value === 'string' && value.trim()),
-      key,
+      definition.systemLanguages.every(tag => typeof tag === 'string' && tag.trim()),
+      locale,
     );
-    assert.deepEqual(parameters(pair[0]), parameters(pair[1]), key);
   }
-  for (const key of Object.keys(messages).filter(key => Object.hasOwn(viewerMessages, key)))
-    assert.deepEqual(messages[key], viewerMessages[key], `Shared label: ${key}`);
+  for (const [key, translations] of Object.entries(messages)) {
+    assert.ok(translations[fallbackLocale]?.trim(), `Missing fallback: ${key}`);
+    for (const [locale, text] of Object.entries(translations)) {
+      assert.ok(Object.hasOwn(locales, locale), `Unregistered locale: ${key} / ${locale}`);
+      assert.ok(typeof text === 'string' && text.trim(), `${key} / ${locale}`);
+      assert.deepEqual(
+        parameters(translations[fallbackLocale]),
+        parameters(text),
+        `${key} / ${locale}`,
+      );
+    }
+  }
+});
+
+test('a third language needs only configuration for options, detection, persistence and fallback', async () => {
+  const { createLanguageSupport } = await core;
+  const config = require('../i18n.config.json');
+  const french = createLanguageSupport({
+    ...config,
+    locales: { ...config.locales, fr: { label: 'Français', systemLanguages: ['fr'] } },
+    messages: {
+      ...config.messages,
+      Settings: { ...config.messages.Settings, fr: 'Paramètres' },
+      'New chat in {0}': {
+        ...config.messages['New chat in {0}'],
+        fr: 'Nouvelle discussion dans {0}',
+      },
+    },
+  });
+  assert.deepEqual(french.languageOptions.at(-1), { value: 'fr', label: 'Français' });
+  assert.equal(french.normalizePreference('fr'), 'fr');
+  assert.equal(french.systemLocale(['fr-CA', 'en-US']), 'fr');
+  assert.equal(french.systemLocale(['french']), 'en');
+  assert.equal(french.translate('fr', 'Settings'), 'Paramètres');
+  assert.equal(
+    french.translate('fr', 'New chat in {0}', { 0: '项目 {0}' }),
+    'Nouvelle discussion dans 项目 {0}',
+  );
+  assert.equal(french.translate('fr', '草图与约束'), 'Sketches and constraints');
+  let saved;
+  const storage = {
+    getItem: () => saved ?? null,
+    setItem: (_key, value) => {
+      saved = value;
+    },
+  };
+  french.savePreference(storage, 'fr');
+  assert.equal(french.readPreference(storage), 'fr');
+  // Removing a configured language makes a saved preference fall back safely.
+  assert.equal((await core).readPreference(storage), 'system');
+  for (const value of ['__proto__', 'constructor', 'toString'])
+    assert.equal(french.normalizePreference(value), 'system');
+  assert.equal(french.translate('fr', 'constructor'), 'constructor');
+});
+
+test('configured regional languages take precedence and the fallback is configurable', async () => {
+  const { createLanguageSupport } = await core;
+  const config = require('../i18n.config.json');
+  const regional = createLanguageSupport({
+    ...config,
+    fallbackLocale: 'zh-CN',
+    locales: {
+      ...config.locales,
+      'zh-TW': { label: '繁體中文', systemLanguages: ['zh-TW', 'zh-Hant'] },
+    },
+  });
+  assert.equal(regional.systemLocale(['zh-Hant-TW']), 'zh-TW');
+  assert.equal(regional.systemLocale(['ZH-tw']), 'zh-TW');
+  assert.equal(regional.systemLocale(['zh-Hans']), 'zh-CN');
+  assert.equal(regional.systemLocale(['de-DE']), 'zh-CN');
+  assert.equal(regional.translate('zh-TW', 'Settings'), '设置');
+  assert.throws(
+    () => createLanguageSupport({ ...config, fallbackLocale: 'missing' }),
+    /fallback locale/,
+  );
 });

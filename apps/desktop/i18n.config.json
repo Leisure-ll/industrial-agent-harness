@@ -1,0 +1,2500 @@
+{
+  "fallbackLocale": "en",
+  "storageKey": "ia-language",
+  "locales": {
+    "zh-CN": {
+      "label": "简体中文",
+      "systemLanguages": ["zh"]
+    },
+    "en": {
+      "label": "English",
+      "systemLanguages": ["en"]
+    }
+  },
+  "messages": {
+    "Settings": {
+      "en": "Settings",
+      "zh-CN": "设置"
+    },
+    "Appearance": {
+      "en": "Appearance",
+      "zh-CN": "外观"
+    },
+    "Debug logs": {
+      "en": "Debug logs",
+      "zh-CN": "调试日志"
+    },
+    "Computer Use": {
+      "en": "Computer Use",
+      "zh-CN": "桌面操作"
+    },
+    "Language": {
+      "en": "Language",
+      "zh-CN": "语言"
+    },
+    "Follow system": {
+      "en": "Follow system",
+      "zh-CN": "跟随系统"
+    },
+    "Language changes apply immediately.": {
+      "en": "Language changes apply immediately.",
+      "zh-CN": "语言切换立即生效。"
+    },
+    "PROJECTS": {
+      "en": "PROJECTS",
+      "zh-CN": "项目"
+    },
+    "New project": {
+      "en": "New project",
+      "zh-CN": "新建项目"
+    },
+    "Hide sidebar": {
+      "en": "Hide sidebar",
+      "zh-CN": "收起侧栏"
+    },
+    "Show sidebar": {
+      "en": "Show sidebar",
+      "zh-CN": "展开侧栏"
+    },
+    "Running chats": {
+      "en": "Running chats",
+      "zh-CN": "运行中的聊天"
+    },
+    "New chat": {
+      "en": "New chat",
+      "zh-CN": "新建聊天"
+    },
+    "Delete chat": {
+      "en": "Delete chat",
+      "zh-CN": "删除聊天"
+    },
+    "Send a message in this chat before starting another": {
+      "en": "Send a message in this chat before starting another",
+      "zh-CN": "在此聊天发送消息后再新建聊天"
+    },
+    "New chat in {0}": {
+      "en": "New chat in {0}",
+      "zh-CN": "在 {0} 中新建聊天"
+    },
+    "{0} chats": {
+      "en": "{0} chats",
+      "zh-CN": "{0} 的聊天"
+    },
+    "Delete chat {0}": {
+      "en": "Delete chat {0}",
+      "zh-CN": "删除聊天 {0}"
+    },
+    "Awaiting answer": {
+      "en": "Awaiting answer",
+      "zh-CN": "等待回答"
+    },
+    "Awaiting approval": {
+      "en": "Awaiting approval",
+      "zh-CN": "等待审批"
+    },
+    "Running": {
+      "en": "Running",
+      "zh-CN": "运行中"
+    },
+    "Light": {
+      "en": "Light",
+      "zh-CN": "浅色"
+    },
+    "Dark": {
+      "en": "Dark",
+      "zh-CN": "深色"
+    },
+    "On": {
+      "en": "On",
+      "zh-CN": "开启"
+    },
+    "Off": {
+      "en": "Off",
+      "zh-CN": "关闭"
+    },
+    "Kimi can operate your desktop apps for this session": {
+      "en": "Kimi can operate your desktop apps for this session",
+      "zh-CN": "Kimi 可在此会话中操作桌面应用"
+    },
+    "Install and enable desktop GUI control": {
+      "en": "Install and enable desktop GUI control",
+      "zh-CN": "安装并启用桌面应用控制"
+    },
+    "Installing computer use · {0}…": {
+      "en": "Installing computer use · {0}…",
+      "zh-CN": "正在安装桌面操作组件 · {0}…"
+    },
+    "Installing…": {
+      "en": "Installing…",
+      "zh-CN": "正在安装…"
+    },
+    "Ready · v{0} · macOS: grant Screen Recording & Accessibility in System Settings → Privacy & Security.": {
+      "en": "Ready · v{0} · macOS: grant Screen Recording & Accessibility in System Settings → Privacy & Security.",
+      "zh-CN": "已就绪 · v{0} · macOS：请在系统设置 → 隐私与安全性中授予屏幕录制和辅助功能权限。"
+    },
+    "Enabling installs the computer-use engine and lets Kimi drive desktop apps. It can be disabled at any time.": {
+      "en": "Enabling installs the computer-use engine and lets Kimi drive desktop apps. It can be disabled at any time.",
+      "zh-CN": "开启后将安装桌面操作引擎，让 Kimi 操作桌面应用。可随时关闭。"
+    },
+    "Approval mode": {
+      "en": "Approval mode",
+      "zh-CN": "审批模式"
+    },
+    "Request approval": {
+      "en": "Request approval",
+      "zh-CN": "请求审批"
+    },
+    "Auto approve": {
+      "en": "Auto approve",
+      "zh-CN": "自动批准"
+    },
+    "Kimi can run tools without approval prompts, including file changes and external services. Questions still wait for your answer.": {
+      "en": "Kimi can run tools without approval prompts, including file changes and external services. Questions still wait for your answer.",
+      "zh-CN": "Kimi 可直接运行工具，包括修改文件和调用外部服务。提问仍会等待你的回答。"
+    },
+    "Kimi asks before actions that require approval.": {
+      "en": "Kimi asks before actions that require approval.",
+      "zh-CN": "需要审批的操作会先征求你的同意。"
+    },
+    "Model API": {
+      "en": "Model API",
+      "zh-CN": "模型 API"
+    },
+    "Configure": {
+      "en": "Configure",
+      "zh-CN": "配置"
+    },
+    "MCP & Skills": {
+      "en": "MCP & Skills",
+      "zh-CN": "MCP 与技能"
+    },
+    "Domains": {
+      "en": "Domains",
+      "zh-CN": "领域"
+    },
+    "Manage": {
+      "en": "Manage",
+      "zh-CN": "管理"
+    },
+    "Application": {
+      "en": "Application",
+      "zh-CN": "应用"
+    },
+    "Check updates": {
+      "en": "Check updates",
+      "zh-CN": "检查更新"
+    },
+    "Kimi CLI:": {
+      "en": "Kimi CLI:",
+      "zh-CN": "Kimi CLI："
+    },
+    "View agent logs": {
+      "en": "View agent logs",
+      "zh-CN": "查看 Agent 日志"
+    },
+    "View detailed agent logs": {
+      "en": "View detailed agent logs",
+      "zh-CN": "查看详细 Agent 日志"
+    },
+    "Logs": {
+      "en": "Logs",
+      "zh-CN": "日志"
+    },
+    "Toggle debug logs": {
+      "en": "Toggle debug logs",
+      "zh-CN": "切换调试日志"
+    },
+    "Hide workspace": {
+      "en": "Hide workspace",
+      "zh-CN": "收起工作区"
+    },
+    "Show workspace": {
+      "en": "Show workspace",
+      "zh-CN": "展开工作区"
+    },
+    "Loading…": {
+      "en": "Loading…",
+      "zh-CN": "正在加载…"
+    },
+    "Load earlier messages": {
+      "en": "Load earlier messages",
+      "zh-CN": "加载更早的消息"
+    },
+    "What are you working on?": {
+      "en": "What are you working on?",
+      "zh-CN": "你想完成什么任务？"
+    },
+    "Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.": {
+      "en": "Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.",
+      "zh-CN": "描述项目中的任务，相关能力和工具会随任务进展出现。"
+    },
+    "This chat is running in another window. Open a new chat to work in parallel.": {
+      "en": "This chat is running in another window. Open a new chat to work in parallel.",
+      "zh-CN": "此聊天正在另一个窗口运行。可新建聊天并行处理其他任务。"
+    },
+    "Preparing images…": {
+      "en": "Preparing images…",
+      "zh-CN": "正在准备图片…"
+    },
+    "This model is configured for text only.": {
+      "en": "This model is configured for text only.",
+      "zh-CN": "当前模型仅配置了文本输入。"
+    },
+    "Configure image input": {
+      "en": "Configure image input",
+      "zh-CN": "配置图片输入"
+    },
+    "Engineering task": {
+      "en": "Engineering task",
+      "zh-CN": "工程任务"
+    },
+    "Ask about your project…": {
+      "en": "Ask about your project…",
+      "zh-CN": "描述你的项目任务…"
+    },
+    "Session domain": {
+      "en": "Session domain",
+      "zh-CN": "会话领域"
+    },
+    "Stop agent": {
+      "en": "Stop agent",
+      "zh-CN": "停止 Agent"
+    },
+    "Run with Kimi": {
+      "en": "Run with Kimi",
+      "zh-CN": "使用 Kimi 运行"
+    },
+    "Send task": {
+      "en": "Send task",
+      "zh-CN": "发送任务"
+    },
+    "Kimi CLI is required to run Agent tasks": {
+      "en": "Kimi CLI is required to run Agent tasks",
+      "zh-CN": "运行 Agent 任务需要 Kimi CLI"
+    },
+    "Configure the Model API in Settings to run Kimi": {
+      "en": "Configure the Model API in Settings to run Kimi",
+      "zh-CN": "请在设置中配置模型 API 后运行 Kimi"
+    },
+    "Choose a project to run Kimi": {
+      "en": "Choose a project to run Kimi",
+      "zh-CN": "请选择项目后运行 Kimi"
+    },
+    "Kimi ready": {
+      "en": "Kimi ready",
+      "zh-CN": "Kimi 已就绪"
+    },
+    "Workspace": {
+      "en": "Workspace",
+      "zh-CN": "工作区"
+    },
+    "Files": {
+      "en": "Files",
+      "zh-CN": "文件"
+    },
+    "Close file": {
+      "en": "Close file",
+      "zh-CN": "关闭文件"
+    },
+    "Viewer zoom controls": {
+      "en": "Viewer zoom controls",
+      "zh-CN": "查看器缩放控件"
+    },
+    "Zoom out": {
+      "en": "Zoom out",
+      "zh-CN": "缩小"
+    },
+    "Viewer zoom": {
+      "en": "Viewer zoom",
+      "zh-CN": "查看器缩放"
+    },
+    "Zoom": {
+      "en": "Zoom",
+      "zh-CN": "缩放"
+    },
+    "Zoom in": {
+      "en": "Zoom in",
+      "zh-CN": "放大"
+    },
+    "Fit viewer": {
+      "en": "Fit viewer",
+      "zh-CN": "适应视图"
+    },
+    "Fit content to the view": {
+      "en": "Fit content to the view",
+      "zh-CN": "让内容适应视图"
+    },
+    "Fit": {
+      "en": "Fit",
+      "zh-CN": "适应"
+    },
+    "Exit viewer fullscreen": {
+      "en": "Exit viewer fullscreen",
+      "zh-CN": "退出查看器全屏"
+    },
+    "Fullscreen viewer": {
+      "en": "Fullscreen viewer",
+      "zh-CN": "查看器全屏"
+    },
+    "Hide file tree": {
+      "en": "Hide file tree",
+      "zh-CN": "收起文件树"
+    },
+    "Show file tree": {
+      "en": "Show file tree",
+      "zh-CN": "展开文件树"
+    },
+    "Binary file · no text preview available.": {
+      "en": "Binary file · no text preview available.",
+      "zh-CN": "二进制文件 · 无法预览文本。"
+    },
+    "Preview limited to the first 2 MB.": {
+      "en": "Preview limited to the first 2 MB.",
+      "zh-CN": "仅预览前 2 MB。"
+    },
+    "Opening viewer…": {
+      "en": "Opening viewer…",
+      "zh-CN": "正在打开查看器…"
+    },
+    "Preparing viewer…": {
+      "en": "Preparing viewer…",
+      "zh-CN": "正在准备查看器…"
+    },
+    "Open the file tree to browse this project.": {
+      "en": "Open the file tree to browse this project.",
+      "zh-CN": "展开文件树以浏览此项目。"
+    },
+    "Ready": {
+      "en": "Ready",
+      "zh-CN": "已就绪"
+    },
+    "Loading": {
+      "en": "Loading",
+      "zh-CN": "加载中"
+    },
+    "Error": {
+      "en": "Error",
+      "zh-CN": "错误"
+    },
+    "Preparing": {
+      "en": "Preparing",
+      "zh-CN": "准备中"
+    },
+    "FILES": {
+      "en": "FILES",
+      "zh-CN": "文件"
+    },
+    "Choose a project to browse its files.": {
+      "en": "Choose a project to browse its files.",
+      "zh-CN": "请选择项目以浏览文件。"
+    },
+    "Wait for the chat to open.": {
+      "en": "Wait for the chat to open.",
+      "zh-CN": "请等待聊天打开。"
+    },
+    "Use the exit fullscreen button to restore the workspace.": {
+      "en": "Use the exit fullscreen button to restore the workspace.",
+      "zh-CN": "请点击退出全屏按钮恢复工作区。"
+    },
+    "Unable to enter fullscreen. Please try again.": {
+      "en": "Unable to enter fullscreen. Please try again.",
+      "zh-CN": "无法进入全屏，请重试。"
+    },
+    "Open the Electron desktop app to inspect local files.": {
+      "en": "Open the Electron desktop app to inspect local files.",
+      "zh-CN": "请打开桌面应用以查看本地文件。"
+    },
+    "No project selected": {
+      "en": "No project selected",
+      "zh-CN": "未选择项目"
+    },
+    "Choose a vision model and enable Image input in Model API settings.": {
+      "en": "Choose a vision model and enable Image input in Model API settings.",
+      "zh-CN": "请选择视觉模型，并在模型 API 设置中启用图片输入。"
+    },
+    "Kimi is unavailable. Check its installation in Settings before running this task.": {
+      "en": "Kimi is unavailable. Check its installation in Settings before running this task.",
+      "zh-CN": "Kimi 不可用。请在设置中检查安装状态后再运行任务。"
+    },
+    "Configure the Model API in Settings before running this task. Your prompt has been kept.": {
+      "en": "Configure the Model API in Settings before running this task. Your prompt has been kept.",
+      "zh-CN": "请先在设置中配置模型 API。你输入的任务已保留。"
+    },
+    "Rejected": {
+      "en": "Rejected",
+      "zh-CN": "已拒绝"
+    },
+    "Approval expired": {
+      "en": "Approval expired",
+      "zh-CN": "审批已过期"
+    },
+    "Approved": {
+      "en": "Approved",
+      "zh-CN": "已批准"
+    },
+    "Approval requested ·": {
+      "en": "Approval requested ·",
+      "zh-CN": "请求审批 ·"
+    },
+    "Submitting…": {
+      "en": "Submitting…",
+      "zh-CN": "正在提交…"
+    },
+    "Approve": {
+      "en": "Approve",
+      "zh-CN": "批准"
+    },
+    "Reject": {
+      "en": "Reject",
+      "zh-CN": "拒绝"
+    },
+    "Question expired": {
+      "en": "Question expired",
+      "zh-CN": "提问已过期"
+    },
+    "Question skipped": {
+      "en": "Question skipped",
+      "zh-CN": "已跳过提问"
+    },
+    "Question answered": {
+      "en": "Question answered",
+      "zh-CN": "已回答"
+    },
+    "Agent asks you": {
+      "en": "Agent asks you",
+      "zh-CN": "Agent 向你提问"
+    },
+    "Other": {
+      "en": "Other",
+      "zh-CN": "自定义"
+    },
+    "Other answer for {0}": {
+      "en": "Other answer for {0}",
+      "zh-CN": "{0} 的自定义回答"
+    },
+    "Send answer": {
+      "en": "Send answer",
+      "zh-CN": "提交回答"
+    },
+    "Skip": {
+      "en": "Skip",
+      "zh-CN": "跳过"
+    },
+    "Engineering verification passed": {
+      "en": "Engineering verification passed",
+      "zh-CN": "工程验证通过"
+    },
+    "Engineering evidence is stale": {
+      "en": "Engineering evidence is stale",
+      "zh-CN": "工程证据已过期"
+    },
+    "Engineering verification failed": {
+      "en": "Engineering verification failed",
+      "zh-CN": "工程验证失败"
+    },
+    "Engineering evidence is insufficient": {
+      "en": "Engineering evidence is insufficient",
+      "zh-CN": "工程证据不足"
+    },
+    "Action": {
+      "en": "Action",
+      "zh-CN": "操作"
+    },
+    "· Checkpoint": {
+      "en": "· Checkpoint",
+      "zh-CN": "· 检查点"
+    },
+    "View agent log ·": {
+      "en": "View agent log ·",
+      "zh-CN": "查看 Agent 日志 ·"
+    },
+    "· Full recorded events": {
+      "en": "· Full recorded events",
+      "zh-CN": "· 完整事件记录"
+    },
+    "Tool failed": {
+      "en": "Tool failed",
+      "zh-CN": "工具执行失败"
+    },
+    "Tool finished": {
+      "en": "Tool finished",
+      "zh-CN": "工具执行完成"
+    },
+    "Using tool": {
+      "en": "Using tool",
+      "zh-CN": "正在使用工具"
+    },
+    "Input": {
+      "en": "Input",
+      "zh-CN": "输入"
+    },
+    "Result": {
+      "en": "Result",
+      "zh-CN": "结果"
+    },
+    "No arguments.": {
+      "en": "No arguments.",
+      "zh-CN": "无参数。"
+    },
+    "View full result in agent logs": {
+      "en": "View full result in agent logs",
+      "zh-CN": "在 Agent 日志中查看完整结果"
+    },
+    "Context": {
+      "en": "Context",
+      "zh-CN": "上下文"
+    },
+    "Turn": {
+      "en": "Turn",
+      "zh-CN": "轮次"
+    },
+    "· Output": {
+      "en": "· Output",
+      "zh-CN": "· 输出"
+    },
+    "tokens": {
+      "en": "tokens",
+      "zh-CN": "tokens"
+    },
+    "Peak context": {
+      "en": "Peak context",
+      "zh-CN": "上下文峰值"
+    },
+    "· Compressions": {
+      "en": "· Compressions",
+      "zh-CN": "· 压缩次数"
+    },
+    "· Tool results": {
+      "en": "· Tool results",
+      "zh-CN": "· 工具结果数"
+    },
+    "· Largest result": {
+      "en": "· Largest result",
+      "zh-CN": "· 最大结果"
+    },
+    "bytes": {
+      "en": "bytes",
+      "zh-CN": "字节"
+    },
+    "bytes.": {
+      "en": "bytes.",
+      "zh-CN": "字节。"
+    },
+    "Step": {
+      "en": "Step",
+      "zh-CN": "步骤"
+    },
+    "Display shortened; full result was": {
+      "en": "Display shortened; full result was",
+      "zh-CN": "显示已缩短；完整结果为"
+    },
+    "Complete record": {
+      "en": "Complete record",
+      "zh-CN": "完整记录"
+    },
+    "Bytes {0}–{1}": {
+      "en": "Bytes {0}–{1}",
+      "zh-CN": "字节 {0}–{1}"
+    },
+    "Previous part": {
+      "en": "Previous part",
+      "zh-CN": "上一段"
+    },
+    "Next part": {
+      "en": "Next part",
+      "zh-CN": "下一段"
+    },
+    "Close agent logs": {
+      "en": "Close agent logs",
+      "zh-CN": "关闭 Agent 日志"
+    },
+    "Refresh agent logs": {
+      "en": "Refresh agent logs",
+      "zh-CN": "刷新 Agent 日志"
+    },
+    "Agent run": {
+      "en": "Agent run",
+      "zh-CN": "Agent 运行"
+    },
+    "Agent log event type": {
+      "en": "Agent log event type",
+      "zh-CN": "Agent 日志事件类型"
+    },
+    "Find agent log event": {
+      "en": "Find agent log event",
+      "zh-CN": "搜索 Agent 日志"
+    },
+    "Previous": {
+      "en": "Previous",
+      "zh-CN": "上一页"
+    },
+    "Next": {
+      "en": "Next",
+      "zh-CN": "下一页"
+    },
+    "Event #{0} · {1}": {
+      "en": "Event #{0} · {1}",
+      "zh-CN": "事件 #{0} · {1}"
+    },
+    "Capability Broker ·": {
+      "en": "Capability Broker ·",
+      "zh-CN": "能力解析 ·"
+    },
+    "Scope": {
+      "en": "Scope",
+      "zh-CN": "范围"
+    },
+    "Selected capabilities": {
+      "en": "Selected capabilities",
+      "zh-CN": "已选择的能力"
+    },
+    "skills ·": {
+      "en": "skills ·",
+      "zh-CN": "项技能 ·"
+    },
+    "tools": {
+      "en": "tools",
+      "zh-CN": "个工具"
+    },
+    "capability": {
+      "en": "capability",
+      "zh-CN": "项能力"
+    },
+    "capabilities": {
+      "en": "capabilities",
+      "zh-CN": "项能力"
+    },
+    "No domain capability selected. Kimi can continue with its standard project tools.": {
+      "en": "No domain capability selected. Kimi can continue with its standard project tools.",
+      "zh-CN": "未选择领域能力。Kimi 可继续使用标准项目工具。"
+    },
+    "Disclosure log": {
+      "en": "Disclosure log",
+      "zh-CN": "能力披露日志"
+    },
+    "Application updates": {
+      "en": "Application updates",
+      "zh-CN": "应用更新"
+    },
+    "Application update": {
+      "en": "Application update",
+      "zh-CN": "应用更新"
+    },
+    "Core runtime and desktop application": {
+      "en": "Core runtime and desktop application",
+      "zh-CN": "核心运行时与桌面应用"
+    },
+    "Close application update": {
+      "en": "Close application update",
+      "zh-CN": "关闭应用更新"
+    },
+    "Finish running tasks before restarting.": {
+      "en": "Finish running tasks before restarting.",
+      "zh-CN": "请在任务结束后重启。"
+    },
+    "Check now": {
+      "en": "Check now",
+      "zh-CN": "立即检查"
+    },
+    "Close": {
+      "en": "Close",
+      "zh-CN": "关闭"
+    },
+    "Restart and install": {
+      "en": "Restart and install",
+      "zh-CN": "重启并安装"
+    },
+    "Application updates are available in installed builds.": {
+      "en": "Application updates are available in installed builds.",
+      "zh-CN": "安装版应用支持检查更新。"
+    },
+    "Check for an application update.": {
+      "en": "Check for an application update.",
+      "zh-CN": "检查应用是否有更新。"
+    },
+    "Checking for updates…": {
+      "en": "Checking for updates…",
+      "zh-CN": "正在检查更新…"
+    },
+    "The application is up to date.": {
+      "en": "The application is up to date.",
+      "zh-CN": "应用已是最新版本。"
+    },
+    "Version {0} is available. Downloading…": {
+      "en": "Version {0} is available. Downloading…",
+      "zh-CN": "发现版本 {0}，正在下载…"
+    },
+    "Downloading version {0} · {1}%": {
+      "en": "Downloading version {0} · {1}%",
+      "zh-CN": "正在下载版本 {0} · {1}%"
+    },
+    "Version {0} is ready. Restart to install.": {
+      "en": "Version {0} is ready. Restart to install.",
+      "zh-CN": "版本 {0} 已准备就绪，重启后安装。"
+    },
+    "Unable to check for updates.": {
+      "en": "Unable to check for updates.",
+      "zh-CN": "无法检查更新。"
+    },
+    "Create project": {
+      "en": "Create project",
+      "zh-CN": "创建项目"
+    },
+    "Choose a folder and a domain for this project.": {
+      "en": "Choose a folder and a domain for this project.",
+      "zh-CN": "为此项目选择目录和领域。"
+    },
+    "Close project creation": {
+      "en": "Close project creation",
+      "zh-CN": "关闭项目创建"
+    },
+    "Project name": {
+      "en": "Project name",
+      "zh-CN": "项目名称"
+    },
+    "Local directory": {
+      "en": "Local directory",
+      "zh-CN": "本地目录"
+    },
+    "Domain": {
+      "en": "Domain",
+      "zh-CN": "领域"
+    },
+    "New project domain": {
+      "en": "New project domain",
+      "zh-CN": "新项目领域"
+    },
+    "Cancel": {
+      "en": "Cancel",
+      "zh-CN": "取消"
+    },
+    "Choose folder…": {
+      "en": "Choose folder…",
+      "zh-CN": "选择目录…"
+    },
+    "Creating…": {
+      "en": "Creating…",
+      "zh-CN": "正在创建…"
+    },
+    "Manage domains": {
+      "en": "Manage domains",
+      "zh-CN": "管理领域"
+    },
+    "Choose your domains": {
+      "en": "Choose your domains",
+      "zh-CN": "选择领域"
+    },
+    "Select one or more domains to prepare the workspace.": {
+      "en": "Select one or more domains to prepare the workspace.",
+      "zh-CN": "选择一个或多个领域以准备工作区。"
+    },
+    "Add missing domains and install available updates.": {
+      "en": "Add missing domains and install available updates.",
+      "zh-CN": "添加所需领域并安装可用更新。"
+    },
+    "Close domain manager": {
+      "en": "Close domain manager",
+      "zh-CN": "关闭领域管理"
+    },
+    "Checking domains…": {
+      "en": "Checking domains…",
+      "zh-CN": "正在检查领域…"
+    },
+    "Catalog unavailable:": {
+      "en": "Catalog unavailable:",
+      "zh-CN": "领域目录不可用："
+    },
+    "Domain installation is available in packaged builds. Development resources are loaded from this repository.": {
+      "en": "Domain installation is available in packaged builds. Development resources are loaded from this repository.",
+      "zh-CN": "安装版应用支持安装领域包。开发版从当前仓库加载资源。"
+    },
+    "Install {0}": {
+      "en": "Install {0}",
+      "zh-CN": "安装 {0}"
+    },
+    "MB download": {
+      "en": "MB download",
+      "zh-CN": "MB 下载"
+    },
+    "Needs:": {
+      "en": "Needs:",
+      "zh-CN": "需要："
+    },
+    "All available domains are installed and up to date.": {
+      "en": "All available domains are installed and up to date.",
+      "zh-CN": "所有可用领域已安装且为最新版本。"
+    },
+    "Installed": {
+      "en": "Installed",
+      "zh-CN": "已安装"
+    },
+    "Remove": {
+      "en": "Remove",
+      "zh-CN": "移除"
+    },
+    "Finish the current task before changing domains.": {
+      "en": "Finish the current task before changing domains.",
+      "zh-CN": "请在当前任务结束后更改领域。"
+    },
+    "Skip for now": {
+      "en": "Skip for now",
+      "zh-CN": "暂时跳过"
+    },
+    "None": {
+      "en": "None",
+      "zh-CN": "无"
+    },
+    "No domain": {
+      "en": "No domain",
+      "zh-CN": "未选择领域"
+    },
+    "External MCP services": {
+      "en": "External MCP services",
+      "zh-CN": "外部 MCP 服务"
+    },
+    "Shared by Desktop and all domain CLI packages. Add a service you trust: local commands start programs, and computer-use services may control apps outside this project.": {
+      "en": "Shared by Desktop and all domain CLI packages. Add a service you trust: local commands start programs, and computer-use services may control apps outside this project.",
+      "zh-CN": "桌面端与所有领域 CLI 包共用。请添加可信服务：本地命令会启动程序，桌面操作服务可以控制项目之外的应用。"
+    },
+    "Loading external services…": {
+      "en": "Loading external services…",
+      "zh-CN": "正在加载外部服务…"
+    },
+    "Local": {
+      "en": "Local",
+      "zh-CN": "本地"
+    },
+    "Remote": {
+      "en": "Remote",
+      "zh-CN": "远程"
+    },
+    "Refresh tools": {
+      "en": "Refresh tools",
+      "zh-CN": "刷新工具"
+    },
+    "Add an MCP service": {
+      "en": "Add an MCP service",
+      "zh-CN": "添加 MCP 服务"
+    },
+    "Connection": {
+      "en": "Connection",
+      "zh-CN": "连接方式"
+    },
+    "Local command": {
+      "en": "Local command",
+      "zh-CN": "本地命令"
+    },
+    "Remote URL": {
+      "en": "Remote URL",
+      "zh-CN": "远程 URL"
+    },
+    "Import configuration": {
+      "en": "Import configuration",
+      "zh-CN": "导入配置"
+    },
+    "MCP configuration JSON": {
+      "en": "MCP configuration JSON",
+      "zh-CN": "MCP 配置 JSON"
+    },
+    "Name": {
+      "en": "Name",
+      "zh-CN": "名称"
+    },
+    "Command": {
+      "en": "Command",
+      "zh-CN": "命令"
+    },
+    "Absolute executable path or installed command": {
+      "en": "Absolute executable path or installed command",
+      "zh-CN": "可执行文件的绝对路径或已安装的命令"
+    },
+    "Arguments, one per line": {
+      "en": "Arguments, one per line",
+      "zh-CN": "参数，每行一个"
+    },
+    "Service URL": {
+      "en": "Service URL",
+      "zh-CN": "服务 URL"
+    },
+    "Use Import configuration for environment variables, authentication headers or legacy SSE connections. Adding or refreshing connects to the service to check its tools.": {
+      "en": "Use Import configuration for environment variables, authentication headers or legacy SSE connections. Adding or refreshing connects to the service to check its tools.",
+      "zh-CN": "环境变量、认证请求头或旧版 SSE 连接可通过导入配置设置。添加或刷新时会连接服务并检查工具。"
+    },
+    "Checking service…": {
+      "en": "Checking service…",
+      "zh-CN": "正在检查服务…"
+    },
+    "Add and check": {
+      "en": "Add and check",
+      "zh-CN": "添加并检查"
+    },
+    "Service added. It is now available in every domain; project settings can disable it.": {
+      "en": "Service added. It is now available in every domain; project settings can disable it.",
+      "zh-CN": "服务已添加，可在所有领域使用，也可在项目设置中禁用。"
+    },
+    "Tool snapshot refreshed. The next task will use a new scope.": {
+      "en": "Tool snapshot refreshed. The next task will use a new scope.",
+      "zh-CN": "工具列表已刷新，下一个任务将使用新的工具范围。"
+    },
+    "Refresh {0} tools": {
+      "en": "Refresh {0} tools",
+      "zh-CN": "刷新 {0} 的工具"
+    },
+    "Service removed from future tasks.": {
+      "en": "Service removed from future tasks.",
+      "zh-CN": "服务已移除，后续任务不再使用。"
+    },
+    "Remove {0}": {
+      "en": "Remove {0}",
+      "zh-CN": "移除 {0}"
+    },
+    "Image attachment files": {
+      "en": "Image attachment files",
+      "zh-CN": "图片附件文件"
+    },
+    "Attach images": {
+      "en": "Attach images",
+      "zh-CN": "添加图片"
+    },
+    "Attach images (or paste / drop a screenshot)": {
+      "en": "Attach images (or paste / drop a screenshot)",
+      "zh-CN": "添加图片（也可粘贴或拖入截图）"
+    },
+    "Remove image {0}": {
+      "en": "Remove image {0}",
+      "zh-CN": "移除图片 {0}"
+    },
+    "Unable to read {0}.": {
+      "en": "Unable to read {0}.",
+      "zh-CN": "无法读取 {0}。"
+    },
+    "Choose a project before attaching images.": {
+      "en": "Choose a project before attaching images.",
+      "zh-CN": "请先选择项目再添加图片。"
+    },
+    "Attach up to 4 images.": {
+      "en": "Attach up to 4 images.",
+      "zh-CN": "最多添加 4 张图片。"
+    },
+    "Supported image formats: PNG, JPEG and WebP.": {
+      "en": "Supported image formats: PNG, JPEG and WebP.",
+      "zh-CN": "支持的图片格式：PNG、JPEG 和 WebP。"
+    },
+    "Images must be at most 5 MB each and 10 MB combined.": {
+      "en": "Images must be at most 5 MB each and 10 MB combined.",
+      "zh-CN": "每张图片不能超过 5 MB，总计不能超过 10 MB。"
+    },
+    "This image is corrupt or cannot be decoded.": {
+      "en": "This image is corrupt or cannot be decoded.",
+      "zh-CN": "图片已损坏或无法解码。"
+    },
+    "Model API settings": {
+      "en": "Model API settings",
+      "zh-CN": "模型 API 设置"
+    },
+    "Connection settings for Kimi Code sessions in this app": {
+      "en": "Connection settings for Kimi Code sessions in this app",
+      "zh-CN": "此应用中 Kimi Code 会话的连接设置"
+    },
+    "Close settings": {
+      "en": "Close settings",
+      "zh-CN": "关闭设置"
+    },
+    "Provider": {
+      "en": "Provider",
+      "zh-CN": "服务商"
+    },
+    "OpenAI-compatible": {
+      "en": "OpenAI-compatible",
+      "zh-CN": "兼容 OpenAI"
+    },
+    "API base URL": {
+      "en": "API base URL",
+      "zh-CN": "API 地址"
+    },
+    "Model": {
+      "en": "Model",
+      "zh-CN": "模型"
+    },
+    "API key": {
+      "en": "API key",
+      "zh-CN": "API 密钥"
+    },
+    "Context size": {
+      "en": "Context size",
+      "zh-CN": "上下文长度"
+    },
+    "Thinking": {
+      "en": "Thinking",
+      "zh-CN": "思考"
+    },
+    "Thinking…": {
+      "en": "Thinking…",
+      "zh-CN": "思考中…"
+    },
+    "Image input": {
+      "en": "Image input",
+      "zh-CN": "图片输入"
+    },
+    "Model image input": {
+      "en": "Model image input",
+      "zh-CN": "模型图片输入"
+    },
+    "Auto": {
+      "en": "Auto",
+      "zh-CN": "自动"
+    },
+    "Enabled": {
+      "en": "Enabled",
+      "zh-CN": "已启用"
+    },
+    "Disabled": {
+      "en": "Disabled",
+      "zh-CN": "已禁用"
+    },
+    "Auto recognizes verified model/API combinations. For other vision models choose Enabled; this declares support and does not add vision to a text-only model.": {
+      "en": "Auto recognizes verified model/API combinations. For other vision models choose Enabled; this declares support and does not add vision to a text-only model.",
+      "zh-CN": "自动模式会识别已验证的模型与 API 组合。其他视觉模型请选择启用；此设置只声明图片能力，无法让纯文本模型识图。"
+    },
+    "Remove key": {
+      "en": "Remove key",
+      "zh-CN": "移除密钥"
+    },
+    "Saving…": {
+      "en": "Saving…",
+      "zh-CN": "正在保存…"
+    },
+    "Save": {
+      "en": "Save",
+      "zh-CN": "保存"
+    },
+    "API key removed.": {
+      "en": "API key removed.",
+      "zh-CN": "API 密钥已移除。"
+    },
+    "Model settings saved.": {
+      "en": "Model settings saved.",
+      "zh-CN": "模型设置已保存。"
+    },
+    "Saved · enter a new key to replace": {
+      "en": "Saved · enter a new key to replace",
+      "zh-CN": "已保存 · 输入新密钥以替换"
+    },
+    "Enter API key": {
+      "en": "Enter API key",
+      "zh-CN": "输入 API 密钥"
+    },
+    "API key is stored using your OS credential protection.": {
+      "en": "API key is stored using your OS credential protection.",
+      "zh-CN": "API 密钥通过操作系统凭据保护功能保存。"
+    },
+    "API key is available for this app session only.": {
+      "en": "API key is available for this app session only.",
+      "zh-CN": "API 密钥仅在本次应用会话中有效。"
+    },
+    "An API key is required to run a Kimi turn.": {
+      "en": "An API key is required to run a Kimi turn.",
+      "zh-CN": "运行 Kimi 需要 API 密钥。"
+    },
+    "Project details": {
+      "en": "Project details",
+      "zh-CN": "项目详情"
+    },
+    "Project domain": {
+      "en": "Project domain",
+      "zh-CN": "项目领域"
+    },
+    "Select a domain": {
+      "en": "Select a domain",
+      "zh-CN": "选择领域"
+    },
+    "Select and save a domain to start a chat.": {
+      "en": "Select and save a domain to start a chat.",
+      "zh-CN": "选择并保存领域后即可开始聊天。"
+    },
+    "Changes apply to new sessions.": {
+      "en": "Changes apply to new sessions.",
+      "zh-CN": "更改将在新会话中生效。"
+    },
+    "Stop the current task to change resources.": {
+      "en": "Stop the current task to change resources.",
+      "zh-CN": "请先停止当前任务再更改资源。"
+    },
+    "Loading resources…": {
+      "en": "Loading resources…",
+      "zh-CN": "正在加载资源…"
+    },
+    "Global MCP and Skill settings": {
+      "en": "Global MCP and Skill settings",
+      "zh-CN": "全局 MCP 与技能设置"
+    },
+    "Global resources": {
+      "en": "Global resources",
+      "zh-CN": "全局资源"
+    },
+    "MCP and Skill defaults": {
+      "en": "MCP and Skill defaults",
+      "zh-CN": "MCP 与技能默认配置"
+    },
+    "Close resource settings": {
+      "en": "Close resource settings",
+      "zh-CN": "关闭资源设置"
+    },
+    "Project MCP and Skills": {
+      "en": "Project MCP and Skills",
+      "zh-CN": "项目 MCP 与技能"
+    },
+    "Global MCP and Skills": {
+      "en": "Global MCP and Skills",
+      "zh-CN": "全局 MCP 与技能"
+    },
+    "Project overrides take priority over global defaults. Choose Inherit to follow the global setting.": {
+      "en": "Project overrides take priority over global defaults. Choose Inherit to follow the global setting.",
+      "zh-CN": "项目配置优先于全局默认值。选择继承即可跟随全局配置。"
+    },
+    "Defaults for all projects. Each project can override these settings.": {
+      "en": "Defaults for all projects. Each project can override these settings.",
+      "zh-CN": "所有项目的默认配置。每个项目均可单独覆盖。"
+    },
+    "Skills": {
+      "en": "Skills",
+      "zh-CN": "技能"
+    },
+    "MCP servers": {
+      "en": "MCP servers",
+      "zh-CN": "MCP 服务"
+    },
+    "No Skills are bundled for this domain.": {
+      "en": "No Skills are bundled for this domain.",
+      "zh-CN": "此领域尚未包含内置技能。"
+    },
+    "No default domain MCP servers are bundled yet.": {
+      "en": "No default domain MCP servers are bundled yet.",
+      "zh-CN": "此领域尚未包含默认 MCP 服务。"
+    },
+    "{0} project setting": {
+      "en": "{0} project setting",
+      "zh-CN": "{0} 的项目配置"
+    },
+    "{0} global default": {
+      "en": "{0} global default",
+      "zh-CN": "{0} 的全局默认配置"
+    },
+    "Global: {0}": {
+      "en": "Global: {0}",
+      "zh-CN": "全局：{0}"
+    },
+    "Inherit ({0})": {
+      "en": "Inherit ({0})",
+      "zh-CN": "继承（{0}）"
+    },
+    "Agent todo list": {
+      "en": "Agent todo list",
+      "zh-CN": "Agent 待办列表"
+    },
+    "Todo": {
+      "en": "Todo",
+      "zh-CN": "待办"
+    },
+    "全部事件": {
+      "en": "All events",
+      "zh-CN": "全部事件"
+    },
+    "工具事件": {
+      "en": "Tool events",
+      "zh-CN": "工具事件"
+    },
+    "上下文与压缩": {
+      "en": "Context and compaction",
+      "zh-CN": "上下文与压缩"
+    },
+    "思考": {
+      "en": "Thinking",
+      "zh-CN": "思考"
+    },
+    "审批": {
+      "en": "Approvals",
+      "zh-CN": "审批"
+    },
+    "运行与会话": {
+      "en": "Runs and sessions",
+      "zh-CN": "运行与会话"
+    },
+    "界面事件": {
+      "en": "UI events",
+      "zh-CN": "界面事件"
+    },
+    "时间线": {
+      "en": "Timeline",
+      "zh-CN": "时间线"
+    },
+    "上下文": {
+      "en": "Context",
+      "zh-CN": "上下文"
+    },
+    "工具调用": {
+      "en": "Tool calls",
+      "zh-CN": "工具调用"
+    },
+    "进行中": {
+      "en": "Running",
+      "zh-CN": "进行中"
+    },
+    "成功": {
+      "en": "Succeeded",
+      "zh-CN": "成功"
+    },
+    "失败": {
+      "en": "Failed",
+      "zh-CN": "失败"
+    },
+    "状态未记录": {
+      "en": "Status not recorded",
+      "zh-CN": "状态未记录"
+    },
+    "未记录返回": {
+      "en": "Result not recorded",
+      "zh-CN": "未记录返回"
+    },
+    "已完成": {
+      "en": "Completed",
+      "zh-CN": "已完成"
+    },
+    "已中断": {
+      "en": "Interrupted",
+      "zh-CN": "已中断"
+    },
+    "已取消": {
+      "en": "Cancelled",
+      "zh-CN": "已取消"
+    },
+    "正在读取…": {
+      "en": "Reading…",
+      "zh-CN": "正在读取…"
+    },
+    "bytes ·": {
+      "en": "bytes ·",
+      "zh-CN": "字节 ·"
+    },
+    "· 当前为部分内容": {
+      "en": "· Partial content",
+      "zh-CN": "· 当前为部分内容"
+    },
+    "事件 #": {
+      "en": "Event #",
+      "zh-CN": "事件 #"
+    },
+    "关联原始事件 ·": {
+      "en": "Related raw events ·",
+      "zh-CN": "关联原始事件 ·"
+    },
+    "条": {
+      "en": "entries",
+      "zh-CN": "条"
+    },
+    "上下文占用": {
+      "en": "Context usage",
+      "zh-CN": "上下文占用"
+    },
+    "输入": {
+      "en": "Input",
+      "zh-CN": "输入"
+    },
+    "输出": {
+      "en": "Output",
+      "zh-CN": "输出"
+    },
+    "Agent 运行日志": {
+      "en": "Agent run logs",
+      "zh-CN": "Agent 运行日志"
+    },
+    "· 查看执行过程、上下文和工具结果": {
+      "en": "· Inspect execution, context and tool results",
+      "zh-CN": "· 查看执行过程、上下文和工具结果"
+    },
+    "历史运行": {
+      "en": "Run history",
+      "zh-CN": "历史运行"
+    },
+    "刷新": {
+      "en": "Refresh",
+      "zh-CN": "刷新"
+    },
+    "暂无日志。在项目中运行任务后即可查看。": {
+      "en": "No logs yet. Run a task in this project to see logs.",
+      "zh-CN": "暂无日志。在项目中运行任务后即可查看。"
+    },
+    "显示最近 50 次运行。": {
+      "en": "Showing the 50 most recent runs.",
+      "zh-CN": "显示最近 50 次运行。"
+    },
+    "日志视图": {
+      "en": "Log views",
+      "zh-CN": "日志视图"
+    },
+    "原始事件": {
+      "en": "Raw events",
+      "zh-CN": "原始事件"
+    },
+    "次压缩": {
+      "en": "compactions",
+      "zh-CN": "次压缩"
+    },
+    "事件类型": {
+      "en": "Event type",
+      "zh-CN": "事件类型"
+    },
+    "正在加载…": {
+      "en": "Loading…",
+      "zh-CN": "正在加载…"
+    },
+    "耗时": {
+      "en": "Duration",
+      "zh-CN": "耗时"
+    },
+    "秒": {
+      "en": "seconds",
+      "zh-CN": "秒"
+    },
+    "查看该步上下文 →": {
+      "en": "View step context →",
+      "zh-CN": "查看该步上下文 →"
+    },
+    "查看工具调用 →": {
+      "en": "View tool call →",
+      "zh-CN": "查看工具调用 →"
+    },
+    "回到时间线 →": {
+      "en": "Back to timeline →",
+      "zh-CN": "回到时间线 →"
+    },
+    "未保存可对应此步骤的上下文边界。可在“上下文”查看本轮输入与现有会话快照。": {
+      "en": "No context boundary was saved for this step. Open Context to inspect this turn's input and available session snapshots.",
+      "zh-CN": "未保存可对应此步骤的上下文边界。可在“上下文”查看本轮输入与现有会话快照。"
+    },
+    "运行已结束，但日志没有记录这次调用的返回。": {
+      "en": "The run has ended, but no result was recorded for this call.",
+      "zh-CN": "运行已结束，但日志没有记录这次调用的返回。"
+    },
+    "选择一条记录查看完整内容。": {
+      "en": "Select a record to view its full content.",
+      "zh-CN": "选择一条记录查看完整内容。"
+    },
+    "只读日志 · 运行中自动刷新 · Esc 关闭": {
+      "en": "Read-only logs · Refreshes while running · Esc to close",
+      "zh-CN": "只读日志 · 运行中自动刷新 · Esc 关闭"
+    },
+    "指定运行不在可用日志中，请选择其他运行。": {
+      "en": "The requested run is not in the available logs. Select another run.",
+      "zh-CN": "指定运行不在可用日志中，请选择其他运行。"
+    },
+    "这条关联记录当前不可用。": {
+      "en": "This related record is currently unavailable.",
+      "zh-CN": "这条关联记录当前不可用。"
+    },
+    "Running · 进行中": {
+      "en": "Running",
+      "zh-CN": "Running · 进行中"
+    },
+    "未记录结束": {
+      "en": "End not recorded",
+      "zh-CN": "未记录结束"
+    },
+    "上下文占用未记录": {
+      "en": "Context usage not recorded",
+      "zh-CN": "上下文占用未记录"
+    },
+    "执行顺序": {
+      "en": "Execution order",
+      "zh-CN": "执行顺序"
+    },
+    "上下文来源与模型步骤": {
+      "en": "Context sources and model steps",
+      "zh-CN": "上下文来源与模型步骤"
+    },
+    "调用与返回成对展示": {
+      "en": "Paired tool calls and results",
+      "zh-CN": "调用与返回成对展示"
+    },
+    "底层调试记录": {
+      "en": "Raw diagnostic records",
+      "zh-CN": "底层调试记录"
+    },
+    "搜索工具名、参数或调用 ID": {
+      "en": "Search tool names, arguments or call IDs",
+      "zh-CN": "搜索工具名、参数或调用 ID"
+    },
+    "搜索记录": {
+      "en": "Search records",
+      "zh-CN": "搜索记录"
+    },
+    "你": {
+      "en": "You",
+      "zh-CN": "你"
+    },
+    "没有可用的上下文记录。旧日志可能没有保存上下文快照。": {
+      "en": "No context records available. Older logs may not include context snapshots.",
+      "zh-CN": "没有可用的上下文记录。旧日志可能没有保存上下文快照。"
+    },
+    "没有匹配的记录。": {
+      "en": "No matching records.",
+      "zh-CN": "没有匹配的记录。"
+    },
+    "记录详情": {
+      "en": "Record details",
+      "zh-CN": "记录详情"
+    },
+    "{0} 条原始事件": {
+      "en": "{0} raw events",
+      "zh-CN": "{0} 条原始事件"
+    },
+    "{0} 条原始事件 → {1} 条时间线记录": {
+      "en": "{0} raw events → {1} timeline entries",
+      "zh-CN": "{0} 条原始事件 → {1} 条时间线记录"
+    },
+    "{0} 条记录": {
+      "en": "{0} records",
+      "zh-CN": "{0} 条记录"
+    },
+    " · {0} 秒": {
+      "en": " · {0} seconds",
+      "zh-CN": " · {0} 秒"
+    },
+    " · 上下文 {0}%": {
+      "en": " · Context {0}%",
+      "zh-CN": " · 上下文 {0}%"
+    },
+    "Peak context {0}%": {
+      "en": "Peak context {0}%",
+      "zh-CN": "上下文峰值 {0}%"
+    },
+    "compacting…": {
+      "en": "compacting…",
+      "zh-CN": "正在压缩…"
+    },
+    "compacted": {
+      "en": "compacted",
+      "zh-CN": "已压缩"
+    },
+    "completed": {
+      "en": "completed",
+      "zh-CN": "已完成"
+    },
+    "cancelled": {
+      "en": "cancelled",
+      "zh-CN": "已取消"
+    },
+    "interrupted": {
+      "en": "interrupted",
+      "zh-CN": "已中断"
+    },
+    "error": {
+      "en": "error",
+      "zh-CN": "错误"
+    },
+    "needs_input": {
+      "en": "needs input",
+      "zh-CN": "等待输入"
+    },
+    "Chip": {
+      "en": "Chip",
+      "zh-CN": "芯片"
+    },
+    "运行配置": {
+      "en": "Run configuration",
+      "zh-CN": "运行配置"
+    },
+    "模型": {
+      "en": "Model",
+      "zh-CN": "模型"
+    },
+    "Broker 工具与 Skill 范围": {
+      "en": "Broker tool and Skill scope",
+      "zh-CN": "Broker 工具与 Skill 范围"
+    },
+    "能力选择依据": {
+      "en": "Capability selection evidence",
+      "zh-CN": "能力选择依据"
+    },
+    "用户输入": {
+      "en": "User input",
+      "zh-CN": "用户输入"
+    },
+    "用户消息": {
+      "en": "User message",
+      "zh-CN": "用户消息"
+    },
+    "本轮 SDK 输入": {
+      "en": "SDK input for this turn",
+      "zh-CN": "本轮 SDK 输入"
+    },
+    "完整送入 SDK 的提示": {
+      "en": "Full prompt sent to the SDK",
+      "zh-CN": "完整送入 SDK 的提示"
+    },
+    "项目观察与 Checkpoint": {
+      "en": "Project observation and checkpoint",
+      "zh-CN": "项目观察与 Checkpoint"
+    },
+    "传入的项目观察": {
+      "en": "Supplied project observation",
+      "zh-CN": "传入的项目观察"
+    },
+    "模型回复": {
+      "en": "Model response",
+      "zh-CN": "模型回复"
+    },
+    "模型思考": {
+      "en": "Model thinking",
+      "zh-CN": "模型思考"
+    },
+    "完整回复": {
+      "en": "Full response",
+      "zh-CN": "完整回复"
+    },
+    "未知工具": {
+      "en": "Unknown tool",
+      "zh-CN": "未知工具"
+    },
+    "调用参数": {
+      "en": "Call arguments",
+      "zh-CN": "调用参数"
+    },
+    "未记录请求的工具结果": {
+      "en": "Tool result without a recorded call",
+      "zh-CN": "未记录请求的工具结果"
+    },
+    "返回结果": {
+      "en": "Returned result",
+      "zh-CN": "返回结果"
+    },
+    "结果说明": {
+      "en": "Result message",
+      "zh-CN": "结果说明"
+    },
+    "补充展示": {
+      "en": "Additional display",
+      "zh-CN": "补充展示"
+    },
+    "记录内容": {
+      "en": "Recorded content",
+      "zh-CN": "记录内容"
+    },
+    "审批决定": {
+      "en": "Approval decision",
+      "zh-CN": "审批决定"
+    },
+    "用户回答": {
+      "en": "User answer",
+      "zh-CN": "用户回答"
+    },
+    "任务中断": {
+      "en": "Task interrupted",
+      "zh-CN": "任务中断"
+    },
+    "运行错误": {
+      "en": "Run error",
+      "zh-CN": "运行错误"
+    },
+    "运行结束": {
+      "en": "Run ended",
+      "zh-CN": "运行结束"
+    },
+    "运行结果": {
+      "en": "Run result",
+      "zh-CN": "运行结果"
+    },
+    "会话上下文快照读取失败": {
+      "en": "Unable to read the session context snapshot",
+      "zh-CN": "会话上下文快照读取失败"
+    },
+    "读取错误": {
+      "en": "Read error",
+      "zh-CN": "读取错误"
+    },
+    "模型第 {0} 步": {
+      "en": "Model step {0}",
+      "zh-CN": "模型第 {0} 步"
+    },
+    "结束时会话上下文 · {0} 条消息": {
+      "en": "Final session context · {0} messages",
+      "zh-CN": "结束时会话上下文 · {0} 条消息"
+    },
+    "{0} · {1} 条上下文消息": {
+      "en": "{0} · {1} context messages",
+      "zh-CN": "{0} · {1} 条上下文消息"
+    },
+    "来自 Kimi 原生 context.jsonl 快照。包含保存的系统指令与消息；工具定义及完整 HTTP 请求未由该快照提供。": {
+      "en": "From the native Kimi context.jsonl snapshot. Includes saved system instructions and messages; tool definitions and full HTTP requests are not provided by this snapshot.",
+      "zh-CN": "来自 Kimi 原生 context.jsonl 快照。包含保存的系统指令与消息；工具定义及完整 HTTP 请求未由该快照提供。"
+    },
+    "按 Kimi 原生 Checkpoint 边界展示保存的上下文，不包含这一步之后的回复和工具结果。工具定义及完整 HTTP 请求未记录。": {
+      "en": "Saved context at the native Kimi checkpoint boundary. Later responses and tool results are excluded. Tool definitions and full HTTP requests were not recorded.",
+      "zh-CN": "按 Kimi 原生 Checkpoint 边界展示保存的上下文，不包含这一步之后的回复和工具结果。工具定义及完整 HTTP 请求未记录。"
+    },
+    "Images sent to the model: {0}": {
+      "en": "Images sent to the model: {0}",
+      "zh-CN": "已发送给模型的图片：{0}"
+    },
+    "系统指令": {
+      "en": "System instructions",
+      "zh-CN": "系统指令"
+    },
+    "系统消息": {
+      "en": "System message",
+      "zh-CN": "系统消息"
+    },
+    "模型消息": {
+      "en": "Model message",
+      "zh-CN": "模型消息"
+    },
+    "available": {
+      "en": "available",
+      "zh-CN": "可用"
+    },
+    "unavailable": {
+      "en": "unavailable",
+      "zh-CN": "不可用"
+    },
+    "Reset": {
+      "en": "Reset",
+      "zh-CN": "重置"
+    },
+    "Pause animation": {
+      "en": "Pause animation",
+      "zh-CN": "暂停动画"
+    },
+    "Play animation": {
+      "en": "Play animation",
+      "zh-CN": "播放动画"
+    },
+    "Pause": {
+      "en": "Pause",
+      "zh-CN": "暂停"
+    },
+    "Play": {
+      "en": "Play",
+      "zh-CN": "播放"
+    },
+    "Previous animation frame": {
+      "en": "Previous animation frame",
+      "zh-CN": "上一动画帧"
+    },
+    "Next animation frame": {
+      "en": "Next animation frame",
+      "zh-CN": "下一动画帧"
+    },
+    "Speed": {
+      "en": "Speed",
+      "zh-CN": "速度"
+    },
+    "Animation speed": {
+      "en": "Animation speed",
+      "zh-CN": "动画速度"
+    },
+    "Loop": {
+      "en": "Loop",
+      "zh-CN": "循环"
+    },
+    "Frame": {
+      "en": "Frame",
+      "zh-CN": "帧"
+    },
+    "Animation frame": {
+      "en": "Animation frame",
+      "zh-CN": "动画帧"
+    },
+    "Columns": {
+      "en": "Columns",
+      "zh-CN": "列"
+    },
+    "Sprite columns": {
+      "en": "Sprite columns",
+      "zh-CN": "精灵列数"
+    },
+    "Rows": {
+      "en": "Rows",
+      "zh-CN": "行"
+    },
+    "Sprite rows": {
+      "en": "Sprite rows",
+      "zh-CN": "精灵行数"
+    },
+    "Asset viewer mode": {
+      "en": "Asset viewer mode",
+      "zh-CN": "素材查看模式"
+    },
+    "Background": {
+      "en": "Background",
+      "zh-CN": "背景"
+    },
+    "Asset background": {
+      "en": "Asset background",
+      "zh-CN": "素材背景"
+    },
+    "Checkerboard": {
+      "en": "Checkerboard",
+      "zh-CN": "棋盘格"
+    },
+    "Pixelated": {
+      "en": "Pixelated",
+      "zh-CN": "像素显示"
+    },
+    "Texture": {
+      "en": "Texture",
+      "zh-CN": "纹理"
+    },
+    "Asset texture": {
+      "en": "Asset texture",
+      "zh-CN": "素材纹理"
+    },
+    "Loading image…": {
+      "en": "Loading image…",
+      "zh-CN": "正在加载图片…"
+    },
+    "Sprite frame": {
+      "en": "Sprite frame",
+      "zh-CN": "精灵帧"
+    },
+    "Invalid sprite grid.": {
+      "en": "Invalid sprite grid.",
+      "zh-CN": "精灵网格无效。"
+    },
+    "Animation action": {
+      "en": "Animation action",
+      "zh-CN": "动画动作"
+    },
+    "Manual range": {
+      "en": "Manual range",
+      "zh-CN": "手动范围"
+    },
+    "First": {
+      "en": "First",
+      "zh-CN": "起始"
+    },
+    "Animation first frame": {
+      "en": "Animation first frame",
+      "zh-CN": "动画起始帧"
+    },
+    "Last": {
+      "en": "Last",
+      "zh-CN": "结束"
+    },
+    "Animation last frame": {
+      "en": "Animation last frame",
+      "zh-CN": "动画结束帧"
+    },
+    "Animation FPS": {
+      "en": "Animation FPS",
+      "zh-CN": "动画帧率"
+    },
+    "Manual preview; does not modify the project.": {
+      "en": "Manual preview; does not modify the project.",
+      "zh-CN": "手动预览，不会修改项目。"
+    },
+    "Choose a valid grid, frame range and FPS.": {
+      "en": "Choose a valid grid, frame range and FPS.",
+      "zh-CN": "请选择有效的网格、帧范围和帧率。"
+    },
+    "· Scroll or pinch to zoom · Drag to pan": {
+      "en": "· Scroll or pinch to zoom · Drag to pan",
+      "zh-CN": "· 滚轮或双指缩放 · 拖动平移"
+    },
+    "Sprite sheet; click a cell to select a frame": {
+      "en": "Sprite sheet; click a cell to select a frame",
+      "zh-CN": "精灵图集；点击单元格选择帧"
+    },
+    "Image preview": {
+      "en": "Image preview",
+      "zh-CN": "图片预览"
+    },
+    "Image dimensions changed.": {
+      "en": "Image dimensions changed.",
+      "zh-CN": "图片尺寸已变化。"
+    },
+    "Unable to decode {0}.": {
+      "en": "Unable to decode {0}.",
+      "zh-CN": "无法解码 {0}。"
+    },
+    "Image": {
+      "en": "Image",
+      "zh-CN": "图片"
+    },
+    "Sprite sheet": {
+      "en": "Sprite sheet",
+      "zh-CN": "精灵图集"
+    },
+    "Animation": {
+      "en": "Animation",
+      "zh-CN": "动画"
+    },
+    "{0} frames · {1} × {2} px": {
+      "en": "{0} frames · {1} × {2} px",
+      "zh-CN": "{0} 帧 · {1} × {2} 像素"
+    },
+    "Choose an evenly divisible grid, up to 4096 cells.": {
+      "en": "Choose an evenly divisible grid, up to 4096 cells.",
+      "zh-CN": "请选择可整除图片尺寸的网格，最多 4096 个单元格。"
+    },
+    "{0} imported actions": {
+      "en": "{0} imported actions",
+      "zh-CN": "{0} 个导入动作"
+    },
+    "Manual sprite configuration": {
+      "en": "Manual sprite configuration",
+      "zh-CN": "手动精灵配置"
+    },
+    "Markdown preview unavailable:": {
+      "en": "Markdown preview unavailable:",
+      "zh-CN": "Markdown 预览不可用："
+    },
+    ". Original source follows.": {
+      "en": ". Original source follows.",
+      "zh-CN": "。以下为原文。"
+    },
+    "Preparing Markdown…": {
+      "en": "Preparing Markdown…",
+      "zh-CN": "正在准备 Markdown…"
+    },
+    "Document mode": {
+      "en": "Document mode",
+      "zh-CN": "文档模式"
+    },
+    "Preview": {
+      "en": "Preview",
+      "zh-CN": "预览"
+    },
+    "Source": {
+      "en": "Source",
+      "zh-CN": "原文"
+    },
+    "Find": {
+      "en": "Find",
+      "zh-CN": "搜索"
+    },
+    "Find in document": {
+      "en": "Find in document",
+      "zh-CN": "在文档中搜索"
+    },
+    "Wheel to zoom · Shift+wheel to scroll": {
+      "en": "Wheel to zoom · Shift+wheel to scroll",
+      "zh-CN": "滚轮缩放 · Shift+滚轮滚动"
+    },
+    "Cannot preview": {
+      "en": "Cannot preview",
+      "zh-CN": "无法预览"
+    },
+    ". Original source is available.": {
+      "en": ". Original source is available.",
+      "zh-CN": "。可查看原文。"
+    },
+    "records · 20 per page": {
+      "en": "records · 20 per page",
+      "zh-CN": "条记录 · 每页 20 条"
+    },
+    "No records.": {
+      "en": "No records.",
+      "zh-CN": "暂无记录。"
+    },
+    "Document pages": {
+      "en": "Document pages",
+      "zh-CN": "文档分页"
+    },
+    "Page": {
+      "en": "Page",
+      "zh-CN": "页"
+    },
+    "First row is header": {
+      "en": "First row is header",
+      "zh-CN": "首行为表头"
+    },
+    "rows ·": {
+      "en": "rows ·",
+      "zh-CN": "行 ·"
+    },
+    "columns": {
+      "en": "columns",
+      "zh-CN": "列"
+    },
+    "Rows have different column counts. Missing cells are shown as —.": {
+      "en": "Rows have different column counts. Missing cells are shown as —.",
+      "zh-CN": "各行列数不同，缺失单元格显示为 —。"
+    },
+    "Row": {
+      "en": "Row",
+      "zh-CN": "行"
+    },
+    "Missing cell": {
+      "en": "Missing cell",
+      "zh-CN": "缺失单元格"
+    },
+    "No matching rows.": {
+      "en": "No matching rows.",
+      "zh-CN": "没有匹配的行。"
+    },
+    "Wrap lines": {
+      "en": "Wrap lines",
+      "zh-CN": "自动换行"
+    },
+    "lines": {
+      "en": "lines",
+      "zh-CN": "行"
+    },
+    "No matching lines.": {
+      "en": "No matching lines.",
+      "zh-CN": "没有匹配的行。"
+    },
+    "Table": {
+      "en": "Table",
+      "zh-CN": "表格"
+    },
+    "Text": {
+      "en": "Text",
+      "zh-CN": "文本"
+    },
+    "{0}… (see Source)": {
+      "en": "{0}… (see Source)",
+      "zh-CN": "{0}…（查看原文）"
+    },
+    "Array [{0}]": {
+      "en": "Array [{0}]",
+      "zh-CN": "数组 [{0}]"
+    },
+    "Object {{0}}": {
+      "en": "Object {{0}}",
+      "zh-CN": "对象 {{0}}"
+    },
+    "Line {0}": {
+      "en": "Line {0}",
+      "zh-CN": "第 {0} 行"
+    },
+    "embedded image": {
+      "en": "embedded image",
+      "zh-CN": "嵌入图片"
+    },
+    "This binary file has no text source preview.": {
+      "en": "This binary file has no text source preview.",
+      "zh-CN": "此二进制文件无法预览文本原文。"
+    },
+    "lines · first 1,000 displayed": {
+      "en": "lines · first 1,000 displayed",
+      "zh-CN": "行 · 显示前 1,000 行"
+    },
+    "· Read only": {
+      "en": "· Read only",
+      "zh-CN": "· 只读"
+    },
+    "Open in app": {
+      "en": "Open in app",
+      "zh-CN": "在应用中打开"
+    },
+    "· Wheel or pinch to zoom": {
+      "en": "· Wheel or pinch to zoom",
+      "zh-CN": "· 滚轮或双指缩放"
+    },
+    "Find engineering item": {
+      "en": "Find engineering item",
+      "zh-CN": "搜索工程条目"
+    },
+    "Structure": {
+      "en": "Structure",
+      "zh-CN": "结构"
+    },
+    "References": {
+      "en": "References",
+      "zh-CN": "引用"
+    },
+    "Audio preview": {
+      "en": "Audio preview",
+      "zh-CN": "音频预览"
+    },
+    "Display limited to the first 12,000 visible primitives.": {
+      "en": "Display limited to the first 12,000 visible primitives.",
+      "zh-CN": "仅显示前 12,000 个可见图元。"
+    },
+    "· source line": {
+      "en": "· source line",
+      "zh-CN": "· 原文行号"
+    },
+    "No structured items found. Open Source for the original file.": {
+      "en": "No structured items found. Open Source for the original file.",
+      "zh-CN": "未找到结构化条目，请打开原文查看文件。"
+    },
+    "Show {0}": {
+      "en": "Show {0}",
+      "zh-CN": "显示 {0}"
+    },
+    "Scene:": {
+      "en": "Scene:",
+      "zh-CN": "场景："
+    },
+    "Stop": {
+      "en": "Stop",
+      "zh-CN": "停止"
+    },
+    "Step frame": {
+      "en": "Step frame",
+      "zh-CN": "步进一帧"
+    },
+    "Camera": {
+      "en": "Camera",
+      "zh-CN": "相机"
+    },
+    "Scene Tree": {
+      "en": "Scene Tree",
+      "zh-CN": "场景树"
+    },
+    "Inspect ·": {
+      "en": "Inspect ·",
+      "zh-CN": "检查 ·"
+    },
+    "Godot Runtime View": {
+      "en": "Godot Runtime View",
+      "zh-CN": "Godot 运行视图"
+    },
+    "Runtime State": {
+      "en": "Runtime State",
+      "zh-CN": "运行状态"
+    },
+    "Requires a runtime-specific overlay provider": {
+      "en": "Requires a runtime-specific overlay provider",
+      "zh-CN": "需要专用运行时叠加层"
+    },
+    "Loading Godot Web Export…": {
+      "en": "Loading Godot Web Export…",
+      "zh-CN": "正在加载 Godot Web 导出…"
+    },
+    "Godot runtime did not connect. Check the export and HarnessViewerBridge autoload.": {
+      "en": "Godot runtime did not connect. Check the export and HarnessViewerBridge autoload.",
+      "zh-CN": "Godot 运行时未连接，请检查导出和 HarnessViewerBridge 自动加载设置。"
+    },
+    "Waiting for HarnessViewerBridge autoload…": {
+      "en": "Waiting for HarnessViewerBridge autoload…",
+      "zh-CN": "正在等待 HarnessViewerBridge 自动加载…"
+    },
+    "Godot command failed.": {
+      "en": "Godot command failed.",
+      "zh-CN": "Godot 命令失败。"
+    },
+    "Godot view closed.": {
+      "en": "Godot view closed.",
+      "zh-CN": "Godot 视图已关闭。"
+    },
+    "Godot view is unavailable.": {
+      "en": "Godot view is unavailable.",
+      "zh-CN": "Godot 视图不可用。"
+    },
+    "Godot command timed out.": {
+      "en": "Godot command timed out.",
+      "zh-CN": "Godot 命令超时。"
+    },
+    "No active scene": {
+      "en": "No active scene",
+      "zh-CN": "没有活动场景"
+    },
+    "Waiting for runtime…": {
+      "en": "Waiting for runtime…",
+      "zh-CN": "正在等待运行时…"
+    },
+    "Fit the entire drawing sheet": {
+      "en": "Fit the entire drawing sheet",
+      "zh-CN": "适应整个图纸"
+    },
+    "Whole page": {
+      "en": "Whole page",
+      "zh-CN": "整页"
+    },
+    "Scroll or pinch to zoom · Middle/right drag to pan": {
+      "en": "Scroll or pinch to zoom · Middle/right drag to pan",
+      "zh-CN": "滚轮或双指缩放 · 中键或右键拖动平移"
+    },
+    "KiCad document viewer": {
+      "en": "KiCad document viewer",
+      "zh-CN": "KiCad 文档查看器"
+    },
+    "Loading KiCad document…": {
+      "en": "Loading KiCad document…",
+      "zh-CN": "正在加载 KiCad 文档…"
+    },
+    "KiCad Viewer timed out. Reopen the document.": {
+      "en": "KiCad Viewer timed out. Reopen the document.",
+      "zh-CN": "KiCad 查看器超时，请重新打开文档。"
+    },
+    "KiCad Viewer failed.": {
+      "en": "KiCad Viewer failed.",
+      "zh-CN": "KiCad 查看器失败。"
+    },
+    "Schematic": {
+      "en": "Schematic",
+      "zh-CN": "原理图"
+    },
+    "Layout theme": {
+      "en": "Layout theme",
+      "zh-CN": "版图主题"
+    },
+    "Neon": {
+      "en": "Neon",
+      "zh-CN": "霓虹"
+    },
+    "Blueprint": {
+      "en": "Blueprint",
+      "zh-CN": "蓝图"
+    },
+    "Ember": {
+      "en": "Ember",
+      "zh-CN": "余烬"
+    },
+    "Routing": {
+      "en": "Routing",
+      "zh-CN": "布线"
+    },
+    "Layers": {
+      "en": "Layers",
+      "zh-CN": "图层"
+    },
+    "Show all": {
+      "en": "Show all",
+      "zh-CN": "显示全部"
+    },
+    "Only": {
+      "en": "Only",
+      "zh-CN": "仅此层"
+    },
+    "· generic layer colors": {
+      "en": "· generic layer colors",
+      "zh-CN": "· 通用图层配色"
+    },
+    "Netlist module": {
+      "en": "Netlist module",
+      "zh-CN": "网表模块"
+    },
+    "Find net": {
+      "en": "Find net",
+      "zh-CN": "搜索信号"
+    },
+    "Focus signal": {
+      "en": "Focus signal",
+      "zh-CN": "定位信号"
+    },
+    "View in waveform": {
+      "en": "View in waveform",
+      "zh-CN": "在波形中查看"
+    },
+    "Laying out netlist…": {
+      "en": "Laying out netlist…",
+      "zh-CN": "正在布局网表…"
+    },
+    "Signals": {
+      "en": "Signals",
+      "zh-CN": "信号"
+    },
+    "Waveform viewer": {
+      "en": "Waveform viewer",
+      "zh-CN": "波形查看器"
+    },
+    "Retry": {
+      "en": "Retry",
+      "zh-CN": "重试"
+    },
+    "{0} / {1} cells · local view ({2})": {
+      "en": "{0} / {1} cells · local view ({2})",
+      "zh-CN": "{0} / {1} 个单元 · 局部视图（{2}）"
+    },
+    "Time": {
+      "en": "Time",
+      "zh-CN": "时间"
+    },
+    "Waveform viewer is not ready.": {
+      "en": "Waveform viewer is not ready.",
+      "zh-CN": "波形查看器尚未就绪。"
+    },
+    "Waveform viewer did not respond.": {
+      "en": "Waveform viewer did not respond.",
+      "zh-CN": "波形查看器无响应。"
+    },
+    "Waveform loading exceeded 60 seconds.": {
+      "en": "Waveform loading exceeded 60 seconds.",
+      "zh-CN": "波形加载超过 60 秒。"
+    },
+    "Waveform changed.": {
+      "en": "Waveform changed.",
+      "zh-CN": "波形文件已变化。"
+    },
+    "Waveform signals did not become visible.": {
+      "en": "Waveform signals did not become visible.",
+      "zh-CN": "波形信号未显示。"
+    },
+    "Signal mapping contains an unsupported identifier.": {
+      "en": "Signal mapping contains an unsupported identifier.",
+      "zh-CN": "信号映射包含不支持的标识符。"
+    },
+    "Reloading waveform…": {
+      "en": "Reloading waveform…",
+      "zh-CN": "正在重新加载波形…"
+    },
+    "Loading waveform…": {
+      "en": "Loading waveform…",
+      "zh-CN": "正在加载波形…"
+    },
+    "CAD 查看模式": {
+      "en": "CAD view mode",
+      "zh-CN": "CAD 查看模式"
+    },
+    "三维模型": {
+      "en": "3D model",
+      "zh-CN": "三维模型"
+    },
+    "草图与约束": {
+      "en": "Sketches and constraints",
+      "zh-CN": "草图与约束"
+    },
+    "尺寸测量": {
+      "en": "Measurement",
+      "zh-CN": "尺寸测量"
+    },
+    "测量": {
+      "en": "Measure",
+      "zh-CN": "测量"
+    },
+    "测量类型": {
+      "en": "Measurement type",
+      "zh-CN": "测量类型"
+    },
+    "单对象尺寸只测量当前选择；两对象最短距离连接最近点，不是孔中心距。": {
+      "en": "Single-object mode measures the current selection. Minimum distance connects the nearest points, rather than hole centers.",
+      "zh-CN": "单对象尺寸只测量当前选择；两对象最短距离连接最近点，不是孔中心距。"
+    },
+    "单对象尺寸": {
+      "en": "Single-object dimensions",
+      "zh-CN": "单对象尺寸"
+    },
+    "两对象最短距离": {
+      "en": "Minimum distance between two objects",
+      "zh-CN": "两对象最短距离"
+    },
+    "测量对象": {
+      "en": "Measurement object",
+      "zh-CN": "测量对象"
+    },
+    "面 · 面积 / 直径": {
+      "en": "Face · Area / Diameter",
+      "zh-CN": "面 · 面积 / 直径"
+    },
+    "边 · 长度 / 直径": {
+      "en": "Edge · Length / Diameter",
+      "zh-CN": "边 · 长度 / 直径"
+    },
+    "清除测量": {
+      "en": "Clear measurement",
+      "zh-CN": "清除测量"
+    },
+    "剖切": {
+      "en": "Section",
+      "zh-CN": "剖切"
+    },
+    "剖切轴": {
+      "en": "Section axis",
+      "zh-CN": "剖切轴"
+    },
+    "剖切位置": {
+      "en": "Section position",
+      "zh-CN": "剖切位置"
+    },
+    "反向剖切": {
+      "en": "Reverse section",
+      "zh-CN": "反向剖切"
+    },
+    "反向": {
+      "en": "Reverse",
+      "zh-CN": "反向"
+    },
+    "尺寸测量标注": {
+      "en": "Measurement annotations",
+      "zh-CN": "尺寸测量标注"
+    },
+    "最短距离": {
+      "en": "Minimum distance",
+      "zh-CN": "最短距离"
+    },
+    "拖动旋转 · Shift/右键拖动平移 · 滚轮缩放": {
+      "en": "Drag to rotate · Shift/right drag to pan · Wheel to zoom",
+      "zh-CN": "拖动旋转 · Shift/右键拖动平移 · 滚轮缩放"
+    },
+    "此模型没有原生草图。STEP 导入不会恢复草图与约束。": {
+      "en": "This model has no native sketches. STEP import does not restore sketches or constraints.",
+      "zh-CN": "此模型没有原生草图。STEP 导入不会恢复草图与约束。"
+    },
+    "草图": {
+      "en": "Sketch",
+      "zh-CN": "草图"
+    },
+    "选择草图": {
+      "en": "Select sketch",
+      "zh-CN": "选择草图"
+    },
+    "个几何 ·": {
+      "en": "geometries ·",
+      "zh-CN": "个几何 ·"
+    },
+    "个约束": {
+      "en": "constraints",
+      "zh-CN": "个约束"
+    },
+    "FreeCAD 草图与约束": {
+      "en": "FreeCAD sketches and constraints",
+      "zh-CN": "FreeCAD 草图与约束"
+    },
+    "草图局部坐标 · mm · 原点位置 (": {
+      "en": "Sketch local coordinates · mm · Origin (",
+      "zh-CN": "草图局部坐标 · mm · 原点位置 ("
+    },
+    ") · 拖动平移": {
+      "en": ") · Drag to pan",
+      "zh-CN": ") · 拖动平移"
+    },
+    "草图约束": {
+      "en": "Sketch constraints",
+      "zh-CN": "草图约束"
+    },
+    "点击约束查看相关几何。": {
+      "en": "Select a constraint to highlight its geometry.",
+      "zh-CN": "点击约束查看相关几何。"
+    },
+    "上一页": {
+      "en": "Previous",
+      "zh-CN": "上一页"
+    },
+    "下一页": {
+      "en": "Next",
+      "zh-CN": "下一页"
+    },
+    "部分曲线类型暂不绘制，原生约束仍保留。": {
+      "en": "Some curve types are not rendered; native constraints are retained.",
+      "zh-CN": "部分曲线类型暂不绘制，原生约束仍保留。"
+    },
+    "此预览缺少草图数据，请用 FreeCAD inspect/export 生成新预览。": {
+      "en": "This preview has no sketch data. Generate a new preview with FreeCAD inspect/export.",
+      "zh-CN": "此预览缺少草图数据，请用 FreeCAD inspect/export 生成新预览。"
+    },
+    "查看原生草图与约束": {
+      "en": "View native sketches and constraints",
+      "zh-CN": "查看原生草图与约束"
+    },
+    "此预览仅含网格，无法精确测量；请生成曲面预览。": {
+      "en": "This preview contains only a mesh. Generate a surface preview for exact measurements.",
+      "zh-CN": "此预览仅含网格，无法精确测量；请生成曲面预览。"
+    },
+    "开启测量：点击模型查看尺寸": {
+      "en": "Enable measurement: select geometry to see dimensions",
+      "zh-CN": "开启测量：点击模型查看尺寸"
+    },
+    "退出测量": {
+      "en": "Exit measurement",
+      "zh-CN": "退出测量"
+    },
+    "直径 Ø {0} mm": {
+      "en": "Diameter Ø {0} mm",
+      "zh-CN": "直径 Ø {0} mm"
+    },
+    "边长 {0} mm": {
+      "en": "Edge length {0} mm",
+      "zh-CN": "边长 {0} mm"
+    },
+    "面积 {0} mm²": {
+      "en": "Area {0} mm²",
+      "zh-CN": "面积 {0} mm²"
+    },
+    " · 此预览仅含网格，无法精确测量；请生成曲面预览。": {
+      "en": " · Mesh-only preview; generate a surface preview for exact measurements.",
+      "zh-CN": " · 此预览仅含网格，无法精确测量；请生成曲面预览。"
+    },
+    " · 点击“测量”查看尺寸": {
+      "en": " · Click Measure to inspect dimensions",
+      "zh-CN": " · 点击“测量”查看尺寸"
+    },
+    "完全约束": {
+      "en": "Fully constrained",
+      "zh-CN": "完全约束"
+    },
+    "未完全约束": {
+      "en": "Under-constrained",
+      "zh-CN": "未完全约束"
+    },
+    "几何 {0}": {
+      "en": "Geometry {0}",
+      "zh-CN": "几何 {0}"
+    },
+    " · 参考尺寸": {
+      "en": " · Reference dimension",
+      "zh-CN": " · 参考尺寸"
+    },
+    "重合": {
+      "en": "Coincident",
+      "zh-CN": "重合"
+    },
+    "水平": {
+      "en": "Horizontal",
+      "zh-CN": "水平"
+    },
+    "垂直": {
+      "en": "Vertical",
+      "zh-CN": "垂直"
+    },
+    "长度": {
+      "en": "Length",
+      "zh-CN": "长度"
+    },
+    "水平距离": {
+      "en": "Horizontal distance",
+      "zh-CN": "水平距离"
+    },
+    "垂直距离": {
+      "en": "Vertical distance",
+      "zh-CN": "垂直距离"
+    },
+    "半径": {
+      "en": "Radius",
+      "zh-CN": "半径"
+    },
+    "直径": {
+      "en": "Diameter",
+      "zh-CN": "直径"
+    },
+    "角度": {
+      "en": "Angle",
+      "zh-CN": "角度"
+    },
+    "平行": {
+      "en": "Parallel",
+      "zh-CN": "平行"
+    },
+    "垂直关系": {
+      "en": "Perpendicular",
+      "zh-CN": "垂直关系"
+    },
+    "相等": {
+      "en": "Equal",
+      "zh-CN": "相等"
+    },
+    "相切": {
+      "en": "Tangent",
+      "zh-CN": "相切"
+    },
+    "{0} preview": {
+      "en": "{0} preview",
+      "zh-CN": "{0} 预览"
+    },
+    "{0} faces": {
+      "en": "{0} faces",
+      "zh-CN": "{0} 个面"
+    },
+    "{0} triangles": {
+      "en": "{0} triangles",
+      "zh-CN": "{0} 个三角形"
+    },
+    "Choose engineering project": {
+      "en": "Choose engineering project",
+      "zh-CN": "选择工程项目目录"
+    }
+  }
+}

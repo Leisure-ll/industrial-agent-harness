@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
+const languageConfig = require('../i18n.config.json');
 const { PackManager, defaultPackDirectory } = require('@industrial-agent-harness/pack-manager');
 if (app.isPackaged && !process.env.INDUSTRIAL_HARNESS_PACK_STORE)
   process.env.INDUSTRIAL_HARNESS_PACK_STORE = defaultPackDirectory();
@@ -902,8 +903,13 @@ function registerHandlers() {
     return projectSnapshot();
   });
   ipcMain.handle('project:choose-directory', async (_event, locale) => {
+    const selectedLocale =
+      typeof locale === 'string' && Object.hasOwn(languageConfig.locales, locale)
+        ? locale
+        : languageConfig.fallbackLocale;
+    const titles = languageConfig.messages['Choose engineering project'];
     const result = await dialog.showOpenDialog({
-      title: locale === 'zh-CN' ? '选择工程项目目录' : 'Choose engineering project',
+      title: titles[selectedLocale] ?? titles[languageConfig.fallbackLocale],
       properties: ['openDirectory'],
     });
     return result.canceled ? null : fs.realpathSync(result.filePaths[0]);
@@ -1386,7 +1392,7 @@ async function createWindow() {
     return;
   }
   if (process.argv.includes('--language-selftest')) {
-    await require('./language-selftest.cjs').run(window);
+    await require('./language-selftest.cjs').run(window, dialog);
     app.quit();
     return;
   }

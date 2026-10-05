@@ -14,7 +14,6 @@
   },
   "exports": {
     "./text": "./src/text.tsx",
-    "./text-messages": "./src/text-messages.ts",
     "./layout": "./src/layout/LayoutViewport.tsx",
     "./netlist": "./src/netlist/NetlistViewport.tsx",
     "./waveform": "./src/waveform/WaveformViewport.tsx",

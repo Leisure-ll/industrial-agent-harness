@@ -23,7 +23,7 @@ function prepare(config) {
   });
 }
 
-async function run(window) {
+async function run(window, dialog) {
   const evaluate = script => window.webContents.executeJavaScript(script, true);
   async function wait(script) {
     const deadline = Date.now() + 15000;
@@ -51,11 +51,39 @@ async function run(window) {
     evaluate(
       `(() => {const node=document.querySelector(${JSON.stringify(selector)}); Object.getOwnPropertyDescriptor(node.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(node,${JSON.stringify(value)});node.dispatchEvent(new Event('input',{bubbles:true}));})()`,
     );
+  async function directoryTitle(expected) {
+    const original = dialog.showOpenDialog;
+    let options;
+    try {
+      // Exercise the real preload/main IPC while avoiding an interactive OS dialog.
+      dialog.showOpenDialog = async value => {
+        options = value;
+        return { canceled: true, filePaths: [] };
+      };
+      await evaluate(`document.querySelector('.ia-folder-picker').click()`);
+      const deadline = Date.now() + 5000;
+      while (!options && Date.now() < deadline)
+        await new Promise(resolve => setTimeout(resolve, 20));
+      assert.equal(options?.title, expected);
+      assert.deepEqual(options.properties, ['openDirectory']);
+    } finally {
+      dialog.showOpenDialog = original;
+    }
+  }
 
   await wait(`document.querySelector('.ia-domain-pill')?.innerText.includes('PCB')`);
   assert.equal(await evaluate(`Boolean(document.querySelector('.ia-workspace'))`), false);
   await settings();
   assert.equal(await evaluate(`document.getElementById('ia-language').value`), 'system');
+  assert.deepEqual(
+    await evaluate(
+      `Array.from(document.getElementById('ia-language').options).slice(1).map(option => ({value:option.value,label:option.textContent}))`,
+    ),
+    Object.entries(require('../i18n.config.json').locales).map(([value, { label }]) => ({
+      value,
+      label,
+    })),
+  );
   await language('en');
   await closeSettings();
   await input('.ia-composer textarea', '未发送的中文草稿 / unsent draft');
@@ -128,9 +156,16 @@ async function run(window) {
     await evaluate(`document.querySelector('.ia-create-project h2').textContent`),
     'New project',
   );
+  await directoryTitle('Choose engineering project');
   await input('.ia-create-project input', 'Project 用户名称');
   await evaluate(`document.querySelector('button[aria-label="Close project creation"]').click()`);
   await language('zh-CN');
+  await closeSettings();
+  await evaluate(`document.querySelector('button[aria-label="新建项目"]').click()`);
+  await wait(`Boolean(document.querySelector('[aria-label="创建项目"]'))`);
+  await directoryTitle('选择工程项目目录');
+  await evaluate(`document.querySelector('button[aria-label="关闭项目创建"]').click()`);
+  await settings();
   await new Promise(resolve => setTimeout(resolve, 300));
   if (process.env.HARNESS_LANGUAGE_SELFTEST_OUTPUT)
     fs.writeFileSync(

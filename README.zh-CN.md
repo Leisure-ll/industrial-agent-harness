@@ -104,7 +104,7 @@ Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v
 
 ## 已接入的 Viewer
 
-Harness 自有 Viewer 控件跟随 **设置 → 语言**（简体中文 / English），切换保留缩放、选择等显示状态；上游嵌入界面保留自身语言。详见[语言范围](doc/desktop-languages.md)。
+Harness 自有 Viewer 控件跟随 **设置 → 语言**（简体中文 / English），切换保留缩放、选择等显示状态；上游嵌入界面保留自身语言。语言声明与 Desktop/Viewer 译文统一维护在一个[配置文件](apps/desktop/i18n.config.json)，详见[语言范围与维护方式](doc/desktop-languages.md)。
 
 从当前工程的文件树打开产物，自动选择对应 Viewer。查看器共用缩放、Fit 与全屏操作，查看不改变源码或验证结果。
 

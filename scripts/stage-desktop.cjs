@@ -38,6 +38,7 @@ copyDesktopNotices(target);
 for (const name of ['.venv-kimi', '.venv-klayout', 'src', 'scripts', 'viewer-host'])
   fs.rmSync(path.join(target, name), { recursive: true, force: true });
 const requireFromApp = createRequire(path.join(target, 'electron', 'main.cjs'));
+requireFromApp.resolve('../i18n.config.json');
 const skillsRoot = path.dirname(
   path.dirname(requireFromApp.resolve('@industrial-agent-harness/domain-skills')),
 );
