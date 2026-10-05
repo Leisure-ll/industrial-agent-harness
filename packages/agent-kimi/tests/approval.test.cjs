@@ -78,7 +78,7 @@ test('only identified Harness Runtime callbacks delegate transport approval; nat
       payload: { id, sender, harness_callback, action: 'execute', description: 'approval' },
     });
   await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(approvals, [{ id: 'hosted', decision: 'approve_for_session' }]);
+  assert.deepEqual(approvals, [{ id: 'hosted', decision: 'approve' }]);
   assert.deepEqual(
     events.filter(event => event.type === 'approval').map(event => event.id),
     ['foreign', 'native', 'unknown'],

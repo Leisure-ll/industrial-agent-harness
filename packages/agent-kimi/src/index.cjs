@@ -726,8 +726,13 @@ class KimiSession {
               ? 'user_mode'
               : 'enabled_plugin',
         });
-        this.approve(event.payload.id, 'approve_for_session').catch(error =>
-          this.emitAgent({ type: 'approval_error', id: event.payload.id, message: String(error) }),
+        this.approve(event.payload.id, hostedApproval ? 'approve' : 'approve_for_session').catch(
+          error =>
+            this.emitAgent({
+              type: 'approval_error',
+              id: event.payload.id,
+              message: String(error),
+            }),
         );
       } else
         this.emitAgent({
