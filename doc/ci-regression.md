@@ -57,4 +57,4 @@ FreeCAD 首批 native suite 和实际 Electron CAD Viewer 加入 macOS arm64 原
 
 FreeCAD 1.1.4 的原生 CAD/RTL/Kimi 综合门禁覆盖 `macos-15` 和 `macos-26` arm64；四平台 Portable 与 Desktop macOS 打包仍固定 `macos-15`。FreeCAD 的配置、数据与缓存目录在每次 Action 内独立创建和验证，确保全新托管环境无需预先启动桌面 FreeCAD。
 
-CAD 桌面分栏回归覆盖初始窗口和显式 1000 px 窄窗口。托管 macOS 可能按屏幕尺寸限制初始窗口，因此拖动断言根据实际剩余空间检查位移与最小宽度限位；记录拖动前后宽度，不假定初始窗口一定为 1440 px。两种窗口都比较真实 OCCT 渲染的模型像素比例，保留全屏往返、键盘限位和双击恢复检查。
+CAD 桌面分栏回归覆盖初始窗口和显式 1000 px 窄窗口。托管 macOS 可能按屏幕尺寸限制初始窗口，因此拖动断言根据实际剩余空间检查位移与最小宽度限位；记录拖动前后宽度，不假定初始窗口一定为 1440 px。截图等待布局帧和连续稳定的 WebGL 像素，超时仍失败；每次截图的视图区、完整窗口及尺寸信息保存在 CI artifacts 的 `cad-resize/`。两种窗口都比较真实 OCCT 渲染的模型像素比例，保留全屏往返、键盘限位和双击恢复检查。本地可用 `HARNESS_CAD_SELFTEST_WINDOW_SIZE=1024x700` 重现托管窗口尺寸。

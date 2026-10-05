@@ -11,13 +11,46 @@ async function verifyResize(window, project) {
     return {chat:chat.getBoundingClientRect().width,workspace:workspace.getBoundingClientRect().width,
       minChat:parseFloat(getComputedStyle(chat).minWidth),minWorkspace:parseFloat(getComputedStyle(workspace).minWidth),overflow:columns.scrollWidth-columns.clientWidth};
   })()`);
-  const capture = async () =>
-    window.webContents.capturePage(
-      await evaluate(`(()=>{
+  const evidence = process.env.HARNESS_CAD_SELFTEST_OUTPUT
+    ? path.join(path.dirname(process.env.HARNESS_CAD_SELFTEST_OUTPUT), 'cad-resize')
+    : path.join(project, 'cad-resize');
+  fs.mkdirSync(evidence, { recursive: true });
+  let captureIndex = 0;
+  async function capture() {
+    await evaluate(
+      `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+    );
+    const rect = await evaluate(`(()=>{
     const r=document.querySelector('.rp-cad-viewport').getBoundingClientRect();
     return {x:Math.round(r.x),y:Math.round(r.y),width:Math.floor(r.width),height:Math.floor(r.height)};
-  })()`),
+  })()`);
+    // ResizeObserver and the WebGL compositor finish on different frames.
+    // Require a settled screenshot rather than asserting against a mid-resize frame.
+    let image,
+      previous,
+      stable = 0;
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      await pause(100);
+      image = await window.webContents.capturePage(rect);
+      const pixels = image.toBitmap();
+      stable = previous?.equals(pixels) ? stable + 1 : 0;
+      previous = pixels;
+      if (stable >= 2) break;
+    }
+    const index = ++captureIndex;
+    fs.writeFileSync(path.join(evidence, `${index}-viewport.png`), image.toPNG());
+    fs.writeFileSync(
+      path.join(evidence, `${index}-window.png`),
+      (await window.webContents.capturePage()).toPNG(),
     );
+    fs.writeFileSync(
+      path.join(evidence, `${index}-layout.json`),
+      JSON.stringify({ rect, layout: await layout(), size: window.getContentSize() }),
+    );
+    assert.ok(stable >= 2, 'CAD screenshot did not settle after resize.');
+    return image;
+  }
   const modelRatio = image => {
     const { width, height } = image.getSize();
     const pixels = image.toBitmap();
@@ -45,7 +78,7 @@ async function verifyResize(window, project) {
     assert.ok(count > 500, 'The actual rendered solid must be visible.');
     assert.ok(
       minX > 1 && minY > 1 && maxX < width - 2 && maxY < height - 2,
-      'The reference solid must not be cropped.',
+      `The reference solid must not be cropped: ${JSON.stringify({ width, height, minX, minY, maxX, maxY, count })}`,
     );
     return (maxX - minX + 1) / (maxY - minY + 1);
   };

@@ -95,6 +95,12 @@ async function run(window) {
     );
   }
   await wait(`document.querySelector('.ia-domain-pill')?.innerText.includes('CAD')`);
+  if (process.env.HARNESS_CAD_SELFTEST_WINDOW_SIZE) {
+    const dimensions = process.env.HARNESS_CAD_SELFTEST_WINDOW_SIZE.match(/^(\d+)x(\d+)$/);
+    assert.ok(dimensions, 'Expected a CAD selftest window size such as 1024x700.');
+    window.setContentSize(Number(dimensions[1]), Number(dimensions[2]));
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
   const prompt = '修改零件的形状';
   await evaluate(
     `(()=>{const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,${JSON.stringify(prompt)});area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
