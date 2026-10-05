@@ -20,7 +20,36 @@ export function appendDisplayEvents(current: AgentEvent[], events: AgentEvent[])
   )
     contentIndex--;
   for (const event of events) {
+    if (event.type === 'subagent-state') {
+      let index = updated.length - 1;
+      while (
+        index >= 0 &&
+        !(
+          updated[index].type === 'subagent-state' &&
+          (updated[index] as Extract<AgentEvent, { type: 'subagent-state' }>).id === event.id
+        )
+      )
+        index--;
+      if (index >= 0) {
+        updated[index] = event;
+        continue;
+      }
+    }
     const previous = updated[contentIndex];
+    if (
+      event.type === 'subagent-event' &&
+      previous?.type === 'subagent-event' &&
+      event.id === previous.id &&
+      (event.event.type === 'text' || event.event.type === 'thinking') &&
+      previous.event.type === event.event.type &&
+      previous.event.segment === event.event.segment
+    ) {
+      updated[contentIndex] = {
+        ...previous,
+        event: { ...event.event, text: previous.event.text + event.event.text },
+      };
+      continue;
+    }
     if (
       (previous?.type === 'text' && event.type === 'text') ||
       (previous?.type === 'thinking' && event.type === 'thinking')

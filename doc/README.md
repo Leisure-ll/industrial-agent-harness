@@ -40,7 +40,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [P0 工业闭环](p0-industrial-runtime.md) | 真实 RTL、隔离、持久化和失败恢复的范围 |
 | [FreeCAD CAD Pack](freecad-domain-pack.md) | 参数化 3D 零件建模、持久 Runtime、独立几何回读、实体 Viewer 与 macOS arm64 原生 CI |
 | [Kimi 原生机制兼容性审计](kimi-native-compatibility-audit.md) | 项目发现、输入命令、配置、会话、环境和执行边界的实际差异及修复 |
-| [Kimi 子 agent 接入审计](kimi-subagent-integration.md) | 原生子任务策略、SDK/Harness 对照、后台审批与工具继承缺口，以及待实施的 GUI 方案 |
+| [Kimi 子 agent 接入审计](kimi-subagent-integration.md) | 原生子任务策略、事件/后台审批与生命周期适配、首版 GUI 和回归证据 |
 | [CI 回归与托管环境](ci-regression.md) | 四种原生 OS/架构环境、分层门禁、测试证据与覆盖缺口 |
 | [Node SDK](sdk.md) | 项目绑定、聊天恢复、流事件、取消和 stdio RPC |
 | [配对评测基线](benchmark-baseline.md) | 原生 Kimi/Harness、冻结输入、独立验收与正式结果边界 |

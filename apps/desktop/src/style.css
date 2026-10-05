@@ -712,6 +712,55 @@ body,
   line-height: 1.75;
   white-space: pre-wrap;
 }
+.ia-subagent-group {
+  display: grid;
+  gap: 8px;
+}
+.ia-subagent-card {
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+  margin: 8px 0;
+}
+.ia-subagent-card > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.ia-subagent-title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.ia-subagent-role,
+.ia-subagent-status,
+.ia-approval-source {
+  font-size: 12px;
+  color: var(--ia-muted);
+}
+.ia-subagent-status {
+  white-space: nowrap;
+}
+.ia-subagent-status.running {
+  color: var(--ia-accent);
+}
+.ia-subagent-status.awaiting_approval {
+  color: #b7791f;
+}
+.ia-subagent-card.error {
+  border-color: #c66;
+}
+.ia-subagent-content {
+  border-top: 1px solid var(--ia-border);
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+}
+.ia-approval-source {
+  display: block;
+  margin-top: 6px;
+}
 .ia-agent-tool {
   margin: 3px 0 3px 12px;
   font-size: 11px;

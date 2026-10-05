@@ -22,6 +22,39 @@ function fixture(t) {
   });
   return { directory, project, store: openStore(), openStore };
 }
+test('child state coalesces within its original turn and reused tool IDs cannot cross chat or creation time', t => {
+  const { project, store } = fixture(t),
+    chat = store.create(project, 'test-domain');
+  const first = store.beginTurn(chat.id, 'First');
+  store.append(first, { type: 'tool', id: 'same-call', name: 'Agent' });
+  store.finish(first, 'finished');
+  const firstTime = Date.now() / 1000;
+  const second = store.beginTurn(chat.id, 'Second');
+  store.db
+    .prepare('UPDATE turns SET created_at = ? WHERE id = ?')
+    .run(new Date((firstTime + 10) * 1000).toISOString(), second);
+  store.append(second, { type: 'tool', id: 'same-call', name: 'Agent' });
+  const other = store.create(project, 'test-domain'),
+    otherTurn = store.beginTurn(other.id, 'Other chat');
+  store.append(otherTurn, { type: 'tool', id: 'same-call', name: 'Agent' });
+  assert.equal(store.toolCallTurn(chat.id, 'same-call', firstTime), first);
+  assert.equal(store.toolCallTurn(chat.id, 'same-call'), second);
+  assert.equal(store.toolCallTurn(other.id, 'same-call'), otherTurn);
+  for (const status of ['running', 'awaiting_approval', 'completed'])
+    store.append(first, { type: 'subagent-state', id: 'child-a', status });
+  const history = store.history(chat.id, project, 'test-domain');
+  assert.equal(
+    history.turns.find(t => t.id === first).events.filter(e => e.type === 'subagent-state').length,
+    1,
+  );
+  assert.equal(
+    history.turns.find(t => t.id === first).events.find(e => e.type === 'subagent-state').status,
+    'completed',
+  );
+  assert.ok(
+    !history.turns.find(t => t.id === second).events.some(e => e.type === 'subagent-state'),
+  );
+});
 
 test('desktop drafts reuse actual empty chats within the project/domain and preserve existing rows', t => {
   const { directory, project, store, openStore } = fixture(t);

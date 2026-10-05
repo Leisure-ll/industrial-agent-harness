@@ -291,7 +291,7 @@ async function runWithStore(options, output, environment, Session, chats, regist
         return detail;
       },
       event => {
-        chats.append(turnId, event);
+        chats.append(event.turnId || turnId, event);
         send({ type: 'agent_event', event });
         if (event.type === 'done' || event.type === 'error') outcome = event;
         if (event.type === 'approval') {
@@ -336,6 +336,7 @@ async function runWithStore(options, output, environment, Session, chats, regist
           contextStore.readPage(checkpointId, offset, limit),
         resolveSession: key => chats.runtimeSession(chat.id, key),
         sessionInitialized: id => chats.initialized(id),
+        resolveToolTurn: (callId, createdAt) => chats.toolCallTurn(chat.id, callId, createdAt),
       },
       plugins,
     );
@@ -349,7 +350,7 @@ async function runWithStore(options, output, environment, Session, chats, regist
           send({ type: 'interrupt_error', message: String(error) }),
         );
       }, Number(options.timeoutMs));
-    await session.run(options.task);
+    await session.run(options.task, [], { turnId });
     const status = timedOut
       ? 'timeout'
       : pendingQuestion

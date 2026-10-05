@@ -936,7 +936,7 @@ export function App() {
                             >
                               <Activity size={14} />
                               <span>{chat.title}</span>
-                              {chat.running && (
+                              {(chat.running || chat.backgroundTasks) && (
                                 <small
                                   className={`ia-session-running ${chat.awaitingApproval || chat.awaitingQuestion ? 'awaiting-approval' : ''}`}
                                   role="status"
@@ -945,7 +945,9 @@ export function App() {
                                       ? 'Awaiting answer'
                                       : chat.awaitingApproval
                                         ? 'Awaiting approval'
-                                        : 'Running'
+                                        : chat.backgroundTasks && !chat.running
+                                          ? 'Background tasks running'
+                                          : 'Running'
                                   }
                                   title={
                                     chat.awaitingQuestion

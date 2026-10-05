@@ -109,6 +109,24 @@ function createProcessSandbox({
       mechanism: platform === 'linux' ? 'bubblewrap-seccomp' : 'seatbelt',
       hostRuntimeRequired: true,
     },
+    protectHostIpc(hostDirectory, socketPath) {
+      // The host transport runs outside Seatbelt. Native Shell must neither
+      // read its credentials nor connect to its approval command channel.
+      if (platform !== 'darwin') return; // Linux already denies AF_UNIX.
+      const directory = fs.realpathSync(hostDirectory),
+        socket = fs.realpathSync(socketPath);
+      if (!socket.startsWith(directory + path.sep))
+        throw Error('Host socket escaped its directory.');
+      fs.chmodSync(profile, 0o600);
+      try {
+        fs.appendFileSync(
+          profile,
+          `(deny file-read* (subpath ${seatbeltString(directory)}))\n(deny network-outbound (literal ${seatbeltString(socket)}))\n`,
+        );
+      } finally {
+        fs.chmodSync(profile, 0o400);
+      }
+    },
     close() {
       fs.rmSync(directory, { recursive: true, force: true });
     },

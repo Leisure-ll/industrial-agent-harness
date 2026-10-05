@@ -54,3 +54,8 @@ Chip 项目默认注册 `chip-pack.eda`，在全局 MCP & Skills 与项目详情
 `INDUSTRIAL_HARNESS_SESSION_IDLE_MS=100 pnpm --filter @industrial-agent-harness/desktop test:parallel` 还覆盖 200 次聊天/项目切换、160 次同帧双击、4 个后台任务与第 5 个拒绝、重载后问题恢复、重复 Stop、延迟历史与实时结束交错，以及带活动审批退出。SDK 会话可控，Renderer、IPC、持久化和资源管理使用生产路径；真实 Kimi 强杀/停止/恢复另由 `pnpm test:session-chaos` 检查。行为与边界见[验证报告](../../doc/session-resource-guards.md)。
 
 对话与右侧工作区之间的分隔条支持拖动与方向键调整，Agent 对话区可缩窄至 280 px，双击恢复默认比例。窗口缩小自动限制分栏宽度，全屏退出保留原分栏。CAD 使用当前视图区宽高比，拖动与全屏不拉伸模型；`test:cad` 包含实际渲染像素比例、分栏限位和恢复检查。
+
+
+## 原生子任务显示
+
+主 agent 派发的 coder/explore/plan 在对话内以折叠任务卡显示；展开看思考、工具输入/结果及摘要，审批按钮保持可见。后台任务在主回合结束后继续更新，聊天状态点仍保留；Scope/模型/资源设置等待相关任务结束。控制沿用 Kimi 原生工具，首版子 agent 不接入独立工业 Runtime 调用。运行 `KIMI_EXECUTABLE=/absolute/path/to/kimi pnpm --filter @industrial-agent-harness/desktop test:subagents` 验证真实 CLI → IPC/Store → GUI、后台审批和历史刷新；详见[边界与证据](../../doc/kimi-subagent-integration.md)。

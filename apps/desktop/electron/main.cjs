@@ -118,6 +118,7 @@ if (
     '--cad-selftest',
     '--mcp-selftest',
     '--external-mcp-selftest',
+    '--subagent-selftest',
     '--agent-log-selftest',
     '--chat-selftest',
     '--parallel-selftest',
@@ -213,6 +214,7 @@ function chatList() {
             running: sessions.busy(entry),
             awaitingApproval: Boolean(entry?.agent?.pendingApprovals.size),
             awaitingQuestion: Boolean(entry?.agent?.pendingQuestions.size),
+            backgroundTasks: Boolean(entry?.agent?.hasBackgroundTasks?.()),
           };
         })
       : [],
@@ -344,6 +346,7 @@ function readApiKey() {
     [
       '--mcp-selftest',
       '--external-mcp-selftest',
+      '--subagent-selftest',
       '--agent-log-selftest',
       '--chat-selftest',
       '--parallel-selftest',
@@ -772,6 +775,7 @@ function registerHandlers() {
       [
         '--mcp-selftest',
         '--external-mcp-selftest',
+        '--subagent-selftest',
         '--agent-log-selftest',
         '--chat-selftest',
         '--parallel-selftest',
@@ -1050,7 +1054,12 @@ function registerHandlers() {
       chats.start(turnId);
       let outcome = 'error';
       const emit = event => {
-        chats.append(turnId, event);
+        const originTurnId =
+          event.turnId ||
+          (event.parentToolCallId
+            ? chats.toolCallTurn(entry.id, event.parentToolCallId) || turnId
+            : turnId);
+        chats.append(originTurnId, event);
         entry.eventRevision = (entry.eventRevision || 0) + 1;
         if (event.type === 'done') outcome = event.result.status;
         if (event.type === 'error') outcome = 'error';
@@ -1059,7 +1068,7 @@ function registerHandlers() {
             ...event,
             chatId: entry.id,
             projectId: entry.project.id,
-            turnId,
+            turnId: originTurnId,
             eventRevision: entry.eventRevision,
           });
         if (
@@ -1070,6 +1079,7 @@ function registerHandlers() {
             'question-resolved',
             'done',
             'error',
+            'subagent-state',
           ].includes(event.type)
         )
           notifySessions();
@@ -1117,13 +1127,14 @@ function registerHandlers() {
             sessionContext(entry).readPage(checkpointId, offset, limit),
           resolveSession: key => chats.runtimeSession(entry.id, key),
           sessionInitialized: id => chats.initialized(id),
+          resolveToolTurn: (callId, createdAt) => chats.toolCallTurn(entry.id, callId, createdAt),
         },
         [guiPlugin()],
       );
       entry.agent.emit = emit;
       if (images.length) emit({ type: 'user-images', images });
       void entry.agent
-        .run(task, images)
+        .run(task, images, { turnId })
         .catch(error => emit({ type: 'error', message: String(error) }))
         .finally(() => finishTurn(entry, () => chats.finish(turnId, outcome), notifySessions))
         .catch(error => console.error('Chat finalization failed:', error.message));
@@ -1204,6 +1215,8 @@ async function createWindow() {
       configDir(),
       path.dirname(resourceSettings.file),
     );
+  if (process.argv.includes('--subagent-selftest'))
+    await require('./subagent-selftest.cjs').prepare(projectConfigDir(), configDir());
   appSettings = readSettings(configDir());
   // A previously enabled plugin whose install never completed (offline first
   // run, failed upgrade) must not stay durably enabled with no binary: retry
@@ -1369,6 +1382,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--external-mcp-selftest')) {
     await require('./external-mcp-selftest.cjs').run(window);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--subagent-selftest')) {
+    await require('./subagent-selftest.cjs').run(window);
     app.quit();
     return;
   }

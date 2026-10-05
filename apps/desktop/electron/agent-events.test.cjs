@@ -28,3 +28,23 @@ test('batched display events preserve streamed content, activity boundaries and 
   assert.equal(latestEvent(result, 'todo'), undefined);
   assert.equal(appendDisplayEvents(result, []), result);
 });
+test('child display state updates in place while content and other children remain immutable', async () => {
+  const { appendDisplayEvents } = await import('../src/agent-events.ts');
+  const state = Object.freeze({ type: 'subagent-state', id: 'a', status: 'running' });
+  const text = Object.freeze({
+    type: 'subagent-event',
+    id: 'a',
+    event: Object.freeze({ type: 'text', text: '零' }),
+  });
+  const current = Object.freeze([state, text]);
+  const result = appendDisplayEvents(current, [
+    { type: 'subagent-state', id: 'a', status: 'completed' },
+    { type: 'subagent-event', id: 'a', event: { type: 'text', text: '件' } },
+    { type: 'subagent-event', id: 'b', event: { type: 'text', text: 'Other' } },
+  ]);
+  assert.equal(result.length, 3);
+  assert.equal(result[0].status, 'completed');
+  assert.equal(result[1].event.text, '零件');
+  assert.equal(current[0].status, 'running');
+  assert.equal(current[1].event.text, '零');
+});

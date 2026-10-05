@@ -43,3 +43,10 @@ Stop 优先发送原生取消，3 秒后本轮仍未结束则通过 SDK 关闭�
 每轮工程上下文还包含当前 DomainState 的有界产物引用（最多 2 KiB，优先模型引用），提供规范 ID、种类、相对路径与哈希，不读取内容或猜测活动模型。后续「刚刚的新版本」可据此定位实际输出；原始输入文件和当前产物明确区分。
 
 `industrial_action_call` 接受互斥的 `inputs` 对象或 `inputsJson` JSON 字符串（最多 256 KiB），优先后者保留复杂嵌套的数值/数组类型。严格解析为同一规范 inputs 对象后进入原有 Scope、State、审批和 Runtime 校验；不把字符串数字或 `{item:…}` 转为工程数值/数组，不改动 Kimi/SDK。真实 MiniMax-M3 CAD 修改曾因未定型嵌套参数的错误编码连续重试，增加显式 JSON 传输后另行验收。无交互 CLI 的问题处理见 [CLI](../../apps/cli/README.md)。
+
+
+## 原生子 agent
+
+固定 CLI 1.51.0 的 coder/explore/plan、并行派发、独立上下文和 resume 均沿用原生实现。前台嵌套事件转换为独立子任务显示；后台 task/wire 文件只读观察，宿主 stdio 桥持续接收真实审批，以原 RPC ID 回送决定。该桥弥补 SDK 0.1.8 的每轮订阅和审批来源缺口，未修改 SDK 或 CLI。
+
+后台活动保护会话回收及 Scope/模型设置，状态与审批绑定最初的 Harness turn。断开/关闭显示中断并清理审批；恢复用原生上下文。子 agent 不继承 Harness 外部 Runtime 工具，原生文件/Shell 仍不能写真实工程。CLI 单次命令退出会关闭后台任务；Desktop 提供持续交互。事件限额、安全边界、GUI 与正式回归命令见[接入说明](../../doc/kimi-subagent-integration.md)。
