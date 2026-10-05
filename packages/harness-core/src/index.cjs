@@ -62,8 +62,8 @@ function resolveProjectTask(
   const enabledExternal = external.filter(
     server => !(disabled.mcpServers || []).includes(server.id),
   );
-  // A factual DomainState means this request uses the protected industrial
-  // Runtime. Host services cannot join that execution scope yet.
+  // Registered host services enter the shared Runtime approval/action boundary;
+  // their observations never establish engineering acceptance.
   const extensions = enabledExternal;
   if (extensions.length) {
     const tools = extensions.flatMap(server => server.tools.map(tool => tool.id));
