@@ -10,6 +10,33 @@ const IDENTITY_FILE = 'harness-native-session.json';
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const toolName = name => String(name || '').replace(/^mcp__harness_adapter__/, '');
 
+function questionAnswer(item, answer) {
+  if (item.multi_select) {
+    // The existing UI sends labels joined by ', '. Match complete labels first,
+    // including labels that contain commas, and retain remaining custom text.
+    const ids = [];
+    let rest = answer;
+    while (rest) {
+      const option = item.options
+        .filter(
+          option =>
+            !ids.includes(option.id) &&
+            (rest === option.label || rest.startsWith(option.label + ', ')),
+        )
+        .sort((a, b) => b.label.length - a.label.length)[0];
+      if (!option) break;
+      ids.push(option.id);
+      rest = rest.slice(option.label.length).replace(/^, /, '');
+    }
+    if (ids.length)
+      return rest
+        ? { kind: 'multi_with_other', option_ids: ids, other_text: rest }
+        : { kind: 'multi', option_ids: ids };
+  }
+  const selected = item.options.find(option => option.label === answer);
+  return selected ? { kind: 'single', option_id: selected.id } : { kind: 'other', text: answer };
+}
+
 function bundledExecutable() {
   return require.resolve('@moonshot-ai/kimi-code/dist/main.mjs');
 }
@@ -101,14 +128,7 @@ class Turn {
         { method: 'POST', body: {} },
       );
     const converted = Object.fromEntries(
-      pending.map(item => {
-        const answer = answers[item.question];
-        const selected = item.options.find(option => option.label === answer);
-        return [
-          item.id,
-          selected ? { kind: 'single', option_id: selected.id } : { kind: 'other', text: answer },
-        ];
-      }),
+      pending.map(item => [item.id, questionAnswer(item, answers[item.question])]),
     );
     return this.session.request(
       `sessions/${encodeURIComponent(this.session.nativeId)}/questions/${encodeURIComponent(id)}`,
@@ -171,7 +191,12 @@ class CodeSession {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
       const envelope = await response.json();
-      if (!response.ok || envelope.code !== 0) {
+      const dismissed =
+        route.includes('/questions/') &&
+        route.endsWith(':dismiss') &&
+        envelope.code === 40909 &&
+        envelope.data?.dismissed === true;
+      if (!response.ok || (envelope.code !== 0 && !dismissed)) {
         const error = Error(
           `Kimi Code API ${route}: ${envelope.msg || response.status} (${envelope.code})`,
         );

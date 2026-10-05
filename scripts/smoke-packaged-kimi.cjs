@@ -42,6 +42,7 @@ async function child(archive, directory, endpoint) {
   let session = createSession(options);
   const sessions = [session];
   let approvals = 0;
+  let questions = 0;
   async function run(prompt) {
     const turn = session.prompt(prompt);
     let answer = '';
@@ -49,6 +50,10 @@ async function child(archive, directory, endpoint) {
       if (event.type === 'ApprovalRequest') {
         approvals++;
         await turn.approve(event.payload.id, 'approve');
+      }
+      if (event.type === 'QuestionRequest') {
+        questions++;
+        await turn.respondQuestion(event.payload.id, event.payload.id, {});
       }
       if (event.type === 'ContentPart') answer += event.payload.text || '';
     }
@@ -59,6 +64,7 @@ async function child(archive, directory, endpoint) {
     await run('PACKAGED_FIRST: run the host probe and write the approved marker.');
     assert.equal(hostCalls, 1);
     assert.ok(approvals >= 1, 'native Bash must request approval');
+    assert.equal(questions, 1, 'the packaged question must be explicitly dismissed');
     assert.equal(
       fs.readFileSync(path.join(directory, 'packaged-code.txt'), 'utf8').trim(),
       'PACKAGED_CODE_OK',
@@ -76,7 +82,13 @@ async function child(archive, directory, endpoint) {
     assert.match(JSON.stringify(snapshot), /PACKAGED_FIRST/);
     assert.match(JSON.stringify(snapshot), /PACKAGED_SECOND/);
     process.stdout.write(
-      JSON.stringify({ version: KIMI_CODE_VERSION, hostCalls, approvals, resumed: true }) + '\n',
+      JSON.stringify({
+        version: KIMI_CODE_VERSION,
+        hostCalls,
+        approvals,
+        questions,
+        resumed: true,
+      }) + '\n',
     );
   } finally {
     await Promise.allSettled(sessions.map(item => item.close()));
@@ -118,6 +130,18 @@ async function main() {
           description: 'Write the packaged runtime marker',
         },
       },
+      {
+        name: 'AskUserQuestion',
+        arguments: {
+          questions: [
+            {
+              question: 'Which marker?',
+              options: [{ label: 'First' }, { label: 'Second' }],
+              multi_select: false,
+            },
+          ],
+        },
+      },
     ],
     success: 'PACKAGED_CODE_OK',
   });
@@ -134,7 +158,7 @@ async function main() {
     const result = JSON.parse(stdout.trim());
     assert.equal(result.version, '2.1.1');
     assert.equal(result.resumed, true);
-    assert.equal(model.requests.length, 4);
+    assert.equal(model.requests.length, 5);
     assert.match(JSON.stringify(model.requests.at(-1).messages), /PACKAGED_FIRST/);
     process.stdout.write(
       `Packaged Kimi Code tools, approval and resume passed (${process.platform}-${process.arch}): ${stdout}`,
