@@ -10,6 +10,8 @@ Electron MVP 工作台采用项目树、Agent 对话、Viewer 三列布局。左
 
 Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择工程目录、解析能力后即可运行任务，并查看文本、工具事件和审批请求。工具包括按 Scope 提供的只读产物元数据、共享 Chip MCP 和显式注册的外部 MCP；完整 Core 工业执行与验证闭环尚未完成。
 
+主回答及子任务摘要按 Markdown 排版，支持标题、列表、表格、引用和代码块；兼容模型在正文开头返回的思考标签会折叠显示。输入框上方的任务栏默认仅显示进度与当前项，可展开完整列表，状态沿用原生 Todo。`test:subagents` 同时覆盖排版、任务栏收展、窄窗口、深色主题和历史刷新；显示边界见 [聊天 UI](../../doc/agent-ui-provenance.md)。
+
 运行 `pnpm dev` 或从仓库根目录运行 `pnpm build && pnpm start`。版图渲染可先运行 `pnpm setup:layout`，或设置 `KLAYOUT_PYTHON`。
 
 ## Agent 行为日志

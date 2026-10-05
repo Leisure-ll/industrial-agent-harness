@@ -1245,7 +1245,9 @@ export function App() {
                 ))}
                 {brokerError && <div className="ia-flow-error">{brokerError}</div>}
               </div>
-              {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy} />}
+              {todo?.type === 'todo' && (
+                <TodoList key={activeChatId} items={todo.items} running={agentBusy} />
+              )}
               {agentBusy && !agentOwned && (
                 <p role="status" className="ia-composer-hint">
                   This chat is running in another window. Open a new chat to work in parallel.

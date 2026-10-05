@@ -6,6 +6,36 @@ const { saveBindings } = require('./project-bindings.cjs');
 const { saveProfile, defaults } = require('./model-config.cjs');
 const { saveSettings } = require('./harness-settings.cjs');
 let fixture, evidence;
+const todoItems = [
+  { title: '核对轴承座与底板的设计尺寸', status: 'done' },
+  { title: '汇总设计参数与几何回读', status: 'in_progress' },
+  { title: '等待确认后再修改工程', status: 'pending' },
+];
+const markdown = `<think>REASONING_STAYS_FOLDED</think>
+
+## 轴承座核对
+
+**关键尺寸**与已有回读对照。
+
+| 对象 | 尺寸 | 来源 |
+| --- | --- | --- |
+| 底板 | 120 × 80 × 8 mm | \`BaseLength / BaseWidth / BaseThickness\` |
+| 轴承座 | Ø36 → Ø40 mm | \`SeatRadius\` |
+
+> 回读只证明已记录的几何事实。
+
+- 核对包围盒
+- 保留参数来源
+
+\`\`\`python
+SeatRadius = 20
+\`\`\`
+
+[链接](javascript:globalThis.__markdownExecuted=true)
+![blocked-remote-image](https://example.com/model.png)
+
+<script>globalThis.__markdownExecuted=true</script>
+<iframe src="https://example.com"></iframe>`;
 async function prepare(config, modelDirectory) {
   evidence =
     process.env.HARNESS_SUBAGENT_SELFTEST_OUTPUT ||
@@ -15,7 +45,13 @@ async function prepare(config, modelDirectory) {
   fs.mkdirSync(directory, { recursive: true });
   const file = path.join(directory, 'dimensions.json');
   fs.writeFileSync(file, JSON.stringify({ length: 120, width: 80, bore: 40 }));
-  fixture = await startSubagentModel({ file, scenario: 'parallel' });
+  fixture = await startSubagentModel({
+    file,
+    scenario: 'parallel',
+    rootSummary: markdown,
+    childSummary: '### 子任务摘要\n\n**尺寸检查**完成。\n\n- 读取配方\n- 记录文件依据',
+    todoItems,
+  });
   saveSettings(modelDirectory, { guiPluginEnabled: false, approvalMode: 'ask' });
   saveBindings(config, {
     activeId: 'subagent-cad',
@@ -55,8 +91,21 @@ async function run(window) {
     );
     await evaluate(`document.querySelector('.ia-send').click()`);
   }
-  const capture = async name =>
+  async function capture(name) {
+    // Let layout and the compositor catch up before saving visual evidence.
+    await evaluate(
+      `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+    );
+    await new Promise(resolve => setTimeout(resolve, 150));
     fs.writeFileSync(path.join(evidence, name), (await window.webContents.capturePage()).toPNG());
+  }
+  async function toggleTheme() {
+    await evaluate(`document.querySelector('.ia-settings-button').click()`);
+    await wait(`Boolean(document.querySelector('.ia-settings-row button'))`);
+    await evaluate(`document.querySelector('.ia-settings-row button').click()`);
+    await evaluate(`document.querySelector('.ia-settings-button').click()`);
+    await wait(`!document.querySelector('.ia-settings-popover')`);
+  }
   try {
     await wait(`Boolean(document.querySelector('.ia-project-row'))`);
     await evaluate(`document.querySelector('.ia-project-row').click()`);
@@ -69,6 +118,78 @@ async function run(window) {
     );
     assert.equal(await evaluate(`document.querySelectorAll('.ia-subagent-card').length`), 3);
     assert.equal(await evaluate(`document.querySelectorAll('.ia-subagent-card[open]').length`), 0);
+    await wait(
+      `document.querySelector('.ia-agent-text .ia-markdown h2')?.textContent === '轴承座核对'`,
+    );
+    assert.equal(
+      await evaluate(`document.querySelector('.ia-agent-text .ia-markdown tbody').rows.length`),
+      2,
+    );
+    assert.ok(
+      await evaluate(
+        `document.querySelector('.ia-agent-text .ia-markdown strong')?.textContent.includes('关键尺寸')`,
+      ),
+    );
+    assert.ok(
+      await evaluate(
+        `document.querySelector('.ia-agent-text .ia-markdown pre code')?.textContent.includes('SeatRadius = 20')`,
+      ),
+    );
+    assert.equal(
+      await evaluate(
+        `document.querySelectorAll('.ia-agent-text .ia-markdown img, .ia-agent-text .ia-markdown iframe, .ia-agent-text .ia-markdown script, .ia-agent-text .ia-markdown a[href]').length`,
+      ),
+      0,
+    );
+    assert.equal(await evaluate(`Boolean(globalThis.__markdownExecuted)`), false);
+    assert.equal(
+      await evaluate(`document.querySelector('.ia-todo-title').getAttribute('aria-expanded')`),
+      'false',
+    );
+    assert.equal(await evaluate(`document.querySelectorAll('.ia-todo li').length`), 0);
+    assert.equal(
+      await evaluate(`document.querySelector('.ia-todo-progress').getAttribute('aria-valuenow')`),
+      '1',
+    );
+    assert.equal(
+      await evaluate(
+        `document.querySelectorAll('.ia-agent-text .ia-thinking[data-expanded="true"]').length`,
+      ),
+      0,
+    );
+    await evaluate(
+      `document.querySelector('.ia-agent-text .ia-markdown').scrollIntoView({ block: 'center' })`,
+    );
+    await capture('markdown-todo-collapsed.png');
+    await evaluate(`document.querySelector('.ia-todo-title').click()`);
+    assert.equal(await evaluate(`document.querySelectorAll('.ia-todo li').length`), 3);
+    assert.equal(await evaluate(`document.querySelectorAll('.ia-todo-spin').length`), 0);
+    await capture('markdown-todo-expanded.png');
+    window.setSize(1000, 740);
+    await wait(`window.innerWidth <= 1000`);
+    await evaluate(`document.querySelector('button[title="Show workspace"]').click()`);
+    await wait(`Boolean(document.querySelector('.ia-workspace-divider'))`);
+    await evaluate(
+      `document.querySelector('.ia-workspace-divider').dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))`,
+    );
+    await wait(`document.querySelector('.ia-chat').clientWidth <= 301`);
+    assert.ok(
+      await evaluate(
+        `document.querySelector('.ia-chat-scroll').scrollWidth <= document.querySelector('.ia-chat-scroll').clientWidth + 1`,
+      ),
+    );
+    await toggleTheme();
+    await wait(`document.querySelector('.ia-app').classList.contains('theme-dark')`);
+    assert.equal(
+      await evaluate(`getComputedStyle(document.querySelector('.ia-todo')).backgroundColor`),
+      'rgb(37, 39, 40)',
+    );
+    await capture('markdown-todo-dark-narrow.png');
+    await toggleTheme();
+    await evaluate(
+      `document.querySelector('.ia-todo-title').click(); document.querySelector('button[title="Hide workspace"]').click()`,
+    );
+    window.setSize(1440, 900);
     await capture('parallel-collapsed.png');
     await evaluate(`document.querySelector('.ia-subagent-card > summary').click()`);
     await wait(
@@ -76,6 +197,9 @@ async function run(window) {
     );
     await evaluate(
       `document.querySelector('.ia-subagent-card[open] .ia-agent-tool > summary').click()`,
+    );
+    assert.ok(
+      await evaluate(`Boolean(document.querySelector('.ia-subagent-card[open] .ia-markdown h3'))`),
     );
     assert.match(
       await evaluate(`document.querySelector('.ia-subagent-card[open]').innerText`),
@@ -122,6 +246,7 @@ async function run(window) {
         foldedDetails: true,
         backgroundApproval: true,
         historyReload: true,
+        markdownAndCompactTodo: true,
         evidence,
       }),
     );

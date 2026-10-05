@@ -1,6 +1,7 @@
 import type { AgentEvent } from '@industrial-agent-harness/viewer-builtin/api';
 import { ThinkingPreview } from './ThinkingPreview';
 import { SubagentCard } from './SubagentCard';
+import { AnswerMarkdown } from './AnswerMarkdown';
 import { memo, useRef, useState } from 'react';
 
 type ToolResult = Extract<AgentEvent, { type: 'tool-result' }>;
@@ -340,7 +341,7 @@ export const AgentFlow = memo(function AgentFlow({
         if (event.type === 'text')
           return (
             <article className="ia-agent-text" key={index}>
-              <p>{event.text}</p>
+              <AnswerMarkdown text={event.text} active={running && index === lastActivity} />
             </article>
           );
         if (event.type === 'thinking')

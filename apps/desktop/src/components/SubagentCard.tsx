@@ -4,6 +4,7 @@ import type {
   SubagentState,
 } from '@industrial-agent-harness/viewer-builtin/api';
 import { ThinkingPreview } from './ThinkingPreview';
+import { AnswerMarkdown } from './AnswerMarkdown';
 
 const labels = {
   running: '进行中',
@@ -58,7 +59,14 @@ export const SubagentCard = memo(function SubagentCard({
                 active={running && index === events.length - 1}
               />
             );
-          if (event.type === 'text') return <p key={index}>{event.text}</p>;
+          if (event.type === 'text')
+            return (
+              <AnswerMarkdown
+                key={index}
+                text={event.text}
+                active={running && index === events.length - 1}
+              />
+            );
           if (event.type === 'tool') {
             if (first.get(event.id) !== index) return null;
             const tool = tools.get(event.id)!;
@@ -96,7 +104,7 @@ export const SubagentCard = memo(function SubagentCard({
         })}
         {state.summary &&
           !events.some(e => e.type === 'text' && e.text.includes(state.summary!)) && (
-            <p>{state.summary}</p>
+            <AnswerMarkdown text={state.summary} />
           )}
         {state.truncated && <small>过程显示已缩短，完整记录保留在 Kimi 会话中。</small>}
         {!events.length && !state.summary && (

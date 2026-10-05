@@ -2,7 +2,14 @@ const http = require('node:http');
 
 // Fixed responses drive the unchanged native Kimi agent/tool loop. This is
 // protocol regression evidence, never a claim of live-model task quality.
-async function startSubagentModel({ file, scenario = 'foreground', mutationFile } = {}) {
+async function startSubagentModel({
+  file,
+  scenario = 'foreground',
+  mutationFile,
+  rootSummary = 'ROOT_INSPECTION_SUMMARY',
+  childSummary = 'SUBAGENT_INSPECTION_SUMMARY',
+  todoItems,
+} = {}) {
   const requests = [];
   const stoppedTasks = new Set();
   let childStartedResolve, releaseResolve;
@@ -109,6 +116,7 @@ async function startSubagentModel({ file, scenario = 'foreground', mutationFile 
           ...(scenario === 'timeout' ? { timeout: 30 } : {}),
         },
       }));
+      if (todoItems) calls.unshift({ name: 'SetTodoList', arguments: { todos: todoItems } });
     }
     const message = calls.length
       ? {
@@ -122,7 +130,7 @@ async function startSubagentModel({ file, scenario = 'foreground', mutationFile 
         }
       : {
           role: 'assistant',
-          content: child ? 'SUBAGENT_INSPECTION_SUMMARY' : 'ROOT_INSPECTION_SUMMARY',
+          content: child ? childSummary : rootSummary,
         };
     if (!body.stream) {
       response.writeHead(200, { 'Content-Type': 'application/json' });

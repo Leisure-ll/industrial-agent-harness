@@ -13,7 +13,9 @@ const options = {
 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check) {
-  for (let i = 0; i < 150; i++) {
+  // Hosted CI includes native CLI startup and tool discovery in this wait.
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
     if (check()) return;
     await sleep(30);
   }
@@ -190,7 +192,7 @@ test(
 
 test(
   'native child rejection, project write denial and foreground cancellation remain observable',
-  options,
+  { ...options, timeout: 120000 },
   async t => {
     await t.test('rejection', async t => {
       const f = await setup(t, 'reject');
