@@ -89,10 +89,11 @@ test(
       assert.ok(!tools.includes('domain_tool_call'));
       assert.ok(!tools.includes('run_action'));
       if (approval === 'approve') {
-        assert.match(
-          JSON.stringify(requests.at(-1).messages),
-          /Operation not permitted|PermissionError/,
+        const output = JSON.stringify(
+          requests.at(-1).messages.filter(message => message.role === 'tool'),
         );
+        assert.match(output, /Operation not permitted|PermissionError|Read-only file system/);
+        assert.match(output, /\.eda/);
         assert.ok(
           rows.some(
             row => row.event?.type === 'execution-boundary' && row.event.projectWritable === false,

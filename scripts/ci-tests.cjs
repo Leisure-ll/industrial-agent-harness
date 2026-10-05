@@ -32,6 +32,7 @@ const transportFiles = [
 ];
 const linuxNativeFiles = [
   'tests/integration/workspace-runtime.test.cjs',
+  'tests/integration/domain-mcp-kimi.test.cjs',
   'tests/integration/external-mcp-kimi.test.cjs',
   'packages/agent-kimi/tests/process-sandbox.test.cjs',
   'packages/agent-kimi/tests/linux-process-sandbox.test.cjs',
