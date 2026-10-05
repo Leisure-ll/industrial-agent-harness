@@ -3,6 +3,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const { saveBindings } = require('./project-bindings.cjs');
 const { verifyNavigation, verifyWheel } = require('./navigation-selftest.cjs');
+const { viewportRect, captureSettled } = require('./cad-render-selftest.cjs');
 const { createProjectRuntime } = require('@industrial-agent-harness/harness-core');
 let project;
 async function prepare(config) {
@@ -133,7 +134,6 @@ async function run(window) {
     await evaluate(`document.querySelector('.rp-cad canvas').dataset.engine`),
     /OCCT.*AIS\/V3d/,
   );
-  const beforeRotation = (await window.webContents.capturePage()).toPNG();
   const measure = () => evaluate(`Number(document.querySelector('.rp-cad').dataset.zoom)`);
   await verifyNavigation(window, measure);
   await verifyWheel(window, measure, (delta, ctrl) =>
@@ -141,14 +141,27 @@ async function run(window) {
       `(()=>{const event=new WheelEvent('wheel',{deltaY:${delta},ctrlKey:${ctrl},cancelable:true});document.querySelector('.rp-cad-viewport').dispatchEvent(event);return event.defaultPrevented;})()`,
     ),
   );
+  const evidence = process.env.HARNESS_CAD_SELFTEST_OUTPUT
+    ? path.join(path.dirname(process.env.HARNESS_CAD_SELFTEST_OUTPUT), 'cad-camera')
+    : path.join(project, 'cad-camera');
+  fs.mkdirSync(evidence, { recursive: true });
+  const rotationRect = await viewportRect(window);
+  const beforeRotation = await captureSettled(window, {
+    rect: rotationRect,
+    output: path.join(evidence, 'before-rotation.png'),
+  });
   const yaw = await evaluate(`document.querySelector('.rp-cad').dataset.yaw`);
   await evaluate(
     `(()=>{const node=document.querySelector('.rp-cad-viewport');node.dispatchEvent(new PointerEvent('pointerdown',{pointerId:1,clientX:100,clientY:100,bubbles:true}));node.dispatchEvent(new PointerEvent('pointermove',{pointerId:1,clientX:145,clientY:120,bubbles:true}));node.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,bubbles:true}));})()`,
   );
   await wait(`document.querySelector('.rp-cad').dataset.yaw!==${JSON.stringify(yaw)}`);
+  const afterRotation = await captureSettled(window, {
+    rect: rotationRect,
+    output: path.join(evidence, 'after-rotation.png'),
+  });
   assert.notDeepEqual(
-    (await window.webContents.capturePage()).toPNG(),
-    beforeRotation,
+    afterRotation.toBitmap(),
+    beforeRotation.toBitmap(),
     'OCCT must redraw pixels after camera rotation',
   );
   const rotated = await evaluate(`document.querySelector('.rp-cad').dataset.yaw`);
@@ -165,10 +178,7 @@ async function run(window) {
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
   await wait(`!document.fullscreenElement`);
   assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.yaw`), rotated);
-  fs.writeFileSync(
-    path.join(project, 'cad-viewer.png'),
-    (await window.webContents.capturePage()).toPNG(),
-  );
+  fs.writeFileSync(path.join(project, 'cad-viewer.png'), (await captureSettled(window)).toPNG());
   if (process.env.HARNESS_CAD_SELFTEST_OUTPUT)
     fs.copyFileSync(path.join(project, 'cad-viewer.png'), process.env.HARNESS_CAD_SELFTEST_OUTPUT);
   await require('./cad-inspection-selftest.cjs').verifyInspection(window, project);

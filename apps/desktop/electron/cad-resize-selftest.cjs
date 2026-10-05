@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { viewportRect, captureSettled } = require('./cad-render-selftest.cjs');
 
 async function verifyResize(window, project) {
   const evaluate = code => window.webContents.executeJavaScript(code, true);
@@ -17,38 +18,20 @@ async function verifyResize(window, project) {
   fs.mkdirSync(evidence, { recursive: true });
   let captureIndex = 0;
   async function capture() {
-    await evaluate(
-      `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
-    );
-    const rect = await evaluate(`(()=>{
-    const r=document.querySelector('.rp-cad-viewport').getBoundingClientRect();
-    return {x:Math.round(r.x),y:Math.round(r.y),width:Math.floor(r.width),height:Math.floor(r.height)};
-  })()`);
-    // ResizeObserver and the WebGL compositor finish on different frames.
-    // Require a settled screenshot rather than asserting against a mid-resize frame.
-    let image,
-      previous,
-      stable = 0;
-    const deadline = Date.now() + 5000;
-    while (Date.now() < deadline) {
-      await pause(100);
-      image = await window.webContents.capturePage(rect);
-      const pixels = image.toBitmap();
-      stable = previous?.equals(pixels) ? stable + 1 : 0;
-      previous = pixels;
-      if (stable >= 2) break;
-    }
+    const rect = await viewportRect(window);
     const index = ++captureIndex;
-    fs.writeFileSync(path.join(evidence, `${index}-viewport.png`), image.toPNG());
-    fs.writeFileSync(
-      path.join(evidence, `${index}-window.png`),
-      (await window.webContents.capturePage()).toPNG(),
-    );
     fs.writeFileSync(
       path.join(evidence, `${index}-layout.json`),
       JSON.stringify({ rect, layout: await layout(), size: window.getContentSize() }),
     );
-    assert.ok(stable >= 2, 'CAD screenshot did not settle after resize.');
+    const image = await captureSettled(window, {
+      rect,
+      output: path.join(evidence, `${index}-viewport.png`),
+    });
+    fs.writeFileSync(
+      path.join(evidence, `${index}-window.png`),
+      (await window.webContents.capturePage()).toPNG(),
+    );
     return image;
   }
   const modelRatio = image => {
