@@ -3,6 +3,7 @@ const test = require('node:test'),
 const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
+const { createRequire } = require('node:module');
 const { execFile } = require('node:child_process'),
   { promisify } = require('node:util');
 const { ExternalMcpRegistry } = require('../../packages/domain-mcp/src/index.cjs');
@@ -11,7 +12,9 @@ const { image } = require('./fixtures/external-mcp-server.cjs');
 const execute = promisify(execFile),
   root = path.resolve(__dirname, '../..');
 const entry = process.env.INDUSTRIAL_HARNESS_TEST_CLI || path.join(root, 'apps/cli/src/main.cjs');
-const kimi = process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+const kimi =
+  process.env.KIMI_EXECUTABLE ||
+  createRequire(fs.realpathSync(entry))('@industrial-agent-harness/agent-kimi').bundledExecutable();
 const server = path.join(__dirname, 'fixtures/external-mcp-server.cjs');
 test(
   'real CLI and pinned Kimi: registered external MCP is discoverable in protected execution; approvals, images, durable Actions and disable policy work',

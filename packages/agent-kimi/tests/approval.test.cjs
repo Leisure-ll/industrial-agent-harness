@@ -61,3 +61,35 @@ test('failed submission stays pending for retry; SDK session approval also clear
   await assert.rejects(session.approve('a2', 'reject'), /no longer pending/);
   await assert.rejects(session.approve('a2', 'invalid'), /Invalid approval/);
 });
+
+test('only identified Harness Runtime callbacks delegate transport approval; native and untrusted tools still ask', async () => {
+  const approvals = [];
+  const { session, events } = fixture(async (id, decision) => approvals.push({ id, decision }));
+  events.length = 0;
+  session.hostRuntimeTools = new Set(['external_tool_call']);
+  for (const [id, sender, harness_callback] of [
+    ['hosted', 'external_tool_call', true],
+    ['foreign', 'external_tool_call', false],
+    ['native', 'Bash', false],
+    ['unknown', 'unknown_callback', true],
+  ])
+    session.emitEvent({
+      type: 'ApprovalRequest',
+      payload: { id, sender, harness_callback, action: 'execute', description: 'approval' },
+    });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(approvals, [{ id: 'hosted', decision: 'approve' }]);
+  assert.deepEqual(
+    events.filter(event => event.type === 'approval').map(event => event.id),
+    ['foreign', 'native', 'unknown'],
+  );
+  const decision = session.requestRuntimeApproval(
+    { id: 'registered.host.mutation' },
+    { expectedStateId: 'current-state' },
+  );
+  const request = events.at(-1);
+  assert.equal(request.type, 'approval');
+  assert.equal(request.action, 'registered.host.mutation');
+  await session.approve(request.id, 'reject');
+  assert.equal(await decision, false);
+});

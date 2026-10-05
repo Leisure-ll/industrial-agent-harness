@@ -21,6 +21,22 @@ function fixture(t) {
   t.after(() => log.close());
   return { root, project, log, reader, record, event, runId: path.basename(log.file) };
 }
+
+test('Kimi Code messages snapshot is labeled conversation and never infers full per-step context', async t => {
+  const f = fixture(t);
+  f.record('prompt', { text: 'User task: inspect' });
+  f.event('StepBegin', { n: 1 });
+  snapshot(f, [
+    { role: '_harness_snapshot', format: 'kimi-code-server-v1', version: '2.1.1' },
+    { role: 'user', content: 'User task: inspect' },
+    { role: '_checkpoint' },
+    { role: 'assistant', content: [{ type: 'text', text: 'Saved reply' }] },
+  ]);
+  const page = await f.reader.view(f.project, { runId: f.runId, view: 'context' });
+  assert.ok(page.entries.some(entry => entry.title.includes('已保存对话')));
+  assert.ok(!page.entries.some(entry => entry.id.startsWith('step-context:')));
+  assert.ok(page.entries.some(entry => entry.note?.includes('不代表完整模型上下文')));
+});
 test('stream fragments merge once, concurrent results pair by identity, failures retain messages and UTF-8 output', async t => {
   const f = fixture(t),
     { event, record, log, project, runId, reader } = f;

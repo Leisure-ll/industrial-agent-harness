@@ -9,8 +9,18 @@ async function verifyNavigation(window, measure, { percent = true } = {}) {
     }
     throw Error('Viewer navigation did not affect the rendered view.');
   }
-  const click = label =>
-    evaluate(`document.querySelector('button[aria-label="${label}"]').click()`);
+  const click = async label => {
+    // Fullscreen events can precede React's update of the button label.
+    // Check readiness and click in one renderer task to avoid a stale selector.
+    await wait(() =>
+      evaluate(`(() => {
+        const button = document.querySelector(${JSON.stringify(`button[aria-label="${label}"]`)});
+        if (!button || button.disabled) return false;
+        button.click();
+        return true;
+      })()`),
+    );
+  };
   await wait(() =>
     evaluate(`document.querySelector('button[aria-label="Zoom in"]')?.disabled === false`),
   );

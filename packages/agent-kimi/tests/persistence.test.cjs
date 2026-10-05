@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { KimiSession } = require('../src/index.cjs');
-const { createKimiPaths } = require('@moonshot-ai/kimi-agent-sdk');
+const { KimiSession, bundledExecutable } = require('../src/index.cjs');
+const { createKimiPaths } = require('../src/legacy-paths.cjs');
 const { ChatStore } = require('../../harness-core/src/index.cjs');
 
 test('observer failure during cleanup cannot leave an execution slot or running state behind', async t => {
@@ -160,6 +160,8 @@ test('adapter resumes persistent IDs after close, rotates scope/model, and prese
   await adapter.close();
   assert.equal(options.length, 1);
   assert.ok(fs.existsSync(options[0].shareDir));
+  // Desktop passes an absolute bundled entry; CLI defaults to the logical runtime.
+  runtime.executable = bundledExecutable();
   adapter = make();
   await adapter.run('Third');
   assert.equal(options[0].sessionId, options[1].sessionId);

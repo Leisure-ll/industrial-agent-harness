@@ -9,7 +9,9 @@ const { startModel } = require('./fixtures/domain-mcp-model.cjs');
 const execute = promisify(execFile);
 const root = path.resolve(__dirname, '../..');
 const entry = process.env.INDUSTRIAL_HARNESS_TEST_CLI || path.join(root, 'apps/cli/src/main.cjs');
-const kimi = process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+const kimi =
+  process.env.KIMI_EXECUTABLE ||
+  require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
 const python =
   process.env.INDUSTRIAL_HARNESS_EDA_PYTHON ||
   path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
@@ -23,7 +25,7 @@ test(
     const fixture = await startModel({
       calls: () => [
         {
-          name: 'Shell',
+          name: 'Bash',
           arguments: {
             command: `${quote(python)} -c ${quote('import sys; from eda_harness.core.service import Harness; Harness(sys.argv[1]).create_goal("MCP_INTEGRATION_GOAL", {}, [])')} ${quote(activeProject)}`,
           },
@@ -83,7 +85,10 @@ test(
       });
       const rows = stdout.trim().split('\n').map(JSON.parse);
       assert.equal(rows.at(-1).status, 'finished', stderr + stdout);
-      assert.ok(rows.some(row => row.type === 'approval_decision' && row.decision === approval));
+      assert.ok(
+        rows.some(row => row.type === 'approval_decision' && row.decision === approval),
+        stdout,
+      );
       const requests = fixture.requests.slice(before);
       const tools = requests[0].tools.map(tool => tool.function.name);
       assert.ok(!tools.includes('domain_tool_call'));

@@ -41,14 +41,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Prepare pinned MCP and Kimi runtimes
+      - name: Prepare pinned MCP runtimes (Kimi Code is bundled)
         shell: bash
         run: |
           set -euo pipefail
           python -m pip install uv==0.11.6
-          uv venv --python 3.13 "$RUNNER_TEMP/headless-kimi"
-          uv pip install --python "$RUNNER_TEMP/headless-kimi/bin/python" 'kimi-cli==1.51.0'
-          echo "KIMI_EXECUTABLE=$RUNNER_TEMP/headless-kimi/bin/kimi" >> "$GITHUB_ENV"
           cd domain-packs/chip/eda-harness
           uv sync --frozen --no-dev --python 3.13
           uv run --frozen python -m pytest -q

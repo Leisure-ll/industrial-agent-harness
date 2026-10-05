@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y bubblewrap curl autoconf flex bison help2man libfl-dev g++ make
+          sudo apt-get install -y bubblewrap ripgrep curl autoconf flex bison help2man libfl-dev g++ make
           bwrap --unshare-user --unshare-pid --ro-bind / / --proc /proc --dev /dev -- /bin/true
           curl -fL --retry 3 https://github.com/verilator/verilator/archive/refs/tags/v5.026.tar.gz -o "$RUNNER_TEMP/verilator.tar.gz"
           printf '87fdecf3967007d9ee8c30191ff2476f2a33635d0e0c6e3dbf345cc2f0c50b78  %s\n' "$RUNNER_TEMP/verilator.tar.gz" | sha256sum -c -
@@ -72,9 +72,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export KIMI_EXECUTABLE="$GITHUB_WORKSPACE/apps/desktop/.venv-kimi/bin/kimi"
+          export KIMI_EXECUTABLE="$(node -p "require('./packages/agent-kimi/src/code-session.cjs').bundledExecutable()")"
           pnpm run test:ci -- native-linux
           node --test tests/integration/linux-chip-bootstrap.test.cjs
+      - name: Verify packaged headless Agent through its production process boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/integration/headless-package-kimi.test.cjs 2>&1 | tee dist/ci-reports/headless-native.log
       - name: Build clean immutable installer and verify actual installed consumer
         shell: bash
         run: |
@@ -103,7 +108,7 @@ jobs:
           JS
           node scripts/smoke-linux-chip-install.cjs "$RUNNER_TEMP/installed chip" "$RUNNER_TEMP/chip-bin/industrial-harness-chip" dist/linux-chip-release/verification.json
           node scripts/smoke-workspace-cli.cjs "$RUNNER_TEMP/chip-bin/industrial-harness-chip" chip dist/linux-chip-release/workspace-verification.json
-          KIMI_EXECUTABLE="$RUNNER_TEMP/installed chip/cli/domain-packs/chip/.venv-kimi/bin/kimi" INDUSTRIAL_HARNESS_TEST_CLI="$RUNNER_TEMP/installed chip/cli/industrial-harness.cjs" node --test tests/integration/external-mcp-kimi.test.cjs
+          KIMI_EXECUTABLE="" INDUSTRIAL_HARNESS_TEST_CLI="$RUNNER_TEMP/installed chip/cli/industrial-harness.cjs" node --test tests/integration/external-mcp-kimi.test.cjs
           bash dist/linux-chip-release/industrial-harness-chip-linux-install.run --skip-image --prefix "$RUNNER_TEMP/installed chip" --bin-dir "$RUNNER_TEMP/chip-bin"
           cp "$RUNNER_TEMP/installed chip/install-receipt.json" dist/linux-chip-release/install-receipt.json
       - name: Verify installed host Docker execution alongside the protected Agent

@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
-const { createRequire } = require('node:module');
 const { readProfile } = require('./benchmark-model-profile.cjs');
 const { writeCliConfig } = require('../packages/agent-kimi/src/model-config.cjs');
-// Resolve the pinned SDK already owned by agent-kimi; do not invent another kernel.
-const requireKimi = createRequire(path.resolve(__dirname, '../packages/agent-kimi/package.json'));
-const { createSession } = requireKimi('@moonshot-ai/kimi-agent-sdk');
+// Use the pinned runtime integration without Broker or industrial context.
+const { createSession } = require('../packages/agent-kimi/src/code-session.cjs');
 
 async function main(argv = process.argv.slice(2)) {
   if (argv.length !== 4)
@@ -14,6 +12,7 @@ async function main(argv = process.argv.slice(2)) {
   const [projectDir, taskFile, outputDir, profileFile] = argv;
   const { profile, executable, env, configurationId } = readProfile(profileFile);
   const shareDir = writeCliConfig(path.join(outputDir, 'native-kimi'), profile);
+  fs.writeFileSync(path.join(shareDir, 'mcp.json'), JSON.stringify({ mcpServers: {} }));
   const session = createSession({
     workDir: fs.realpathSync(projectDir),
     executable,

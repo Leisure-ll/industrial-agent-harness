@@ -3,11 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { saveBindings } = require('./project-bindings.cjs');
-const { createKimiPaths } = require(
-  require.resolve('@moonshot-ai/kimi-agent-sdk', {
-    paths: [path.resolve(__dirname, '../../../packages/agent-kimi')],
-  }),
-);
+const { createKimiPaths } = require('@industrial-agent-harness/agent-kimi/src/legacy-paths.cjs');
 let evidence;
 const turns = new Map();
 let delayedHistory;

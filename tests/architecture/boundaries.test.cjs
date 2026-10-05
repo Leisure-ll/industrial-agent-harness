@@ -26,14 +26,17 @@ test('core, contracts and runtime cannot depend on Kimi or Electron', () => {
     assert.ok(
       !Object.keys(dependencies).some(
         name =>
-          name.includes('agent-kimi') || name.includes('kimi-agent-sdk') || name === 'electron',
+          name.includes('agent-kimi') ||
+          name.includes('kimi-agent-sdk') ||
+          name.includes('kimi-code') ||
+          name === 'electron',
       ),
       area,
     );
     for (const file of sourceFiles(area))
       assert.doesNotMatch(
         read(file),
-        /@moonshot-ai\/kimi-agent-sdk|@industrial-agent-harness\/agent-kimi|(?:require|from)\s*\(?['"][^'"]*electron/i,
+        /@moonshot-ai\/(?:kimi-agent-sdk|kimi-code(?:-sdk)?)|@industrial-agent-harness\/agent-kimi|(?:require|from)\s*\(?['"][^'"]*electron/i,
         file,
       );
   }

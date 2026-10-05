@@ -58,7 +58,7 @@ function createProcessSandbox({
   fs.chmodSync(directory, 0o700);
   const scratch = path.join(directory, 'scratch');
   fs.mkdirSync(scratch, { mode: 0o700 });
-  // Kimi 1.51.0 requires a writable --work-dir at startup. Use a stable
+  // Kimi requires a writable workspace at startup. Use a stable
   // session workspace, while the actual engineering project stays read-only.
   const workDir = path.join(share, 'workspace');
   fs.mkdirSync(workDir, { recursive: true, mode: 0o700 });
@@ -76,6 +76,9 @@ function createProcessSandbox({
     );
   const wrapper = path.join(directory, 'kimi');
   const target = executablePath(executable, environment);
+  const invocation = /\.[cm]?js$/.test(target)
+    ? `${quoteShell(process.execPath)} ${quoteShell(target)}`
+    : quoteShell(target);
   const command =
     platform === 'linux'
       ? linuxCommand({
@@ -90,14 +93,18 @@ function createProcessSandbox({
       : `exec /usr/bin/sandbox-exec -f ${quoteShell(profile)}`;
   fs.writeFileSync(
     wrapper,
-    `#!/bin/sh\nset -e\n${command} ${quoteShell(target)}${kimiProjectAccess ? ` --add-dir ${quoteShell(project)}` : ''} "$@"\n`,
+    `#!/bin/sh\nset -e\n${command} ${invocation}${kimiProjectAccess ? ` --add-dir ${quoteShell(project)}` : ''} "$@"\n`,
     { mode: 0o500 },
   );
   return {
     executable: wrapper,
-    // SDK 0.1.8 applies env after its shareDir option. Pin this value so an
-    // inherited KIMI_SHARE_DIR cannot redirect native storage/configuration.
-    env: { ...environment, KIMI_SHARE_DIR: share, TMPDIR: scratch + path.sep },
+    // Pin both generations of the native home setting to session storage.
+    env: {
+      ...environment,
+      KIMI_SHARE_DIR: share,
+      KIMI_CODE_HOME: share,
+      TMPDIR: scratch + path.sep,
+    },
     directory,
     workDir,
     boundary: {
