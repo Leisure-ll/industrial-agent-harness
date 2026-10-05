@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useRef, useState } from 'react';
 import { useWheelZoom } from '../navigation';
 
@@ -26,6 +27,7 @@ export function AssetCanvas({
   fitRevision?: number;
   onZoom?: (factor: number) => void;
 }) {
+  const { t } = useDisplayText();
   const canvas = useRef<HTMLCanvasElement>(null);
   useWheelZoom(canvas, onZoom);
   const [size, setSize] = useState({ width: 1, height: 1 });
@@ -107,7 +109,9 @@ export function AssetCanvas({
     <div className={`rp-asset-canvas rp-asset-bg-${background}`}>
       <canvas
         ref={canvas}
-        aria-label={onSelect ? 'Sprite sheet; click a cell to select a frame' : 'Image preview'}
+        aria-label={
+          onSelect ? t('Sprite sheet; click a cell to select a frame') : t('Image preview')
+        }
         onPointerDown={event => {
           event.currentTarget.setPointerCapture(event.pointerId);
           drag.current = {

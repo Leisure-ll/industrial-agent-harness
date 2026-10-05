@@ -4,9 +4,11 @@
 
 当前桌面支持同一项目或跨项目的多个聊天同时执行，切换聊天不会中断后台任务。项目行显示运行数，聊天行用状态点标记执行中或等待审批；Approve/Reject 与 Stop 只作用于当前聊天。全局模型/资源修改需要相关会话空闲，项目配置仅限制该项目。实现与验证见 [并行会话](../../doc/parallel-sessions.md)。
 
-Electron MVP 工作台采用项目树、Agent 对话、Viewer 三列布局。左右栏可收起，左下角 Settings 可切换明暗主题与 Debug 日志。文件树只列出当前项目的文件；点击 GDS/OAS、Yosys JSON、VCD/FST/GHW 文件会自动打开对应 Viewer，并显示内容哈希。对话区输入任务并解析 Capability；Debug 开关展示候选、筛选、Scope 替换和详细信息加载日志。
+Electron MVP 工作台采用项目树、Agent 对话、Viewer 三列布局。左右栏可收起，左下角 Settings 可切换明暗主题、语言与 Debug 日志。语言提供简体中文、English 和跟随系统，切换即时生效并保留草稿、任务与 Viewer 显示状态；选择保存在桌面用户目录的 `ia-language` 偏好中。中文输入法确认候选词的 Enter 不发送任务。范围与验证见[桌面语言切换](../../doc/desktop-languages.md)。文件树只列出当前项目的文件；点击 GDS/OAS、Yosys JSON、VCD/FST/GHW 文件会自动打开对应 Viewer，并显示内容哈希。对话区输入任务并解析 Capability；Debug 开关展示候选、筛选、Scope 替换和详细信息加载日志。
 
 通用文件无需领域工具：CSV/TSV 打开表格、普通 JSON 打开折叠结构、JSONL/NDJSON 按记录查看、Markdown 显示排版、TXT/LOG 支持行号与筛选分页。全部复用缩放、Fit 和全屏，结构化文件保留原文入口；Yosys JSON 与图集描述文件优先进入原专用 Viewer。支持格式与上限见 [通用文件 Viewer](../../doc/document-viewers.md)。运行 `pnpm --filter @industrial-agent-harness/desktop test:documents` 验证生产查看链路。
+
+新增语言或维护自有译文只需编辑 [`i18n.config.json`](i18n.config.json) 并重新构建发布。设置菜单、语言类型、系统语言匹配、缺失译文回退和原生目录标题均使用该配置，组件统一调用 `t(...)`；示例与测试见[单一配置入口](../../doc/desktop-languages.md#单一配置入口)。
 
 Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择工程目录、解析能力后即可运行任务，并查看文本、工具事件和审批请求。工具包括按 Scope 提供的只读产物元数据、共享 Chip MCP 和显式注册的外部 MCP；完整 Core 工业执行与验证闭环尚未完成。
 

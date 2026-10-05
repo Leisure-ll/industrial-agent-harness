@@ -68,6 +68,8 @@ pnpm --filter @industrial-agent-harness/desktop setup:kimi
 pnpm dev
 ```
 
+左下角 **设置 → 语言** 可选择简体中文、English 或跟随系统，即时生效并记住选择。切换保留草稿、运行中的任务和查看器状态。Harness 自有控件与弹窗提供中英文；项目文件、聊天原文、工具返回和嵌入的第三方界面保留原内容。见[桌面语言切换](doc/desktop-languages.md)。
+
 在 **Settings → Model API** 配置模型，再添加本地工程并选择领域。打开右侧工作区即可浏览文件；查看文件不需要模型 API Key。
 
 准备脚本安装 **Kimi CLI 1.51.0**，接入层使用 **Kimi Agent SDK 0.1.8**。版图查看另需 KLayout Python，可运行 `pnpm --filter @industrial-agent-harness/desktop setup:layout`，或设置 `KLAYOUT_PYTHON`。
@@ -101,6 +103,8 @@ Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v
 按 [Pack 作者教程](doc/pack-authoring.md)独立开发扩展。领域代码留在 Pack 内，共享 Core 与 Broker 不依赖具体领域。已注册、能够显示或原生烟测成功，均不代表完整工业工作流已经验收。
 
 ## 已接入的 Viewer
+
+Harness 自有 Viewer 控件跟随 **设置 → 语言**（简体中文 / English），切换保留缩放、选择等显示状态；上游嵌入界面保留自身语言。语言声明与 Desktop/Viewer 译文统一维护在一个[配置文件](apps/desktop/i18n.config.json)，详见[语言范围与维护方式](doc/desktop-languages.md)。
 
 从当前工程的文件树打开产物，自动选择对应 Viewer。查看器共用缩放、Fit 与全屏操作，查看不改变源码或验证结果。
 

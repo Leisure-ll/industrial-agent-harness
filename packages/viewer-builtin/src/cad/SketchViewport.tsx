@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useRef, useState } from 'react';
 import type { CadSketch, CadSketchGeometry } from '../api';
 import { useWheelZoom } from '../navigation';
@@ -49,6 +50,7 @@ export function SketchViewport({
   setView: (value: SketchView | ((v: SketchView) => SketchView)) => void;
   zoom: (factor: number) => void;
 }) {
+  const { t } = useDisplayText();
   const host = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState({ width: 600, height: 400 });
@@ -70,7 +72,7 @@ export function SketchViewport({
   }, []);
   const sketch = sketches[index];
   if (!sketch)
-    return <p className="rp-cad-empty">此模型没有原生草图。STEP 导入不会恢复草图与约束。</p>;
+    return <p className="rp-cad-empty">{t('此模型没有原生草图。STEP 导入不会恢复草图与约束。')}</p>;
   const bounds = extent(sketch.geometry);
   const scale =
     Math.max(
@@ -96,9 +98,9 @@ export function SketchViewport({
       <div className="rp-cad-sketch-main">
         <div className="rp-cad-tools">
           <label>
-            草图{' '}
+            {t('草图')}{' '}
             <select
-              aria-label="选择草图"
+              aria-label={t('选择草图')}
               value={index}
               onChange={e => {
                 setIndex(Number(e.target.value));
@@ -116,10 +118,10 @@ export function SketchViewport({
             </select>
           </label>
           <span className={sketch.fullyConstrained ? 'rp-cad-valid' : 'rp-cad-warning'}>
-            {sketch.fullyConstrained ? '完全约束' : '未完全约束'}
+            {sketch.fullyConstrained ? t('完全约束') : t('未完全约束')}
           </span>
           <span>
-            {sketch.geometry.length} 个几何 · {sketch.constraints.length} 个约束
+            {sketch.geometry.length} {t('个几何 ·')} {sketch.constraints.length} {t('个约束')}
           </span>
         </div>
         <div
@@ -147,7 +149,7 @@ export function SketchViewport({
             drag.current = null;
           }}
         >
-          <svg aria-label="FreeCAD 草图与约束" viewBox={`${x} ${y} ${width} ${height}`}>
+          <svg aria-label={t('FreeCAD 草图与约束')} viewBox={`${x} ${y} ${width} ${height}`}>
             <line className="rp-cad-sketch-axis" x1={x} y1={0} x2={x + width} y2={0} />
             <line className="rp-cad-sketch-axis" x1={0} y1={y} x2={0} y2={y + height} />
             {sketch.geometry.map(g => {
@@ -213,12 +215,14 @@ export function SketchViewport({
           </svg>
         </div>
         <small className="rp-cad-note">
-          草图局部坐标 · mm · 原点位置 ({sketch.origin.map(format).join(', ')}) · 拖动平移
+          {t('草图局部坐标 · mm · 原点位置 (')}
+          {sketch.origin.map(format).join(', ')}
+          {t(') · 拖动平移')}
         </small>
       </div>
       <aside className="rp-cad-inspector">
-        <h4>草图约束</h4>
-        <p>点击约束查看相关几何。</p>
+        <h4>{t('草图约束')}</h4>
+        <p>{t('点击约束查看相关几何。')}</p>
         <div className="rp-cad-constraints">
           {sketch.constraints.slice(page * 100, (page + 1) * 100).map(c => (
             <button
@@ -231,7 +235,7 @@ export function SketchViewport({
               }}
             >
               <span>
-                #{c.index + 1} {labels[c.type] || c.type}
+                #{c.index + 1} {t(labels[c.type] || c.type)}
               </span>
               {dimensional.test(c.type) && (
                 <strong>
@@ -242,9 +246,9 @@ export function SketchViewport({
               <small>
                 {[c.first, c.second, c.third]
                   .filter((v, i, a) => v >= 0 && a.indexOf(v) === i)
-                  .map(v => `几何 ${v + 1}`)
+                  .map(v => t('几何 {0}', { '0': v + 1 }))
                   .join(' · ')}
-                {c.driving === false ? ' · 参考尺寸' : ''}
+                {c.driving === false ? t(' · 参考尺寸') : ''}
               </small>
             </button>
           ))}
@@ -252,18 +256,18 @@ export function SketchViewport({
         {sketch.constraints.length > 100 && (
           <div className="rp-cad-tools">
             <button disabled={!page} onClick={() => setPage(p => p - 1)}>
-              上一页
+              {t('上一页')}
             </button>
             <button
               disabled={(page + 1) * 100 >= sketch.constraints.length}
               onClick={() => setPage(p => p + 1)}
             >
-              下一页
+              {t('下一页')}
             </button>
           </div>
         )}
         {sketch.geometry.some(g => g.kind === 'unsupported') && (
-          <p className="rp-cad-warning">部分曲线类型暂不绘制，原生约束仍保留。</p>
+          <p className="rp-cad-warning">{t('部分曲线类型暂不绘制，原生约束仍保留。')}</p>
         )}
       </aside>
     </div>

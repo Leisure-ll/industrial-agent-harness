@@ -1,12 +1,22 @@
 import { memo, useEffect } from 'react';
+import { useDisplayText } from '../text';
 import Markdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+function EmbeddedImage({ alt }: { alt?: string }) {
+  const { t } = useDisplayText();
+  return (
+    <span className="rp-markdown-image">
+      [{t('Image')}: {alt || t('embedded image')}]
+    </span>
+  );
+}
+
 // No project HTML, active links, embedded media, or network/file loads.
 const components: Components = {
   a: ({ children }) => <span className="rp-markdown-link">{children}</span>,
-  img: ({ alt }) => <span className="rp-markdown-image">[Image: {alt || 'embedded image'}]</span>,
+  img: EmbeddedImage,
 };
 type Ast = { children?: Ast[] };
 function boundedMarkdown() {

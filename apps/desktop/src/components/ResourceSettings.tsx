@@ -1,3 +1,4 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useRef, useState } from 'react';
 import type {
   ResourceMode,
@@ -14,6 +15,7 @@ export function ResourceSettings({
   busy: boolean;
   onChanged: () => void;
 }) {
+  const { t } = useDisplayText();
   const [snapshot, setSnapshot] = useState<ResourceSettingsSnapshot>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -55,31 +57,33 @@ export function ResourceSettings({
   return (
     <section
       className="ia-project-resources"
-      aria-label={projectId ? 'Project MCP and Skills' : 'Global MCP and Skills'}
+      aria-label={projectId ? t('Project MCP and Skills') : t('Global MCP and Skills')}
     >
-      <h2>MCP &amp; Skills</h2>
+      <h2>{t('MCP & Skills')}</h2>
       <p>
         {projectId
-          ? 'Project overrides take priority over global defaults. Choose Inherit to follow the global setting.'
-          : 'Defaults for all projects. Each project can override these settings.'}{' '}
-        Changes apply to new sessions.
+          ? t(
+              'Project overrides take priority over global defaults. Choose Inherit to follow the global setting.',
+            )
+          : t('Defaults for all projects. Each project can override these settings.')}{' '}
+        {t('Changes apply to new sessions.')}
       </p>
-      {busy && <p role="status">Stop the current task to change resources.</p>}
+      {busy && <p role="status">{t('Stop the current task to change resources.')}</p>}
       {error && (
         <p role="alert" className="ia-project-error">
-          {error}
+          {t(error)}
         </p>
       )}
       {!snapshot
-        ? !error && <p>Loading resources…</p>
+        ? !error && <p>{t('Loading resources…')}</p>
         : (['skills', 'mcpServers'] as const).map(key => (
             <div key={key}>
-              <h3>{key === 'skills' ? 'Skills' : 'MCP servers'}</h3>
+              <h3>{key === 'skills' ? t('Skills') : t('MCP servers')}</h3>
               {!snapshot.catalog[key].length && (
                 <p>
                   {key === 'skills'
-                    ? 'No Skills are bundled for this domain.'
-                    : 'No default domain MCP servers are bundled yet.'}
+                    ? t('No Skills are bundled for this domain.')
+                    : t('No default domain MCP servers are bundled yet.')}
                 </p>
               )}
               {snapshot.catalog[key].map(item => {
@@ -94,13 +98,15 @@ export function ResourceSettings({
                       <b>{item.title}</b>
                       <small>
                         {item.id}
-                        {!projectId && ` · ${item.domain}`} · {enabled ? 'Enabled' : 'Disabled'}
-                        {projectId && ` · Global: ${globalEnabled ? 'enabled' : 'disabled'}`}
+                        {!projectId && ` · ${item.domain}`} ·{' '}
+                        {enabled ? t('Enabled') : t('Disabled')}
+                        {projectId &&
+                          ` · ${t('Global: {0}', { '0': t(globalEnabled ? 'Enabled' : 'Disabled') })}`}
                       </small>
                     </span>
                     {projectId ? (
                       <select
-                        aria-label={`${item.title} project setting`}
+                        aria-label={t('{0} project setting', { '0': item.title })}
                         value={mode}
                         disabled={busy || saving}
                         onChange={event =>
@@ -112,15 +118,15 @@ export function ResourceSettings({
                         }
                       >
                         <option value="inherit">
-                          Inherit ({globalEnabled ? 'enabled' : 'disabled'})
+                          {t('Inherit ({0})', { '0': t(globalEnabled ? 'Enabled' : 'Disabled') })}
                         </option>
-                        <option value="enabled">Enabled</option>
-                        <option value="disabled">Disabled</option>
+                        <option value="enabled">{t('Enabled')}</option>
+                        <option value="disabled">{t('Disabled')}</option>
                       </select>
                     ) : (
                       <input
                         type="checkbox"
-                        aria-label={`${item.title} global default`}
+                        aria-label={t('{0} global default', { '0': item.title })}
                         checked={enabled}
                         disabled={busy || saving}
                         onChange={event =>
@@ -137,7 +143,7 @@ export function ResourceSettings({
               })}
             </div>
           ))}
-      {saving && <p role="status">Saving…</p>}
+      {saving && <p role="status">{t('Saving…')}</p>}
       {!projectId && (
         <ExternalMcpSettings
           busy={busy || saving}
@@ -160,6 +166,7 @@ export function GlobalResourceSettings({
   onChanged: () => void;
   onClose: () => void;
 }) {
+  const { t } = useDisplayText();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -173,7 +180,7 @@ export function GlobalResourceSettings({
     <dialog
       ref={dialog}
       className="ia-resource-modal"
-      aria-label="Global MCP and Skill settings"
+      aria-label={t('Global MCP and Skill settings')}
       onCancel={onClose}
       onClick={event => {
         if (event.target !== event.currentTarget) return;
@@ -189,10 +196,10 @@ export function GlobalResourceSettings({
     >
       <header>
         <div>
-          <h1>Global resources</h1>
-          <p>MCP and Skill defaults</p>
+          <h1>{t('Global resources')}</h1>
+          <p>{t('MCP and Skill defaults')}</p>
         </div>
-        <button aria-label="Close resource settings" onClick={onClose}>
+        <button aria-label={t('Close resource settings')} onClick={onClose}>
           ×
         </button>
       </header>

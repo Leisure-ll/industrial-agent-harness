@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useRef, useState } from 'react';
 import type { KiCadData } from '../api';
 import { useViewNavigation } from '../navigation';
@@ -11,6 +12,7 @@ export function KiCadViewport({
   onReady: () => void;
   onError: (message: string) => void;
 }) {
+  const { t } = useDisplayText();
   const frame = useRef<HTMLIFrameElement>(null);
   const callbacks = useRef({ onReady, onError });
   callbacks.current = { onReady, onError };
@@ -82,24 +84,26 @@ export function KiCadViewport({
     <div className="rp-kicad">
       <header className="rp-kicad-toolbar">
         <strong title={data.name}>{data.name}</strong>
-        <span>{data.document === 'board' ? 'PCB' : 'Schematic'} · Read only</span>
+        <span>
+          {data.document === 'board' ? 'PCB' : t('Schematic')} {t('· Read only')}
+        </span>
         <button
           disabled={!connected}
           onClick={() => command('page')}
-          title="Fit the entire drawing sheet"
+          title={t('Fit the entire drawing sheet')}
         >
-          Whole page
+          {t('Whole page')}
         </button>
       </header>
       <div className="rp-kicad-navigation-hint">
-        Scroll or pinch to zoom · Middle/right drag to pan
+        {t('Scroll or pinch to zoom · Middle/right drag to pan')}
       </div>
       <div className="rp-kicad-canvas">
         <iframe
           key={data.token}
           ref={frame}
           src={data.url}
-          title="KiCad document viewer"
+          title={t('KiCad document viewer')}
           sandbox="allow-scripts allow-same-origin"
         />
         {status && (

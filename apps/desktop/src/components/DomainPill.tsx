@@ -1,3 +1,4 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import type { DomainOption } from '@industrial-agent-harness/viewer-builtin/api';
 
 export function DomainPill({
@@ -9,15 +10,16 @@ export function DomainPill({
   domains: DomainOption[];
   label?: string;
 }) {
+  const { t } = useDisplayText();
   const selected = domains.find(item => item.id === domain);
   return (
     <span
       className="ia-domain-pill"
       role="status"
-      aria-label={`${label || 'Domain'}: ${selected?.label || domain || 'None'}`}
+      aria-label={`${t(label || 'Domain')}: ${t(selected?.label || domain || 'None')}`}
     >
       <span aria-hidden="true">{selected?.emoji || '✨'}</span>
-      <span>{selected?.label || domain || 'No domain'}</span>
+      <span>{t(selected?.label || domain || 'No domain')}</span>
     </span>
   );
 }

@@ -1,5 +1,7 @@
 # Built-in Viewers
 
+Harness 自有控件消费 `./text` 导出的只读展示 `DisplayTextProvider`。Desktop 提供中英文翻译及语言，切换保留 Viewer 状态；其他宿主可提供自己的回调，默认沿用原标签。Desktop 和 Viewer 的语言声明及译文统一维护在 [`apps/desktop/i18n.config.json`](../../apps/desktop/i18n.config.json)，Viewer 包不依赖宿主配置。源文件、工程数值、Runtime 命令、上游嵌入控件和验证证据不翻译。见[桌面语言切换](../../doc/desktop-languages.md)。
+
 这里是正式的内置 Viewer 实现路径。首批直接迁入并使用三种 EDA Viewer：
 
 | 模块 | 渲染能力 |

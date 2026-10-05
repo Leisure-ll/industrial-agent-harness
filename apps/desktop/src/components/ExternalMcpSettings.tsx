@@ -1,7 +1,9 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ExternalMcpSummary } from '@industrial-agent-harness/viewer-builtin/api';
 
 export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChanged: () => void }) {
+  const { t } = useDisplayText();
   const [servers, setServers] = useState<ExternalMcpSummary[]>();
   const [connection, setConnection] = useState('stdio');
   const [name, setName] = useState('');
@@ -87,26 +89,27 @@ export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChan
   }
   const disabled = busy || pending;
   return (
-    <section className="ia-external-mcp" aria-label="External MCP services">
-      <h3>External MCP services</h3>
+    <section className="ia-external-mcp" aria-label={t('External MCP services')}>
+      <h3>{t('External MCP services')}</h3>
       <p>
-        Shared by Desktop and all domain CLI packages. Add a service you trust: local commands start
-        programs, and computer-use services may control apps outside this project.
+        {t(
+          'Shared by Desktop and all domain CLI packages. Add a service you trust: local commands start programs, and computer-use services may control apps outside this project.',
+        )}
       </p>
       {error && (
         <p role="alert" className="ia-project-error">
-          {error}
+          {t(error)}
         </p>
       )}
-      {message && <p role="status">{message}</p>}
-      {!servers && !error && <p>Loading external services…</p>}
+      {message && <p role="status">{t(message)}</p>}
+      {!servers && !error && <p>{t('Loading external services…')}</p>}
       {servers?.map(server => (
         <div className="ia-external-server" key={server.id}>
           <div>
             <b>{server.title}</b>
             <small>
-              {server.id} · {server.transport === 'stdio' ? 'Local' : 'Remote'} · {server.toolCount}{' '}
-              tools
+              {server.id} · {server.transport === 'stdio' ? t('Local') : t('Remote')} ·{' '}
+              {server.toolCount} {t('tools')}
             </small>
           </div>
           <div className="ia-external-actions">
@@ -118,9 +121,9 @@ export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChan
                   'Tool snapshot refreshed. The next task will use a new scope.',
                 )
               }
-              aria-label={`Refresh ${server.title} tools`}
+              aria-label={t('Refresh {0} tools', { '0': server.title })}
             >
-              Refresh tools
+              {t('Refresh tools')}
             </button>
             <button
               disabled={disabled}
@@ -130,9 +133,9 @@ export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChan
                   'Service removed from future tasks.',
                 )
               }
-              aria-label={`Remove ${server.title}`}
+              aria-label={t('Remove {0}', { '0': server.title })}
             >
-              Remove
+              {t('Remove')}
             </button>
           </div>
         </div>
@@ -143,21 +146,21 @@ export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChan
           add();
         }}
       >
-        <h4>Add an MCP service</h4>
-        <label htmlFor={`${field}-connection`}>Connection</label>
+        <h4>{t('Add an MCP service')}</h4>
+        <label htmlFor={`${field}-connection`}>{t('Connection')}</label>
         <select
           id={`${field}-connection`}
           value={connection}
           disabled={disabled}
           onChange={event => setConnection(event.target.value)}
         >
-          <option value="stdio">Local command</option>
-          <option value="http">Remote URL</option>
-          <option value="import">Import configuration</option>
+          <option value="stdio">{t('Local command')}</option>
+          <option value="http">{t('Remote URL')}</option>
+          <option value="import">{t('Import configuration')}</option>
         </select>
         {connection === 'import' ? (
           <>
-            <label htmlFor={`${field}-configuration`}>MCP configuration JSON</label>
+            <label htmlFor={`${field}-configuration`}>{t('MCP configuration JSON')}</label>
             <textarea
               id={`${field}-configuration`}
               required
@@ -169,7 +172,7 @@ export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChan
           </>
         ) : (
           <>
-            <label htmlFor={`${field}-name`}>Name</label>
+            <label htmlFor={`${field}-name`}>{t('Name')}</label>
             <input
               id={`${field}-name`}
               required
@@ -181,16 +184,16 @@ export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChan
             />
             {connection === 'stdio' ? (
               <>
-                <label htmlFor={`${field}-command`}>Command</label>
+                <label htmlFor={`${field}-command`}>{t('Command')}</label>
                 <input
                   id={`${field}-command`}
                   required
                   value={command}
                   disabled={disabled}
                   onChange={event => setCommand(event.target.value)}
-                  placeholder="Absolute executable path or installed command"
+                  placeholder={t('Absolute executable path or installed command')}
                 />
-                <label htmlFor={`${field}-arguments`}>Arguments, one per line</label>
+                <label htmlFor={`${field}-arguments`}>{t('Arguments, one per line')}</label>
                 <textarea
                   id={`${field}-arguments`}
                   value={argumentsText}
@@ -200,7 +203,7 @@ export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChan
               </>
             ) : (
               <>
-                <label htmlFor={`${field}-url`}>Service URL</label>
+                <label htmlFor={`${field}-url`}>{t('Service URL')}</label>
                 <input
                   id={`${field}-url`}
                   type="url"
@@ -215,11 +218,12 @@ export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChan
           </>
         )}
         <p>
-          Use Import configuration for environment variables, authentication headers or legacy SSE
-          connections. Adding or refreshing connects to the service to check its tools.
+          {t(
+            'Use Import configuration for environment variables, authentication headers or legacy SSE connections. Adding or refreshing connects to the service to check its tools.',
+          )}
         </p>
         <button type="submit" disabled={disabled || !servers}>
-          {pending ? 'Checking service…' : 'Add and check'}
+          {pending ? t('Checking service…') : t('Add and check')}
         </button>
       </form>
     </section>

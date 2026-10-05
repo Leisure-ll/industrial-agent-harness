@@ -45,7 +45,7 @@ const api = {
   },
   modelGet: () => ipcRenderer.invoke('model:get'),
   modelSave: request => ipcRenderer.invoke('model:save', request),
-  chooseProjectDirectory: () => ipcRenderer.invoke('project:choose-directory'),
+  chooseProjectDirectory: locale => ipcRenderer.invoke('project:choose-directory', locale),
   createProject: request => ipcRenderer.invoke('project:create', request),
   projectBindings: () => ipcRenderer.invoke('project:bindings'),
   selectProject: id => ipcRenderer.invoke('project:select', id),

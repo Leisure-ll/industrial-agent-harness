@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { GodotData, GodotNode, GodotState } from '../api';
@@ -15,6 +16,7 @@ export function GodotViewport({
   onReady: () => void;
   onError: (message: string) => void;
 }) {
+  const { t } = useDisplayText();
   const frame = useRef<HTMLIFrameElement>(null);
   const sequence = useRef(0);
   const pending = useRef(
@@ -179,44 +181,46 @@ export function GodotViewport({
   return (
     <div className="rp-godot">
       <header className="rp-godot-toolbar">
-        <strong title={state.scene}>Scene: {state.scene}</strong>
+        <strong title={state.scene}>
+          {t('Scene:')} {state.scene}
+        </strong>
         <button
           disabled={!connected || restarting}
-          aria-label="Play"
+          aria-label={t('Play')}
           onClick={() => void command('play')}
         >
           ▶
         </button>
         <button
           disabled={!connected || restarting}
-          aria-label="Pause"
+          aria-label={t('Pause')}
           onClick={() => void command('pause')}
         >
-          Pause
+          {t('Pause')}
         </button>
         <button
           disabled={!connected || restarting}
-          aria-label="Stop"
+          aria-label={t('Stop')}
           onClick={() => void command('stop')}
         >
-          Stop
+          {t('Stop')}
         </button>
         <button
           disabled={!connected || restarting || !state.paused}
-          aria-label="Step frame"
+          aria-label={t('Step frame')}
           onClick={() => void command('stepFrame')}
         >
-          Step
+          {t('Step')}
         </button>
         <select
-          aria-label="Camera"
+          aria-label={t('Camera')}
           disabled={!connected || restarting}
           value=""
           onChange={event => {
             if (event.target.value) void command('camera', { path: event.target.value });
           }}
         >
-          <option value="">Camera</option>
+          <option value="">{t('Camera')}</option>
           {cameraNodes(state.tree).map(node => (
             <option key={node.path} value={node.path}>
               {node.name}
@@ -226,15 +230,17 @@ export function GodotViewport({
       </header>
       <div className="rp-godot-body">
         <aside className="rp-godot-tree">
-          <b>Scene Tree</b>
+          <b>{t('Scene Tree')}</b>
           {state.tree ? (
             tree(state.tree)
           ) : (
-            <p>{connected ? 'No active scene' : 'Waiting for runtime…'}</p>
+            <p>{connected ? t('No active scene') : t('Waiting for runtime…')}</p>
           )}
           {inspection && (
             <div className="rp-godot-inspect">
-              <b>Inspect · {String(inspection.name || '')}</b>
+              <b>
+                {t('Inspect ·')} {String(inspection.name || '')}
+              </b>
               <small>{String(inspection.class || '')}</small>
               <dl>
                 {Object.entries((inspection.properties || {}) as Record<string, string>).map(
@@ -257,7 +263,7 @@ export function GodotViewport({
             <iframe
               ref={frame}
               src={data.url}
-              title="Godot Runtime View"
+              title={t('Godot Runtime View')}
               sandbox="allow-scripts allow-same-origin"
               style={{
                 width: `${100 / zoom}%`,
@@ -269,15 +275,15 @@ export function GodotViewport({
           </div>
           {message && (
             <div className="rp-godot-status" role="status">
-              {message}
+              {t(message)}
             </div>
           )}
         </div>
       </div>
       <footer className="rp-godot-state">
-        <b>Runtime State</b>
+        <b>{t('Runtime State')}</b>
         {(['collision', 'navmesh', 'physics'] as const).map(name => (
-          <label key={name} title="Requires a runtime-specific overlay provider">
+          <label key={name} title={t('Requires a runtime-specific overlay provider')}>
             <input
               type="checkbox"
               checked={Boolean(state.overlays?.[name])}

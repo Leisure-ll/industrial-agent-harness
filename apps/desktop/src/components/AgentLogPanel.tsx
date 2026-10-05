@@ -1,3 +1,5 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
+import type { DisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useRef, useState } from 'react';
 import type {
   DiagnosticCategory,
@@ -36,15 +38,25 @@ const statusNames: Record<string, string> = {
   interrupted: '已中断',
   cancelled: '已取消',
 };
-const stamp = (at: string) => {
+const stamp = (at: string, locale: string) => {
   const value = new Date(at);
-  return Number.isNaN(value.getTime()) ? at : value.toLocaleString();
+  return Number.isNaN(value.getTime()) ? at : value.toLocaleString(locale);
 };
-const time = (at: string) => {
+const time = (at: string, locale: string) => {
   const value = new Date(at);
-  return Number.isNaN(value.getTime()) ? at : value.toLocaleTimeString();
+  return Number.isNaN(value.getTime()) ? at : value.toLocaleTimeString(locale);
 };
 const bytes = (value: number) => (value >= 1024 ? `${(value / 1024).toFixed(1)} KB` : `${value} B`);
+function diagnosticTitle(title: string, t: DisplayText): string {
+  const step = /^模型第 (\d+) 步$/.exec(title);
+  if (step) return t('模型第 {0} 步', { 0: step[1] });
+  const final = /^结束时会话上下文 · (\d+) 条消息$/.exec(title);
+  if (final) return t('结束时会话上下文 · {0} 条消息', { 0: final[1] });
+  const context = /^(.*) · (\d+) 条上下文消息$/.exec(title);
+  if (context)
+    return t('{0} · {1} 条上下文消息', { 0: diagnosticTitle(context[1], t), 1: context[2] });
+  return t(title);
+}
 function readable(content: DiagnosticContent) {
   if (content.offset === 0 && content.nextOffset === null) {
     try {
@@ -70,6 +82,7 @@ function ContentViewer({
   revision: number;
   prose?: boolean;
 }) {
+  const { t, locale } = useDisplayText();
   const [content, setContent] = useState<DiagnosticContent>(),
     [offset, setOffset] = useState(0),
     [previous, setPrevious] = useState<number[]>([]),
@@ -97,18 +110,21 @@ function ContentViewer({
     <>
       {error && (
         <p role="alert" className="ia-log-error">
-          {error}
+          {t(error)}
         </p>
       )}
-      {!content && !error && <p>正在读取…</p>}
+      {!content && !error && <p>{t('正在读取…')}</p>}
       {content && (
         <>
           {sequence != null && (
             <small>
-              {content.totalBytes.toLocaleString()} bytes ·{' '}
+              {content.totalBytes.toLocaleString(locale)} {t('bytes ·')}{' '}
               {content.offset === 0 && content.nextOffset === null
-                ? 'Complete record'
-                : `Bytes ${content.offset + 1}–${content.nextOffset ?? content.totalBytes}`}
+                ? t('Complete record')
+                : t('Bytes {0}–{1}', {
+                    '0': content.offset + 1,
+                    '1': content.nextOffset ?? content.totalBytes,
+                  })}
             </small>
           )}
           <pre
@@ -124,7 +140,9 @@ function ContentViewer({
           </pre>
           {(content.offset > 0 || content.nextOffset != null) && (
             <footer>
-              <span>{bytes(content.totalBytes)} · 当前为部分内容</span>
+              <span>
+                {bytes(content.totalBytes)} {t('· 当前为部分内容')}
+              </span>
               <button
                 disabled={!previous.length}
                 onClick={() => {
@@ -132,7 +150,7 @@ function ContentViewer({
                   setPrevious(value => value.slice(0, -1));
                 }}
               >
-                Previous part
+                {t('Previous part')}
               </button>
               <button
                 disabled={content.nextOffset == null}
@@ -141,7 +159,7 @@ function ContentViewer({
                   setOffset(content.nextOffset!);
                 }}
               >
-                Next part
+                {t('Next part')}
               </button>
             </footer>
           )}
@@ -163,6 +181,7 @@ function FieldSection({
   runId: string;
   revision: number;
 }) {
+  const { t } = useDisplayText();
   const [open, setOpen] = useState(field.open);
   return (
     <details
@@ -171,7 +190,7 @@ function FieldSection({
       onToggle={event => setOpen(event.currentTarget.open)}
     >
       <summary>
-        <b>{field.label}</b>
+        <b>{t(field.label)}</b>
         <small>{bytes(field.bytes)}</small>
       </summary>
       {open && (
@@ -198,10 +217,14 @@ function SourceEvent({
   runId: string;
   revision: number;
 }) {
+  const { t, locale } = useDisplayText();
   const [open, setOpen] = useState(false);
   return (
     <details open={open} onToggle={event => setOpen(event.currentTarget.open)}>
-      <summary>事件 #{sequence}</summary>
+      <summary>
+        {t('事件 #')}
+        {sequence}
+      </summary>
       {open && (
         <ContentViewer
           projectId={projectId}
@@ -224,6 +247,7 @@ function SourceEvents({
   runId: string;
   revision: number;
 }) {
+  const { t, locale } = useDisplayText();
   const [open, setOpen] = useState(false);
   return (
     <details
@@ -231,7 +255,9 @@ function SourceEvents({
       open={open}
       onToggle={event => setOpen(event.currentTarget.open)}
     >
-      <summary>关联原始事件 · {entry.sequences.length} 条</summary>
+      <summary>
+        {t('关联原始事件 ·')} {entry.sequences.length} {t('条')}
+      </summary>
       {open && (
         <div>
           {entry.sequences.map(sequence => (
@@ -249,6 +275,7 @@ function SourceEvents({
   );
 }
 function Usage({ entry }: { entry: DiagnosticEntry }) {
+  const { t, locale } = useDisplayText();
   if (!entry.usage && entry.contextUsage == null) return null;
   const usage = entry.usage;
   const input =
@@ -263,17 +290,23 @@ function Usage({ entry }: { entry: DiagnosticEntry }) {
     <div className="ia-log-usage">
       {entry.contextUsage != null && (
         <span>
-          上下文占用 <b>{(entry.contextUsage * 100).toFixed(1)}%</b>
+          {t('上下文占用')} <b>{(entry.contextUsage * 100).toFixed(1)}%</b>
         </span>
       )}
       {input != null && (
         <span>
-          输入 <b>{input.toLocaleString()} tokens</b>
+          {t('输入')}{' '}
+          <b>
+            {input.toLocaleString(locale)} {t('tokens')}
+          </b>
         </span>
       )}
       {usage?.output != null && (
         <span>
-          输出 <b>{usage.output.toLocaleString()} tokens</b>
+          {t('输出')}{' '}
+          <b>
+            {usage.output.toLocaleString(locale)} {t('tokens')}
+          </b>
         </span>
       )}
     </div>
@@ -294,6 +327,7 @@ export function AgentLogPanel({
   running: boolean;
   onClose: () => void;
 }) {
+  const { t, locale } = useDisplayText();
   const dialog = useRef<HTMLDialogElement>(null);
   const [runs, setRuns] = useState<DiagnosticRun[]>([]),
     [limited, setLimited] = useState(false);
@@ -449,22 +483,27 @@ export function AgentLogPanel({
     >
       <header>
         <div>
-          <h2 id="ia-log-title">Agent 运行日志</h2>
-          <span>{projectName} · 查看执行过程、上下文和工具结果</span>
+          <h2 id="ia-log-title">{t('Agent 运行日志')}</h2>
+          <span>
+            {projectName} {t('· 查看执行过程、上下文和工具结果')}
+          </span>
         </div>
-        <button aria-label="Close agent logs" onClick={onClose}>
+        <button aria-label={t('Close agent logs')} onClick={onClose}>
           ×
         </button>
       </header>
       <div className="ia-log-body">
         <aside className="ia-log-runs">
           <div className="ia-log-section-title">
-            <b>历史运行</b>
-            <button onClick={() => setRefresh(value => value + 1)} aria-label="Refresh agent logs">
-              刷新
+            <b>{t('历史运行')}</b>
+            <button
+              onClick={() => setRefresh(value => value + 1)}
+              aria-label={t('Refresh agent logs')}
+            >
+              {t('刷新')}
             </button>
           </div>
-          {!runs.length && <p>暂无日志。在项目中运行任务后即可查看。</p>}
+          {!runs.length && <p>{t('暂无日志。在项目中运行任务后即可查看。')}</p>}
           {runs.map(item => (
             <button
               key={item.runId}
@@ -472,21 +511,21 @@ export function AgentLogPanel({
               onClick={() => chooseRun(item.runId)}
               title={item.traceId}
             >
-              <time>{stamp(item.at)}</time>
-              <b>{item.model || 'Agent run'}</b>
+              <time>{stamp(item.at, locale)}</time>
+              <b>{item.model || t('Agent run')}</b>
               <small>
                 {item.traceId.slice(0, 8)} ·{' '}
                 {item.traceId === runningTraceId && running
-                  ? 'Running · 进行中'
-                  : statusNames[item.status ?? ''] || item.status || '未记录结束'}
+                  ? t('Running · 进行中')
+                  : t(statusNames[item.status ?? ''] || item.status || '未记录结束')}
               </small>
               {item.error && <small>{item.error}</small>}
             </button>
           ))}
-          {limited && <p>显示最近 50 次运行。</p>}
+          {limited && <p>{t('显示最近 50 次运行。')}</p>}
         </aside>
         <div className="ia-log-workspace">
-          <nav className="ia-log-tabs" aria-label="日志视图">
+          <nav className="ia-log-tabs" aria-label={t('日志视图')}>
             {views.map(([value, label]) => (
               <button
                 key={value}
@@ -494,7 +533,7 @@ export function AgentLogPanel({
                 className={view === value ? 'active' : ''}
                 onClick={() => chooseView(value)}
               >
-                {label}
+                {t(label)}
                 {page && view !== 'raw' && <small>{page.counts[value]}</small>}
               </button>
             ))}
@@ -503,22 +542,27 @@ export function AgentLogPanel({
               aria-pressed={view === 'raw'}
               onClick={() => chooseView('raw')}
             >
-              原始事件
+              {t('原始事件')}
             </button>
           </nav>
           {run && (
             <div className="ia-log-run-info">
               <span>
-                <b>{run.model || 'Agent run'}</b> ·{' '}
+                <b>{run.model || t('Agent run')}</b> ·{' '}
                 {run.metrics?.peakContextUsage == null
-                  ? '上下文占用未记录'
-                  : `Peak context ${Math.round(run.metrics.peakContextUsage * 100)}%`}{' '}
-                · {run.metrics?.compactions ?? '—'} 次压缩
+                  ? t('上下文占用未记录')
+                  : t('Peak context {0}%', {
+                      '0': Math.round(run.metrics.peakContextUsage * 100),
+                    })}{' '}
+                · {run.metrics?.compactions ?? '—'} {t('次压缩')}
               </span>
               <small>
                 {view === 'raw'
-                  ? `${rawPage?.totalRecords ?? '—'} 条原始事件`
-                  : `${page?.totalRecords ?? '—'} 条原始事件 → ${page?.counts.timeline ?? '—'} 条时间线记录`}{' '}
+                  ? t('{0} 条原始事件', { '0': rawPage?.totalRecords ?? '—' })
+                  : t('{0} 条原始事件 → {1} 条时间线记录', {
+                      '0': page?.totalRecords ?? '—',
+                      '1': page?.counts.timeline ?? '—',
+                    })}{' '}
                 · Trace {run.traceId}
               </small>
             </div>
@@ -528,9 +572,9 @@ export function AgentLogPanel({
               <div className="ia-log-filters">
                 {view === 'raw' && (
                   <label>
-                    事件类型
+                    {t('事件类型')}{' '}
                     <select
-                      aria-label="Agent log event type"
+                      aria-label={t('Agent log event type')}
                       value={category}
                       onChange={event => {
                         setCategory(event.target.value as DiagnosticCategory | 'all');
@@ -540,7 +584,7 @@ export function AgentLogPanel({
                     >
                       {categories.map(([value, label]) => (
                         <option key={value} value={value}>
-                          {label}
+                          {t(label)}
                         </option>
                       ))}
                     </select>
@@ -549,16 +593,16 @@ export function AgentLogPanel({
                 <label>
                   <span>
                     {view === 'timeline'
-                      ? '执行顺序'
+                      ? t('执行顺序')
                       : view === 'context'
-                        ? '上下文来源与模型步骤'
+                        ? t('上下文来源与模型步骤')
                         : view === 'tools'
-                          ? '调用与返回成对展示'
-                          : '底层调试记录'}
+                          ? t('调用与返回成对展示')
+                          : t('底层调试记录')}
                   </span>
                   <input
-                    aria-label="Find agent log event"
-                    placeholder={view === 'tools' ? '搜索工具名、参数或调用 ID' : '搜索记录'}
+                    aria-label={t('Find agent log event')}
+                    placeholder={view === 'tools' ? t('搜索工具名、参数或调用 ID') : t('搜索记录')}
                     maxLength={200}
                     value={query}
                     onChange={event => setQuery(event.target.value)}
@@ -567,11 +611,11 @@ export function AgentLogPanel({
               </div>
               {error && (
                 <p className="ia-log-error" role="alert">
-                  {error}
+                  {t(error)}
                 </p>
               )}
               <div className="ia-log-records" aria-busy={loading}>
-                {loading && !page && !rawPage && <p>正在加载…</p>}
+                {loading && !page && !rawPage && <p>{t('正在加载…')}</p>}
                 {view !== 'raw' &&
                   page?.entries.map((entry, i) => (
                     <button
@@ -586,7 +630,7 @@ export function AgentLogPanel({
                           {entry.kind === 'tool'
                             ? '↗'
                             : entry.kind === 'user'
-                              ? '你'
+                              ? t('你')
                               : entry.kind === 'assistant'
                                 ? 'AI'
                                 : entry.kind === 'step'
@@ -597,21 +641,21 @@ export function AgentLogPanel({
                         </span>
                         <b>
                           {view === 'tools' ? `${offset + i + 1}. ` : ''}
-                          {entry.title}
+                          {entry.kind === 'tool' ? entry.title : diagnosticTitle(entry.title, t)}
                         </b>
                         {entry.status && (
                           <em className={`ia-log-status status-${entry.status}`}>
-                            {statusNames[entry.status] || entry.status}
+                            {t(statusNames[entry.status] || entry.status)}
                           </em>
                         )}
                       </span>
                       <small>
-                        {time(entry.at)}
+                        {time(entry.at, locale)}
                         {entry.durationMs != null
-                          ? ` · ${(entry.durationMs / 1000).toFixed(2)} 秒`
+                          ? t(' · {0} 秒', { '0': (entry.durationMs / 1000).toFixed(2) })
                           : ''}
                         {entry.kind === 'step' && entry.contextUsage != null
-                          ? ` · 上下文 ${(entry.contextUsage * 100).toFixed(1)}%`
+                          ? t(' · 上下文 {0}%', { '0': (entry.contextUsage * 100).toFixed(1) })
                           : ''}
                       </small>
                       {entry.summary && <p>{entry.summary}</p>}
@@ -634,7 +678,7 @@ export function AgentLogPanel({
                             : row.type === 'harness.event'
                               ? 'UI'
                               : 'Harness'}{' '}
-                          · {time(row.at)}
+                          · {time(row.at, locale)}
                         </small>
                       </span>
                       {row.summary && <p>{row.summary}</p>}
@@ -643,24 +687,24 @@ export function AgentLogPanel({
                 {count === 0 && (
                   <p>
                     {view === 'context'
-                      ? '没有可用的上下文记录。旧日志可能没有保存上下文快照。'
-                      : '没有匹配的记录。'}
+                      ? t('没有可用的上下文记录。旧日志可能没有保存上下文快照。')
+                      : t('没有匹配的记录。')}
                   </p>
                 )}
               </div>
               <footer>
-                <span>{count == null ? '' : `${count} 条记录`}</span>
+                <span>{count == null ? '' : t('{0} 条记录', { '0': count })}</span>
                 <button
                   disabled={!offset || loading}
                   onClick={() => setOffset(value => Math.max(0, value - 100))}
                 >
-                  Previous
+                  {t('Previous')}
                 </button>
                 <button
                   disabled={nextOffset == null || loading}
                   onClick={() => setOffset(nextOffset!)}
                 >
-                  Next
+                  {t('Next')}
                 </button>
               </footer>
             </section>
@@ -669,22 +713,31 @@ export function AgentLogPanel({
                 <b>
                   {view === 'raw'
                     ? rawSelected
-                      ? `Event #${rawSelected.sequence} · ${rawSelected.event || rawSelected.type}`
-                      : '原始事件'
-                    : selected?.title || '记录详情'}
+                      ? t('Event #{0} · {1}', {
+                          '0': rawSelected.sequence,
+                          '1': rawSelected.event || rawSelected.type,
+                        })
+                      : t('原始事件')
+                    : selected
+                      ? selected.kind === 'tool'
+                        ? selected.title
+                        : diagnosticTitle(selected.title, t)
+                      : t('记录详情')}
                 </b>
                 {selected?.status && view !== 'raw' && (
                   <em className={`ia-log-status status-${selected.status}`}>
-                    {statusNames[selected.status] || selected.status}
+                    {t(statusNames[selected.status] || selected.status)}
                   </em>
                 )}
               </div>
               {view !== 'raw' && selected && (
                 <>
                   <div className="ia-log-detail-meta">
-                    <span>{stamp(selected.at)}</span>
+                    <span>{stamp(selected.at, locale)}</span>
                     {selected.durationMs != null && (
-                      <span>耗时 {(selected.durationMs / 1000).toFixed(2)} 秒</span>
+                      <span>
+                        {t('耗时')} {(selected.durationMs / 1000).toFixed(2)} {t('秒')}
+                      </span>
                     )}
                     {selected.callId && <code>{selected.callId}</code>}
                   </div>
@@ -693,12 +746,12 @@ export function AgentLogPanel({
                     <div className="ia-log-related">
                       {selected.contextId && (
                         <button onClick={() => navigate('context', selected.contextId!)}>
-                          查看该步上下文 →
+                          {t('查看该步上下文 →')}
                         </button>
                       )}
                       {selected.kind === 'tool' && view !== 'tools' && (
                         <button onClick={() => navigate('tools', selected.id)}>
-                          查看工具调用 →
+                          {t('查看工具调用 →')}
                         </button>
                       )}
                       {view !== 'timeline' && (
@@ -710,20 +763,22 @@ export function AgentLogPanel({
                             )
                           }
                         >
-                          回到时间线 →
+                          {t('回到时间线 →')}
                         </button>
                       )}
                     </div>
                   )}
-                  {selected.note && <p className="ia-log-context-note">{selected.note}</p>}
+                  {selected.note && <p className="ia-log-context-note">{t(selected.note)}</p>}
                   {selected.kind === 'step' && !selected.contextId && (
                     <p className="ia-log-context-note">
-                      未保存可对应此步骤的上下文边界。可在“上下文”查看本轮输入与现有会话快照。
+                      {t(
+                        '未保存可对应此步骤的上下文边界。可在“上下文”查看本轮输入与现有会话快照。',
+                      )}
                     </p>
                   )}
                   {selected.kind === 'tool' && selected.status === 'missing' && (
                     <p className="ia-log-context-note">
-                      运行已结束，但日志没有记录这次调用的返回。
+                      {t('运行已结束，但日志没有记录这次调用的返回。')}
                     </p>
                   )}
                   {selected.fields.map(field => (
@@ -756,12 +811,12 @@ export function AgentLogPanel({
                   revision={refresh}
                 />
               )}
-              {view !== 'raw' && !selected && <p>选择一条记录查看完整内容。</p>}
+              {view !== 'raw' && !selected && <p>{t('选择一条记录查看完整内容。')}</p>}
             </section>
           </div>
         </div>
       </div>
-      <footer className="ia-log-note">只读日志 · 运行中自动刷新 · Esc 关闭</footer>
+      <footer className="ia-log-note">{t('只读日志 · 运行中自动刷新 · Esc 关闭')}</footer>
     </dialog>
   );
 }

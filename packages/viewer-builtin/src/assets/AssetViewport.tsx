@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useMemo, useState } from 'react';
 import type { AssetData, SpriteAnimation } from '../api';
 import { AssetCanvas } from './AssetCanvas';
@@ -14,6 +15,7 @@ export function AssetViewport({
   onReady: () => void;
   onError: (message: string) => void;
 }) {
+  const { t } = useDisplayText();
   const [images, setImages] = useState<HTMLImageElement[]>([]);
   const [error, setError] = useState('');
   const [mode, setMode] = useState(data.initialMode);
@@ -120,9 +122,9 @@ export function AssetViewport({
   const gridControls = (
     <>
       <label>
-        Columns{' '}
+        {t('Columns')}{' '}
         <input
-          aria-label="Sprite columns"
+          aria-label={t('Sprite columns')}
           type="number"
           min={1}
           max={128}
@@ -131,9 +133,9 @@ export function AssetViewport({
         />
       </label>
       <label>
-        Rows{' '}
+        {t('Rows')}{' '}
         <input
-          aria-label="Sprite rows"
+          aria-label={t('Sprite rows')}
           type="number"
           min={1}
           max={128}
@@ -146,23 +148,27 @@ export function AssetViewport({
   return (
     <div className="rp-assets">
       <header className="rp-asset-toolbar">
-        <div className="rp-asset-modes" aria-label="Asset viewer mode">
+        <div className="rp-asset-modes" aria-label={t('Asset viewer mode')}>
           {(['image', 'sprite', 'animation'] as const).map(value => (
             <button key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>
-              {value === 'image' ? 'Image' : value === 'sprite' ? 'Sprite sheet' : 'Animation'}
+              {value === 'image'
+                ? t('Image')
+                : value === 'sprite'
+                  ? t('Sprite sheet')
+                  : t('Animation')}
             </button>
           ))}
         </div>
         <label>
-          Background{' '}
+          {t('Background')}{' '}
           <select
-            aria-label="Asset background"
+            aria-label={t('Asset background')}
             value={background}
             onChange={event => setBackground(event.target.value)}
           >
-            <option value="checker">Checkerboard</option>
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
+            <option value="checker">{t('Checkerboard')}</option>
+            <option value="dark">{t('Dark')}</option>
+            <option value="light">{t('Light')}</option>
           </select>
         </label>
         <label>
@@ -171,15 +177,15 @@ export function AssetViewport({
             checked={pixelated}
             onChange={event => setPixelated(event.target.checked)}
           />
-          Pixelated
+          {t('Pixelated')}
         </label>
       </header>
       {data.images.length > 1 && (
         <div className="rp-asset-controls">
           <label>
-            Texture{' '}
+            {t('Texture')}{' '}
             <select
-              aria-label="Asset texture"
+              aria-label={t('Asset texture')}
               value={imageIndex}
               onChange={event => {
                 setImageIndex(Number(event.target.value));
@@ -199,10 +205,10 @@ export function AssetViewport({
       )}
       {error ? (
         <p role="alert" className="rp-asset-error">
-          {error}
+          {t(error)}
         </p>
       ) : !image ? (
-        <div className="rp-asset-empty">Loading image…</div>
+        <div className="rp-asset-empty">{t('Loading image…')}</div>
       ) : (
         <>
           {mode === 'image' && <AssetCanvas image={image} {...viewProps} />}
@@ -211,9 +217,9 @@ export function AssetViewport({
               <div className="rp-asset-controls">
                 {gridControls}
                 <label>
-                  Frame{' '}
+                  {t('Frame')}{' '}
                   <input
-                    aria-label="Sprite frame"
+                    aria-label={t('Sprite frame')}
                     type="number"
                     min={0}
                     max={Math.max(0, frames.length - 1)}
@@ -230,8 +236,12 @@ export function AssetViewport({
                 </label>
                 <span>
                   {validGrid
-                    ? `${frames.length} frames · ${source.width / columns} × ${source.height / rows} px`
-                    : 'Choose an evenly divisible grid, up to 4096 cells.'}
+                    ? t('{0} frames · {1} × {2} px', {
+                        '0': frames.length,
+                        '1': source.width / columns,
+                        '2': source.height / rows,
+                      })
+                    : t('Choose an evenly divisible grid, up to 4096 cells.')}
                 </span>
               </div>
               {validGrid ? (
@@ -245,13 +255,15 @@ export function AssetViewport({
                     {...viewProps}
                   />
                   <div className="rp-asset-frame-preview">
-                    <b>Frame {frameIndex}</b>
+                    <b>
+                      {t('Frame')} {frameIndex}
+                    </b>
                     <AssetCanvas image={image} rect={frames[frameIndex].rect} {...viewProps} />
                   </div>
                 </div>
               ) : (
                 <div role="status" className="rp-asset-empty">
-                  Invalid sprite grid.
+                  {t('Invalid sprite grid.')}
                 </div>
               )}
             </>
@@ -260,9 +272,9 @@ export function AssetViewport({
             <>
               <div className="rp-asset-controls">
                 <label>
-                  Action{' '}
+                  {t('Action')}{' '}
                   <select
-                    aria-label="Animation action"
+                    aria-label={t('Animation action')}
                     value={clip}
                     onChange={event => setClip(Number(event.target.value))}
                   >
@@ -271,7 +283,7 @@ export function AssetViewport({
                         {item.name}
                       </option>
                     ))}
-                    <option value={-1}>Manual range</option>
+                    <option value={-1}>{t('Manual range')}</option>
                   </select>
                 </label>
               </div>
@@ -279,9 +291,9 @@ export function AssetViewport({
                 <div className="rp-asset-controls">
                   {gridControls}
                   <label>
-                    First{' '}
+                    {t('First')}{' '}
                     <input
-                      aria-label="Animation first frame"
+                      aria-label={t('Animation first frame')}
                       type="number"
                       min={0}
                       max={frames.length - 1}
@@ -290,9 +302,9 @@ export function AssetViewport({
                     />
                   </label>
                   <label>
-                    Last{' '}
+                    {t('Last')}{' '}
                     <input
-                      aria-label="Animation last frame"
+                      aria-label={t('Animation last frame')}
                       type="number"
                       min={start}
                       max={frames.length - 1}
@@ -303,7 +315,7 @@ export function AssetViewport({
                   <label>
                     FPS{' '}
                     <input
-                      aria-label="Animation FPS"
+                      aria-label={t('Animation FPS')}
                       type="number"
                       min={1}
                       max={120}
@@ -311,7 +323,7 @@ export function AssetViewport({
                       onChange={event => setFps(Number(event.target.value))}
                     />
                   </label>
-                  <small>Manual preview; does not modify the project.</small>
+                  <small>{t('Manual preview; does not modify the project.')}</small>
                 </div>
               )}
               {animation?.frames.length ? (
@@ -323,7 +335,7 @@ export function AssetViewport({
                 />
               ) : (
                 <div role="status" className="rp-asset-empty">
-                  Choose a valid grid, frame range and FPS.
+                  {t('Choose a valid grid, frame range and FPS.')}
                 </div>
               )}
             </>
@@ -333,9 +345,9 @@ export function AssetViewport({
       <footer className="rp-asset-footer">
         {source.name} · {source.width} × {source.height} px ·{' '}
         {data.animations.length
-          ? `${data.animations.length} imported actions`
-          : 'Manual sprite configuration'}{' '}
-        · Scroll or pinch to zoom · Drag to pan
+          ? t('{0} imported actions', { '0': data.animations.length })
+          : t('Manual sprite configuration')}{' '}
+        {t('· Scroll or pinch to zoom · Drag to pan')}
       </footer>
     </div>
   );

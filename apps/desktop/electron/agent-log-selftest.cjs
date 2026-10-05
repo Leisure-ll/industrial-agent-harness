@@ -251,7 +251,7 @@ async function run(window) {
     await new Promise(resolve => setTimeout(resolve, 350));
   };
   const selectType = async value => {
-    await switchView('原始事件');
+    await switchView('Raw events');
     await evaluate(
       `(() => {const select=document.querySelector('select[aria-label="Agent log event type"]');select.value='${value}';select.dispatchEvent(new Event('change',{bubbles:true}));})()`,
     );
@@ -289,7 +289,7 @@ async function run(window) {
     );
     assert.ok(
       await evaluate(
-        `document.querySelector('.ia-log-tabs button[aria-pressed="true"]')?.innerText.startsWith('时间线')`,
+        `document.querySelector('.ia-log-tabs button[aria-pressed="true"]')?.innerText.startsWith('Timeline')`,
       ),
       'timeline is the default',
     );
@@ -300,7 +300,7 @@ async function run(window) {
       2,
       'calls and results are paired',
     );
-    await choose('模型回复');
+    await choose('Model response');
     await wait(
       `document.querySelector('.ia-log-prose')?.innerText==='I will inspect the signal files.'`,
     );
@@ -315,7 +315,7 @@ async function run(window) {
       path.join(evidence, 'agent-log-timeline.png'),
       (await window.webContents.capturePage()).toPNG(),
     );
-    await switchView('工具调用');
+    await switchView('Tool calls');
     await choose('read_file');
     await wait(
       `document.querySelector('.ia-log-detail')?.innerText.includes('END-OF-FULL-RESULT')`,
@@ -329,26 +329,26 @@ async function run(window) {
     assert.equal(await evaluate(`Boolean(window.logInjected)`), false, 'logged markup is text');
     await wait(`Boolean(document.querySelector('.ia-log-related button'))`);
     await evaluate(
-      `Array.from(document.querySelectorAll('.ia-log-related button')).find(button=>button.innerText.includes('回到时间线')).click()`,
+      `Array.from(document.querySelectorAll('.ia-log-related button')).find(button=>button.innerText.includes('Back to timeline')).click()`,
     );
     await wait(
       `document.querySelector('.ia-log-records button.selected')?.innerText.includes('read_file')`,
     );
-    await switchView('上下文');
-    await choose('本轮 SDK 输入');
+    await switchView('Context');
+    await choose('SDK input for this turn');
     await wait(
       `document.querySelector('.ia-log-tool-content')?.innerText.includes('Industrial Context: read only.')`,
     );
-    await choose('结束时会话上下文');
+    await choose('Final session context');
     await evaluate(
-      `Array.from(document.querySelectorAll('.ia-log-field summary')).find(row=>row.innerText.includes('系统指令')).click()`,
+      `Array.from(document.querySelectorAll('.ia-log-field summary')).find(row=>row.innerText.includes('System instructions')).click()`,
     );
     await wait(
       `document.querySelector('.ia-log-detail')?.innerText.includes('Read-only project inspection.')`,
     );
     assert.ok(
       !(await evaluate(
-        `document.querySelector('.ia-log-records')?.innerText.includes('模型第 1 步 ·')`,
+        `document.querySelector('.ia-log-records')?.innerText.includes('Model step 1 ·')`,
       )),
       'compaction does not invent request snapshots',
     );
@@ -420,6 +420,13 @@ async function run(window) {
       `(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'Inspect netlist signals');area.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('.ia-chat-actions button[aria-label="View agent logs"]').focus();document.querySelector('.ia-send').click();})()`,
     );
     await wait(`Boolean(document.querySelector('.ia-approval button'))`);
+    await require('./selftest-language.cjs').setLanguage(window, 'zh-CN');
+    assert.equal(
+      await evaluate(`document.querySelector('.ia-approval button').textContent`),
+      '批准',
+    );
+    assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').disabled`), true);
+    await require('./selftest-language.cjs').setLanguage(window, 'en');
     assert.equal(
       await evaluate(
         `document.querySelector('.ia-sidebar-chat').closest('.ia-project-chats').dataset.projectId`,
@@ -472,6 +479,18 @@ async function run(window) {
       `Array.from(document.querySelectorAll('.ia-question label')).find(label=>label.innerText.includes('Bottom')).querySelector('input').click()`,
     );
     await wait(`!document.querySelector('.ia-question button[type="submit"]').disabled`);
+    await require('./selftest-language.cjs').setLanguage(window, 'zh-CN');
+    assert.equal(
+      await evaluate(`document.querySelector('.ia-question button[type="submit"]').textContent`),
+      '提交回答',
+    );
+    assert.equal(
+      await evaluate(
+        `document.querySelector('.ia-question input:checked')?.parentElement.textContent.includes('Bottom')`,
+      ),
+      true,
+    );
+    await require('./selftest-language.cjs').setLanguage(window, 'en');
     await evaluate(`document.querySelector('.ia-question button[type="submit"]').click()`);
     await wait(
       `document.querySelector('.ia-question-resolved summary')?.innerText.includes('Question answered')`,
@@ -501,7 +520,7 @@ async function run(window) {
     await wait(
       `document.querySelector('.ia-log-tool-content')?.innerText.includes('LIVE-FULL-RESULT')`,
     );
-    await switchView('工具调用');
+    await switchView('Tool calls');
     await choose('read_file');
     await wait(
       `Array.from(document.querySelectorAll('.ia-log-tool-content')).some(node=>node.innerText==='LIVE-FULL-RESULT')`,

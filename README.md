@@ -70,6 +70,8 @@ pnpm dev
 
 Open **Settings → Model API** to configure your model, then add a local project and select its domain. Open the right-hand workspace to browse files. File previews work without a model API key.
 
+**Settings → Language** switches between English, 简体中文 and Follow system immediately. The app remembers your preference; switching preserves drafts, running tasks and viewer state. Harness controls and dialogs are localized; project files, conversations, tool output and embedded third-party interfaces retain their original content. See [desktop languages](doc/desktop-languages.md).
+
 The setup command installs **Kimi CLI 1.51.0**; the integration uses **Kimi Agent SDK 0.1.8**. Layout viewing additionally needs KLayout Python: run `pnpm --filter @industrial-agent-harness/desktop setup:layout` or set `KLAYOUT_PYTHON`.
 
 ### 3. Verify the real RTL path on macOS with Apple Silicon
@@ -103,6 +105,8 @@ Build your own Pack with the [Pack authoring tutorial](doc/pack-authoring.md). D
 ## Viewers
 
 Viewers open from the active project's file tree. They share zoom, Fit and fullscreen controls and leave source files and verification results unchanged.
+
+Harness-owned Viewer controls follow **Settings → Language** (English / 简体中文). Switching keeps zoom, selection and other view state; embedded upstream interfaces keep their own language. Languages and Desktop/Viewer translations share one [configuration](apps/desktop/i18n.config.json); see [language scope and maintenance](doc/desktop-languages.md).
 
 | Viewer                                               | Inputs                                                                                                       | Viewing features and limits                                                                                                    |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |

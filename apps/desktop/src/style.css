@@ -238,7 +238,8 @@ body,
   padding: 8px 3px;
   border-top: 1px solid var(--ia-border);
 }
-.ia-settings-row > span {
+.ia-settings-row > span,
+.ia-settings-row > label {
   font-size: 11px;
   color: var(--ia-muted);
 }
@@ -320,6 +321,11 @@ body,
   width: 28px;
   height: 28px;
   padding: 5px;
+}
+.ia-chat-actions .ia-log-button {
+  width: auto;
+  min-width: 28px;
+  white-space: nowrap;
 }
 .ia-chat-actions button.active {
   color: var(--ia-text);

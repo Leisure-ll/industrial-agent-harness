@@ -168,12 +168,12 @@ async function run(window) {
   await open('model.step');
   await open('model.stl');
   assert.equal(
-    await evaluate(`document.querySelector('button[aria-label="尺寸测量"]').disabled`),
+    await evaluate(`document.querySelector('button[aria-label="Measurement"]').disabled`),
     true,
   );
   assert.match(
     await evaluate(`document.querySelector('.rp-cad-note').textContent`),
-    /仅含网格，无法精确测量/,
+    /Mesh-only preview/,
   );
   // A real completed Runtime action must publish new files without reopening
   // the project. Relay its actual result through the production event channel.

@@ -1,7 +1,9 @@
+import { useDisplayText } from '../text';
 import { useMemo, useState } from 'react';
 import { PageControls } from './PageControls';
 
 export function TextView({ text, query = '' }: { text: string; query?: string }) {
+  const { t } = useDisplayText();
   const [wrap, setWrap] = useState(true);
   const [cursor, setCursor] = useState({ query, page: 0 });
   const lines = useMemo(() => {
@@ -17,10 +19,11 @@ export function TextView({ text, query = '' }: { text: string; query?: string })
       <div className="rp-document-options">
         <label>
           <input type="checkbox" checked={wrap} onChange={event => setWrap(event.target.checked)} />
-          Wrap lines
+          {t('Wrap lines')}
         </label>
         <span>
-          {lines.length} {query ? 'matching ' : ''}lines
+          {lines.length} {query ? 'matching ' : ''}
+          {t('lines')}
         </span>
       </div>
       <pre className={wrap ? 'is-wrapped' : ''}>
@@ -31,7 +34,7 @@ export function TextView({ text, query = '' }: { text: string; query?: string })
           </span>
         ))}
       </pre>
-      {!lines.length && <p>No matching lines.</p>}
+      {!lines.length && <p>{t('No matching lines.')}</p>}
       <PageControls
         page={page}
         pages={Math.ceil(lines.length / 200)}
