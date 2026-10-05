@@ -56,3 +56,5 @@ KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" pnpm run test:ci -- nati
 FreeCAD 首批 native suite 和实际 Electron CAD Viewer 加入 macOS arm64 原生门禁。CI 下载并校验官方 FreeCAD 1.1.4 DMG 的固定 SHA，只读挂载提供 `freecadcmd`；缺少依赖会失败。配方/STL/文件边界及 CAD CLI 包的 Scope 检查加入四平台 Portable 层。详见 [FreeCAD 接入与回归](freecad-domain-pack.md)。
 
 FreeCAD 1.1.4 的原生 CAD/RTL/Kimi 综合门禁覆盖 `macos-15` 和 `macos-26` arm64；四平台 Portable 与 Desktop macOS 打包仍固定 `macos-15`。FreeCAD 的配置、数据与缓存目录在每次 Action 内独立创建和验证，确保全新托管环境无需预先启动桌面 FreeCAD。
+
+CAD 桌面分栏回归覆盖初始窗口和显式 1000 px 窄窗口。托管 macOS 可能按屏幕尺寸限制初始窗口，因此拖动断言根据实际剩余空间检查位移与最小宽度限位；记录拖动前后宽度，不假定初始窗口一定为 1440 px。两种窗口都比较真实 OCCT 渲染的模型像素比例，保留全屏往返、键盘限位和双击恢复检查。

@@ -56,26 +56,35 @@ async function verifyResize(window, project) {
       `${context} stretched the solid: ${ratio} → ${actual}`,
     );
   };
-  await evaluate(`document.querySelector('button[aria-label="Fit viewer"]').click()`);
-  await pause();
-  const before = await layout(),
-    normal = await capture(),
-    ratio = modelRatio(normal);
-  await evaluate(`(()=>{
+  async function drag(before, ratio, context) {
+    await evaluate(`(()=>{
     const node=document.querySelector('[aria-label="Resize chat and workspace"]'),r=node.getBoundingClientRect();
     const p={pointerId:42,button:0,clientX:r.left+r.width/2,clientY:r.top+80,bubbles:true};
     node.dispatchEvent(new PointerEvent('pointerdown',p));
     node.dispatchEvent(new PointerEvent('pointermove',{...p,clientX:p.clientX-180}));
     node.dispatchEvent(new PointerEvent('pointerup',{...p,clientX:p.clientX-180}));
   })()`);
+    await pause();
+    const wider = await layout();
+    // Hosted macOS desktops can clamp the initial window below 1440 px. The
+    // divider must stop at the chat minimum even when less than 180 px is free.
+    const movement = Math.min(180, before.chat - before.minChat);
+    assert.ok(movement > 2, `The drag must exercise available space: ${JSON.stringify(before)}`);
+    assert.ok(
+      Math.abs(wider.workspace - before.workspace - movement) < 2 &&
+        Math.abs(before.chat - wider.chat - movement) < 2,
+      JSON.stringify({ before, wider, movement }),
+    );
+    assert.ok(wider.chat >= wider.minChat - 1 && wider.overflow <= 1, JSON.stringify(wider));
+    sameShape(await capture(), ratio, context);
+    console.log('CAD divider drag:', JSON.stringify({ context, before, wider, movement }));
+    return wider;
+  }
+  await evaluate(`document.querySelector('button[aria-label="Fit viewer"]').click()`);
   await pause();
-  const wider = await layout();
-  assert.ok(
-    wider.workspace > before.workspace + 100 && wider.chat < before.chat - 100,
-    JSON.stringify({ before, wider }),
-  );
-  assert.ok(wider.chat >= wider.minChat - 1 && wider.overflow <= 1, JSON.stringify(wider));
-  sameShape(await capture(), ratio, 'Dragging the workspace divider');
+  const before = await layout(),
+    ratio = modelRatio(await capture());
+  await drag(before, ratio, 'Dragging the workspace divider');
   const key = key =>
     evaluate(
       `document.querySelector('[aria-label="Resize chat and workspace"]').dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(key)},bubbles:true}));`,
@@ -95,6 +104,16 @@ async function verifyResize(window, project) {
         smaller.overflow <= 1,
       JSON.stringify(smaller),
     );
+    await evaluate(
+      `document.querySelector('[aria-label="Resize chat and workspace"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}));`,
+    );
+    await pause();
+    await evaluate(`document.querySelector('button[aria-label="Fit viewer"]').click()`);
+    await pause();
+    const narrow = await layout();
+    assert.ok(narrow.chat - narrow.minChat < 180, 'The narrow case must exercise the drag limit.');
+    const limited = await drag(narrow, modelRatio(await capture()), 'Dragging in a narrow window');
+    assert.ok(Math.abs(limited.chat - limited.minChat) < 2, JSON.stringify(limited));
   } finally {
     window.setContentSize(...originalSize);
   }
