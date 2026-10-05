@@ -21,14 +21,16 @@ async function startModel(options = {}) {
       const matched = available.find(name => name === call.name || name.endsWith(`__${call.name}`));
       if (matched) call.name = matched;
     }
-    const message = call ? {role: 'assistant', content: null, tool_calls: [{id: `mcp-call-${index}`, type: 'function', function: {name: call.name, arguments: JSON.stringify(call.arguments)}}]} : {role: 'assistant', content: rejected ? 'MCP_REJECTED' : options.success || 'MCP_CONTEXT_CONFIRMED'};
+    const success = typeof options.success === 'function' ? options.success(body, requests.length - 1) : options.success;
+    const usage = (typeof options.usage === 'function' ? options.usage(body, requests.length - 1) : options.usage) || {prompt_tokens: 100, completion_tokens: 10, total_tokens: 110};
+    const message = call ? {role: 'assistant', content: null, tool_calls: [{id: `mcp-call-${index}`, type: 'function', function: {name: call.name, arguments: JSON.stringify(call.arguments)}}]} : {role: 'assistant', content: rejected ? 'MCP_REJECTED' : success || 'MCP_CONTEXT_CONFIRMED'};
     if (body.stream) {
       response.writeHead(200, {'Content-Type': 'text/event-stream'});
       if (options.thinking) response.write(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {reasoning_content: options.thinking}, finish_reason: null}]})}\n\n`);
       const delta = call ? {role: 'assistant', tool_calls: [{index: 0, ...message.tool_calls[0]}]} : message;
       response.write(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta, finish_reason: null}]})}\n\n`);
-      response.end(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {}, finish_reason: call ? 'tool_calls' : 'stop'}], usage: {prompt_tokens: 100, completion_tokens: 10, total_tokens: 110}})}\n\ndata: [DONE]\n\n`);
-    } else {response.writeHead(200, {'Content-Type': 'application/json'}); response.end(JSON.stringify({id: 'fixture', object: 'chat.completion', created: 1, model: body.model, choices: [{index: 0, message, finish_reason: call ? 'tool_calls' : 'stop'}], usage: {prompt_tokens: 100, completion_tokens: 10, total_tokens: 110}}));}
+      response.end(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {}, finish_reason: call ? 'tool_calls' : 'stop'}], usage})}\n\ndata: [DONE]\n\n`);
+    } else {response.writeHead(200, {'Content-Type': 'application/json'}); response.end(JSON.stringify({id: 'fixture', object: 'chat.completion', created: 1, model: body.model, choices: [{index: 0, message, finish_reason: call ? 'tool_calls' : 'stop'}], usage}));}
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return {endpoint: `http://127.0.0.1:${server.address().port}/v1`, requests, close: () => {server.closeAllConnections(); server.close();}};
