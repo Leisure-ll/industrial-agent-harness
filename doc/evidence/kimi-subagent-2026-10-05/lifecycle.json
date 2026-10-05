@@ -1,0 +1,199 @@
+{
+  "runtime": "kimi-cli 1.51.0",
+  "sdk": "0.1.8",
+  "method": "real native runtime, controlled localhost model; not live inference",
+  "cases": [
+    {
+      "mode": "native",
+      "scenario": "parallel",
+      "status": "finished",
+      "statesAtRootEnd": [
+        "idle",
+        "idle"
+      ],
+      "finalAgentStatuses": [
+        "idle",
+        "idle"
+      ],
+      "backgroundTaskStatuses": null,
+      "sdkNestedEvents": 28,
+      "approvalCount": 0,
+      "sdkApprovalHasAgentIdentity": null,
+      "nativeApprovalHasAgentIdentity": null,
+      "independentChildTypes": [
+        "coder",
+        "explore"
+      ]
+    },
+    {
+      "mode": "harness",
+      "scenario": "parallel",
+      "status": "finished",
+      "statesAtRootEnd": [
+        "idle",
+        "idle"
+      ],
+      "finalAgentStatuses": [
+        "idle",
+        "idle"
+      ],
+      "backgroundTaskStatuses": null,
+      "sdkNestedEvents": 28,
+      "approvalCount": 0,
+      "sdkApprovalHasAgentIdentity": null,
+      "nativeApprovalHasAgentIdentity": null,
+      "independentChildTypes": [
+        "coder",
+        "explore"
+      ]
+    },
+    {
+      "mode": "native",
+      "scenario": "reject",
+      "status": "finished",
+      "statesAtRootEnd": [
+        "idle"
+      ],
+      "finalAgentStatuses": [
+        "idle"
+      ],
+      "backgroundTaskStatuses": null,
+      "sdkNestedEvents": 14,
+      "approvalCount": 1,
+      "sdkApprovalHasAgentIdentity": false,
+      "nativeApprovalHasAgentIdentity": null,
+      "independentChildTypes": [
+        "coder"
+      ]
+    },
+    {
+      "mode": "harness",
+      "scenario": "reject",
+      "status": "finished",
+      "statesAtRootEnd": [
+        "idle"
+      ],
+      "finalAgentStatuses": [
+        "idle"
+      ],
+      "backgroundTaskStatuses": null,
+      "sdkNestedEvents": 14,
+      "approvalCount": 1,
+      "sdkApprovalHasAgentIdentity": false,
+      "nativeApprovalHasAgentIdentity": null,
+      "independentChildTypes": [
+        "coder"
+      ]
+    },
+    {
+      "mode": "native",
+      "scenario": "cancel",
+      "status": "cancelled",
+      "statesAtRootEnd": [
+        "killed"
+      ],
+      "finalAgentStatuses": [
+        "killed"
+      ],
+      "backgroundTaskStatuses": null,
+      "sdkNestedEvents": 2,
+      "approvalCount": 0,
+      "sdkApprovalHasAgentIdentity": null,
+      "nativeApprovalHasAgentIdentity": null,
+      "independentChildTypes": [
+        "coder"
+      ]
+    },
+    {
+      "mode": "harness",
+      "scenario": "cancel",
+      "status": "cancelled",
+      "statesAtRootEnd": [
+        "killed"
+      ],
+      "finalAgentStatuses": [
+        "killed"
+      ],
+      "backgroundTaskStatuses": null,
+      "sdkNestedEvents": 2,
+      "approvalCount": 0,
+      "sdkApprovalHasAgentIdentity": null,
+      "nativeApprovalHasAgentIdentity": null,
+      "independentChildTypes": [
+        "coder"
+      ]
+    },
+    {
+      "mode": "native",
+      "scenario": "background-idle",
+      "status": "finished",
+      "statesAtRootEnd": [
+        "running_background"
+      ],
+      "finalAgentStatuses": [
+        "idle"
+      ],
+      "backgroundTaskStatuses": null,
+      "sdkNestedEvents": 0,
+      "approvalCount": 0,
+      "sdkApprovalHasAgentIdentity": null,
+      "nativeApprovalHasAgentIdentity": null,
+      "independentChildTypes": []
+    },
+    {
+      "mode": "harness",
+      "scenario": "background-idle",
+      "status": "finished",
+      "statesAtRootEnd": [
+        "running_background"
+      ],
+      "finalAgentStatuses": [
+        "idle"
+      ],
+      "backgroundTaskStatuses": null,
+      "sdkNestedEvents": 0,
+      "approvalCount": 0,
+      "sdkApprovalHasAgentIdentity": null,
+      "nativeApprovalHasAgentIdentity": null,
+      "independentChildTypes": []
+    },
+    {
+      "mode": "native",
+      "scenario": "background-approval",
+      "status": "finished",
+      "statesAtRootEnd": [
+        "running_background"
+      ],
+      "finalAgentStatuses": [
+        "running_background"
+      ],
+      "backgroundTaskStatuses": [
+        "awaiting_approval"
+      ],
+      "sdkNestedEvents": 0,
+      "approvalCount": 0,
+      "sdkApprovalHasAgentIdentity": null,
+      "nativeApprovalHasAgentIdentity": null,
+      "independentChildTypes": []
+    },
+    {
+      "mode": "harness",
+      "scenario": "background-approval",
+      "status": "finished",
+      "statesAtRootEnd": [
+        "running_background"
+      ],
+      "finalAgentStatuses": [
+        "running_background"
+      ],
+      "backgroundTaskStatuses": [
+        "awaiting_approval"
+      ],
+      "sdkNestedEvents": 0,
+      "approvalCount": 0,
+      "sdkApprovalHasAgentIdentity": null,
+      "nativeApprovalHasAgentIdentity": null,
+      "independentChildTypes": []
+    }
+  ]
+}

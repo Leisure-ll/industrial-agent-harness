@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-05T06:47:30.523Z",
+  "runtime": "kimi-cli 1.51.0",
+  "sdk": "0.1.8",
+  "method": "real native runtime, localhost controlled model responses; not live inference",
+  "cases": [
+    {
+      "mode": "native",
+      "requests": 16,
+      "childTypes": [
+        "coder",
+        "explore",
+        "plan"
+      ],
+      "nativeStatuses": [
+        "idle",
+        "idle",
+        "idle"
+      ],
+      "nestedEventCount": 52,
+      "nestedEventTypes": [
+        "TurnBegin",
+        "StepBegin",
+        "ToolCall",
+        "StatusUpdate",
+        "ToolResult",
+        "ContentPart",
+        "TurnEnd"
+      ],
+      "nestedIdentityPreserved": true,
+      "displayedSubagentEvents": null,
+      "contextIsolated": true,
+      "resumeRetainedContext": true,
+      "rootExternalToolPresent": true,
+      "childExternalToolPresent": false,
+      "childRecursionAllowed": false
+    },
+    {
+      "mode": "harness",
+      "requests": 16,
+      "childTypes": [
+        "coder",
+        "explore",
+        "plan"
+      ],
+      "nativeStatuses": [
+        "idle",
+        "idle",
+        "idle"
+      ],
+      "nestedEventCount": 52,
+      "nestedEventTypes": [
+        "TurnBegin",
+        "StepBegin",
+        "ToolCall",
+        "StatusUpdate",
+        "ToolResult",
+        "ContentPart",
+        "TurnEnd"
+      ],
+      "nestedIdentityPreserved": true,
+      "displayedSubagentEvents": 0,
+      "contextIsolated": true,
+      "resumeRetainedContext": true,
+      "rootExternalToolPresent": true,
+      "childExternalToolPresent": false,
+      "childRecursionAllowed": false
+    }
+  ]
+}
