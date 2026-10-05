@@ -71,7 +71,7 @@ async function waitForSimulation(ready, pending) {
       settled = { error: String(error) };
     },
   );
-  const deadline = Date.now() + 45000;
+  const deadline = Date.now() + 90000;
   while (!fs.existsSync(ready)) {
     if (settled) throw Error('Native execution ended before readiness: ' + JSON.stringify(settled));
     if (Date.now() >= deadline) throw Error('Timed out waiting for the real simulation: ' + ready);
@@ -161,10 +161,13 @@ test(
   async t => {
     const { project, plugin, open } = workspace(t);
     const yaml = path.join(project, 'eda.yaml');
-    fs.writeFileSync(
-      yaml,
-      fs.readFileSync(yaml, 'utf8').replace('timeout_seconds: 30', 'timeout_seconds: 1'),
+    const source = fs.readFileSync(yaml, 'utf8');
+    assert.match(
+      source,
+      /timeout_seconds: 90/,
+      'The timeout fixture must override the normal budget.',
     );
+    fs.writeFileSync(yaml, source.replace('timeout_seconds: 90', 'timeout_seconds: 1'));
     const runtime = open();
     t.after(() => runtime.close());
     const state = await runtime.inspect();
