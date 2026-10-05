@@ -65,6 +65,13 @@
   align-items: center;
   gap: 5px;
 }
+.rp-cad-tools .rp-cad-measure-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-color: #57b6da;
+  font-weight: 600;
+}
 .rp-cad-tools input[type='range'] {
   width: 110px;
   accent-color: #61b9df;
@@ -103,13 +110,16 @@
   fill: #a7edc5;
 }
 .rp-cad-measure-overlay text {
-  fill: #c8ffde;
+  fill: #b9ecff;
   stroke: #0a1a23;
   stroke-width: 3px;
   paint-order: stroke;
   text-anchor: middle;
   font-size: 13px;
   font-weight: 600;
+}
+.rp-cad-distance-overlay text {
+  fill: #c8ffde;
 }
 .rp-cad-inspector {
   background: var(--ia-bg, #10181e);

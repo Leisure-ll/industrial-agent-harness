@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { Ruler } from 'lucide-react';
 import createOcctViewer from './occt/harness-occt.js';
 import type { OcctModule, OcctViewer } from './occt/harness-occt.js';
 import type { CadData } from '../api';
@@ -44,6 +45,7 @@ export function CadViewport({
     [ready, setReady] = useState(false),
     [mode, setMode] = useState(0);
   const [measurement, setMeasurement] = useState<Measurement>({ items: [] });
+  const [measurementType, setMeasurementType] = useState<'size' | 'distance'>('size');
   const [projected, setProjected] = useState<number[][]>([]),
     [size, setSize] = useState({ width: 1, height: 1 });
   const [section, setSection] = useState({ enabled: false, axis: 0, position: 50, flip: false });
@@ -65,6 +67,11 @@ export function CadViewport({
       setInteractionError('操作未完成：' + String(error));
     }
   };
+  const clearMeasurement = () =>
+    run(viewer => {
+      viewer.clearSelection();
+      setMeasurement({ items: [] });
+    });
   const fit = () => {
     if (tab === 'sketch') setSketchView({ zoom: 1, x: 0, y: 0 });
     else
@@ -219,6 +226,7 @@ export function CadViewport({
       data-pan-y={view.y}
       data-section={section.enabled}
       data-selected={measurement.items.length}
+      data-measurement-type={measurementType}
     >
       <div className="rp-cad-heading">
         <strong>{data.name}</strong>
@@ -246,30 +254,72 @@ export function CadViewport({
       </div>
       <div className="rp-cad-model" style={{ display: tab === 'model' ? 'flex' : 'none' }}>
         <div className="rp-cad-tools">
-          <label>
-            选择{' '}
-            <select
-              aria-label="选择面或边"
-              value={mode}
-              disabled={!ready || !data.brep}
-              onChange={e => setMode(Number(e.target.value))}
-            >
-              <option value={0}>关闭</option>
-              <option value={4}>面</option>
-              <option value={2}>边</option>
-            </select>
-          </label>
           <button
-            disabled={!ready || !measurement.items.length}
-            onClick={() =>
-              run(viewer => {
-                viewer.clearSelection();
-                setMeasurement({ items: [] });
-              })
+            className="rp-cad-measure-toggle"
+            aria-label="尺寸测量"
+            aria-pressed={mode !== 0}
+            disabled={!ready || !data.brep}
+            title={
+              !data.brep
+                ? '此预览仅含网格，无法精确测量；请生成曲面预览。'
+                : mode === 0
+                  ? '开启测量：点击模型查看尺寸'
+                  : '退出测量'
             }
+            onClick={() => {
+              if (mode === 0) {
+                setMeasurementType('size');
+                setMode(2);
+              } else {
+                clearMeasurement();
+                setMode(0);
+              }
+            }}
           >
-            清除选择
+            <Ruler size={15} aria-hidden="true" />
+            测量
           </button>
+          {mode !== 0 && (
+            <>
+              <label>
+                测量类型{' '}
+                <select
+                  aria-label="测量类型"
+                  value={measurementType}
+                  disabled={!ready}
+                  onChange={e => {
+                    clearMeasurement();
+                    setMeasurementType(e.target.value as 'size' | 'distance');
+                  }}
+                >
+                  <option value="size">单对象尺寸</option>
+                  <option value="distance">两对象最短距离</option>
+                </select>
+              </label>
+              <label>
+                测量对象{' '}
+                <select
+                  aria-label="测量对象"
+                  value={mode}
+                  disabled={!ready}
+                  onChange={e => {
+                    clearMeasurement();
+                    setMode(Number(e.target.value));
+                  }}
+                >
+                  <option value={4}>面 · 面积 / 直径</option>
+                  <option value={2}>边 · 长度 / 直径</option>
+                </select>
+              </label>
+              <button
+                aria-label="清除测量"
+                disabled={!ready || !measurement.items.length}
+                onClick={clearMeasurement}
+              >
+                清除测量
+              </button>
+            </>
+          )}
           <label>
             <input
               type="checkbox"
@@ -302,6 +352,7 @@ export function CadViewport({
               />
               <span>{number(offset)} mm</span>
               <button
+                aria-label="反向剖切"
                 aria-pressed={section.flip}
                 onClick={() => setSection(s => ({ ...s, flip: !s.flip }))}
               >
@@ -365,7 +416,10 @@ export function CadViewport({
               drag.current = null;
               if (!d || d.pan || d.moved > 3 || !mode) return;
               const [x, y] = coordinates(e.clientX, e.clientY);
-              run(viewer => setMeasurement(JSON.parse(viewer.select(x, y))));
+              run(viewer => {
+                if (measurementType === 'size') viewer.clearSelection();
+                setMeasurement(JSON.parse(viewer.select(x, y)));
+              });
             }}
             onPointerCancel={() => {
               drag.current = null;
@@ -378,8 +432,10 @@ export function CadViewport({
               height={size.height}
               aria-label="尺寸测量标注"
             >
-              {measurement.distance !== undefined && projected.length === 2 ? (
-                <g>
+              {measurementType === 'distance' &&
+              measurement.distance !== undefined &&
+              projected.length === 2 ? (
+                <g className="rp-cad-distance-overlay">
                   <line
                     x1={projected[0][0]}
                     y1={projected[0][1]}
@@ -393,7 +449,7 @@ export function CadViewport({
                     x={(projected[0][0] + projected[1][0]) / 2}
                     y={(projected[0][1] + projected[1][1]) / 2 - 10}
                   >
-                    {number(measurement.distance)} mm
+                    最短距离 {number(measurement.distance)} mm
                   </text>
                 </g>
               ) : (
@@ -402,10 +458,10 @@ export function CadViewport({
                     projected[i] && (
                       <text key={i} x={projected[i][0]} y={projected[i][1] - 12}>
                         {item.radius !== undefined
-                          ? `Ø ${number(item.radius * 2)} mm`
+                          ? `直径 Ø ${number(item.radius * 2)} mm`
                           : item.length !== undefined
-                            ? `${number(item.length)} mm`
-                            : `${number(item.area!)} mm²`}
+                            ? `边长 ${number(item.length)} mm`
+                            : `面积 ${number(item.area!)} mm²`}
                       </text>
                     ),
                 )
@@ -414,8 +470,15 @@ export function CadViewport({
           </div>
           {mode !== 0 && (
             <aside className="rp-cad-inspector rp-cad-measurements">
-              <h4>尺寸测量</h4>
-              <p>点击面或边。选择两个对象查看最短距离，再点已选对象取消。</p>
+              <h4>{measurementType === 'size' ? '单对象尺寸' : '两对象最短距离'}</h4>
+              <p>
+                {measurementType === 'distance'
+                  ? '依次选择两个对象，绿色虚线连接它们的最近点；数值表示最短距离，不是边长或孔中心距。'
+                  : mode === 4
+                    ? '点击模型上的面，查看面积或圆柱面的直径。'
+                    : '点击模型上的边，查看长度或圆边的直径。'}
+                {measurementType === 'size' && '每次只测量当前对象；点击其他对象会替换上次选择。'}
+              </p>
               {measurement.items.map((item, i) => (
                 <div
                   key={`${item.kind}-${item.index}`}
@@ -439,7 +502,7 @@ export function CadViewport({
                   )}
                 </div>
               ))}
-              {measurement.distance !== undefined && (
+              {measurementType === 'distance' && measurement.distance !== undefined && (
                 <output data-distance={measurement.distance} className="rp-cad-distance">
                   最短距离 <strong>{number(measurement.distance)} mm</strong>
                 </output>
@@ -449,7 +512,10 @@ export function CadViewport({
           )}
         </div>
         <small className="rp-cad-note">
-          拖动旋转 · Shift/右键拖动平移 · 滚轮缩放{!data.brep && ' · 面/边精确测量需要 BREP 预览'}
+          拖动旋转 · Shift/右键拖动平移 · 滚轮缩放
+          {!data.brep
+            ? ' · 此预览仅含网格，无法精确测量；请生成曲面预览。'
+            : mode === 0 && ' · 点击“测量”查看尺寸'}
         </small>
       </div>
       {tab === 'sketch' && (
