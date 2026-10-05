@@ -9,7 +9,12 @@ class ProjectRuntimes {
   }
   get(project, registry) {
     const key = JSON.stringify([project.path, project.domain]);
-    if (this.bundles.has(key)) return this.bundles.get(key);
+    const previous = this.bundles.get(key);
+    if (previous?.configurationCurrent()) return previous;
+    if (previous) {
+      previous.runtime.close();
+      this.bundles.delete(key);
+    }
     const bundle = createProjectRuntime({
       ...this.options,
       projectDir: project.path,

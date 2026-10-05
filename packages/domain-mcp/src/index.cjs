@@ -109,6 +109,7 @@ function selectedRuntimeKey(scope, disabledIds, environment, external = []) {
   }));
 }
 module.exports = {
+  ...require('./external-runtime.cjs'),
   listMcpServers,
   selectMcpServers,
   writeMcpConfig,

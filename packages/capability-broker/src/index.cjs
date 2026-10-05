@@ -31,7 +31,7 @@ function resolve(request, registry, previous) {
     count: domainCapabilities.length,
   });
   const candidates = domainCapabilities.filter(
-    item => !requestedStage || item.stages.includes(requestedStage),
+    item => !requestedStage || !item.stages.length || item.stages.includes(requestedStage),
   );
   record('L1', 'capability.index', {
     stage: requestedStage || 'auto',
@@ -67,14 +67,14 @@ function resolve(request, registry, previous) {
   });
   // A reference to the previous result can retain its capability after the
   // caller rechecks project/domain/stage against the current DomainState.
-  if (!scored.some(item => item.score > 0))
+  if (!scored.some(item => !item.item.alwaysAvailable && item.score > 0))
     for (const candidate of scored)
       if (request.continuationCapabilityIds?.includes(candidate.item.id)) {
         candidate.score = 1;
         candidate.continuation = true;
       }
   const selected = scored
-    .filter(({ score }) => score > 0)
+    .filter(({ score, item }) => score > 0 && !item.alwaysAvailable)
     .sort(
       (a, b) =>
         b.score - a.score ||
@@ -83,13 +83,15 @@ function resolve(request, registry, previous) {
         a.item.id.localeCompare(b.item.id),
     )
     .slice(0, requestedDomain && requestedStage ? 3 : 1);
+  for (const candidate of scored)
+    if (candidate.item.alwaysAvailable && !selected.includes(candidate)) selected.push(candidate);
   record('L1', 'capability.resolve', {
     selected: selected.map(({ item, hits, toolHits, artifactMatch, continuation }) => ({
       id: item.id,
       reason: `${continuation ? 'continue previous capability; ' : ''}task: ${hits.join(', ') || 'none'}; tools: ${toolHits.map(tool => tool.id).join(', ') || 'none'}; artifact: ${artifactMatch ? artifactKind : 'none'}`,
     })),
     excluded: scored
-      .filter(({ score }) => !score)
+      .filter(({ score, item }) => !score && !item.alwaysAvailable)
       .map(({ item }) => ({ id: item.id, reason: 'no task, tool or artifact match' })),
   });
   const domain = selected[0]?.item.domain ?? requestedDomain;
@@ -175,7 +177,7 @@ function discloseDetail(scope, registry, capabilityId) {
     entry =>
       entry.id === capabilityId &&
       entry.domain === scope.domain &&
-      entry.stages.includes(scope.stage),
+      (!entry.stages.length || entry.stages.includes(scope.stage)),
   );
   if (!item) throw Error('Capability is unavailable.');
   return {

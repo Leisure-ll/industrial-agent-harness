@@ -170,6 +170,7 @@ const ToolDescriptorSchema = z
     id: z.string().min(1),
     version: z.string().min(1),
     risk: z.enum(['read-only', 'mutating']),
+    effect: z.enum(['inputs', 'execution', 'external']).optional(),
     verification: z.array(z.string().min(1)),
   })
   .strict()
@@ -184,6 +185,7 @@ const ActionRequestSchema = ProjectRefSchema.extend({
 }).strict();
 
 module.exports = {
+  ...require('./workspace.cjs'),
   INDUSTRIAL_SCHEMA_VERSION,
   ProjectRefSchema,
   ArtifactRefSchema,

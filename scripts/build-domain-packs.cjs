@@ -58,13 +58,15 @@ for (const [domain, [label, emoji]] of Object.entries(labels)) {
   fs.mkdirSync(directory, { recursive: true });
   const providers = providerPacks.filter(pack => pack.domain === domain);
   const version = providers[0]?.version || '0.1.0';
-  const skills = listSkills(domain).map(item => ({
-    id: item.id,
-    domain: item.domain,
-    title: item.title,
-    file: `skills/${item.id}/SKILL.md`,
-    ...(skillPackaging(item.id).external ? { external: skillPackaging(item.id).external } : {}),
-  }));
+  const skills = listSkills(domain)
+    .filter(item => item.domain !== '*')
+    .map(item => ({
+      id: item.id,
+      domain: item.domain,
+      title: item.title,
+      file: `skills/${item.id}/SKILL.md`,
+      ...(skillPackaging(item.id).external ? { external: skillPackaging(item.id).external } : {}),
+    }));
   for (const skill of skills) {
     const target = path.join(directory, ...skill.file.split('/'));
     const { copySkillResources } = require('../packages/domain-skills/src/skill-resources.cjs');

@@ -279,4 +279,5 @@ module.exports = {
   defaultStateDirectory,
   ...require('./actions.cjs'),
   ...require('./industrial.cjs'),
+  ...require('./workspace.cjs'),
 };

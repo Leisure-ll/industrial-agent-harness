@@ -28,7 +28,7 @@ test('JSON input transport preserves nested engineering types without coercion o
       approvalInputs.push(request.inputs);
       return true;
     },
-  )[1];
+  ).find(tool => tool.name === 'industrial_action_call');
   const inputs = {
     changes: { parameters: { Width: 30 }, features: [{ id: 'A', origin: [0, 1, 2] }] },
     expect: { bounds: [40, 30, 5], enabled: false },

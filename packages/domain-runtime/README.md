@@ -15,3 +15,5 @@ SQLite 原子提交规范记录与 State/Checkpoint head；产物进入 SHA-256 
 Runtime Tool 可携带输入指南，通过受 Scope 约束的 `describeTool` 按需披露；这属于工具文档，不生成工业事实。FreeCAD 原生 Pack 复用执行、产物、回读验证与持久化路径，见 [FreeCAD 接入](../../doc/freecad-domain-pack.md)。
 
 Read-only host Tools still enter `IndustrialRuntime.execute` with the current project, Broker Scope and State identity. Their Actions, diagnostics and Checkpoints are persisted, but successful or failed observations do not replace the engineering State, artifacts or verification identities. Readiness is separate from engineering acceptance.
+
+createWorkspacePlugin 提供所有领域共用的初始化、受控文件读写和声明任务执行。effect=inputs 的编辑回执保留旧验收并标 stale；effect=external 记录宿主服务 Action 与未验收响应而不替换工程 State。执行只有明确 checks-json 才能通过，退出码不能单独建立验收。格式、限额和真实消费者回归见[共享工程底座](../../doc/shared-workspace.md)。

@@ -56,16 +56,22 @@ function loadRegistry() {
     .map(bundle => ({ id: bundle.domain, label: bundle.label, emoji: bundle.emoji }))
     .sort((a, b) => a.id.localeCompare(b.id));
   const capabilities = bundles.flatMap(bundle => bundle.capabilities);
-  const skills = bundles.flatMap(bundle =>
-    bundle.skills.map(skill => ({
-      id: skill.id,
-      domain: skill.domain,
-      title: skill.title,
-      enabledByDefault: true,
-      ...(skill.external ? { external: skill.external } : {}),
-      file: path.join(bundle.location, ...skill.file.split('/')),
-    })),
-  );
+  const skills = [
+    ...staticSkills
+      .listSkills()
+      .filter(skill => skill.domain === '*')
+      .map(skill => ({ ...skill, file: staticSkills.skillFile(skill.id) })),
+    ...bundles.flatMap(bundle =>
+      bundle.skills.map(skill => ({
+        id: skill.id,
+        domain: skill.domain,
+        title: skill.title,
+        enabledByDefault: true,
+        ...(skill.external ? { external: skill.external } : {}),
+        file: path.join(bundle.location, ...skill.file.split('/')),
+      })),
+    ),
+  ];
   const providerPacks = bundles.flatMap(bundle =>
     bundle.providerPacks.map(pack => ({
       ...pack,
@@ -99,7 +105,7 @@ function loadRegistry() {
 
 function installedSkills(domain) {
   return loadRegistry()
-    .skills.filter(item => !domain || item.domain === domain)
+    .skills.filter(item => item.domain === '*' || !domain || item.domain === domain)
     .map(({ file, ...item }) => item);
 }
 

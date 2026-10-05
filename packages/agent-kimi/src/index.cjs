@@ -112,7 +112,12 @@ function prepareSessionFiles(scope, runtime, persistentDirectory, projectDir, pl
     );
     writeMcpConfig(
       directory,
-      selectMcpServers(scope, runtime.disabledMcpServers, undefined, runtime.externalServers),
+      selectMcpServers(
+        scope,
+        runtime.disabledMcpServers,
+        undefined,
+        runtime.hostRuntimeExternal ? [] : runtime.externalServers,
+      ),
       {
         projectDir,
         environment: runtime.environment,
@@ -292,6 +297,10 @@ class KimiSession {
       this.getRuntime(),
       this.plugins,
       Boolean(this.diagnostics.industrialRuntime),
+      this.diagnostics.industrialRuntime
+        ?.descriptors?.()
+        .filter(tool => tool.effect === 'external')
+        .map(tool => tool.id),
     );
     if (!runtime.apiKey) throw Error('Set a model API key before running Kimi.');
     const approvalMode = runtime.approvalMode || 'ask';
@@ -479,7 +488,7 @@ class KimiSession {
             undefined,
             runtime.externalServers,
           ).some(provider => provider.transport === 'external');
-          if (externalSelected || enabledPlugins(plugins).length)
+          if ((externalSelected && !runtime.hostRuntimeExternal) || enabledPlugins(plugins).length)
             throw Error(
               '当前工业执行隔离不支持外部 MCP 服务或应用控制插件。请在本次项目资源设置中停用这些服务后重试；工业修改仅能通过已接入的 Domain Runtime。',
             );
@@ -509,6 +518,7 @@ class KimiSession {
               this.getScope,
               (descriptor, request) => this.requestRuntimeApproval(descriptor, request),
               result => this.diagnostics.onIndustrialResult?.(result),
+              { imageInput: Boolean(runtime.profile.imageInput) },
             ),
             ...externalTools(
               this.getScope,

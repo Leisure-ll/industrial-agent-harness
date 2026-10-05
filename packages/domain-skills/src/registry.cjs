@@ -5,6 +5,12 @@ const { distributionDomain } = require('./distribution.cjs');
 // Repository-owned defaults. Harness resource policy stores ID enablement only.
 const skills = Object.freeze([
   {
+    id: 'project.work',
+    domain: '*',
+    title: 'Create, edit and check a project',
+    directory: 'project-work',
+  },
+  {
     id: 'chip.netlist.inspect',
     domain: 'chip',
     title: 'Inspect RTL netlist',
@@ -84,8 +90,8 @@ function listSkills(domain) {
   return skills
     .filter(
       item =>
-        (!distributionDomain || item.domain === distributionDomain) &&
-        (!domain || item.domain === domain),
+        (item.domain === '*' || !distributionDomain || item.domain === distributionDomain) &&
+        (item.domain === '*' || !domain || item.domain === domain),
     )
     .map(({ directory, externalPack, nativeToolPrefix, ...item }) => ({
       ...item,
@@ -95,7 +101,9 @@ function listSkills(domain) {
 
 function skillFile(id) {
   const item = skills.find(
-    skill => skill.id === id && (!distributionDomain || skill.domain === distributionDomain),
+    skill =>
+      skill.id === id &&
+      (skill.domain === '*' || !distributionDomain || skill.domain === distributionDomain),
   );
   if (!item) throw Error(`Unknown repository skill: ${id}`);
   const file = path.join(__dirname, '..', 'skills', item.directory, 'SKILL.md');
@@ -109,7 +117,9 @@ function integrationSuffix(prefix) {
 
 function skillPackaging(id) {
   const item = skills.find(
-    skill => skill.id === id && (!distributionDomain || skill.domain === distributionDomain),
+    skill =>
+      skill.id === id &&
+      (skill.domain === '*' || !distributionDomain || skill.domain === distributionDomain),
   );
   if (!item) throw Error(`Unknown repository skill: ${id}`);
   return {

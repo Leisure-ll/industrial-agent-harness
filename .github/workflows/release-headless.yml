@@ -46,6 +46,14 @@ jobs:
           uv run --frozen python -m pytest -q
           cd ../../pcb
           uv sync --frozen --no-dev --python 3.13
+      - name: Prepare protected execution prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap
+          if sysctl kernel.apparmor_restrict_unprivileged_userns >/dev/null 2>&1; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --unshare-user --unshare-pid --ro-bind / / --proc /proc --dev /dev -- /bin/true
       - name: Verify actual scoped MCP and approval behavior
         run: |
           pnpm test:mcp
@@ -77,6 +85,9 @@ jobs:
             node --test tests/integration/domain-mcp-kimi.test.cjs tests/integration/domain-mcp-scope.test.cjs tests/integration/chip-runtime-reliability.test.cjs
           INDUSTRIAL_HARNESS_TEST_CLI=/tmp/industrial-headless-release-smoke/headless-chip/industrial-harness.cjs \
             node --test tests/integration/external-mcp-kimi.test.cjs
+          for domain in chip pcb; do
+            node scripts/smoke-workspace-cli.cjs "/tmp/industrial-headless-release-smoke/headless-$domain/industrial-harness.cjs" "$domain" "release/workspace-$domain-verification.json"
+          done
           tar -xzf "release/$asset" -C /tmp/industrial-headless-release-smoke
           (
             cd /tmp/industrial-headless-release-smoke

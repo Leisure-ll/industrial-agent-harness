@@ -868,6 +868,7 @@ function registerHandlers() {
     changingResources = true;
     try {
       await sessions.reset();
+      projectRuntimes.close();
       if (operation === 'add') return await externalRegistry.add(request?.configuration);
       if (typeof request?.id !== 'string') throw Error('Choose an external MCP service.');
       return operation === 'refresh'
@@ -1099,8 +1100,19 @@ function registerHandlers() {
         {
           industrialRuntime: entry.runtimeBundle?.runtime,
           protectedPaths: entry.runtimeBundle?.protectedPaths,
-          onIndustrialResult: result => {
-            entry.scope.stateId = result.state.id;
+          onIndustrialResult: async result => {
+            const registry = currentRegistry();
+            const refreshed = resolveProjectTask(
+              entry.project.domain,
+              { ...entry.resolvedRequest, state: result.state },
+              entry.scope,
+              [...registry.capabilities, ...entry.runtimeBundle.capabilities],
+              projectResourcePolicy(entry.project),
+              entry.externalServers,
+              registry.domains,
+            );
+            Object.assign(entry.scope, refreshed.scope);
+            entry.trace.push(...refreshed.trace);
             entry.agent.emit({ type: 'industrial-result', ...result });
           },
           resources: sessionResources,

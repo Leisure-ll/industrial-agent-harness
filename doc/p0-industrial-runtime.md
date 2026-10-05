@@ -16,9 +16,9 @@ macOS 使用真正的 Seatbelt 进程边界：Kimi 及其 Shell/WriteFile/子进
 
 Linux x86-64 使用 bubblewrap 的只读宿主挂载、独立 user/PID/IPC namespace 和删除 capabilities，仅重新挂载 session/scratch 为可写。继承的 seccomp 拒绝宿主 Unix socket 与 namespace/mount 重配置，避免经 Docker/D-Bus/SSH agent 绕过。模型 TCP/UDP 与子进程内部 socketpair 保留。bwrap、namespace 或过滤器不可用时直接失败。安装器先验证主机前提，安装后验证受保护 Kimi 启动。
 
-Chip RTL Scope 另提供 `chip.environment.check`，通过同一 `industrial_action_call` 在宿主 Runtime 检查声明的 RTL 输入、工具及 Docker。该只读 Action 使用 `inputs: {}`，仍核对项目、Scope 和当前 State；结果位于 Action diagnostics，Verification 为 `not_run`。检查成功或失败均保留原工程 State、产物与验收身份，同时记录新的 Action/Checkpoint。Agent 的 Shell 和子 MCP Docker 拒绝属于预期边界，不能据此断言宿主 Runtime 故障。该入口要求已有 `eda.yaml` 和 StateProvider 确认的 RTL 阶段；不新增工程初始化、RTL 写入或物理设计 Tool。
+Chip RTL Scope 另提供 `chip.environment.check`，通过同一 `industrial_action_call` 在宿主 Runtime 检查声明的 RTL 输入、工具及 Docker。该只读 Action 使用 `inputs: {}`，仍核对项目、Scope 和当前 State；结果位于 Action diagnostics，Verification 为 `not_run`。检查成功或失败均保留原工程 State、产物与验收身份，同时记录新的 Action/Checkpoint。Agent 的 Shell 和子 MCP Docker 拒绝属于预期边界，不能据此断言宿主 Runtime 故障。该入口要求已有 `eda.yaml` 和 StateProvider 确认的 RTL 阶段；工程初始化和文件编辑由共享 workspace Tools 承接；专业物理设计仍需领域实现。
 
-遗留 Domain MCP 的修改继承只读边界并可见失败，不能靠 Prompt 放行。尚未形成 Runtime 闭环的领域不自动获得写入能力。外部 MCP host 服务与应用控制插件在真实受保护会话中被明确拒绝，其其他进程/远程副作用尚未纳入工业审计。Windows 工业 Kimi 执行仍在启动前拒绝。
+遗留 Domain MCP 的修改继承只读边界并可见失败，不能靠 Prompt 放行。所有领域均可通过共享 Runtime 初始化、编辑工程和执行声明任务，专业验收仍需领域 Verifier。外部 MCP 已接入持久 Action/响应边界，独立应用控制插件仍不可用。Windows 工业 Kimi 执行仍在启动前拒绝。
 
 实际验证入口：
 
@@ -34,4 +34,4 @@ Core 集成测试使用真正的 CLI/Kimi 和本地确定性模型响应推动�
 
 安装态 Pack 库存不可变：Python 桥接禁止生成 bytecode/cache，项目产物与 Core SQLite/CAS 放在包外。安装 `.hpack` 后，通过包外 `INDUSTRIAL_HARNESS_EDA_PYTHON` 指向按其 uv.lock 准备的 Python 环境；不能在验签后的 Pack 内创建 `.venv`。源码开发 checkout 的默认 `.venv` 仅用于开发。安装态集成测试实际执行 Verilator 后重新扫描库存、重开 Factory 与读取验收历史。
 
-剩余边界：Runtime 插件属于可信代码，host 执行没有替任意第三方 Pack/恶意 testbench提供完整 OS 沙箱；网络、秘密读取也不在本次写入边界内。当前只接入 RTL 验证，没有授权源码修复 Tool，没有其他领域的规范 Core verifier。主仓与 EDA Harness/demo 自有贡献已获 MIT 授权，但不能替代无授权外部 actor 或第三方二进制的源码/告示义务。三平台发行物和完整第三方依赖 SBOM仍需独立资格验证。
+剩余边界：Runtime 插件属于可信代码，host 执行没有替任意第三方 Pack/恶意 testbench提供完整 OS 沙箱；网络、秘密读取也不在本次写入边界内。共享 workspace Tools 已提供授权文件修复和声明任务检查；FreeCAD 有自己的 Verifier，共享检查不替代其他领域签核。主仓与 EDA Harness/demo 自有贡献已获 MIT 授权，但不能替代无授权外部 actor 或第三方二进制的源码/告示义务。三平台发行物和完整第三方依赖 SBOM仍需独立资格验证。
