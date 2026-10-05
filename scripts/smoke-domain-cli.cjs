@@ -5,7 +5,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const assert = require('node:assert/strict');
 const directory = path.resolve(process.argv[2]);
-const domains = ['chip', 'pcb', 'godot'];
+const domains = ['chip', 'pcb', 'godot', 'cad'];
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'domain-cli-smoke-'));
 try {
   for (const domain of domains) {
@@ -35,7 +35,9 @@ try {
         ? '检查工程状态'
         : domain === 'pcb'
           ? 'Inspect PCB board'
-          : 'Inspect project files',
+          : domain === 'cad'
+            ? 'FreeCAD 3D 零件建模'
+            : 'Inspect project files',
       '--scope-only',
     ];
     const run = extra =>
@@ -52,7 +54,7 @@ try {
     assert.equal(rows.at(-1).status, 'scoped');
     assert.ok(
       rows[0].trace.find(row => row.event === 'domain.index').detail.count ===
-        (domain === 'chip' ? 8 : domain === 'pcb' ? 8 : 2),
+        (domain === 'chip' ? 8 : domain === 'pcb' ? 8 : domain === 'cad' ? 4 : 2),
     );
     const denied = domain === 'chip' ? 'pcb' : 'chip';
     assert.throws(
@@ -62,7 +64,7 @@ try {
     const skillsRoot = fs.realpathSync(
       path.join(path.dirname(entry), 'node_modules/@industrial-agent-harness/domain-skills'),
     );
-    const inspect = `const {capabilities,listSkills,listDomains,domainPacks}=require(${JSON.stringify(skillsRoot)});console.log(JSON.stringify({skills:listSkills(),capabilities:capabilities.map(c=>c.domain),domains:listDomains(capabilities),packs:domainPacks.map(p=>p.domain)}))`;
+    const inspect = `const {capabilities,listSkills,listDomains,domainPacks,loadRegistry}=require(${JSON.stringify(skillsRoot)});const fs=require('fs'),path=require('path');console.log(JSON.stringify({skills:listSkills(),capabilities:capabilities.map(c=>c.domain),domains:listDomains(capabilities),packs:domainPacks.map(p=>p.domain),nativeEntries:loadRegistry().runtimePacks.map(p=>({exists:fs.existsSync(path.join(p.directory,p.runtime.entry)),inside:path.relative(${JSON.stringify(packageRoot)},p.directory)}))}))`;
     const catalog = JSON.parse(
       execFileSync(process.execPath, ['-e', inspect], { cwd: temporary, encoding: 'utf8' }),
     );
@@ -73,6 +75,12 @@ try {
       [domain],
     );
     assert.ok(catalog.packs.every(item => item === domain));
+    assert.ok(
+      catalog.nativeEntries.every(
+        item => item.exists && !item.inside.startsWith('..') && !path.isAbsolute(item.inside),
+      ),
+      'Packaged native runtime entries must resolve inside the extracted release.',
+    );
     if (domain === 'chip') {
       assert.equal(catalog.skills.length, 4);
       assert.equal(

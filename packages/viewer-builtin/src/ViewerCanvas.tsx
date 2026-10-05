@@ -31,6 +31,9 @@ const EngineeringViewport = lazy(() =>
     default: module.EngineeringViewport,
   })),
 );
+const CadViewport = lazy(() =>
+  import('./cad/CadViewport').then(module => ({ default: module.CadViewport })),
+);
 
 class ViewerBoundary extends Component<
   { children: ReactNode; onError: (message: string) => void },
@@ -83,6 +86,8 @@ function ViewerContent({
   onError: (message: string) => void;
 }) {
   switch (opened.kind) {
+    case 'cad':
+      return <CadViewport data={opened.data} onReady={onReady} onError={onError} />;
     case 'layout':
       return <LayoutViewport meta={opened.data} onReady={onReady} onError={onError} />;
     case 'netlist':

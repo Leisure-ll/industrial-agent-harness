@@ -406,6 +406,21 @@ export function App() {
       .catch(reason => setError(String(reason)));
     let pendingEvents: AgentEvent[] = [];
     let eventTimer: ReturnType<typeof setTimeout> | undefined;
+    let fileReadRevision = 0;
+    let disposed = false;
+    function refreshProjectFiles() {
+      const projectId = projectIdRef.current;
+      const revision = ++fileReadRevision;
+      void window
+        .viewerHost!.projectFiles()
+        .then(files => {
+          if (!disposed && revision === fileReadRevision && projectId === projectIdRef.current)
+            setProjectFiles(files);
+        })
+        .catch(reason => {
+          if (!disposed && projectId === projectIdRef.current) setError(String(reason));
+        });
+    }
     function flushEvents() {
       clearTimeout(eventTimer);
       eventTimer = undefined;
@@ -452,6 +467,7 @@ export function App() {
         sentTasks.current.delete(chatId);
       }
       if (event.chatId && event.chatId !== chatIdRef.current) return;
+      if (event.type === 'industrial-result' || event.type === 'done') refreshProjectFiles();
       setAgentOwned(true);
       pendingEvents.push(event);
       if (['done', 'error', 'approval', 'question'].includes(event.type)) flushEvents();
@@ -479,6 +495,7 @@ export function App() {
       void refreshChats().catch(reason => setError(String(reason)));
     });
     return () => {
+      disposed = true;
       clearTimeout(eventTimer);
       removeEvents();
       removeUpdated();
@@ -722,6 +739,14 @@ export function App() {
       return;
     if (attachments.images.length && !modelImageInput) {
       setBrokerError('Choose a vision model and enable Image input in Model API settings.');
+      return;
+    }
+    if (!agentStatus?.available || !agentStatus.configured) {
+      setBrokerError(
+        !agentStatus?.available
+          ? 'Kimi is unavailable. Check its installation in Settings before running this task.'
+          : 'Configure the Model API in Settings before running this task. Your prompt has been kept.',
+      );
       return;
     }
     prompt = prompt.trim() || 'Describe the attached images.';

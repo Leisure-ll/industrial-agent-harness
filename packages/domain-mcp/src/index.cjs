@@ -7,10 +7,12 @@ const { writeExternalGateway } = require('./external-gateway.cjs');
 const { hash, externalSecrets } = require('./external-client.cjs');
 
 function servers() {
-  return loadRegistry().providerPacks.map(pack => ({
-    ...pack.provider,
-    toolIds: pack.provider.tools.map(tool => tool.id),
-  }));
+  return loadRegistry()
+    .providerPacks.filter(pack => pack.provider.transport !== 'runtime')
+    .map(pack => ({
+      ...pack.provider,
+      toolIds: pack.provider.tools.map(tool => tool.id),
+    }));
 }
 
 function listMcpServers(domain, external = []) {

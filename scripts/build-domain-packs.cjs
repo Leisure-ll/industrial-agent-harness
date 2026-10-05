@@ -36,8 +36,10 @@ const features = {
     prerequisites: ['A Godot Web Export is required for project preview'],
   },
   cad: {
-    summary: 'AutoCAD for macOS operating Skill',
-    prerequisites: ['AutoCAD for macOS and the computer-use plugin are required'],
+    summary: 'FreeCAD parametric solid modelling, readback verification and CAD mesh viewer',
+    prerequisites: [
+      'FreeCAD 1.1.4 macOS arm64; configure INDUSTRIAL_HARNESS_FREECAD_CMD when outside /Applications',
+    ],
   },
 };
 const providerPacks = loadDomainPacks();

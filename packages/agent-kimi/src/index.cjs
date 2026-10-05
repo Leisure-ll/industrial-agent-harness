@@ -288,7 +288,11 @@ class KimiSession {
     if (this.running || this.turn) throw Error('A Kimi turn is already running.');
     const scope = this.getScope();
     if (!scope) throw Error('Resolve capabilities before starting the agent.');
-    const runtime = this.getRuntime();
+    const { runtime, plugins, excluded } = require('./execution-policy.cjs').executionPolicy(
+      this.getRuntime(),
+      this.plugins,
+      Boolean(this.diagnostics.industrialRuntime),
+    );
     if (!runtime.apiKey) throw Error('Set a model API key before running Kimi.');
     const approvalMode = runtime.approvalMode || 'ask';
     if (!['ask', 'auto'].includes(approvalMode)) throw Error('Invalid approval mode.');
@@ -303,9 +307,9 @@ class KimiSession {
       runtime.externalServers,
     );
     const currentMcpKey = JSON.stringify(mcpRuntime);
-    const pluginKey = JSON.stringify(enabledPlugins(this.plugins).map(plugin => plugin.name));
+    const pluginKey = JSON.stringify(enabledPlugins(plugins).map(plugin => plugin.name));
     this.activePluginTools = new Set(
-      enabledPlugins(this.plugins).flatMap(plugin => plugin.toolNames || []),
+      enabledPlugins(plugins).flatMap(plugin => plugin.toolNames || []),
     );
     const log = createDiagnosticLog(this.workDir, {
       directory: this.diagnostics.directory,
@@ -371,12 +375,30 @@ class KimiSession {
         runtimeRevision: runtime.revision,
       });
       this.emitAgent({ type: 'diagnostic-log', traceId: log.traceId, path: log.file });
+      if (excluded) {
+        log.record('resource.filtered', { ...excluded, reason: 'protected-industrial-execution' });
+        this.emitAgent({
+          type: 'text',
+          text: '本轮使用项目内已接入的工业工具。外部 MCP 服务和应用控制在当前隔离下暂不可用。\n',
+        });
+      }
       const anchor = await this.diagnostics.getContextAnchor?.();
       const engineeringState = await this.diagnostics.industrialRuntime?.inspect();
-      const stateContext = engineeringState
-        ? `\nPersisted DomainState (engineering facts): ${JSON.stringify({ schemaVersion: engineeringState.schemaVersion, id: engineeringState.id, projectId: engineeringState.projectId, domain: engineeringState.domain, stage: engineeringState.stage, status: engineeringState.status, verificationIds: engineeringState.verificationIds, inputCount: Object.keys(engineeringState.inputHashes).length })}. Use industrial_action_call with expectedStateId=${engineeringState.id}, toolId from the current Broker allowlist, and inputs={}. The returned verification is engineering acceptance; a stale state requires fresh inspection and scope resolution.`
-        : '';
-      const context = industrialContext(scope, anchor, runtime.externalServers) + stateContext;
+      const { engineeringContext } = require('./engineering-context.cjs');
+      const baseContext = industrialContext(scope, anchor, runtime.externalServers);
+      const artifactBudget = Math.max(
+        0,
+        Math.min(
+          2048,
+          MAX_INDUSTRIAL_CONTEXT_BYTES -
+            Buffer.byteLength(baseContext + engineeringContext(engineeringState, 0)),
+        ),
+      );
+      const context = baseContext + engineeringContext(engineeringState, artifactBudget);
+      if (Buffer.byteLength(context) > MAX_INDUSTRIAL_CONTEXT_BYTES)
+        throw Error(
+          'Broker scope and current State exceed the Industrial Context limit; narrow the selected capabilities before starting Kimi.',
+        );
       if (anchor) log.record('context.anchor', anchor);
       const resetReason = !this.session
         ? 'new'
@@ -446,7 +468,7 @@ class KimiSession {
           runtime,
           stored?.shareDir,
           this.workDir,
-          this.plugins,
+          plugins,
         );
         if (this.sessionFactory === createSession) {
           // External host services can mutate unrelated applications outside this
@@ -457,7 +479,7 @@ class KimiSession {
             undefined,
             runtime.externalServers,
           ).some(provider => provider.transport === 'external');
-          if (externalSelected || enabledPlugins(this.plugins).length)
+          if (externalSelected || enabledPlugins(plugins).length)
             throw Error(
               '当前工业执行隔离不支持外部 MCP 服务或应用控制插件。请在本次项目资源设置中停用这些服务后重试；工业修改仅能通过已接入的 Domain Runtime。',
             );
@@ -494,7 +516,7 @@ class KimiSession {
               this.disclose,
               this.diagnostics.readContextPage,
             ),
-            ...enabledPlugins(this.plugins).flatMap(plugin =>
+            ...enabledPlugins(plugins).flatMap(plugin =>
               plugin.toolsFactory(this.diagnostics.pluginLog).map(tool => createExternalTool(tool)),
             ),
           ],

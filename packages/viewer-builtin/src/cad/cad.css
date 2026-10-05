@@ -1,0 +1,208 @@
+.rp-cad {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--ia-bg, #10181e);
+  color: var(--ia-text, #e6edf2);
+  font-size: 12px;
+}
+.rp-cad-heading {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--ia-border, #34404c);
+}
+.rp-cad-heading strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+}
+.rp-cad-tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.rp-cad button,
+.rp-cad select {
+  color: inherit;
+  background: var(--ia-panel, #1e2936);
+  border: 1px solid var(--ia-border, #465362);
+  border-radius: 5px;
+  padding: 5px 8px;
+  font: inherit;
+}
+.rp-cad button {
+  cursor: pointer;
+}
+.rp-cad button:disabled,
+.rp-cad select:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.rp-cad button[aria-selected='true'],
+.rp-cad button[aria-pressed='true'] {
+  border-color: #57b6da;
+  background: var(--ia-accent-soft, #254b64);
+}
+.rp-cad-model {
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.rp-cad-tools {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rp-cad-tools label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.rp-cad-tools .rp-cad-measure-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-color: #57b6da;
+  font-weight: 600;
+}
+.rp-cad-tools input[type='range'] {
+  width: 110px;
+  accent-color: #61b9df;
+}
+.rp-cad-model-body,
+.rp-cad-sketch-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.rp-cad-viewport {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  min-height: 160px;
+  position: relative;
+  touch-action: none;
+}
+.rp-cad-viewport canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.rp-cad-measure-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.rp-cad-measure-overlay line {
+  stroke: #a7edc5;
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+}
+.rp-cad-measure-overlay circle {
+  fill: #a7edc5;
+}
+.rp-cad-measure-overlay text {
+  fill: #b9ecff;
+  stroke: #0a1a23;
+  stroke-width: 3px;
+  paint-order: stroke;
+  text-anchor: middle;
+  font-size: 13px;
+  font-weight: 600;
+}
+.rp-cad-distance-overlay text {
+  fill: #c8ffde;
+}
+.rp-cad-inspector {
+  background: var(--ia-bg, #10181e);
+  position: relative;
+  width: 200px;
+  flex-shrink: 0;
+  padding: 12px;
+  border-left: 1px solid var(--ia-border, #34404c);
+  overflow: auto;
+}
+.rp-cad-inspector h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.rp-cad-inspector p {
+  margin: 0 0 12px;
+  line-height: 1.6;
+  opacity: 0.75;
+}
+.rp-cad-note {
+  flex-shrink: 0;
+  background: var(--ia-bg, #10181e);
+  padding: 6px 12px;
+  opacity: 0.7;
+}
+.rp-cad-sketch-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rp-cad-sketch-canvas {
+  flex: 1;
+  min-height: 160px;
+  touch-action: none;
+  background: var(--ia-panel, #14202c);
+}
+.rp-cad-sketch-canvas svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.rp-cad-sketch-axis {
+  stroke: var(--ia-border, #425363);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.rp-cad-sketch-geometry {
+  stroke: #6aaed1;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+  cursor: pointer;
+}
+.rp-cad-sketch-geometry.selected {
+  stroke: #e8b14e;
+  stroke-width: 5;
+}
+.rp-cad-sketch-dimension {
+  fill: var(--ia-text, #ecf2f7);
+  cursor: pointer;
+}
+.rp-cad-constraints {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.rp-cad-constraints button {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.rp-cad-constraints small {
+  opacity: 0.65;
+}
+.rp-cad-valid {
+  color: #53ba92;
+}
+.rp-cad-warning {
+  color: #d09b3c;
+  padding: 4px 12px;
+}
+.rp-cad-empty {
+  padding: 20px;
+}

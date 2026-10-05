@@ -115,6 +115,7 @@ if (
     '--godot-selftest',
     '--documents-selftest',
     '--engineering-selftest',
+    '--cad-selftest',
     '--mcp-selftest',
     '--external-mcp-selftest',
     '--agent-log-selftest',
@@ -500,6 +501,9 @@ function getRaster() {
 }
 
 const viewerRegistry = createViewerRegistry([
+  ...require('@industrial-agent-harness/viewer-builtin/runtime/cad').createCadPlugins({
+    projectRoot: () => projectDir,
+  }),
   ...createEngineeringPlugins({ projectRoot: () => projectDir }),
   ...createAssetPlugins({ projectRoot: () => projectDir }),
   {
@@ -1213,6 +1217,8 @@ async function createWindow() {
     require('./documents-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--engineering-selftest'))
     require('./engineering-selftest.cjs').prepare(projectConfigDir());
+  if (process.argv.includes('--cad-selftest'))
+    await require('./cad-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--parallel-selftest'))
     require('./parallel-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--image-input-selftest'))
@@ -1254,6 +1260,10 @@ async function createWindow() {
       sandbox: true,
     },
   });
+  if (process.argv.includes('--cad-selftest'))
+    window.webContents.on('console-message', event =>
+      fs.writeSync(2, 'CAD renderer: ' + event.message + '\n'),
+    );
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
@@ -1368,6 +1378,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--engineering-selftest')) {
     await require('./engineering-selftest.cjs').run(window);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--cad-selftest')) {
+    await require('./cad-selftest.cjs').run(window);
     app.quit();
     return;
   }
@@ -1740,7 +1755,7 @@ app
   .whenReady()
   .then(createWindow)
   .catch(error => {
-    console.error(error);
+    fs.writeSync(2, String(error?.stack || error) + '\n');
     app.exit(1);
   });
 app.on('window-all-closed', () => {

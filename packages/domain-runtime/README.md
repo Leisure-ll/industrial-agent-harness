@@ -12,4 +12,6 @@ SQLite 原子提交规范记录与 State/Checkpoint head；产物进入 SHA-256 
 
 已行使的首条闭环是 Chip Pack 的 RTL lint/Verilator assertion simulation、真实 VCD、独立证据检查以及重启恢复。每个 Tool 当前要求一个汇总 Verifier，避免忽略其他验证器。其他领域仍使用各自已有运行时，不因此成为规范 Core 闭环。原生工具/容器清理由现有 EDA Runtime 负责。实际支持和限制见 [P0 工业运行时](../../doc/p0-industrial-runtime.md) 与 [安全边界](../../SECURITY.md)。
 
+Runtime Tool 可携带输入指南，通过受 Scope 约束的 `describeTool` 按需披露；这属于工具文档，不生成工业事实。FreeCAD 原生 Pack 复用执行、产物、回读验证与持久化路径，见 [FreeCAD 接入](../../doc/freecad-domain-pack.md)。
+
 Read-only host Tools still enter `IndustrialRuntime.execute` with the current project, Broker Scope and State identity. Their Actions, diagnostics and Checkpoints are persisted, but successful or failed observations do not replace the engineering State, artifacts or verification identities. Readiness is separate from engineering acceptance.

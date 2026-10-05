@@ -1,6 +1,57 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { resolveProjectTask } = require('../src/index.cjs');
+const { randomUUID } = require('node:crypto');
+
+test('protected Runtime scopes exclude configured host services without changing resource preferences', () => {
+  const external = [
+    { id: 'external.example', title: 'Example', tools: [{ id: 'external.example.call' }] },
+  ];
+  const registry = [
+    {
+      id: 'example.prepare',
+      domain: 'example',
+      title: 'Prepare',
+      stages: [],
+      keywords: ['prepare'],
+      skills: [],
+      tools: [{ id: 'example.prepare' }],
+      verification: [],
+    },
+  ];
+  const state = {
+    schemaVersion: '1',
+    id: randomUUID(),
+    projectId: 'b'.repeat(64),
+    domain: 'example',
+    stage: null,
+    status: 'unverified',
+    artifacts: [],
+    inputHashes: {},
+    verificationIds: [],
+    createdAt: new Date().toISOString(),
+  };
+  const policy = { skills: [], mcpServers: [] };
+  const call = request =>
+    resolveProjectTask('example', request, undefined, registry, policy, external, [
+      { id: 'example' },
+    ]);
+  assert.deepEqual(call({ task: 'prepare' }).scope.tools, [
+    'example.prepare',
+    'external.example.call',
+  ]);
+  const protectedTask = call({ task: 'prepare', state });
+  assert.deepEqual(protectedTask.scope.tools, ['example.prepare']);
+  assert.ok(
+    protectedTask.trace.some(
+      t =>
+        t.event === 'resource.execution-boundary' &&
+        t.detail.unavailableMcpServers.includes('external.example'),
+    ),
+  );
+  assert.deepEqual(policy, { skills: [], mcpServers: [] });
+  assert.equal(external.length, 1);
+});
 
 test('a project domain constrains capability resolution without a desktop process', () => {
   const result = resolveProjectTask('chip', { task: 'Inspect netlist signals' });

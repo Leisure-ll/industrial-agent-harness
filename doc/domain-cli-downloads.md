@@ -12,6 +12,7 @@
 | --- | --- | --- |
 | Chip | chip | 三个原有检查 Skill、EDA 操作 Skill、25 工具的 MCP Gateway 与 EDA Harness 固定源码；先准备 Python，工业计算再准备镜像/PDK/工程 |
 | PCB | pcb | 89 工具的受范围约束 MCP 与完整设计 Skill 的加载声明；实际使用需另行准备固定 PCB-bench 源码、Skill 与匹配 KiCad 镜像，见 [PCB 接入](pcb-mcp-integration.md) |
+| CAD | cad | FreeCAD 参数化草图、拉伸、孔、布尔实体、FCStd/STEP/STL 导出与独立回读；原生计算仅验证 FreeCAD 1.1.4 macOS arm64，见 [CAD 接入](freecad-domain-pack.md) |
 | Godot | godot | 5 个受范围约束的场景检查、导入和限时运行工具，以及两份 Skill；原生动作需注册 Godot 4 可执行文件，见 [Godot 接入](godot-mcp-integration.md) |
 
 下载、校验并解压对应包：
@@ -43,7 +44,10 @@ Windows 可执行文件位于该环境的 `Scripts` 下，尚未验证 Windows �
 node scripts/package-headless.cjs --domain chip
 node scripts/package-headless.cjs --domain pcb
 node scripts/package-headless.cjs --domain godot
+node scripts/package-headless.cjs --domain cad
 node scripts/smoke-domain-cli.cjs dist
 ```
 
-本次在 macOS 从不同工作目录启动三个包，验证领域默认、跨领域拒绝、资源筛选、Chip 禁用与源码存在/缺失；Chip 还验证解包后的真实 MCP。其他平台安装包与完整工程计算尚未验收。
+本次在 macOS 从不同工作目录启动四个包，验证领域默认、跨领域拒绝、资源筛选、Chip 禁用与源码存在/缺失；Chip 还验证解包后的真实 MCP。其他平台安装包与完整工程计算尚未验收。
+
+CAD 独立包包含 FreeCAD Runtime 和 Skill；Scope/打包可跨平台验证，实际受保护建模目前仅支持 macOS arm64 + FreeCAD 1.1.4，详见 [FreeCAD 接入](freecad-domain-pack.md)。

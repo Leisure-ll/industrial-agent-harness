@@ -29,6 +29,7 @@
     "./runtime/assets": "./src/assets/service.cjs",
     "./runtime/documents": "./src/documents/service.cjs",
     "./runtime/engineering": "./src/engineering/service.cjs",
+    "./runtime/cad": "./src/cad/service.cjs",
     "./runtime/kicad": "./src/kicad/runtime.cjs"
   },
   "devDependencies": {

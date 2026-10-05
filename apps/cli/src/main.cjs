@@ -186,6 +186,8 @@ async function runWithStore(options, output, environment, Session, chats, regist
   let timedOut = false;
   let interrupted = false;
   let outcome;
+  let pendingQuestion;
+  let completedStatus;
   let turnId;
   let release;
   let guiBridge;
@@ -229,7 +231,14 @@ async function runWithStore(options, output, environment, Session, chats, regist
       externalServers,
       approvalMode: options.approval === 'auto' ? 'auto' : 'ask',
     };
-    if (options.enableGui) {
+    if (options.enableGui && bundle)
+      send({
+        type: 'execution_policy',
+        unavailable: ['application-control'],
+        reason:
+          'Application control is unavailable in protected industrial execution; Runtime tools remain available.',
+      });
+    if (options.enableGui && !bundle) {
       const guiDir =
         environment.GUI_BRIDGE_DIR ||
         path.join(os.homedir(), '.industrial-agent-harness', 'gui-bridge');
@@ -295,14 +304,14 @@ async function runWithStore(options, output, environment, Session, chats, regist
           });
         }
         if (event.type === 'question') {
-          // The JSONL CLI has no interactive input channel. Return an explicit
-          // empty answer so Kimi can continue and decide how to proceed.
+          // No human input channel exists in this JSONL process. Preserve the
+          // request and stop; an empty answer can be mistaken for permission.
+          pendingQuestion = event;
+          send({ type: 'needs_input', id: event.id, questions: event.questions });
           queueMicrotask(() => {
             Promise.resolve()
-              .then(() => session.answerQuestion(event.id, {}))
-              .catch(error =>
-                send({ type: 'question_error', id: event.id, message: String(error) }),
-              );
+              .then(() => session.interrupt())
+              .catch(error => send({ type: 'interrupt_error', message: String(error) }));
           });
         }
       },
@@ -341,14 +350,17 @@ async function runWithStore(options, output, environment, Session, chats, regist
     await session.run(options.task);
     const status = timedOut
       ? 'timeout'
-      : interrupted
-        ? 'interrupted'
-        : outcome?.type === 'error'
-          ? 'error'
-          : outcome?.type === 'done'
-            ? outcome.result.status
-            : 'incomplete';
+      : pendingQuestion
+        ? 'needs_input'
+        : interrupted
+          ? 'interrupted'
+          : outcome?.type === 'error'
+            ? 'error'
+            : outcome?.type === 'done'
+              ? outcome.result.status
+              : 'incomplete';
     chats.finish(turnId, status);
+    completedStatus = status;
     const state = bundle ? await bundle.runtime.inspect() : null;
     send({
       type: 'result',
@@ -366,11 +378,13 @@ async function runWithStore(options, output, environment, Session, chats, regist
     });
     return status === 'timeout'
       ? 124
-      : status === 'interrupted'
-        ? 130
-        : status === 'error' || status === 'incomplete'
-          ? 1
-          : 0;
+      : status === 'needs_input'
+        ? 2
+        : status === 'interrupted'
+          ? 130
+          : status === 'error' || status === 'incomplete'
+            ? 1
+            : 0;
   } finally {
     if (timeout) clearTimeout(timeout);
     process.removeListener('SIGINT', onSigint);
@@ -378,7 +392,7 @@ async function runWithStore(options, output, environment, Session, chats, regist
     try {
       await session?.close();
     } finally {
-      if (turnId && (!outcome || timedOut || interrupted))
+      if (turnId && !completedStatus)
         chats.finish(turnId, timedOut ? 'timeout' : interrupted ? 'interrupted' : 'error');
       release?.();
       releasePack?.();

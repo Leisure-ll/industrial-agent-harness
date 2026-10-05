@@ -9,12 +9,16 @@ const staticSkills = require('./registry.cjs');
 const { listDomains } = require('./domains.cjs');
 
 function builtInPackDirectory(provider) {
-  // pnpm deploy nests workspace packages inside its private node_modules tree.
-  // Resolve from the owning module's ancestors, never from the caller's cwd.
+  // Resolve deployed pnpm resources from the owning module's ancestors. A
+  // release marker stops lookup before it can fall through to a source checkout.
   for (let directory = __dirname; ; directory = path.dirname(directory)) {
     const candidate = path.join(directory, 'domain-packs', provider.packDirectory);
-    if (fs.statSync(candidate, { throwIfNoEntry: false })?.isDirectory()) return candidate;
-    if (path.dirname(directory) === directory)
+    const exists = fs.statSync(candidate, { throwIfNoEntry: false })?.isDirectory();
+    if (exists) return candidate;
+    if (
+      fs.existsSync(path.join(directory, 'HARNESS-PACKAGE.json')) ||
+      path.dirname(directory) === directory
+    )
       throw Error(`Missing bundled Domain Pack: ${provider.packDirectory}`);
   }
 }

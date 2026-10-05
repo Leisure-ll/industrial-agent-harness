@@ -5,18 +5,18 @@
 | 回归层 | 托管环境 | 必需验证 |
 | --- | --- | --- |
 | 仓库与协议 | Ubuntu 24.04 x64 | 格式、架构边界、Pack/类型兼容、桌面构建、Python Runtime、实际 MCP transport、Icarus 独立 RTL 验证 |
-| 跨平台基础 | Ubuntu 24.04 x64 / ARM64、macOS 15 ARM64、Windows 2025 x64 | 共享包、CLI、SDK、Viewer 边界、资源与持久化，以及三种独立 CLI 包的实际消费 |
+| 跨平台基础 | Ubuntu 24.04 x64 / ARM64、macOS 15 ARM64、Windows 2025 x64 | 共享包、CLI、SDK、Viewer 边界、资源与持久化，以及 Chip/PCB/Godot/CAD 四种独立 CLI 包的实际消费 |
 | 桌面安装 | macOS 15 ARM64、Windows 2025 x64 | 打包应用首次启动、内置资源与 Domain 安装流程 |
 | Linux 安装与工业闭环 | Ubuntu 22.04 x86-64 | bubblewrap/seccomp、真实 Kimi/Verilator、成功/失败/取消/恢复、干净 Chip 安装包、实际安装消费与重复安装 |
-| 原生工业闭环 | macOS 15 ARM64 | 实际 Seatbelt、Verilator、固定 Kimi CLI、持久化事实、审批拒绝、失败恢复、图像/并行会话、聊天恢复、空闲回收与强制中断 |
+| 原生工业闭环 | macOS 15 / 26 ARM64 | 实际 Seatbelt、Verilator、FreeCAD、固定 Kimi CLI、持久化事实、审批拒绝、失败恢复、图像/并行会话、聊天恢复、空闲回收与强制中断，以及真实 CAD 产物的桌面查看 |
 
 `ubuntu-24.04`、`ubuntu-24.04-arm`、`macos-15`、`windows-2025` 直接对应原生 OS/架构机器。基础测试还会检查 Node 实际报告的 OS 与架构，避免把交叉编译当作目标平台运行。Node 固定为 24，pnpm 固定为 11.1.3，Python 为 3.13，uv 为 0.11.6，Kimi CLI 为 1.51.0；安装遵循已有锁文件。CI 使用本地 HTTP 模型 fixture，不需要模型 API 密钥。
 
 ## 门禁与证据
 
-`All checks passed` 汇总五层结果；任何一层失败、取消或整个 job 被跳过，汇总都失败。它可以作为分支保护的必需检查；新增 workflow 不会自动修改仓库分支保护设置。所有层都必需，不把 Windows 失败降为观察项。桌面回归每个 PR 都执行，避免路径过滤导致必需检查缺席。
+`All checks passed` 汇总全部必需回归层；任何一层失败、取消或整个 job 被跳过，汇总都失败。它可以作为分支保护的必需检查；新增 workflow 不会自动修改仓库分支保护设置。所有层都必需，不把 Windows 失败降为观察项。桌面回归每个 PR 都执行，避免路径过滤导致必需检查缺席。
 
-`scripts/ci-tests.cjs` 记录执行文件、平台、Node 版本、计数与跳过项；零测试、失败、取消、TODO 或未登记跳过都失败。原生闭环和独立 RTL benchmark 不允许跳过，缺少 Kimi、Python Runtime、Verilator 或 Icarus 会失败。回归 JSON 与桌面/原生/CLI 日志通过 Actions artifacts 保留 14 天；失败和取消时也尝试上传已产生的证据。更新 PR 会取消同一 PR 的旧运行。
+`scripts/ci-tests.cjs` 记录执行文件、平台、Node 版本、计数与跳过项；零测试、失败、取消、TODO 或未登记跳过都失败。原生闭环和独立 RTL benchmark 不允许跳过，缺少对应门禁要求的 Kimi、Python Runtime、FreeCAD、Verilator 或 Icarus 会失败。回归 JSON 与桌面/原生/CLI 日志通过 Actions artifacts 保留 14 天；失败和取消时也尝试上传已产生的证据。更新 PR 会取消同一 PR 的旧运行。
 
 有三类明确的覆盖缺口，保留在报告中：
 
@@ -40,7 +40,7 @@ pnpm run test:ci -- transport
 KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" pnpm run test:ci -- native
 ```
 
-`benchmark` 需要 `iverilog` 和 `vvp`；`transport` 需要 Chip/PCB 锁定 Python 环境；`native` 需要 Apple Silicon、Verilator、Chip Python 环境与固定 Kimi，准备步骤见 [Industrial Core workflow](../.github/workflows/industrial-core.yml)。CLI 冒烟只清理自身的 `dist/ci-headless` 临时目录，之后从独立临时工作目录运行三个包，检查领域绑定、资源、共享配置与禁用策略。
+`benchmark` 需要 `iverilog` 和 `vvp`；`transport` 需要 Chip/PCB 锁定 Python 环境；`native` 需要 Apple Silicon、Verilator、FreeCAD 1.1.4、Chip Python 环境与固定 Kimi，准备步骤见 [Industrial Core workflow](../.github/workflows/industrial-core.yml)。CLI 冒烟只清理自身的 `dist/ci-headless` 临时目录，之后从独立临时工作目录运行四个领域包，检查领域绑定、资源、共享配置与禁用策略。
 
 ## 参考来源
 
@@ -52,3 +52,7 @@ KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" pnpm run test:ci -- nati
 - [GitHub 托管 runner 的 OS/架构](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 
 本仓库使用自己的 Node 测试与现有工业契约，未复制上游的特定服务、密钥、Windows 观察项或自托管环境。
+
+FreeCAD 首批 native suite 和实际 Electron CAD Viewer 加入 macOS arm64 原生门禁。CI 下载并校验官方 FreeCAD 1.1.4 DMG 的固定 SHA，只读挂载提供 `freecadcmd`；缺少依赖会失败。配方/STL/文件边界及 CAD CLI 包的 Scope 检查加入四平台 Portable 层。详见 [FreeCAD 接入与回归](freecad-domain-pack.md)。
+
+FreeCAD 1.1.4 的原生 CAD/RTL/Kimi 综合门禁覆盖 `macos-15` 和 `macos-26` arm64；四平台 Portable 与 Desktop macOS 打包仍固定 `macos-15`。FreeCAD 的配置、数据与缓存目录在每次 Action 内独立创建和验证，确保全新托管环境无需预先启动桌面 FreeCAD。

@@ -29,6 +29,7 @@ export interface ViewerArtifact {
     | 'godot'
     | 'kicad'
     | 'engineering'
+    | 'cad'
     | 'image'
     | 'sprite'
     | 'animation'
@@ -70,6 +71,41 @@ export interface KiCadData {
   name: string;
   document: 'board' | 'schematic';
   url: string;
+}
+export interface CadData {
+  sketches?: CadSketch[];
+  brep?: string;
+  name: string;
+  sha256: string;
+  vertices: number[];
+  bounds: number[];
+  triangles: number;
+  companions: Array<{ name: string; sha256: string }>;
+}
+export type CadSketchGeometry = { index: number; construction: boolean } & (
+  | { kind: 'line'; start: number[]; end: number[] }
+  | { kind: 'circle'; center: number[]; radius: number }
+  | { kind: 'unsupported'; type: string }
+);
+export interface CadSketch {
+  name: string;
+  label: string;
+  fullyConstrained: boolean;
+  origin: number[];
+  rotation: number[];
+  geometry: CadSketchGeometry[];
+  constraints: Array<{
+    index: number;
+    type: string;
+    value: number;
+    driving: boolean | null;
+    first: number;
+    firstPos: number;
+    second: number;
+    secondPos: number;
+    third: number;
+    thirdPos: number;
+  }>;
 }
 export interface AssetImage {
   name: string;
@@ -149,6 +185,7 @@ export type OpenedViewer =
   | { kind: 'godot'; artifact: ViewerArtifact; data: GodotData }
   | { kind: 'kicad'; artifact: ViewerArtifact; data: KiCadData }
   | { kind: 'engineering'; artifact: ViewerArtifact; data: EngineeringData }
+  | { kind: 'cad'; artifact: ViewerArtifact; data: CadData }
   | { kind: 'image' | 'sprite' | 'animation'; artifact: ViewerArtifact; data: AssetData }
   | { kind: DocumentKind; artifact: ViewerArtifact; data: DocumentData };
 

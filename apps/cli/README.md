@@ -57,6 +57,8 @@ pnpm cli run --project-dir ./examples/chip-sobel --domain chip --task 'Inspect t
 
 `--enable-gui` 启用横切的 computer-use 插件：让 Kimi 在授权下操作桌面 GUI 应用。首次启用时自动从 [munim-computer-use](https://github.com/munimtechnologies/munim-computer-use) 的钉定 release（`v0.4.3`，见 `packages/computer-use-bridge`）下载对应平台二进制，校验 `SHA256SUMS.txt` 后安装到 `~/.industrial-agent-harness/gui-bridge/`（`GUI_BRIDGE_DIR` 可覆盖），已装则跳过；安装过程以 `gui_install` 事件输出（checking/downloading/verified/ready/error）。安装失败会使本次运行报错退出，不写入任何半成品。启用即授权：GUI 工具审批由 Harness 自动以 `approve_for_session` 应答，`--approval` 策略只作用于非插件工具。
 
+已注册工业 Runtime 的实际运行暂不加载外部 MCP 或应用控制；`--enable-gui` 输出不可用原因且不安装/启动插件，本轮继续使用已注册 Runtime 工具。外部 MCP 在 Broker Scope 和 Agent 配置前排除，保存的资源配置保持原值。
+
 - macOS 首次使用需在 系统设置 → 隐私与安全性 → 辅助功能/屏幕录制 中为**运行 CLI 的终端应用**授权一次（也可在终端运行 `~/.industrial-agent-harness/gui-bridge/munim-computer-use request-permissions` 触发系统弹窗）。
 - `GUI_BRIDGE_BIN=/path/to/munim-computer-use` 跳过自动安装直接使用既有二进制；`GUI_BRIDGE_SOURCE_REPO` / `GUI_BRIDGE_TAG` / `GUI_BRIDGE_RELEASE_BASE` 可整体替换安装源（例如 fork 后发布自己的 release）。
 - 插件不进 Domain 体系、不依赖当前项目；关闭方式即不加该旗标。
@@ -70,7 +72,7 @@ KIMI_API_KEY=... KIMI_EXECUTABLE=/path/to/kimi pnpm cli run \
   --approval reject --timeout-ms 600000
 ```
 
-输出为 JSON Lines，每条含 `schemaVersion` 和 `runId`。首条 `scope` 带 Broker Scope、匹配能力及 L0–L3 披露 Trace；后续为 `agent_event`、按需 `disclosure` 和最终 `result`。`--approval` 可选 `reject`、`approve`、`approve_for_session`、`auto`，默认拒绝；`auto` 启用原生 Kimi 自动审批。无交互输入的 CLI 遇到 `AskUserQuestion` 时会明确跳过并记录事件，避免挂起。密钥只从环境变量读取，不作为命令行参数传入。
+输出为 JSON Lines，每条含 `schemaVersion` 和 `runId`。首条 `scope` 带 Broker Scope、匹配能力及 L0–L3 披露 Trace；后续为 `agent_event`、按需 `disclosure` 和最终 `result`。`--approval` 可选 `reject`、`approve`、`approve_for_session`、`auto`，默认拒绝；`auto` 启用原生 Kimi 自动审批。无交互输入的 CLI 遇到 `AskUserQuestion` 时保存问题，输出 `needs_input` 与最终 `result.status=needs_input`，停止本轮并以退出码 2 返回。使用同一 `--chat-id` 另起一轮提供明确说明；CLI 不代替用户跳过问题。密钥只从环境变量读取，不作为命令行参数传入。
 
 可用 `--artifact-manifest FILE` 提供 Viewer 之外的工件元数据。文件为 `{id, kind, path}` 对象数组，路径必须位于项目目录内；CLI 记录内容哈希，并在工具调用时重新核验。CLI 的读取不代表工程验证通过。
 

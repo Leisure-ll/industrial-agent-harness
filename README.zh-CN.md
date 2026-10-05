@@ -96,7 +96,7 @@ Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v
 | [Chip](domain-packs/chip/README.md)   | EDA 知识与工具注册、持久化的声明式 RTL 验证路径，以及波形、网表、版图查看 | Core 路径需要 Python 与 Verilator；其他 EDA 流程另需工具、镜像或 PDK，完整执行仍需接入 Runtime。             |
 | [PCB](doc/pcb-mcp-integration.md)     | KiCad 查看、受范围约束的工具注册和外部设计 Skill 加载                     | 完整工具和 Skill 需要授权的固定 PCB-bench checkout 与匹配 KiCad 环境；私有 actor 资源不包含在公开发行包内。  |
 | [Godot](domain-packs/godot/README.md) | 源码与素材检查、Web Export 查看和原生场景工具注册                         | 原生工具需要 Godot 4；Web Export 需要匹配导出模板与 Viewer Bridge，原生写工具仍需接入受保护的 Runtime 路径。 |
-| CAD                                   | Pack 注册和受限的 STEP/VRML 文件预览                                      | 几何预览范围有限，CAD 编辑与机械验证仍由专业软件完成。                                                       |
+| [CAD · FreeCAD](doc/freecad-domain-pack.md) | 参数化草图、拉伸、打孔、布尔建模和版本化参数/轮廓修改；FCStd/STEP/STL 导出、独立回读验证与 OCCT 查看 | 原生执行需 FreeCAD 1.1.4 macOS arm64；只支持受限原生特征，不验收机械强度或可制造性。 |
 
 按 [Pack 作者教程](doc/pack-authoring.md)独立开发扩展。领域代码留在 Pack 内，共享 Core 与 Broker 不依赖具体领域。已注册、能够显示或原生烟测成功，均不代表完整工业工作流已经验收。
 
@@ -114,6 +114,7 @@ Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v
 | [图片与图集](doc/godot-assets-viewers.md)   | PNG/JPEG/WebP、`.sprite.json` 与配套图片                                       | 平移、采样模式、图集选帧与裁剪预览，无需 Godot 运行时。                  |
 | [动画](doc/godot-assets-viewers.md)         | 受支持的 `.tres`/`.tscn` 与图集动画                                            | 有限 SpriteFrames/Sprite2D 格式的播放与逐帧，不运行 Godot 引擎。         |
 | [工程文件](doc/engineering-file-viewers.md) | Godot 场景/资源/脚本、KiCad 库/规则、Gerber/钻孔、STEP/VRML 和部分 3D/音频格式 | 结构、制造层与媒体预览，几何和语义范围有限，不提供编辑或制造验收。       |
+| [CAD · OCCT](doc/freecad-domain-pack.md) | STL；Pack 生成的 FCStd/STEP 与经哈希检查的配套 BREP/STL、可选原生草图数据 | 官方 OCCT 7.9.2 AIS/V3d WebGL2：曲面、轮廓、X/Y/Z 封口剖切、明确的“测量”按钮，分开单对象尺寸与两对象最短距离，点击面/边直接在模型上标注 BREP 边长/直径/面积/最短距离，不弹出测量侧栏；草图几何、尺寸和约束高亮。共享导航与全屏；本地 WASM，需 WebGL2。只读，测量名义几何，不含公差或工程验收。macOS arm64 Electron 实测。 |
 | [通用文档](doc/document-viewers.md)         | CSV/TSV、JSON、JSONL/NDJSON、Markdown、TXT/LOG                                 | 表格、结构、记录与文本搜索；只读受限 UTF-8 输入，不执行公式或嵌入 HTML。 |
 
 完整格式清单、文件上限与渲染依赖见各 Viewer 文档。新增接入需同时更新中英文 README，并遵守 [Viewer 接入契约](AGENTS.md#viewer-integration-contract)。

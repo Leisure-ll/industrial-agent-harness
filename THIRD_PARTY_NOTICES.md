@@ -18,3 +18,11 @@ The root MIT license covers original Industrial Agent Harness contributions. Exi
 | KLayout, Verilator, Yosys, KiCad, Godot and tool images | Dependency locks, runtime identities, image digests and domain provenance | Each tool, PDK, library and image retains its own terms | Native tools and images are external runtime dependencies. Do not label them MIT or include unreviewed PDK data in a public Pack. |
 
 Public source, headless archives, Domain Packs and desktop staging must include the root `LICENSE` and this file. Desktop releases additionally retain each bundled vendor license, provenance record and matching source information. The release check validates their presence; it does not claim an exhaustive legal review or transfer ownership of imported material. Generated projects and customer artifacts are user data, not relicensed by this repository.
+
+## External FreeCAD runtime
+
+FreeCAD 1.1.4 is an external prerequisite for the CAD Pack, downloaded separately from [official releases](https://github.com/FreeCAD/FreeCAD/releases/tag/1.1.4) for native acceptance. Its binaries are not distributed inside this repository or Pack archives. FreeCAD is primarily LGPL-2.1-or-later, with additional upstream component licenses; consult the official distribution notices and [upstream LICENSE](https://github.com/FreeCAD/FreeCAD/blob/1.1.4/LICENSE). Harness native bridge is original repository code under MIT.
+
+## Bundled OCCT CAD visualization
+
+Desktop bundles official OCCT 7.9.2 AIS/V3d/TKOpenGles as WebAssembly, built from unmodified revision `c5f20409c52bf8f658314d205a0e5d6f0be0969c`. OCCT is LGPL-2.1 with its OCCT exception; preserve the complete notices in `packages/viewer-builtin/src/cad/occt`. Desktop license resources include the complete corresponding upstream source archive, MIT bridge sources, provenance and relink instructions. Initialization follows the upstream MIT WebGL sample with its notice preserved. Emscripten runtime glue has accompanying MIT/NCSA notices. This uses the open-source OCCT visualization module.

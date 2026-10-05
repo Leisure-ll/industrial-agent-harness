@@ -59,7 +59,22 @@ function resolveProjectTask(
     effectiveCapabilities(registry, disabled),
     previous,
   );
-  const extensions = external.filter(server => !(disabled.mcpServers || []).includes(server.id));
+  const enabledExternal = external.filter(
+    server => !(disabled.mcpServers || []).includes(server.id),
+  );
+  // A factual DomainState means this request uses the protected industrial
+  // Runtime. Host services cannot join that execution scope yet.
+  const extensions = request?.state ? [] : enabledExternal;
+  if (request?.state && enabledExternal.length)
+    result.trace.push({
+      level: 'L0',
+      event: 'resource.execution-boundary',
+      detail: {
+        unavailableMcpServers: enabledExternal.map(server => server.id),
+        reason:
+          'External host services are unavailable in protected industrial execution; registered Runtime tools remain available.',
+      },
+    });
   if (extensions.length) {
     const tools = extensions.flatMap(server => server.tools.map(tool => tool.id));
     result.scope.tools = [...new Set([...result.scope.tools, ...tools])];

@@ -15,7 +15,7 @@ function execute(script, arguments_) {
   if (result.error) throw result.error;
   if (result.status !== 0) throw Error(`${script} failed (${result.status}).`);
 }
-for (const domain of ['chip', 'pcb', 'godot']) {
+for (const domain of ['chip', 'pcb', 'godot', 'cad']) {
   execute('package-headless.cjs', [path.join(output, `headless-${domain}`), '--domain', domain]);
 }
 execute('smoke-domain-cli.cjs', [output]);
