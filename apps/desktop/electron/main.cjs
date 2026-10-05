@@ -259,7 +259,6 @@ function sessionContext(entry) {
   );
   return entry.context;
 }
-const projectRuntimes = new ProjectRuntimes(contextStoreOptions());
 async function resolveSessionTask(entry, request, registry) {
   entry.runtimeBundle = projectRuntimes.get(entry.project, registry);
   const state = entry.runtimeBundle ? await entry.runtimeBundle.runtime.inspect() : null;
@@ -290,6 +289,13 @@ const resourceSettings = new ResourceSettings(
     : undefined,
 );
 const externalRegistry = new ExternalMcpRegistry(path.dirname(resourceSettings.file));
+const projectRuntimes = new ProjectRuntimes({
+  ...contextStoreOptions(),
+  environment: {
+    ...process.env,
+    INDUSTRIAL_HARNESS_CONFIG_DIR: path.dirname(resourceSettings.file),
+  },
+});
 const sessionResources = new SessionResourceManager({
   directory: path.dirname(resourceSettings.file),
 });

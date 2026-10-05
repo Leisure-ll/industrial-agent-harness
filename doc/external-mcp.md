@@ -72,6 +72,6 @@ PNG/JPEG/WebP 原生 MCP ImageContent 继续传给 Kimi 模型，最多四张；
 
 `pnpm test:external-mcp` 检查实际 stdio/HTTP/SSE、共享策略、越权/参数/快照变化、分页、脱敏及损坏。安装固定 Kimi CLI 1.51.0 后，还运行真实 Kimi 审批、拒绝后无 host 修改和 MCP 图片进入模型请求的测试；原生 CI 缺少 CLI 时直接失败。
 
-macOS Desktop：构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:external-mcp`，验证实际表单添加、CLI 共享读取、项目禁用、五次 Kimi 审批、图片输入、运行中拒绝修改、刷新/移除。受控模型与 MCP fixture 不代表任意供应商 computer-use 安装兼容性或屏幕录制/辅助功能权限已就绪。
+macOS Desktop：构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:external-mcp`，验证实际表单添加、CLI 共享读取、项目禁用、两次实际调用审批、无参分页默认值、图片输入、运行中拒绝修改、刷新/移除。发现和 schema 读取不启动服务，不请求修改审批。原生 macOS CI 强制该界面链路；受控模型与 MCP fixture 不代表任意供应商 computer-use 安装兼容性或屏幕录制/辅助功能权限已就绪。
 
 受保护会话不启动外部服务的 Kimi 子 MCP Gateway；同名发现/调用入口由 SDK 宿主 callback 进入 Runtime，参数可用 argumentsJson 保留数值与数组。跨进程注册变化拒绝旧调用，需开启新轮；失败、超时、取消不自动重发。桌面表单保持原有配置流程，修改服务后重建空闲 Runtime。真实 Kimi、打包 Chip CLI 及 stdio/HTTP/SSE 回归验证了该路径，不代表任意外部应用兼容。

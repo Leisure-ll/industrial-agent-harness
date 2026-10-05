@@ -25,9 +25,11 @@ async function open(t, transport) {
     secret = 'fixture-private-credential';
   const remote =
     transport === 'stdio' ? null : await startRemoteFixture({ marker, secret, driftFile: drift });
+  let runtime;
   t.after(async () => {
+    runtime?.close();
     await remote?.close();
-    fs.rmSync(directory, { recursive: true, force: true });
+    await fs.promises.rm(directory, { recursive: true, force: true, maxRetries: 5 });
   });
   const config =
     transport === 'stdio'
@@ -46,13 +48,12 @@ async function open(t, transport) {
   const servers = registry.records(),
     external = createExternalRuntimePlugin({ servers, registry, environment: process.env });
   const common = createWorkspacePlugin({ domain: 'example' });
-  const runtime = new IndustrialRuntime(project, 'example', {
+  runtime = new IndustrialRuntime(project, 'example', {
     directory: path.join(directory, 'state'),
     ...common,
     tools: [...common.tools, ...external.tools],
     verifiers: { ...common.verifiers, ...external.verifiers },
   });
-  t.after(() => runtime.close());
   const run = async (name, args, approval = true, allowed = true) => {
     const tool = servers[0].tools.find(tool => tool.name === name),
       state = await runtime.inspect();

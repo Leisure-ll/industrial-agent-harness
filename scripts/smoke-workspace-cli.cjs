@@ -63,6 +63,11 @@ async function main() {
       actions = rows.filter(row => row.type === 'industrial_result');
     assert.equal(rows.at(-1).status, 'finished', result.stderr + result.stdout);
     assert.equal(actions.length, 8);
+    const reader = rows.find(
+      row => row.event?.type === 'tool-result' && row.event.id === 'mcp-call-2',
+    )?.event;
+    assert.ok(reader && !reader.error, JSON.stringify(reader));
+    assert.match(JSON.parse(reader.output).content, /harness.tasks.json/);
     assert.ok(rows[0].scope.skills.includes('project.work'));
     assert.deepEqual(
       actions

@@ -388,7 +388,7 @@ class KimiSession {
         log.record('resource.filtered', { ...excluded, reason: 'protected-industrial-execution' });
         this.emitAgent({
           type: 'text',
-          text: '本轮使用项目内已接入的工业工具。外部 MCP 服务和应用控制在当前隔离下暂不可用。\n',
+          text: '本轮部分资源因执行边界暂不可用，已接入的项目工具可继续使用。\n',
         });
       }
       const anchor = await this.diagnostics.getContextAnchor?.();

@@ -275,6 +275,11 @@ for (const domain of ['chip', 'pcb'])
         results = rows.filter(row => row.type === 'industrial_result');
       assert.equal(rows.at(-1).status, 'finished', stderr + stdout);
       assert.equal(results.length, 8, JSON.stringify(results));
+      const reader = rows.find(
+        row => row.event?.type === 'tool-result' && row.event.id === 'mcp-call-2',
+      )?.event;
+      assert.ok(reader && !reader.error, JSON.stringify(reader));
+      assert.match(JSON.parse(reader.output).content, /harness.tasks.json/);
       assert.deepEqual(
         results.filter(r => r.action.toolId === 'project.task.run').map(r => r.verification.status),
         ['passed', 'failed', 'passed'],

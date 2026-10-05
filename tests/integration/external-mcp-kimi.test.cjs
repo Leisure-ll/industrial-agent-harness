@@ -101,6 +101,17 @@ test(
         results = rows.filter(row => row.type === 'industrial_result');
       assert.equal(rows.at(-1).status, 'finished', stderr + stdout);
       assert.equal(results.length, 2);
+      assert.ok(
+        model.requests.some(request =>
+          request.messages.some(message =>
+            (typeof message.content === 'string'
+              ? message.content
+              : message.content?.map(part => part.text || '').join('\n') || ''
+            ).includes('"total":3'),
+          ),
+        ),
+        'Empty discovery arguments must work in the actual pinned SDK, including pagination defaults.',
+      );
       assert.ok(results.every(result => result.state.status === 'unverified'));
       if (approval === 'reject') {
         assert.equal(fs.existsSync(marker), false);
