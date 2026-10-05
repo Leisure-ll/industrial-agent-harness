@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useRef, useState } from 'react';
 import type { SpriteAnimation } from '../api';
 import { AssetCanvas } from './AssetCanvas';
@@ -20,6 +21,7 @@ export function AnimationViewport({
   fitRevision?: number;
   onZoom?: (factor: number) => void;
 }) {
+  const { t } = useDisplayText();
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -62,24 +64,27 @@ export function AnimationViewport({
             if (!playing && frameAtTime(animation.frames, position.current, false).ended) seek(0);
             setPlaying(value => !value);
           }}
-          aria-label={playing ? 'Pause animation' : 'Play animation'}
+          aria-label={playing ? t('Pause animation') : t('Play animation')}
         >
-          {playing ? 'Pause' : 'Play'}
+          {playing ? t('Pause') : t('Play')}
         </button>
-        <button onClick={() => seek(0)}>Reset</button>
-        <button onClick={() => seek(Math.max(0, index - 1))} aria-label="Previous animation frame">
+        <button onClick={() => seek(0)}>{t('Reset')}</button>
+        <button
+          onClick={() => seek(Math.max(0, index - 1))}
+          aria-label={t('Previous animation frame')}
+        >
           ←
         </button>
         <button
           onClick={() => seek(Math.min(animation.frames.length - 1, index + 1))}
-          aria-label="Next animation frame"
+          aria-label={t('Next animation frame')}
         >
           →
         </button>
         <label>
-          Speed{' '}
+          {t('Speed')}{' '}
           <select
-            aria-label="Animation speed"
+            aria-label={t('Animation speed')}
             value={speed}
             onChange={event => setSpeed(Number(event.target.value))}
           >
@@ -92,7 +97,7 @@ export function AnimationViewport({
         </label>
         <label>
           <input type="checkbox" checked={loop} onChange={event => setLoop(event.target.checked)} />
-          Loop
+          {t('Loop')}
         </label>
       </div>
       <AssetCanvas
@@ -106,9 +111,9 @@ export function AnimationViewport({
       />
       <div className="rp-asset-timeline">
         <label>
-          Frame {index + 1} / {animation.frames.length}
+          {t('Frame')} {index + 1} / {animation.frames.length}
           <input
-            aria-label="Animation frame"
+            aria-label={t('Animation frame')}
             type="range"
             min={0}
             max={animation.frames.length - 1}

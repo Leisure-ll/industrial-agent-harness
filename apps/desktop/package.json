@@ -14,6 +14,7 @@
     "test:kicad": "electron . --kicad-selftest",
     "test:godot": "electron . --godot-selftest",
     "test:documents": "electron . --documents-selftest",
+    "test:language": "electron . --language-selftest",
     "test:engineering": "electron . --engineering-selftest",
     "test:cad": "electron . --cad-selftest",
     "setup:layout": "node scripts/setup-layout.cjs",

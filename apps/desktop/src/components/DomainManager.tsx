@@ -1,3 +1,4 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useRef, useState } from 'react';
 import type { DomainOption } from '@industrial-agent-harness/viewer-builtin/api';
 
@@ -31,6 +32,7 @@ export function DomainManager({
   firstRun: boolean;
   busy: boolean;
 }) {
+  const { t } = useDisplayText();
   const dialog = useRef<HTMLDialogElement>(null);
   const [installed, setInstalled] = useState<Installed[]>([]);
   const [available, setAvailable] = useState<Available[]>([]);
@@ -112,32 +114,32 @@ export function DomainManager({
     <dialog
       ref={dialog}
       className="ia-resource-modal ia-domains-modal"
-      aria-label="Manage domains"
+      aria-label={t('Manage domains')}
       onCancel={onClose}
     >
       <header>
         <div>
-          <h1>{firstRun ? 'Choose your domains' : 'Domains'}</h1>
+          <h1>{firstRun ? t('Choose your domains') : t('Domains')}</h1>
           <p>
             {firstRun
-              ? 'Select one or more domains to prepare the workspace.'
-              : 'Add missing domains and install available updates.'}
+              ? t('Select one or more domains to prepare the workspace.')
+              : t('Add missing domains and install available updates.')}
           </p>
         </div>
-        <button aria-label="Close domain manager" onClick={onClose}>
+        <button aria-label={t('Close domain manager')} onClick={onClose}>
           ×
         </button>
       </header>
       <div className="ia-domains-content">
-        {loading && <p role="status">Checking domains…</p>}
+        {loading && <p role="status">{t('Checking domains…')}</p>}
         {error && (
           <p role="alert" className="ia-project-error">
-            {error}
+            {t(error)}
           </p>
         )}
         {feedError && (
           <p role="alert" className="ia-project-error">
-            Catalog unavailable: {feedError}
+            {t('Catalog unavailable:')} {feedError}
           </p>
         )}
         {diagnostics.map(item => (
@@ -147,8 +149,9 @@ export function DomainManager({
         ))}
         {!managed && !loading && (
           <p>
-            Domain installation is available in packaged builds. Development resources are loaded
-            from this repository.
+            {t(
+              'Domain installation is available in packaged builds. Development resources are loaded from this repository.',
+            )}
           </p>
         )}
         {managed && (
@@ -172,12 +175,14 @@ export function DomainManager({
                       <small>
                         {current
                           ? `${current.version} → ${item.version}`
-                          : `Install ${item.version}`}{' '}
-                        · {(item.size / 1024 / 1024).toFixed(1)} MB download
+                          : t('Install {0}', { '0': item.version })}{' '}
+                        · {(item.size / 1024 / 1024).toFixed(1)} {t('MB download')}
                       </small>
                       {item.summary && <small>{item.summary}</small>}
                       {item.prerequisites?.length ? (
-                        <small>Needs: {item.prerequisites.join('; ')}</small>
+                        <small>
+                          {t('Needs:')} {item.prerequisites.join('; ')}
+                        </small>
                       ) : null}
                     </span>
                   </label>
@@ -185,38 +190,38 @@ export function DomainManager({
               })}
             </div>
             {!loading && !selectable.length && !feedError && (
-              <p>All available domains are installed and up to date.</p>
+              <p>{t('All available domains are installed and up to date.')}</p>
             )}
             {installed.length > 0 && (
               <div className="ia-domains-installed">
-                <h2>Installed</h2>
+                <h2>{t('Installed')}</h2>
                 {installed.map(item => (
                   <div key={item.domain} className="ia-domains-installed-row">
                     <span>
-                      {item.emoji} {item.label} · {item.version}
+                      {item.emoji} {t(item.label)} · {item.version}
                     </span>
                     <button disabled={saving || busy} onClick={() => void remove(item.domain)}>
-                      Remove
+                      {t('Remove')}
                     </button>
                   </div>
                 ))}
               </div>
             )}
-            {busy && <p role="status">Finish the current task before changing domains.</p>}
+            {busy && <p role="status">{t('Finish the current task before changing domains.')}</p>}
           </>
         )}
         <div className="ia-domains-actions">
           <button onClick={() => void refresh()} disabled={loading || saving}>
-            Check updates
+            {t('Check updates')}
           </button>
-          <button onClick={onClose}>{firstRun ? 'Skip for now' : 'Close'}</button>
+          <button onClick={onClose}>{firstRun ? t('Skip for now') : t('Close')}</button>
           {managed && (
             <button
               className="ia-domains-primary"
               disabled={!selected.length || saving || busy}
               onClick={() => void install()}
             >
-              {saving ? 'Installing…' : `Install ${selected.length || ''}`}
+              {saving ? t('Installing…') : t('Install {0}', { '0': selected.length || '' })}
             </button>
           )}
         </div>

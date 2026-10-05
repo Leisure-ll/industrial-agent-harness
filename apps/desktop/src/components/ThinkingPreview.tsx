@@ -1,8 +1,10 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 // Adapted from eda-harness-demo/src/features/replay/ThinkingPreview.tsx for live SDK events.
 import { useEffect, useId, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 export function ThinkingPreview({ text, active }: { text: string; active: boolean }) {
+  const { t } = useDisplayText();
   const [expanded, setExpanded] = useState(false);
   const contentId = useId();
   const lines = useMemo(
@@ -26,7 +28,7 @@ export function ThinkingPreview({ text, active }: { text: string; active: boolea
         onClick={() => setExpanded(value => !value)}
       >
         {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-        <span>{active ? 'Thinking…' : 'Thinking'}</span>
+        <span>{active ? t('Thinking…') : t('Thinking')}</span>
       </button>
       {(active || expanded) && <p id={contentId}>{expanded ? text : lines.slice(-3).join('\n')}</p>}
     </section>

@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 export function PageControls({
   page,
   pages,
@@ -7,16 +8,17 @@ export function PageControls({
   pages: number;
   onPage: (page: number) => void;
 }) {
+  const { t } = useDisplayText();
   return (
-    <nav className="rp-document-pages" aria-label="Document pages">
+    <nav className="rp-document-pages" aria-label={t('Document pages')}>
       <button disabled={page === 0} onClick={() => onPage(page - 1)}>
-        Previous
+        {t('Previous')}
       </button>
       <span>
-        Page {page + 1} / {Math.max(1, pages)}
+        {t('Page')} {page + 1} / {Math.max(1, pages)}
       </span>
       <button disabled={page + 1 >= pages} onClick={() => onPage(page + 1)}>
-        Next
+        {t('Next')}
       </button>
     </nav>
   );

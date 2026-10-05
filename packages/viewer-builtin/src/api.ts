@@ -300,7 +300,7 @@ export interface ViewerHostApi {
   modelSave(
     request: ModelProfile & { apiKey?: string; clearApiKey?: boolean },
   ): Promise<ModelProfileStatus>;
-  chooseProjectDirectory(): Promise<string | null>;
+  chooseProjectDirectory(locale?: string): Promise<string | null>;
   createProject(request: {
     directory: string;
     name: string;

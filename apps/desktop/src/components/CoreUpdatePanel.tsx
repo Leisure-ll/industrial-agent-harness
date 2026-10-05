@@ -1,7 +1,9 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useRef, useState } from 'react';
 import type { CoreUpdateState } from '@industrial-agent-harness/viewer-builtin/api';
 
 export function CoreUpdatePanel({ busy, onClose }: { busy: boolean; onClose: () => void }) {
+  const { t } = useDisplayText();
   const dialog = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<CoreUpdateState>();
   const [error, setError] = useState('');
@@ -39,30 +41,33 @@ export function CoreUpdatePanel({ busy, onClose }: { busy: boolean; onClose: () 
           : state?.status === 'current'
             ? 'The application is up to date.'
             : state?.status === 'available'
-              ? `Version ${state.version} is available. Downloading…`
+              ? t('Version {0} is available. Downloading…', { 0: state.version ?? '—' })
               : state?.status === 'downloading'
-                ? `Downloading version ${state.version} · ${state.progress ?? 0}%`
+                ? t('Downloading version {0} · {1}%', {
+                    0: state.version ?? '—',
+                    1: state.progress ?? 0,
+                  })
                 : state?.status === 'ready'
-                  ? `Version ${state.version} is ready. Restart to install.`
+                  ? t('Version {0} is ready. Restart to install.', { 0: state.version ?? '—' })
                   : 'Unable to check for updates.';
   return (
     <dialog
       ref={dialog}
       className="ia-resource-modal ia-domains-modal"
-      aria-label="Application updates"
+      aria-label={t('Application updates')}
       onCancel={onClose}
     >
       <header>
         <div>
-          <h1>Application update</h1>
-          <p>Core runtime and desktop application</p>
+          <h1>{t('Application update')}</h1>
+          <p>{t('Core runtime and desktop application')}</p>
         </div>
-        <button aria-label="Close application update" onClick={onClose}>
+        <button aria-label={t('Close application update')} onClick={onClose}>
           ×
         </button>
       </header>
       <div className="ia-domains-content">
-        <p role="status">{description}</p>
+        <p role="status">{t(description)}</p>
         {state?.error && (
           <p role="alert" className="ia-project-error">
             {state.error}
@@ -70,10 +75,10 @@ export function CoreUpdatePanel({ busy, onClose }: { busy: boolean; onClose: () 
         )}
         {error && (
           <p role="alert" className="ia-project-error">
-            {error}
+            {t(error)}
           </p>
         )}
-        {busy && state?.status === 'ready' && <p>Finish running tasks before restarting.</p>}
+        {busy && state?.status === 'ready' && <p>{t('Finish running tasks before restarting.')}</p>}
         <div className="ia-domains-actions">
           <button
             onClick={() => void check()}
@@ -83,12 +88,12 @@ export function CoreUpdatePanel({ busy, onClose }: { busy: boolean; onClose: () 
               state?.status === 'downloading'
             }
           >
-            Check now
+            {t('Check now')}
           </button>
-          <button onClick={onClose}>Close</button>
+          <button onClick={onClose}>{t('Close')}</button>
           {state?.status === 'ready' && (
             <button className="ia-domains-primary" onClick={() => void install()} disabled={busy}>
-              Restart and install
+              {t('Restart and install')}
             </button>
           )}
         </div>

@@ -4,7 +4,7 @@
 
 当前桌面支持同一项目或跨项目的多个聊天同时执行，切换聊天不会中断后台任务。项目行显示运行数，聊天行用状态点标记执行中或等待审批；Approve/Reject 与 Stop 只作用于当前聊天。全局模型/资源修改需要相关会话空闲，项目配置仅限制该项目。实现与验证见 [并行会话](../../doc/parallel-sessions.md)。
 
-Electron MVP 工作台采用项目树、Agent 对话、Viewer 三列布局。左右栏可收起，左下角 Settings 可切换明暗主题与 Debug 日志。文件树只列出当前项目的文件；点击 GDS/OAS、Yosys JSON、VCD/FST/GHW 文件会自动打开对应 Viewer，并显示内容哈希。对话区输入任务并解析 Capability；Debug 开关展示候选、筛选、Scope 替换和详细信息加载日志。
+Electron MVP 工作台采用项目树、Agent 对话、Viewer 三列布局。左右栏可收起，左下角 Settings 可切换明暗主题、语言与 Debug 日志。语言提供简体中文、English 和跟随系统，切换即时生效并保留草稿、任务与 Viewer 显示状态；选择保存在桌面用户目录的 `ia-language` 偏好中。中文输入法确认候选词的 Enter 不发送任务。范围与验证见[桌面语言切换](../../doc/desktop-languages.md)。文件树只列出当前项目的文件；点击 GDS/OAS、Yosys JSON、VCD/FST/GHW 文件会自动打开对应 Viewer，并显示内容哈希。对话区输入任务并解析 Capability；Debug 开关展示候选、筛选、Scope 替换和详细信息加载日志。
 
 通用文件无需领域工具：CSV/TSV 打开表格、普通 JSON 打开折叠结构、JSONL/NDJSON 按记录查看、Markdown 显示排版、TXT/LOG 支持行号与筛选分页。全部复用缩放、Fit 和全屏，结构化文件保留原文入口；Yosys JSON 与图集描述文件优先进入原专用 Viewer。支持格式与上限见 [通用文件 Viewer](../../doc/document-viewers.md)。运行 `pnpm --filter @industrial-agent-harness/desktop test:documents` 验证生产查看链路。
 

@@ -1,8 +1,10 @@
+import { useDisplayText } from '../text';
 import { useMemo, useState } from 'react';
 import { PageControls } from './PageControls';
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 function JsonNode({ name, value, root = false }: { name: string; value: Json; root?: boolean }) {
+  const { t } = useDisplayText();
   const [open, setOpen] = useState(root);
   const [page, setPage] = useState(0);
   const entries = useMemo(
@@ -15,7 +17,7 @@ function JsonNode({ name, value, root = false }: { name: string; value: Json; ro
       <div className="rp-json-leaf">
         <b>{name}</b>
         <code data-value-type={value === null ? 'null' : typeof value}>
-          {text.length > 500 ? `${text.slice(0, 500)}… (see Source)` : text}
+          {text.length > 500 ? t('{0}… (see Source)', { '0': text.slice(0, 500) }) : text}
         </code>
       </div>
     );
@@ -30,7 +32,11 @@ function JsonNode({ name, value, root = false }: { name: string; value: Json; ro
       >
         <span>{open ? '▾' : '▸'}</span>
         <b>{name}</b>
-        <small>{Array.isArray(value) ? `Array [${size}]` : `Object {${size}}`}</small>
+        <small>
+          {Array.isArray(value)
+            ? t('Array [{0}]', { '0': size })
+            : t('Object {{0}}', { '0': size })}
+        </small>
       </button>
       {open && (
         <div className="rp-json-children">
@@ -45,6 +51,7 @@ function JsonNode({ name, value, root = false }: { name: string; value: Json; ro
 }
 
 export function JsonView({ text, lines }: { text: string; lines: boolean }) {
+  const { t } = useDisplayText();
   const values = useMemo(() => {
     const source = text.replace(/^\uFEFF/, '');
     return lines
@@ -58,12 +65,16 @@ export function JsonView({ text, lines }: { text: string; lines: boolean }) {
   const [page, setPage] = useState(0);
   return (
     <div className="rp-document-json">
-      {lines && <p>{values.length} records · 20 per page</p>}
+      {lines && (
+        <p>
+          {values.length} {t('records · 20 per page')}
+        </p>
+      )}
       {values.slice(page * 20, (page + 1) * 20).map(record => (
         <JsonNode key={record.name} name={record.name} value={record.value} root />
       ))}
       {lines && <PageControls page={page} pages={Math.ceil(values.length / 20)} onPage={setPage} />}{' '}
-      {!values.length && <p>No records.</p>}
+      {!values.length && <p>{t('No records.')}</p>}
     </div>
   );
 }

@@ -123,7 +123,7 @@ async function run(window, evidence) {
   await closeGlobal();
   // Returning from global settings remounts project controls to refresh inherited values.
   await wait(
-    `document.querySelector('.ia-project-resources select')?.selectedOptions[0].text.includes('enabled')`,
+    `document.querySelector('.ia-project-resources select')?.selectedOptions[0].text.toLowerCase().includes('enabled')`,
   );
   await projectMode('disabled');
   assert.deepEqual(

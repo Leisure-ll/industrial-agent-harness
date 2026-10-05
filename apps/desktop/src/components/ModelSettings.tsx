@@ -1,3 +1,4 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import type {
@@ -24,6 +25,7 @@ export function ModelSettings({
   onClose: () => void;
   onSaved: (status: ModelProfileStatus) => void;
 }) {
+  const { t } = useDisplayText();
   const [profile, setProfile] = useState<ModelProfileStatus>(initial);
   const [apiKey, setApiKey] = useState('');
   const [saving, setSaving] = useState(false);
@@ -69,20 +71,20 @@ export function ModelSettings({
         className="ia-model-modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Model API settings"
+        aria-label={t('Model API settings')}
       >
         <header>
           <div>
-            <h2>Model API</h2>
-            <p>Connection settings for Kimi Code sessions in this app</p>
+            <h2>{t('Model API')}</h2>
+            <p>{t('Connection settings for Kimi Code sessions in this app')}</p>
           </div>
-          <button onClick={onClose} aria-label="Close settings">
+          <button onClick={onClose} aria-label={t('Close settings')}>
             <X size={17} />
           </button>
         </header>
         <div className="ia-model-fields">
           <label>
-            Provider
+            {t('Provider')}{' '}
             <select
               value={profile.provider}
               onChange={event =>
@@ -93,11 +95,11 @@ export function ModelSettings({
               }
             >
               <option value="kimi">Kimi API</option>
-              <option value="openai_legacy">OpenAI-compatible</option>
+              <option value="openai_legacy">{t('OpenAI-compatible')}</option>
             </select>
           </label>
           <label>
-            API base URL
+            {t('API base URL')}{' '}
             <input
               value={profile.endpoint}
               onChange={event => patch({ endpoint: event.target.value, imageInputMode: 'auto' })}
@@ -105,7 +107,7 @@ export function ModelSettings({
             />
           </label>
           <label>
-            Model
+            {t('Model')}{' '}
             <input
               value={profile.model}
               onChange={event => patch({ model: event.target.value, imageInputMode: 'auto' })}
@@ -113,13 +115,13 @@ export function ModelSettings({
             />
           </label>
           <label>
-            API key
+            {t('API key')}{' '}
             <input
               type="password"
               value={apiKey}
               onChange={event => setApiKey(event.target.value)}
               placeholder={
-                profile.hasApiKey ? 'Saved · enter a new key to replace' : 'Enter API key'
+                profile.hasApiKey ? t('Saved · enter a new key to replace') : t('Enter API key')
               }
               autoComplete="off"
               spellCheck={false}
@@ -127,7 +129,7 @@ export function ModelSettings({
           </label>
           <div className="ia-model-row">
             <label>
-              Context size
+              {t('Context size')}{' '}
               <input
                 type="number"
                 min={8192}
@@ -142,47 +144,48 @@ export function ModelSettings({
                 checked={profile.thinking}
                 onChange={event => patch({ thinking: event.target.checked })}
               />{' '}
-              Thinking
+              {t('Thinking')}
             </label>
           </div>
           <label>
-            Image input
+            {t('Image input')}{' '}
             <select
-              aria-label="Model image input"
+              aria-label={t('Model image input')}
               value={profile.imageInputMode}
               onChange={event =>
                 patch({ imageInputMode: event.target.value as ModelProfile['imageInputMode'] })
               }
             >
-              <option value="auto">Auto</option>
-              <option value="enabled">Enabled</option>
-              <option value="disabled">Disabled</option>
+              <option value="auto">{t('Auto')}</option>
+              <option value="enabled">{t('Enabled')}</option>
+              <option value="disabled">{t('Disabled')}</option>
             </select>
           </label>
           <small>
-            Auto recognizes verified model/API combinations. For other vision models choose Enabled;
-            this declares support and does not add vision to a text-only model.
+            {t(
+              'Auto recognizes verified model/API combinations. For other vision models choose Enabled; this declares support and does not add vision to a text-only model.',
+            )}
           </small>
           <small>
             {profile.hasApiKey
               ? profile.keyPersisted
-                ? 'API key is stored using your OS credential protection.'
-                : 'API key is available for this app session only.'
-              : 'An API key is required to run a Kimi turn.'}
+                ? t('API key is stored using your OS credential protection.')
+                : t('API key is available for this app session only.')
+              : t('An API key is required to run a Kimi turn.')}
           </small>
-          {error && <p className="ia-model-error">{error}</p>}
-          {message && <p className="ia-model-success">{message}</p>}
+          {error && <p className="ia-model-error">{t(error)}</p>}
+          {message && <p className="ia-model-success">{t(message)}</p>}
         </div>
         <footer>
           {profile.hasApiKey && (
             <button onClick={() => void save(true)} disabled={saving}>
-              Remove key
+              {t('Remove key')}
             </button>
           )}
           <span />
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('Cancel')}</button>
           <button className="primary" onClick={() => void save()} disabled={saving}>
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? t('Saving…') : t('Save')}
           </button>
         </footer>
       </section>

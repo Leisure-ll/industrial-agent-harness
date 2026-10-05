@@ -114,6 +114,7 @@ if (
     '--kicad-selftest',
     '--godot-selftest',
     '--documents-selftest',
+    '--language-selftest',
     '--engineering-selftest',
     '--cad-selftest',
     '--mcp-selftest',
@@ -900,9 +901,9 @@ function registerHandlers() {
     saveBindings(projectConfigDir(), projectBindings);
     return projectSnapshot();
   });
-  ipcMain.handle('project:choose-directory', async () => {
+  ipcMain.handle('project:choose-directory', async (_event, locale) => {
     const result = await dialog.showOpenDialog({
-      title: 'Choose engineering project',
+      title: locale === 'zh-CN' ? '选择工程项目目录' : 'Choose engineering project',
       properties: ['openDirectory'],
     });
     return result.canceled ? null : fs.realpathSync(result.filePaths[0]);
@@ -1215,6 +1216,8 @@ async function createWindow() {
     void startGuiInstall();
   if (process.argv.includes('--documents-selftest'))
     require('./documents-selftest.cjs').prepare(projectConfigDir());
+  if (process.argv.includes('--language-selftest'))
+    require('./language-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--engineering-selftest'))
     require('./engineering-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--cad-selftest'))
@@ -1269,6 +1272,7 @@ async function createWindow() {
   else await window.loadURL('app://viewer/index.html');
   if (process.argv.includes('--packaged-smoke')) {
     if (!app.isPackaged) throw Error('Packaged smoke requires an installed app.');
+    await require('./selftest-language.cjs').setLanguage(window, 'en');
     async function waitFor(script) {
       const end = Date.now() + 15000;
       while (Date.now() < end) {
@@ -1361,6 +1365,11 @@ async function createWindow() {
     setTimeout(() => void coreUpdater.check(), 15000).unref();
     setInterval(() => void coreUpdater.check(), 24 * 60 * 60 * 1000).unref();
   }
+  if (
+    process.argv.some(flag => flag.endsWith('-selftest')) &&
+    !process.argv.includes('--language-selftest')
+  )
+    await require('./selftest-language.cjs').setLanguage(window, 'en');
   if (process.argv.includes('--mcp-selftest')) {
     await require('./mcp-selftest.cjs').run(window);
     app.quit();
@@ -1373,6 +1382,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--documents-selftest')) {
     await require('./documents-selftest.cjs').run(window);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--language-selftest')) {
+    await require('./language-selftest.cjs').run(window);
     app.quit();
     return;
   }

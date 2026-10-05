@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Search } from 'lucide-react';
 import type { NetlistData } from '../api';
@@ -45,6 +46,7 @@ export function NetlistViewport({
   onSignal?: (name: string) => void;
   signalMap?: Record<string, string>;
 }) {
+  const { t } = useDisplayText();
   const [net, setNet] = useState(data);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string>();
@@ -225,11 +227,15 @@ export function NetlistViewport({
       <div className="rp-view-tools">
         <span className="rp-tool-caption">
           {net.partial
-            ? `${net.cellCount} / ${net.totalCells} cells · local view (${net.focus})`
+            ? t('{0} / {1} cells · local view ({2})', {
+                '0': net.cellCount,
+                '1': net.totalCells,
+                '2': net.focus,
+              })
             : `${net.cellCount} cells`}
         </span>
         <select
-          aria-label="Netlist module"
+          aria-label={t('Netlist module')}
           disabled={loading}
           value={net.top}
           onChange={e => void changeModule(e.target.value)}
@@ -244,8 +250,8 @@ export function NetlistViewport({
           <label className="rp-search">
             <Search size={13} />
             <input
-              aria-label="Find net"
-              placeholder="Find net"
+              aria-label={t('Find net')}
+              placeholder={t('Find net')}
               value={query}
               onChange={e => setQuery(e.target.value)}
             />
@@ -266,7 +272,7 @@ export function NetlistViewport({
             disabled={!net.partial || !selected || loading}
             onClick={() => selected && void changeModule(net.top, selected)}
           >
-            Focus signal
+            {t('Focus signal')}
           </button>
           {onSignal && Object.keys(signalMap).length > 0 && (
             <button
@@ -274,7 +280,7 @@ export function NetlistViewport({
               disabled={!selected || !Object.hasOwn(signalMap, selected)}
               onClick={() => selected && onSignal(signalMap[selected])}
             >
-              View in waveform <ArrowUpRight size={13} />
+              {t('View in waveform')} <ArrowUpRight size={13} />
             </button>
           )}
         </aside>
@@ -282,10 +288,10 @@ export function NetlistViewport({
           <div ref={drawing} className="rp-net-drawing" />
         </div>
       </div>
-      {loading ? <div className="rp-loading">Laying out netlist…</div> : null}
+      {loading ? <div className="rp-loading">{t('Laying out netlist…')}</div> : null}
       {error ? (
         <div className="rp-view-error" role="alert">
-          {error}
+          {t(error)}
         </div>
       ) : null}
     </div>

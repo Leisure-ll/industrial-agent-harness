@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EngineeringData, EngineeringDrawing } from '../api';
 import { useViewNavigation, useWheelZoom } from '../navigation';
@@ -93,8 +94,11 @@ function Drawing({ shape, color }: { shape: EngineeringDrawing; color: string })
 }
 
 function Source({ data, query }: { data: EngineeringData; query: string }) {
+  const { t } = useDisplayText();
   if (!data.source)
-    return <p className="rp-engineering-notice">This binary file has no text source preview.</p>;
+    return (
+      <p className="rp-engineering-notice">{t('This binary file has no text source preview.')}</p>
+    );
   if (data.format !== 'GDScript') return <TextView text={data.source} query={query} />;
   const lines = data.source.split('\n');
   const needle = query.toLocaleLowerCase();
@@ -105,7 +109,8 @@ function Source({ data, query }: { data: EngineeringData; query: string }) {
   return (
     <div className="rp-document-text">
       <p className="rp-document-options">
-        {selected.length} {needle ? 'matching ' : ''}lines · first 1,000 displayed
+        {selected.length} {needle ? 'matching ' : ''}
+        {t('lines · first 1,000 displayed')}
       </p>
       <pre className="is-wrapped">
         {selected.map(({ line, number }) => (
@@ -144,6 +149,7 @@ function StructuredView({
   artifactId: string;
   onReady: () => void;
 }) {
+  const { t } = useDisplayText();
   const [mode, setMode] = useState<'preview' | 'source'>(
     data.mode === 'source' ? 'source' : 'preview',
   );
@@ -203,7 +209,9 @@ function StructuredView({
     <div className="rp-engineering" data-engineering-format={data.format}>
       <header className="rp-engineering-toolbar">
         <strong title={data.name}>{data.name}</strong>
-        <span>{data.format} · Read only</span>
+        <span>
+          {data.format} {t('· Read only')}
+        </span>
         {/\.(?:res|obj|gltf|glb|step|stp|wrl)$/i.test(data.name) && (
           <button
             onClick={() => {
@@ -213,15 +221,15 @@ function StructuredView({
                 .catch(error => setExternalError(String(error)));
             }}
           >
-            Open in app
+            {t('Open in app')}
           </button>
         )}
         <button aria-pressed={mode === 'preview'} onClick={() => setMode('preview')}>
-          Preview
+          {t('Preview')}
         </button>
         {data.source && (
           <button aria-pressed={mode === 'source'} onClick={() => setMode('source')}>
-            Source
+            {t('Source')}
           </button>
         )}
       </header>
@@ -231,7 +239,7 @@ function StructuredView({
         </p>
       )}
       <div className="rp-engineering-summary">
-        {data.summary} · {data.sha256.slice(0, 12)} · Wheel or pinch to zoom
+        {data.summary} · {data.sha256.slice(0, 12)} {t('· Wheel or pinch to zoom')}
       </div>
       {data.warnings.map((warning, index) => (
         <p className="rp-engineering-notice" role="status" key={index}>
@@ -241,15 +249,15 @@ function StructuredView({
       <div className="rp-engineering-body">
         <aside className="rp-engineering-outline">
           <label>
-            Find{' '}
+            {t('Find')}{' '}
             <input
               type="search"
-              aria-label="Find engineering item"
+              aria-label={t('Find engineering item')}
               value={query}
               onChange={event => setQuery(event.target.value)}
             />
           </label>
-          <b>Structure</b>
+          <b>{t('Structure')}</b>
           {data.sections
             .filter(
               item =>
@@ -264,7 +272,7 @@ function StructuredView({
                 {data.drawings?.length ? (
                   <input
                     type="checkbox"
-                    aria-label={`Show ${item.label}`}
+                    aria-label={t('Show {0}', { '0': item.label })}
                     checked={visible.has(item.id)}
                     onChange={() =>
                       setVisible(current => {
@@ -301,7 +309,7 @@ function StructuredView({
             ))}
           {data.links.length > 0 && (
             <>
-              <b>References</b>
+              <b>{t('References')}</b>
               {data.links.slice(0, 200).map((item, index) => (
                 <div className="rp-engineering-link" key={index} title={item.path}>
                   {item.path}
@@ -327,7 +335,7 @@ function StructuredView({
                     controls
                     preload="metadata"
                     src={data.mediaUrl}
-                    aria-label="Audio preview"
+                    aria-label={t('Audio preview')}
                   />
                 )}
                 {data.drawings?.length ? (
@@ -361,7 +369,7 @@ function StructuredView({
                       ))}
                     </svg>
                     {(data.drawings?.length || 0) > 12000 && (
-                      <p>Display limited to the first 12,000 visible primitives.</p>
+                      <p>{t('Display limited to the first 12,000 visible primitives.')}</p>
                     )}
                   </div>
                 ) : null}
@@ -369,7 +377,7 @@ function StructuredView({
                   <section className="rp-engineering-properties">
                     <h3>{selectedSection.label}</h3>
                     <small>
-                      {selectedSection.kind} · source line {selectedSection.line}
+                      {selectedSection.kind} {t('· source line')} {selectedSection.line}
                     </small>
                     <dl>
                       {Object.entries(selectedSection.properties)
@@ -384,7 +392,7 @@ function StructuredView({
                   </section>
                 )}
                 {!selectedSection && !data.drawings?.length && !data.mediaUrl && (
-                  <p>No structured items found. Open Source for the original file.</p>
+                  <p>{t('No structured items found. Open Source for the original file.')}</p>
                 )}
               </>
             )}
@@ -406,16 +414,17 @@ export function EngineeringViewport({
   onReady: () => void;
   onError: (message: string) => void;
 }) {
+  const { t } = useDisplayText();
   const [tab, setTab] = useState<'structure' | 'animation'>('structure');
   return (
     <div className="rp-engineering-shell">
       {data.animation && (
         <nav className="rp-engineering-tabs">
           <button aria-pressed={tab === 'structure'} onClick={() => setTab('structure')}>
-            Structure
+            {t('Structure')}
           </button>
           <button aria-pressed={tab === 'animation'} onClick={() => setTab('animation')}>
-            Animation
+            {t('Animation')}
           </button>
         </nav>
       )}

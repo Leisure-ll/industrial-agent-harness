@@ -1,3 +1,4 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useRef, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
 import type { PromptImage } from '@industrial-agent-harness/viewer-builtin/api';
@@ -128,6 +129,7 @@ export function ImageThumbnails({
   onRemove?: (id: string) => void;
   disabled?: boolean;
 }) {
+  const { t } = useDisplayText();
   return (
     <div className="ia-image-attachments">
       {images.map(image => (
@@ -136,7 +138,7 @@ export function ImageThumbnails({
           <figcaption title={image.name}>{image.name}</figcaption>
           {onRemove && (
             <button
-              aria-label={`Remove image ${image.name}`}
+              aria-label={t('Remove image {0}', { '0': image.name })}
               disabled={disabled}
               onClick={() => onRemove(image.id)}
             >
@@ -155,13 +157,14 @@ export function ImageAttachButton({
   attachments: ReturnType<typeof useImageAttachments>;
   disabled: boolean;
 }) {
+  const { t } = useDisplayText();
   return (
     <>
       <input
         ref={attachments.input}
         className="ia-image-file-input"
         type="file"
-        aria-label="Image attachment files"
+        aria-label={t('Image attachment files')}
         accept="image/png,image/jpeg,image/webp"
         multiple
         disabled={disabled}
@@ -172,8 +175,8 @@ export function ImageAttachButton({
         }}
       />
       <button
-        aria-label="Attach images"
-        title="Attach images (or paste / drop a screenshot)"
+        aria-label={t('Attach images')}
+        title={t('Attach images (or paste / drop a screenshot)')}
         disabled={disabled}
         onClick={() => attachments.input.current?.click()}
       >

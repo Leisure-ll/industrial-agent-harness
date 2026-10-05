@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Ruler } from 'lucide-react';
 import createOcctViewer from './occt/harness-occt.js';
@@ -32,6 +33,7 @@ export function CadViewport({
   onReady: () => void;
   onError: (message: string) => void;
 }) {
+  const { t, locale } = useDisplayText();
   const host = useRef<HTMLDivElement>(null),
     canvas = useRef<HTMLCanvasElement>(null);
   const canvasId = 'harness-occt-' + useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -231,11 +233,14 @@ export function CadViewport({
       <div className="rp-cad-heading">
         <strong>{data.name}</strong>
         <span>
-          OCCT · {data.brep ? `${faces} faces` : `${data.triangles.toLocaleString()} triangles`}
+          OCCT ·{' '}
+          {data.brep
+            ? t('{0} faces', { '0': faces })
+            : t('{0} triangles', { '0': data.triangles.toLocaleString(locale) })}
         </span>
-        <div className="rp-cad-tabs" role="tablist" aria-label="CAD 查看模式">
+        <div className="rp-cad-tabs" role="tablist" aria-label={t('CAD 查看模式')}>
           <button role="tab" aria-selected={tab === 'model'} onClick={() => setTab('model')}>
-            三维模型
+            {t('三维模型')}
           </button>
           <button
             role="tab"
@@ -243,12 +248,12 @@ export function CadViewport({
             disabled={!data.sketches?.length}
             title={
               data.sketches === undefined
-                ? '此预览缺少草图数据，请用 FreeCAD inspect/export 生成新预览。'
-                : '查看原生草图与约束'
+                ? t('此预览缺少草图数据，请用 FreeCAD inspect/export 生成新预览。')
+                : t('查看原生草图与约束')
             }
             onClick={() => setTab('sketch')}
           >
-            草图与约束
+            {t('草图与约束')}
           </button>
         </div>
       </div>
@@ -256,15 +261,15 @@ export function CadViewport({
         <div className="rp-cad-tools">
           <button
             className="rp-cad-measure-toggle"
-            aria-label="尺寸测量"
+            aria-label={t('尺寸测量')}
             aria-pressed={mode !== 0}
             disabled={!ready || !data.brep}
             title={
               !data.brep
-                ? '此预览仅含网格，无法精确测量；请生成曲面预览。'
+                ? t('此预览仅含网格，无法精确测量；请生成曲面预览。')
                 : mode === 0
-                  ? '开启测量：点击模型查看尺寸'
-                  : '退出测量'
+                  ? t('开启测量：点击模型查看尺寸')
+                  : t('退出测量')
             }
             onClick={() => {
               if (mode === 0) {
@@ -277,15 +282,15 @@ export function CadViewport({
             }}
           >
             <Ruler size={15} aria-hidden="true" />
-            测量
+            {t('测量')}
           </button>
           {mode !== 0 && (
             <>
               <label>
-                测量类型{' '}
+                {t('测量类型')}{' '}
                 <select
-                  aria-label="测量类型"
-                  title="单对象尺寸只测量当前选择；两对象最短距离连接最近点，不是孔中心距。"
+                  aria-label={t('测量类型')}
+                  title={t('单对象尺寸只测量当前选择；两对象最短距离连接最近点，不是孔中心距。')}
                   value={measurementType}
                   disabled={!ready}
                   onChange={e => {
@@ -293,14 +298,14 @@ export function CadViewport({
                     setMeasurementType(e.target.value as 'size' | 'distance');
                   }}
                 >
-                  <option value="size">单对象尺寸</option>
-                  <option value="distance">两对象最短距离</option>
+                  <option value="size">{t('单对象尺寸')}</option>
+                  <option value="distance">{t('两对象最短距离')}</option>
                 </select>
               </label>
               <label>
-                测量对象{' '}
+                {t('测量对象')}{' '}
                 <select
-                  aria-label="测量对象"
+                  aria-label={t('测量对象')}
                   value={mode}
                   disabled={!ready}
                   onChange={e => {
@@ -308,33 +313,33 @@ export function CadViewport({
                     setMode(Number(e.target.value));
                   }}
                 >
-                  <option value={4}>面 · 面积 / 直径</option>
-                  <option value={2}>边 · 长度 / 直径</option>
+                  <option value={4}>{t('面 · 面积 / 直径')}</option>
+                  <option value={2}>{t('边 · 长度 / 直径')}</option>
                 </select>
               </label>
               <button
-                aria-label="清除测量"
+                aria-label={t('清除测量')}
                 disabled={!ready || !measurement.items.length}
                 onClick={clearMeasurement}
               >
-                清除测量
+                {t('清除测量')}
               </button>
             </>
           )}
           <label>
             <input
               type="checkbox"
-              aria-label="剖切"
+              aria-label={t('剖切')}
               checked={section.enabled}
               disabled={!ready}
               onChange={e => setSection(s => ({ ...s, enabled: e.target.checked }))}
             />
-            剖切
+            {t('剖切')}
           </label>
           {section.enabled && (
             <>
               <select
-                aria-label="剖切轴"
+                aria-label={t('剖切轴')}
                 value={section.axis}
                 onChange={e => setSection(s => ({ ...s, axis: Number(e.target.value) }))}
               >
@@ -343,7 +348,7 @@ export function CadViewport({
                 <option value={2}>Z</option>
               </select>
               <input
-                aria-label="剖切位置"
+                aria-label={t('剖切位置')}
                 type="range"
                 min={0}
                 max={100}
@@ -353,11 +358,11 @@ export function CadViewport({
               />
               <span>{number(offset)} mm</span>
               <button
-                aria-label="反向剖切"
+                aria-label={t('反向剖切')}
                 aria-pressed={section.flip}
                 onClick={() => setSection(s => ({ ...s, flip: !s.flip }))}
               >
-                反向
+                {t('反向')}
               </button>
             </>
           )}
@@ -431,7 +436,7 @@ export function CadViewport({
               className="rp-cad-measure-overlay"
               width={size.width}
               height={size.height}
-              aria-label="尺寸测量标注"
+              aria-label={t('尺寸测量标注')}
             >
               {measurementType === 'distance' &&
               measurement.distance !== undefined &&
@@ -450,7 +455,7 @@ export function CadViewport({
                     x={(projected[0][0] + projected[1][0]) / 2}
                     y={(projected[0][1] + projected[1][1]) / 2 - 10}
                   >
-                    最短距离 {number(measurement.distance)} mm
+                    {t('最短距离')} {number(measurement.distance)} mm
                   </text>
                 </g>
               ) : (
@@ -468,10 +473,10 @@ export function CadViewport({
                         y={projected[i][1] - 12}
                       >
                         {item.radius !== undefined
-                          ? `直径 Ø ${number(item.radius * 2)} mm`
+                          ? t('直径 Ø {0} mm', { '0': number(item.radius * 2) })
                           : item.length !== undefined
-                            ? `边长 ${number(item.length)} mm`
-                            : `面积 ${number(item.area!)} mm²`}
+                            ? t('边长 {0} mm', { '0': number(item.length) })
+                            : t('面积 {0} mm²', { '0': number(item.area!) })}
                       </text>
                     ),
                 )
@@ -480,10 +485,10 @@ export function CadViewport({
           </div>
         </div>
         <small className="rp-cad-note">
-          拖动旋转 · Shift/右键拖动平移 · 滚轮缩放
+          {t('拖动旋转 · Shift/右键拖动平移 · 滚轮缩放')}{' '}
           {!data.brep
-            ? ' · 此预览仅含网格，无法精确测量；请生成曲面预览。'
-            : mode === 0 && ' · 点击“测量”查看尺寸'}
+            ? t(' · 此预览仅含网格，无法精确测量；请生成曲面预览。')
+            : mode === 0 && t(' · 点击“测量”查看尺寸')}
         </small>
       </div>
       {tab === 'sketch' && (

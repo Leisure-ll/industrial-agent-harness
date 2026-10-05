@@ -113,7 +113,13 @@ test('Viewer dispatch uses a registry and static Capability IDs cannot expand', 
     .map(match => match[1])
     .filter(name => name !== 'api')
     .sort();
-  assert.deepEqual(imported, ['canvas']);
+  // Both exports are domain-neutral presentation APIs; concrete Viewer dispatch stays in Registry.
+  assert.deepEqual(imported, ['canvas', 'text']);
+  assert.doesNotMatch(
+    read('packages/viewer-builtin/src/text.tsx'),
+    /from ['"].*(?:api|runtime|layout|cad|godot|kicad|netlist|waveform|desktop|agent-kimi)/,
+    'display text must not dispatch viewers, access engineering state or import an adapter',
+  );
   const rendered = [...app.matchAll(/opened\?\.kind === '(\w+)'/g)].map(match => match[1]).sort();
   assert.deepEqual(rendered, []);
   const main = read('apps/desktop/electron/main.cjs');

@@ -1,3 +1,4 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useState } from 'react';
 import { FolderOpen, X } from 'lucide-react';
 import type { DomainOption } from '@industrial-agent-harness/viewer-builtin/api';
@@ -21,6 +22,7 @@ export function CreateProjectModal({
   onClose: () => void;
   onCreate: (request: Draft) => Promise<void>;
 }) {
+  const { t } = useDisplayText();
   const [saving, setSaving] = useState(false);
   async function create() {
     setSaving(true);
@@ -41,37 +43,37 @@ export function CreateProjectModal({
         className="ia-model-modal ia-create-project"
         role="dialog"
         aria-modal="true"
-        aria-label="Create project"
+        aria-label={t('Create project')}
       >
         <header>
           <div>
-            <h2>New project</h2>
-            <p>Choose a folder and a domain for this project.</p>
+            <h2>{t('New project')}</h2>
+            <p>{t('Choose a folder and a domain for this project.')}</p>
           </div>
-          <button onClick={onClose} aria-label="Close project creation">
+          <button onClick={onClose} aria-label={t('Close project creation')}>
             <X size={17} />
           </button>
         </header>
         <div className="ia-model-fields">
           <label>
-            Project name
+            {t('Project name')}{' '}
             <input
               value={draft.name}
               onChange={event => onChange({ ...draft, name: event.target.value })}
               maxLength={100}
-              placeholder="Project name"
+              placeholder={t('Project name')}
             />
           </label>
           <div className="ia-create-field">
-            <span>Local directory</span>
+            <span>{t('Local directory')}</span>
             <button className="ia-folder-picker" onClick={() => void onChooseDirectory()}>
               <FolderOpen size={15} />
-              <span>{draft.directory || 'Choose folder…'}</span>
+              <span>{draft.directory || t('Choose folder…')}</span>
             </button>
           </div>
           <div className="ia-create-field">
-            <span>Domain</span>
-            <div className="ia-domain-choices" role="group" aria-label="New project domain">
+            <span>{t('Domain')}</span>
+            <div className="ia-domain-choices" role="group" aria-label={t('New project domain')}>
               {domains.map(item => (
                 <button
                   key={item.id}
@@ -81,22 +83,22 @@ export function CreateProjectModal({
                   onClick={() => onChange({ ...draft, domain: item.id })}
                 >
                   <span aria-hidden="true">{item.emoji}</span>
-                  {item.label}
+                  {t(item.label)}
                 </button>
               ))}
             </div>
           </div>
-          {error && <p className="ia-model-error">{error}</p>}
+          {error && <p className="ia-model-error">{t(error)}</p>}
         </div>
         <footer>
           <span />
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('Cancel')}</button>
           <button
             className="primary"
             onClick={() => void create()}
             disabled={saving || !draft.directory || !draft.name.trim() || !draft.domain}
           >
-            {saving ? 'Creating…' : 'Create project'}
+            {saving ? t('Creating…') : t('Create project')}
           </button>
         </footer>
       </section>

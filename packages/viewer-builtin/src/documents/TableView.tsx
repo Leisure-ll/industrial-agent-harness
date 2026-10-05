@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useMemo, useState } from 'react';
 import { PageControls } from './PageControls';
 
@@ -12,6 +13,7 @@ export function TableView({
   ragged: boolean;
   query: string;
 }) {
+  const { t } = useDisplayText();
   const [header, setHeader] = useState(true);
   const [cursor, setCursor] = useState({ query, header, page: 0 });
   const filtered = useMemo(() => {
@@ -32,19 +34,20 @@ export function TableView({
             checked={header}
             onChange={event => setHeader(event.target.checked)}
           />
-          First row is header
+          {t('First row is header')}
         </label>
         <span>
-          {filtered.length} / {Math.max(0, rows.length - (header ? 1 : 0))} rows · {columns} columns
+          {filtered.length} / {Math.max(0, rows.length - (header ? 1 : 0))} {t('rows ·')} {columns}{' '}
+          {t('columns')}
         </span>
       </div>
       {ragged && (
-        <p role="status">Rows have different column counts. Missing cells are shown as —.</p>
+        <p role="status">{t('Rows have different column counts. Missing cells are shown as —.')}</p>
       )}
       <table>
         <thead>
           <tr>
-            <th scope="col">Row</th>
+            <th scope="col">{t('Row')}</th>
             {Array.from({ length: columns }, (_, i) => (
               <th scope="col" key={i}>
                 {header ? (rows[0]?.[i] ?? `Column ${i + 1}`) : `Column ${i + 1}`}
@@ -57,13 +60,13 @@ export function TableView({
             <tr key={row.index}>
               <th scope="row">{row.index}</th>
               {Array.from({ length: columns }, (_, i) => (
-                <td key={i}>{row.cells[i] ?? <span aria-label="Missing cell">—</span>}</td>
+                <td key={i}>{row.cells[i] ?? <span aria-label={t('Missing cell')}>—</span>}</td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-      {!filtered.length && <p>No matching rows.</p>}
+      {!filtered.length && <p>{t('No matching rows.')}</p>}
       <PageControls
         page={page}
         pages={pages}

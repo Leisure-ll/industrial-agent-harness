@@ -1,3 +1,4 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useState } from 'react';
 import { ResourceSettings } from './ResourceSettings';
 import { FolderOpen, MessageSquarePlus } from 'lucide-react';
@@ -20,6 +21,7 @@ export function ProjectDetails({
   onResourcesChanged: () => void;
   onNewChat: () => Promise<void>;
 }) {
+  const { t } = useDisplayText();
   const [domain, setDomain] = useState(project.domain || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -46,28 +48,28 @@ export function ProjectDetails({
           <FolderOpen size={21} />
         </span>
         <h1>{project.name}</h1>
-        <p className="ia-project-page-subtitle">Project details</p>
+        <p className="ia-project-page-subtitle">{t('Project details')}</p>
         <div className="ia-project-properties">
           <div className="ia-project-property">
-            <span>Local directory</span>
+            <span>{t('Local directory')}</span>
             <code title={project.path}>{project.path}</code>
           </div>
           <div className="ia-project-property">
-            <label htmlFor="ia-project-domain">Domain</label>
+            <label htmlFor="ia-project-domain">{t('Domain')}</label>
             <div className="ia-project-domain-edit">
               <select
                 id="ia-project-domain"
-                aria-label="Project domain"
+                aria-label={t('Project domain')}
                 value={domain}
                 onChange={event => setDomain(event.target.value)}
                 disabled={busy || saving}
               >
                 <option value="" disabled>
-                  Select a domain
+                  {t('Select a domain')}
                 </option>
                 {domains.map(item => (
                   <option key={item.id} value={item.id}>
-                    {item.emoji} {item.label}
+                    {item.emoji} {t(item.label)}
                   </option>
                 ))}
               </select>
@@ -75,7 +77,7 @@ export function ProjectDetails({
                 onClick={() => void save()}
                 disabled={busy || saving || !domain || domain === project.domain}
               >
-                Save
+                {t('Save')}
               </button>
             </div>
           </div>
@@ -86,16 +88,17 @@ export function ProjectDetails({
           busy={busy}
           onChanged={onResourcesChanged}
         />
-        {error && <p className="ia-project-error">{error}</p>}
+        {error && <p className="ia-project-error">{t(error)}</p>}
         <button
           className="ia-project-start"
           onClick={() => void onNewChat()}
           disabled={busy || !project.domain}
         >
-          <MessageSquarePlus size={15} /> New chat
+          <MessageSquarePlus size={15} />
+          {t('New chat')}
         </button>
         {!project.domain && (
-          <p className="ia-project-hint">Select and save a domain to start a chat.</p>
+          <p className="ia-project-hint">{t('Select and save a domain to start a chat.')}</p>
         )}
       </div>
     </div>

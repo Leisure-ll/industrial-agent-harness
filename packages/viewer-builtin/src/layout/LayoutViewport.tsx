@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useRef, useState } from 'react';
 import { Layers } from 'lucide-react';
 import type { LayoutMeta } from '../api';
@@ -18,6 +19,7 @@ export function LayoutViewport({
   onReady: () => void;
   onError: (message: string) => void;
 }) {
+  const { t } = useDisplayText();
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const controls = useRef<Controls | undefined>(undefined);
@@ -247,24 +249,25 @@ export function LayoutViewport({
       <div className="rp-view-tools">
         <span className="rp-tool-caption">{meta.cell}</span>
         <select
-          aria-label="Layout theme"
+          aria-label={t('Layout theme')}
           value={theme}
           onChange={e => {
             setTheme(e.target.value);
             controls.current?.theme(e.target.value);
           }}
         >
-          <option value="01_neon">Neon</option>
-          <option value="02_blueprint">Blueprint</option>
-          <option value="03_ember">Ember</option>
-          <option value="04_routing">Routing</option>
+          <option value="01_neon">{t('Neon')}</option>
+          <option value="02_blueprint">{t('Blueprint')}</option>
+          <option value="03_ember">{t('Ember')}</option>
+          <option value="04_routing">{t('Routing')}</option>
         </select>
         <button
           className="rp-layers-button"
           onClick={() => setLayerMenu(!layerMenu)}
           aria-expanded={layerMenu}
         >
-          <Layers size={15} /> Layers
+          <Layers size={15} />
+          {t('Layers')}
         </button>
         {layerMenu ? (
           <div className="rp-layer-menu">
@@ -275,7 +278,7 @@ export function LayoutViewport({
                 controls.current?.layers(all);
               }}
             >
-              Show all
+              {t('Show all')}
             </button>
             {meta.layers.map(layer => (
               <label key={layer.key}>
@@ -292,7 +295,7 @@ export function LayoutViewport({
                     controls.current?.layers([layer.key]);
                   }}
                 >
-                  Only
+                  {t('Only')}
                 </button>
               </label>
             ))}
@@ -303,12 +306,14 @@ export function LayoutViewport({
         <canvas ref={canvas} aria-label={`KLayout rendering of ${meta.cell}`} />
         {error ? (
           <div className="rp-view-error" role="alert">
-            {error}
+            {t(error)}
           </div>
         ) : null}
       </div>
       <footer className="rp-view-footer">
-        <span>KLayout {meta.klayout} · generic layer colors</span>
+        <span>
+          KLayout {meta.klayout} {t('· generic layer colors')}
+        </span>
         <span>{span}</span>
       </footer>
     </div>

@@ -19,7 +19,7 @@ async function verifyInspection(window, project) {
     await pause();
   };
   const clear = async () => {
-    await evaluate(`document.querySelector('button[aria-label="清除测量"]').click()`);
+    await evaluate(`document.querySelector('button[aria-label="Clear measurement"]').click()`);
     await pause();
   };
   const pick = async ({ x, y }) => {
@@ -49,19 +49,19 @@ async function verifyInspection(window, project) {
     `document.querySelector('.rp-cad-viewport').getBoundingClientRect().width`,
   );
   assert.equal(
-    await evaluate(`document.querySelector('button[aria-label="尺寸测量"]').disabled`),
+    await evaluate(`document.querySelector('button[aria-label="Measurement"]').disabled`),
     false,
   );
-  await evaluate(`document.querySelector('button[aria-label="尺寸测量"]').click()`);
+  await evaluate(`document.querySelector('button[aria-label="Measurement"]').click()`);
   await pause();
   assert.equal(
     await evaluate(
-      `document.querySelector('button[aria-label="尺寸测量"]').getAttribute('aria-pressed')`,
+      `document.querySelector('button[aria-label="Measurement"]').getAttribute('aria-pressed')`,
     ),
     'true',
   );
   assert.equal(
-    await evaluate(`document.querySelector('select[aria-label="测量对象"]').value`),
+    await evaluate(`document.querySelector('select[aria-label="Measurement object"]').value`),
     '2',
   );
   assert.equal(await evaluate(`Boolean(document.querySelector('.rp-cad-model aside'))`), false);
@@ -70,7 +70,7 @@ async function verifyInspection(window, project) {
     viewportWidth,
     'enabling measurement must not take width away from the model',
   );
-  await set('测量对象', 4);
+  await set('Measurement object', 4);
   const face = await scan('Number(item.dataset.area)>0');
   const areas = [200, 100, 800 - 4 * Math.PI, 20 * Math.PI];
   assert.ok(
@@ -78,13 +78,13 @@ async function verifyInspection(window, project) {
     JSON.stringify(face),
   );
   await clear();
-  await set('测量对象', 2);
+  await set('Measurement object', 2);
   const edge = await scan('Math.abs(Number(item.dataset.length)-40)<1e-6');
   assert.equal(edge.kind, 'edge');
   assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '1');
   assert.match(
     await evaluate(`document.querySelector('.rp-cad-measure-overlay').textContent`),
-    /边长 40 mm/,
+    /Edge length 40 mm/,
   );
   assert.equal(
     await evaluate(`Boolean(document.querySelector('.rp-cad-distance-overlay'))`),
@@ -96,7 +96,7 @@ async function verifyInspection(window, project) {
   assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '1');
   assert.match(
     await evaluate(`document.querySelector('.rp-cad-measure-overlay').textContent`),
-    /直径 Ø 4 mm/,
+    /Diameter Ø 4 mm/,
   );
   assert.equal(
     await evaluate(`Boolean(document.querySelector('.rp-cad-distance-overlay'))`),
@@ -106,18 +106,34 @@ async function verifyInspection(window, project) {
     await evaluate(`document.querySelectorAll('.rp-cad-measure-overlay line').length`),
     0,
   );
-  await set('测量类型', 'distance');
+  await set('Measurement type', 'distance');
   assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '0');
   await pick(edge);
   await pick(circle);
   assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '2');
   assert.match(
     await evaluate(`document.querySelector('.rp-cad-measure-overlay').textContent`),
-    /最短距离/,
+    /Minimum distance/,
   );
   const distance = await evaluate(
     `Number(document.querySelector('.rp-cad-distance-overlay').dataset.distance)`,
   );
+  await evaluate(`document.querySelector('.rp-cad canvas').dataset.languageIdentity='retained'`);
+  await require('./selftest-language.cjs').setLanguage(window, 'zh-CN');
+  assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '2');
+  assert.equal(
+    await evaluate(`document.querySelector('.rp-cad canvas').dataset.languageIdentity`),
+    'retained',
+  );
+  assert.equal(
+    await evaluate(`document.querySelector('select[aria-label="测量类型"]').value`),
+    'distance',
+  );
+  assert.equal(
+    await evaluate(`Number(document.querySelector('.rp-cad-distance-overlay').dataset.distance)`),
+    distance,
+  );
+  await require('./selftest-language.cjs').setLanguage(window, 'en');
   assert.ok(
     [8, Math.sqrt(89)].some(v => Math.abs(v - distance) < 1e-6),
     String(distance),
@@ -163,19 +179,19 @@ async function verifyInspection(window, project) {
     (await window.webContents.capturePage()).toPNG(),
   );
   await clear();
-  await evaluate(`document.querySelector('button[aria-label="尺寸测量"]').click()`);
+  await evaluate(`document.querySelector('button[aria-label="Measurement"]').click()`);
   await pause();
   assert.equal(
     await evaluate(
-      `document.querySelector('button[aria-label="尺寸测量"]').getAttribute('aria-pressed')`,
+      `document.querySelector('button[aria-label="Measurement"]').getAttribute('aria-pressed')`,
     ),
     'false',
   );
   assert.equal(await evaluate(`Boolean(document.querySelector('.rp-cad-model aside'))`), false);
   assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), '0');
-  await evaluate(`document.querySelector('input[aria-label="剖切"]').click()`);
+  await evaluate(`document.querySelector('input[aria-label="Section"]').click()`);
   await pause();
-  await set('剖切位置', 25);
+  await set('Section position', 25);
   const capture = async () =>
     window.webContents.capturePage(
       await evaluate(
@@ -183,15 +199,15 @@ async function verifyInspection(window, project) {
       ),
     );
   const section = (await capture()).toPNG();
-  await evaluate(`document.querySelector('button[aria-label="反向剖切"]').click()`);
+  await evaluate(`document.querySelector('button[aria-label="Reverse section"]').click()`);
   await pause();
   assert.notDeepEqual(
     (await capture()).toPNG(),
     section,
     'reversing the section must change model pixels',
   );
-  await set('剖切轴', 2);
-  await set('剖切位置', 50);
+  await set('Section axis', 2);
+  await set('Section position', 50);
   fs.writeFileSync(
     path.join(project, 'cad-section.png'),
     (await window.webContents.capturePage()).toPNG(),
@@ -203,7 +219,10 @@ async function verifyInspection(window, project) {
     await evaluate(`document.querySelectorAll('.rp-cad-constraints button').length`),
     11,
   );
-  assert.match(await evaluate(`document.querySelector('.rp-cad-valid').textContent`), /完全约束/);
+  assert.match(
+    await evaluate(`document.querySelector('.rp-cad-valid').textContent`),
+    /Fully constrained/,
+  );
   assert.match(
     await evaluate(`document.querySelector('.rp-cad-sketch-canvas svg').textContent`),
     /40 mm/,
@@ -239,8 +258,11 @@ async function verifyInspection(window, project) {
   );
   await evaluate(`document.querySelector('.rp-cad-tabs button:first-child').click()`);
   await pause();
-  assert.equal(await evaluate(`document.querySelector('input[aria-label="剖切"]').checked`), true);
-  await evaluate(`document.querySelector('input[aria-label="剖切"]').click()`);
+  assert.equal(
+    await evaluate(`document.querySelector('input[aria-label="Section"]').checked`),
+    true,
+  );
+  await evaluate(`document.querySelector('input[aria-label="Section"]').click()`);
   await pause();
   const final = ['model.FCStd', 'model.step', 'model.brep', 'model.cad-sketches.json'].map(name =>
     crypto

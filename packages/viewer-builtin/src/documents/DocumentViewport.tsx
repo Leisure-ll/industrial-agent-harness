@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import {
   Component,
   lazy,
@@ -16,6 +17,16 @@ import { JsonView } from './JsonView';
 import { TextView } from './TextView';
 const MarkdownView = lazy(() => import('./MarkdownView'));
 
+function MarkdownFailure({ message }: { message: string }) {
+  const { t } = useDisplayText();
+  return (
+    <>
+      {t('Markdown preview unavailable:')} {t(message)}
+      {t('. Original source follows.')}
+    </>
+  );
+}
+
 class MarkdownBoundary extends Component<
   { text: string; children: ReactNode; onFailure: (message: string) => void },
   { error: string }
@@ -31,7 +42,7 @@ class MarkdownBoundary extends Component<
     return this.state.error ? (
       <>
         <p role="alert">
-          Markdown preview unavailable: {this.state.error}. Original source follows.
+          <MarkdownFailure message={this.state.error} />
         </p>
         <TextView text={this.props.text} />
       </>
@@ -50,6 +61,7 @@ export function DocumentViewport({
   data: DocumentData;
   onReady: () => void;
 }) {
+  const { t } = useDisplayText();
   const [source, setSource] = useState(Boolean(data.error || data.warning));
   const [zoom, setZoom] = useState(1);
   const [ready, setReady] = useState(kind !== 'markdown' || source);
@@ -111,7 +123,7 @@ export function DocumentViewport({
   else
     content = (
       <MarkdownBoundary text={data.text} onFailure={markdownFailed}>
-        <Suspense fallback={<p role="status">Preparing Markdown…</p>}>
+        <Suspense fallback={<p role="status">{t('Preparing Markdown…')}</p>}>
           <MarkdownView text={data.text} onReady={notifyReady} />
         </Suspense>
       </MarkdownBoundary>
@@ -119,37 +131,38 @@ export function DocumentViewport({
   return (
     <div className="rp-document" data-document-kind={kind}>
       <div className="rp-document-toolbar">
-        <strong>{description}</strong>
+        <strong>{t(description)}</strong>
         {kind !== 'text' && (
-          <div role="group" aria-label="Document mode">
+          <div role="group" aria-label={t('Document mode')}>
             <button
               aria-pressed={!source}
               disabled={Boolean(error)}
               onClick={() => setSource(false)}
             >
-              Preview
+              {t('Preview')}
             </button>
             <button aria-pressed={source} onClick={() => setSource(true)}>
-              Source
+              {t('Source')}
             </button>
           </div>
         )}
         {(source || kind === 'text' || kind === 'table') && (
           <label>
-            Find{' '}
+            {t('Find')}{' '}
             <input
               type="search"
-              aria-label="Find in document"
+              aria-label={t('Find in document')}
               value={query}
               onChange={event => setQuery(event.target.value)}
             />
           </label>
         )}
-        <small>Wheel to zoom · Shift+wheel to scroll</small>
+        <small>{t('Wheel to zoom · Shift+wheel to scroll')}</small>
       </div>
       {error && (
         <p className="rp-document-notice" role="alert">
-          Cannot preview {description}: {error}. Original source is available.
+          {t('Cannot preview')} {t(description)}: {t(error)}
+          {t('. Original source is available.')}
         </p>
       )}
       {data.warning && (
@@ -161,7 +174,7 @@ export function DocumentViewport({
         ref={viewport}
         className="rp-document-viewport"
         tabIndex={0}
-        aria-label={`${description} preview`}
+        aria-label={`${t(description)} preview`}
       >
         <div className="rp-document-content" style={{ zoom }}>
           {content}

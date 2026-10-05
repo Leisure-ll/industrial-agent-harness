@@ -65,3 +65,7 @@ Viewer 描述至少说明：稳定 ID、可处理的产物类型、所需配套�
 [EDA Viewer 参考实现](viewer-eda-reference.md) 介绍正式代码路径中的版图、网表和波形 Viewer：KLayout `LayoutView` 按视口渲染，netlistsvg 对 Yosys JSON 生成 SVG，Surfer WASM 在隔离的本地页面中加载 VCD。三者作为实际使用的内置 Viewer，也为新领域接入提供参考。
 
 桌面 Host 目前只将项目文件树中选中的受支持文件登记为 Artifact ID，计算并显示 SHA-256，打开时复核内容哈希。普通文件继续显示文本预览；Viewer 测试 fixture 不会作为产品入口出现。项目、Run、State 的持久绑定及完整来源链仍待 Domain Runtime 接入。Surfer 的底层 WASM 是未修改的官方站点快照；桥接使用的部分消息命令被上游标为不稳定接口，升级时需单独验证。
+
+## 自有控件的展示语言
+
+Desktop 使用 `viewer-builtin/canvas` 打开 Registry 已选择的 Viewer，并通过通用的 `viewer-builtin/text` Context 传入展示翻译与语言。`text` API 仅依赖 React，不选择 Viewer、不导入 Desktop/Kimi/工业状态/Runtime，也不改变输入和命令。语言字典分别属于 Desktop 和 Viewer 自有文案，语言偏好属于 Desktop；边界门禁允许这两个通用展示入口，继续禁止直接导入具体 Viewer 做分派。切换语言更新已挂载的自有控件，保留缩放、选择和运行时状态。范围与生产路径验证见[桌面语言切换](desktop-languages.md)。

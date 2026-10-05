@@ -1,3 +1,4 @@
+import { useDisplayText } from '../text';
 import { useEffect, useRef, useState } from 'react';
 import { useViewNavigation } from '../navigation';
 export interface WaveData {
@@ -21,6 +22,7 @@ export function WaveformViewport({
   onError: (message: string) => void;
   signal?: SignalRequest;
 }) {
+  const { t } = useDisplayText();
   const frame = useRef<HTMLIFrameElement>(null);
   const pending = useRef(
     new Map<
@@ -210,23 +212,31 @@ export function WaveformViewport({
           disabled={!loaded}
           onClick={() => void command('commands', 'toggle_side_panel').catch(e => fail(e.message))}
         >
-          Signals
+          {t('Signals')}
         </button>
       </div>
-      <iframe key={attempt} ref={frame} src={src} title="Waveform viewer" allow="clipboard-write" />
+      <iframe
+        key={attempt}
+        ref={frame}
+        src={src}
+        title={t('Waveform viewer')}
+        allow="clipboard-write"
+      />
       {!loaded && !error ? (
-        <div className="rp-loading">{attempt ? 'Reloading waveform…' : 'Loading waveform…'}</div>
+        <div className="rp-loading">
+          {attempt ? t('Reloading waveform…') : t('Loading waveform…')}
+        </div>
       ) : null}
       {error ? (
         <div className="rp-view-error" role="alert">
-          {error}
+          {t(error)}
           <button
             onClick={() => {
               setLoaded(false);
               setAttempt(n => n + 1);
             }}
           >
-            Retry
+            {t('Retry')}
           </button>
         </div>
       ) : null}

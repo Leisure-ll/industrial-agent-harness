@@ -1,3 +1,4 @@
+import { useDisplayText } from './text';
 import { Component, lazy, memo, Suspense } from 'react';
 import type { ReactNode } from 'react';
 import type { OpenedViewer } from './api';
@@ -66,10 +67,11 @@ export const ViewerCanvas = memo(function ViewerCanvas({
   onError: (message: string) => void;
   onNavigation?: (value: ViewNavigation | null) => void;
 }) {
+  const { t } = useDisplayText();
   return (
     <ViewNavigationContext value={onNavigation}>
       <ViewerBoundary key={props.opened.artifact.id} onError={props.onError}>
-        <Suspense fallback={<p role="status">Opening viewer…</p>}>
+        <Suspense fallback={<p role="status">{t('Opening viewer…')}</p>}>
           <ViewerContent {...props} />
         </Suspense>
       </ViewerBoundary>

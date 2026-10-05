@@ -1,3 +1,4 @@
+import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import type { AgentEvent } from '@industrial-agent-harness/viewer-builtin/api';
 import { ThinkingPreview } from './ThinkingPreview';
 import { memo, useRef, useState } from 'react';
@@ -13,6 +14,7 @@ function ApprovalCard({
   decision?: string;
   approve: (id: string, decision: 'approve' | 'reject') => Promise<void>;
 }) {
+  const { t, locale } = useDisplayText();
   const submitting = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -35,10 +37,10 @@ function ApprovalCard({
       <details className="ia-agent-tool ia-approval-resolved">
         <summary>
           {decision === 'reject'
-            ? 'Rejected'
+            ? t('Rejected')
             : decision === 'expired'
-              ? 'Approval expired'
-              : 'Approved'}{' '}
+              ? t('Approval expired')
+              : t('Approved')}{' '}
           · {event.action}
         </summary>
         <p>{event.description}</p>
@@ -46,17 +48,19 @@ function ApprovalCard({
     );
   return (
     <div className="ia-approval">
-      <b>Approval requested · {event.action}</b>
+      <b>
+        {t('Approval requested ·')} {event.action}
+      </b>
       <p>{event.description}</p>
       <button disabled={busy} onClick={() => void respond('approve')}>
-        {busy ? 'Submitting…' : 'Approve'}
+        {busy ? t('Submitting…') : t('Approve')}
       </button>
       <button disabled={busy} onClick={() => void respond('reject')}>
-        Reject
+        {t('Reject')}
       </button>
       {error && (
         <p role="alert" className="ia-flow-error">
-          {error}
+          {t(error)}
         </p>
       )}
     </div>
@@ -72,6 +76,7 @@ function QuestionCard({
   resolved?: Extract<AgentEvent, { type: 'question-resolved' }>;
   answer: (id: string, answers: Record<string, string>) => Promise<void>;
 }) {
+  const { t, locale } = useDisplayText();
   const submitting = useRef(false);
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [other, setOther] = useState<Record<string, string>>({});
@@ -82,10 +87,10 @@ function QuestionCard({
       <details className="ia-agent-tool ia-question-resolved">
         <summary>
           {resolved.decision === 'expired'
-            ? 'Question expired'
+            ? t('Question expired')
             : resolved.decision === 'skipped'
-              ? 'Question skipped'
-              : 'Question answered'}
+              ? t('Question skipped')
+              : t('Question answered')}
         </summary>
         {event.questions.map(item => (
           <p key={item.question}>
@@ -126,7 +131,7 @@ function QuestionCard({
         void submit();
       }}
     >
-      <b>Agent asks you</b>
+      <b>{t('Agent asks you')}</b>
       {event.questions.map((item, index) => (
         <fieldset key={index}>
           <legend>
@@ -178,11 +183,11 @@ function QuestionCard({
                 })
               }
             />
-            <span>Other</span>
+            <span>{t('Other')}</span>
           </label>
           {(selected[item.question] || []).includes('__other__') && (
             <input
-              aria-label={`Other answer for ${item.question}`}
+              aria-label={t('Other answer for {0}', { '0': item.question })}
               value={other[item.question] || ''}
               onChange={change =>
                 setOther(current => ({ ...current, [item.question]: change.target.value }))
@@ -193,7 +198,7 @@ function QuestionCard({
         </fieldset>
       ))}
       <button type="submit" disabled={busy || values.some(value => !value)}>
-        {busy ? 'Submitting…' : 'Send answer'}
+        {busy ? t('Submitting…') : t('Send answer')}
       </button>
       <button
         type="button"
@@ -211,11 +216,11 @@ function QuestionCard({
             });
         }}
       >
-        Skip
+        {t('Skip')}
       </button>
       {error && (
         <p role="alert" className="ia-flow-error">
-          {error}
+          {t(error)}
         </p>
       )}
     </form>
@@ -237,6 +242,7 @@ export const AgentFlow = memo(function AgentFlow({
   answer: (id: string, answers: Record<string, string>) => Promise<void>;
   onLog?: (traceId?: string) => void;
 }) {
+  const { t, locale } = useDisplayText();
   const results = new Map<string, ToolResult>();
   const toolIds = new Set<string>();
   const decisions = new Map<string, string>();
@@ -280,17 +286,17 @@ export const AgentFlow = memo(function AgentFlow({
             >
               <summary>
                 {verified
-                  ? 'Engineering verification passed'
+                  ? t('Engineering verification passed')
                   : event.state.status === 'stale'
-                    ? 'Engineering evidence is stale'
+                    ? t('Engineering evidence is stale')
                     : event.verification.status === 'failed'
-                      ? 'Engineering verification failed'
-                      : 'Engineering evidence is insufficient'}
+                      ? t('Engineering verification failed')
+                      : t('Engineering evidence is insufficient')}
               </summary>
               <p>{event.verification.reason}</p>
               {debug && (
                 <small>
-                  Action {event.action.id} · Checkpoint {event.checkpoint.id}
+                  {t('Action')} {event.action.id} {t('· Checkpoint')} {event.checkpoint.id}
                 </small>
               )}
             </details>
@@ -300,9 +306,9 @@ export const AgentFlow = memo(function AgentFlow({
           return (
             <div className="ia-agent-minor" key={index}>
               <button className="ia-log-link" onClick={() => onLog?.(event.traceId)}>
-                View agent log · {event.traceId.slice(0, 8)}
+                {t('View agent log ·')} {event.traceId.slice(0, 8)}
               </button>
-              {debug && <span title={event.path}> · Full recorded events</span>}
+              {debug && <span title={event.path}>{t('· Full recorded events')}</span>}
             </div>
           );
         if (event.type === 'context-reset')
@@ -354,28 +360,28 @@ export const AgentFlow = memo(function AgentFlow({
           return (
             <details className={`ia-agent-tool ${result?.error ? 'error' : ''}`} key={index}>
               <summary>
-                {result?.error ? 'Tool failed' : result ? 'Tool finished' : 'Using tool'} ·{' '}
+                {result?.error ? t('Tool failed') : result ? t('Tool finished') : t('Using tool')} ·{' '}
                 {event.name}
               </summary>
               <div className="ia-tool-detail">
-                <small>Input</small>
-                <pre>{event.arguments || 'No arguments.'}</pre>
+                <small>{t('Input')}</small>
+                <pre>{event.arguments || t('No arguments.')}</pre>
                 {result && (
                   <>
-                    <small>Result</small>
+                    <small>{t('Result')}</small>
                     <pre>
                       {result.output || result.message}
                       {result.imageCount
-                        ? `\n[${result.imageCount} image${result.imageCount > 1 ? 's' : ''} sent to the model]`
+                        ? `\n[${t('Images sent to the model: {0}', { '0': result.imageCount })}]`
                         : ''}
                     </pre>
                     {result.outputTruncated && (
                       <small>
-                        Display shortened; full result was {result.outputBytes?.toLocaleString()}{' '}
-                        bytes.{' '}
+                        {t('Display shortened; full result was')}{' '}
+                        {result.outputBytes?.toLocaleString(locale)} {t('bytes.')}{' '}
                         {onLog && (
                           <button className="ia-log-link" onClick={() => onLog()}>
-                            View full result in agent logs
+                            {t('View full result in agent logs')}
                           </button>
                         )}
                       </small>
@@ -390,16 +396,17 @@ export const AgentFlow = memo(function AgentFlow({
           return toolIds.has(event.id) ? null : (
             <details className={`ia-agent-tool ${event.error ? 'error' : ''}`} key={index}>
               <summary>
-                {event.error ? 'Tool failed' : 'Tool finished'} · {event.message}
+                {event.error ? t('Tool failed') : t('Tool finished')} · {event.message}
               </summary>
               <div className="ia-tool-detail">
                 <pre>{event.output || event.message}</pre>
                 {event.outputTruncated && (
                   <small>
-                    Display shortened; full result was {event.outputBytes?.toLocaleString()} bytes.{' '}
+                    {t('Display shortened; full result was')}{' '}
+                    {event.outputBytes?.toLocaleString(locale)} {t('bytes.')}{' '}
                     {onLog && (
                       <button className="ia-log-link" onClick={() => onLog()}>
-                        View full result in agent logs
+                        {t('View full result in agent logs')}
                       </button>
                     )}
                   </small>
@@ -416,38 +423,39 @@ export const AgentFlow = memo(function AgentFlow({
         if (event.type === 'compaction')
           return (
             <div className="ia-agent-minor" key={index}>
-              Context {event.state === 'begin' ? 'compacting…' : 'compacted'}
+              {t('Context')} {t(event.state === 'begin' ? 'compacting…' : 'compacted')}
             </div>
           );
         if (event.type === 'done')
           return (
             <div className="ia-agent-minor" key={index}>
-              Turn {event.result.status}
+              {t('Turn')} {t(event.result.status)}
             </div>
           );
         if (event.type === 'status' && debug)
           return (
             <div className="ia-agent-minor" key={index}>
-              Context{' '}
-              {event.contextUsage == null ? '—' : `${Math.round(event.contextUsage * 100)}%`} ·
-              Output {event.tokenUsage?.output ?? '—'} tokens
+              {t('Context')}{' '}
+              {event.contextUsage == null ? '—' : `${Math.round(event.contextUsage * 100)}%`}{' '}
+              {t('· Output')} {event.tokenUsage?.output ?? '—'} {t('tokens')}
             </div>
           );
         if (event.type === 'context-metrics' && debug)
           return (
             <div className="ia-agent-minor" key={index}>
-              Peak context{' '}
+              {t('Peak context')}{' '}
               {event.peakContextUsage == null
                 ? '—'
                 : `${Math.round(event.peakContextUsage * 100)}%`}{' '}
-              · Compressions {event.compactions} · Tool results {event.toolResults} · Largest result{' '}
-              {event.peakToolResultBytes.toLocaleString()} bytes
+              {t('· Compressions')} {event.compactions} {t('· Tool results')} {event.toolResults}{' '}
+              {t('· Largest result')} {event.peakToolResultBytes.toLocaleString(locale)}{' '}
+              {t('bytes')}
             </div>
           );
         if (event.type === 'step' && debug)
           return (
             <div className="ia-agent-minor" key={index}>
-              Step {event.number}
+              {t('Step')} {event.number}
             </div>
           );
         return null;
