@@ -414,6 +414,13 @@ class CodeSession {
       socket.addEventListener('message', event => {
         try {
           const frame = JSON.parse(event.data);
+          // Kimi uses application-level heartbeats. Reply even while a host
+          // tool is running or no turn is active; WebSocket control pongs do
+          // not satisfy the native server's heartbeat deadline.
+          if (frame.type === 'ping') {
+            socket.send(JSON.stringify({ type: 'pong', payload: { nonce: frame.payload.nonce } }));
+            return;
+          }
           if (frame.type === 'ack' && frame.id === requestId) {
             clearTimeout(timer);
             if (frame.code === 0) resolve();

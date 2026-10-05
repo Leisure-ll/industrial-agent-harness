@@ -7,6 +7,7 @@ const { spawnSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
 const nativeFiles = [
+  'packages/agent-kimi/tests/code-session-heartbeat.test.cjs',
   'tests/integration/workspace-runtime.test.cjs',
   'tests/integration/agent-question-kimi.test.cjs',
   'tests/integration/compaction-compat-kimi.test.cjs',
@@ -33,6 +34,7 @@ const transportFiles = [
   'tests/integration/chip-runtime-reliability.test.cjs',
 ];
 const linuxNativeFiles = [
+  'packages/agent-kimi/tests/code-session-heartbeat.test.cjs',
   'tests/integration/workspace-runtime.test.cjs',
   'tests/integration/domain-mcp-kimi.test.cjs',
   'tests/integration/external-mcp-kimi.test.cjs',
