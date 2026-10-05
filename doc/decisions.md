@@ -100,3 +100,14 @@ Project、Domain 和 Session 的用户交互决定见[产品决策记录](produc
 - 决定：遵照用户要求，在 Domain MCP 下层增加用户注册表与独立 Gateway。外部服务不伪装为 Domain Pack/Capability；Broker 在有效策略后加入 canonical 工具，固定入口提供渐进披露，执行时重查参数、Scope 和完整快照。Desktop/CLI 共用私有注册，项目不提供启动命令。
 - 边界：host 工具可跨项目控制应用，roots 只是上下文；所有实际调用沿用 Kimi mutating 审批，返回保持 not_run，不写工程状态。工业 Action 仍走 Domain Runtime。保持固定 Kimi Agent Loop，不添加另一 Agent 或供应商 computer-use 客户端。
 - 验证：真实 stdio/HTTP/SSE、固定 Kimi 审批/图片输入及 macOS UI 注册/禁用/刷新/移除。受控模型/服务仅证明协议链路，详见 [外部 MCP](external-mcp.md)。
+
+
+## ADR-007：原生子 agent 加显示与审批观察适配
+
+- 日期：2026-10-05。
+- 状态：已实现；macOS arm64 原生进程与 Desktop 回归通过。
+- 决定：保留 CLI 1.51.0/SDK 0.1.8，GUI 显示原生子 agent 身份和进度。禁止重建子任务调度、上下文、持久化或任务控制协议。
+- 已验证缺口：原 SDK 每轮结束后不接收后台审批，schema 还丢失审批来源；前台子 agent 事件虽保留身份，但 Harness 没有呈现。见[审计](kimi-subagent-integration.md)。
+- 接入决策：在 agent-kimi 内增加 stdio 宿主观察桥，SDK 标准会话与受保护 CLI 保持原样。私有通道只转交原生审批/RPC ID，不构造模型调用或工业动作；后台 native task/wire 文件仅供受限只读显示。该适配不修改上游源码，不构成另一个 agent 内核。
+- 边界：socket/令牌位于原生可写区域外；macOS 显式拒绝原生读取与连接，Linux 沿用 AF_UNIX 限制。后台活动纳入回收与设置守卫；失败断开显示中断并过期审批。子 agent 不继承 Harness Runtime 工具，真实工程写入仍由父 agent 走 Runtime。
+- 验证：固定原生三角色并行/续接、审批、取消/超时、后台空闲、历史归属和只读工程隔离；真实 Desktop 折叠详情、后台审批及刷新恢复。受控响应仅作回归证据；在线任务单独记录。升级 SDK/CLI 后重验此桥，持续订阅接口可用时优先移除它。

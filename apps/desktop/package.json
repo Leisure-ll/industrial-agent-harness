@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "start": "electron .",
     "test": "node --test electron/*.test.cjs",
+    "test:subagents": "electron . --subagent-selftest",
     "test:parallel": "electron . --parallel-selftest",
     "test:images": "electron . --image-input-selftest",
     "test:logs": "electron . --agent-log-selftest",
@@ -24,8 +25,8 @@
   },
   "dependencies": {
     "@industrial-agent-harness/agent-kimi": "workspace:*",
-    "@industrial-agent-harness/computer-use-bridge": "workspace:*",
     "@industrial-agent-harness/capability-broker": "workspace:*",
+    "@industrial-agent-harness/computer-use-bridge": "workspace:*",
     "@industrial-agent-harness/domain-runtime": "workspace:*",
     "@industrial-agent-harness/domain-skills": "workspace:*",
     "@industrial-agent-harness/harness-core": "workspace:*",
@@ -35,7 +36,9 @@
     "electron-updater": "6.8.9",
     "lucide-react": "1.37.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@types/react": "19.2.18",

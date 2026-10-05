@@ -85,13 +85,17 @@ test(
     assert.equal(first.events.at(-1).type, 'done');
     const nativeId = first.agent.session.sessionId;
     const { stdout } = await execute('ps', ['-axo', 'pid=,ppid=,comm=']);
-    const owned = stdout
+    const processes = stdout
       .split('\n')
       .map(line => line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/))
-      .filter(
-        match =>
-          match && Number(match[2]) === process.pid && /(?:kimi|python)(?:\s|$)/i.test(match[3]),
-      );
+      .filter(Boolean);
+    const bridges = processes.filter(
+      match => Number(match[2]) === process.pid && /node/i.test(match[3]),
+    );
+    const parents = new Set([process.pid, ...bridges.map(match => Number(match[1]))]);
+    const owned = processes.filter(
+      match => parents.has(Number(match[2])) && /(?:kimi|python)(?:\s|$)/i.test(match[3]),
+    );
     assert.equal(owned.length, 1, 'only the first test-owned native process is selected');
     const firstPid = Number(owned[0][1]);
     firstModel.hold();

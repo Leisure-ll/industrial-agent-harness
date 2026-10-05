@@ -936,7 +936,7 @@ export function App() {
                             >
                               <Activity size={14} />
                               <span>{chat.title}</span>
-                              {chat.running && (
+                              {(chat.running || chat.backgroundTasks) && (
                                 <small
                                   className={`ia-session-running ${chat.awaitingApproval || chat.awaitingQuestion ? 'awaiting-approval' : ''}`}
                                   role="status"
@@ -945,7 +945,9 @@ export function App() {
                                       ? 'Awaiting answer'
                                       : chat.awaitingApproval
                                         ? 'Awaiting approval'
-                                        : 'Running'
+                                        : chat.backgroundTasks && !chat.running
+                                          ? 'Background tasks running'
+                                          : 'Running'
                                   }
                                   title={
                                     chat.awaitingQuestion
@@ -1243,7 +1245,9 @@ export function App() {
                 ))}
                 {brokerError && <div className="ia-flow-error">{brokerError}</div>}
               </div>
-              {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy} />}
+              {todo?.type === 'todo' && (
+                <TodoList key={activeChatId} items={todo.items} running={agentBusy} />
+              )}
               {agentBusy && !agentOwned && (
                 <p role="status" className="ia-composer-hint">
                   This chat is running in another window. Open a new chat to work in parallel.

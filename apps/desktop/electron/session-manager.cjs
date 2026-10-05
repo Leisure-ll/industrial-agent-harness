@@ -53,7 +53,10 @@ class SessionManager {
     return this.matching(projectId).filter(entry => this.busy(entry));
   }
   assertIdle(projectId) {
-    if (this.running(projectId).length)
+    if (
+      this.running(projectId).length ||
+      this.matching(projectId).some(entry => entry.agent?.hasBackgroundTasks?.())
+    )
       throw Error('Stop running chats affected by this setting first.');
   }
   async reset(projectId) {
@@ -75,7 +78,8 @@ class SessionManager {
   }
   async remove(project, chatId) {
     const entry = this.get(project, chatId);
-    if (this.busy(entry)) throw Error('Stop this chat before deleting it.');
+    if (this.busy(entry) || entry.agent?.hasBackgroundTasks?.())
+      throw Error('Stop this chat before deleting it.');
     entry.removing = true;
     try {
       await entry.agent?.close();
@@ -92,6 +96,7 @@ class SessionManager {
       running: this.busy(entry),
       awaitingApproval: Boolean(entry.agent?.pendingApprovals?.size),
       awaitingQuestion: Boolean(entry.agent?.pendingQuestions?.size),
+      backgroundTasks: Boolean(entry.agent?.hasBackgroundTasks?.()),
     }));
   }
   async close() {

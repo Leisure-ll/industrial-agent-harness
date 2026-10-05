@@ -712,6 +712,182 @@ body,
   line-height: 1.75;
   white-space: pre-wrap;
 }
+.ia-message-content,
+.ia-markdown {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ia-markdown {
+  font-size: 13px;
+  line-height: 1.75;
+}
+.ia-agent-flow .ia-markdown p {
+  margin: 0.8em 0;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: normal;
+}
+.ia-markdown > :first-child {
+  margin-top: 0;
+}
+.ia-markdown > :last-child {
+  margin-bottom: 0;
+}
+.ia-markdown h1,
+.ia-markdown h2,
+.ia-markdown h3,
+.ia-markdown h4,
+.ia-markdown h5,
+.ia-markdown h6 {
+  margin: 1.4em 0 0.6em;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.ia-markdown h1 {
+  font-size: 21px;
+}
+.ia-markdown h2 {
+  font-size: 18px;
+}
+.ia-markdown h3 {
+  font-size: 15px;
+}
+.ia-markdown h4,
+.ia-markdown h5,
+.ia-markdown h6 {
+  font-size: 13px;
+}
+.ia-markdown ul,
+.ia-markdown ol {
+  padding-left: 1.7em;
+  margin: 0.8em 0;
+}
+.ia-markdown li {
+  margin: 0.35em 0;
+}
+.ia-markdown li > p {
+  margin: 0.35em 0;
+}
+.ia-markdown blockquote {
+  margin: 1em 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--ia-border);
+  color: var(--ia-muted);
+}
+.ia-markdown hr {
+  border: 0;
+  border-top: 1px solid var(--ia-border);
+  margin: 1.4em 0;
+}
+.ia-markdown :not(pre) > code {
+  padding: 2px 5px;
+  background: var(--ia-code);
+  border-radius: 4px;
+  font-size: 0.9em;
+  white-space: break-spaces;
+}
+.ia-markdown pre {
+  max-width: 100%;
+  margin: 1em 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+  background: var(--ia-code);
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+}
+.ia-markdown .ia-answer-source {
+  max-height: 400px;
+  white-space: pre-wrap;
+}
+.ia-markdown-table {
+  max-width: 100%;
+  overflow: auto;
+  margin: 1em 0;
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+}
+.ia-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.ia-markdown th,
+.ia-markdown td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--ia-border);
+  vertical-align: top;
+  min-width: 90px;
+}
+.ia-markdown th {
+  text-align: left;
+  background: var(--ia-panel);
+  font-weight: 600;
+}
+.ia-markdown tr:last-child td {
+  border-bottom: 0;
+}
+.ia-markdown-link {
+  color: var(--rp-blue);
+}
+.ia-markdown-image {
+  color: var(--ia-muted);
+}
+.ia-markdown .contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+.ia-subagent-group {
+  display: grid;
+  gap: 8px;
+}
+.ia-subagent-card {
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+  margin: 8px 0;
+}
+.ia-subagent-card > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.ia-subagent-title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.ia-subagent-role,
+.ia-subagent-status,
+.ia-approval-source {
+  font-size: 12px;
+  color: var(--ia-muted);
+}
+.ia-subagent-status {
+  white-space: nowrap;
+}
+.ia-subagent-status.running {
+  color: var(--ia-accent);
+}
+.ia-subagent-status.awaiting_approval {
+  color: #b7791f;
+}
+.ia-subagent-card.error {
+  border-color: #c66;
+}
+.ia-subagent-content {
+  border-top: 1px solid var(--ia-border);
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+}
+.ia-approval-source {
+  display: block;
+  margin-top: 6px;
+}
 .ia-agent-tool {
   margin: 3px 0 3px 12px;
   font-size: 11px;
@@ -750,44 +926,105 @@ body,
   color: var(--ia-muted);
   padding: 5px 0 5px 12px;
 }
-.ia-todo {
+.ia-todo-wrap {
   flex-shrink: 0;
-  max-height: 31%;
-  overflow: auto;
-  border-top: 1px solid var(--ia-border);
-  padding: 9px 22px;
-  background: var(--ia-panel);
+  min-width: 0;
+  padding: 0 max(22px, calc((100% - 690px) / 2));
 }
-.ia-todo-title {
+.ia-todo {
+  border: 1px solid var(--ia-border);
+  border-radius: 10px;
+  background: var(--ia-raised);
+  overflow: hidden;
+}
+.ia-app .ia-todo-title {
   width: 100%;
-  display: flex !important;
-  justify-content: flex-start !important;
-  gap: 6px !important;
-  padding: 3px 0 !important;
-  font-size: 11px !important;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 0;
+  font-size: 11px;
+  text-align: left;
 }
-.ia-todo-title small {
-  margin-left: auto;
+.ia-todo-title > svg,
+.ia-todo-label,
+.ia-todo-count {
+  flex-shrink: 0;
+}
+.ia-todo-title > svg {
   color: var(--ia-muted);
+}
+.ia-todo-label {
+  font-weight: 600;
+}
+.ia-todo-count {
+  color: var(--ia-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ia-todo-current {
+  flex: 1;
+  min-width: 0;
+  padding-left: 6px;
+  color: var(--ia-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ia-todo-progress {
+  flex: 0 0 42px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--ia-border);
+}
+.ia-todo-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--rp-blue);
+}
+.ia-todo-title > svg:last-child {
+  transition: transform 150ms ease;
+}
+.ia-todo-title > svg.expanded {
+  transform: rotate(180deg);
 }
 .ia-todo ol {
   list-style: none;
-  padding: 0;
-  margin: 5px 0;
+  padding: 8px 12px;
+  margin: 0;
+  border-top: 1px solid var(--ia-border);
+  max-height: min(25vh, 220px);
+  overflow: auto;
 }
 .ia-todo li {
   display: flex;
   align-items: flex-start;
-  gap: 7px;
-  padding: 5px 0;
-  font-size: 11px;
+  gap: 9px;
+  padding: 7px 0;
+  font-size: 12px;
+  line-height: 1.5;
   color: var(--ia-muted);
 }
-.ia-todo li[data-status='done'] {
+.ia-todo-status {
+  display: inline-flex;
+  flex: 0 0 16px;
+  justify-content: center;
+  margin-top: 2px;
+}
+.ia-todo li > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ia-todo li[data-status='done'] .ia-todo-status {
   color: #39815d;
 }
 .ia-todo li[data-status='in_progress'] {
   color: var(--ia-text);
+}
+.ia-todo li[data-status='in_progress'] .ia-todo-status {
+  color: var(--rp-blue);
 }
 .ia-todo-spin {
   animation: ia-spin 1.4s linear infinite;
@@ -800,6 +1037,9 @@ body,
 @media (prefers-reduced-motion: reduce) {
   .ia-todo-spin {
     animation: none;
+  }
+  .ia-todo-title > svg:last-child {
+    transition: none;
   }
 }
 .ia-modal-backdrop {

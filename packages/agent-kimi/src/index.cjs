@@ -20,6 +20,9 @@ const { createDiagnosticLog } = require('./diagnostic-log.cjs');
 const { createProcessSandbox } = require('./process-sandbox.cjs');
 const { runtimeTools } = require('./runtime-tools.cjs');
 const { prepareProjectWorkspace } = require('./project-workspace.cjs');
+const { createWireObserver } = require('./wire-observer.cjs');
+const { SubagentEvents } = require('./subagent-events.cjs');
+const { NativeTaskReader } = require('./native-task-reader.cjs');
 
 const canonicalNames = {
   'eda.netlist.inspect': 'eda_netlist_inspect',
@@ -133,6 +136,12 @@ function enabledPlugins(plugins) {
 // Image tool results carry multi-megabyte data URIs; the diagnostic log keeps
 // the event shape but must not store the payloads themselves.
 function redactImagePayloads(event) {
+  if (event.type === 'SubagentEvent') {
+    const nested = redactImagePayloads(event.payload.event);
+    return nested === event.payload.event
+      ? event
+      : { ...event, payload: { ...event.payload, event: nested } };
+  }
   if (event.type !== 'ToolResult') return event;
   const value = event.payload?.return_value;
   if (!value || typeof value.output === 'string' || !Array.isArray(value.output)) return event;
@@ -283,9 +292,11 @@ class KimiSession {
     this.pendingApprovals = new Map();
     this.runtimeApprovals = new Map();
     this.pendingQuestions = new Map();
+    this.approvalSources = new Map();
   }
-  async run(task, attachments = []) {
+  async run(task, attachments = [], { turnId } = {}) {
     if (this.running || this.turn) throw Error('A Kimi turn is already running.');
+    if (this.subagentEvents) this.subagentEvents.originTurnId = turnId;
     const scope = this.getScope();
     if (!scope) throw Error('Resolve capabilities before starting the agent.');
     const { runtime, plugins, excluded } = require('./execution-policy.cjs').executionPolicy(
@@ -351,7 +362,12 @@ class KimiSession {
         },
         isBusy: () =>
           Boolean(
-            this.running || this.turn || this.pendingApprovals.size || this.pendingQuestions.size,
+            this.running ||
+              this.turn ||
+              this.pendingApprovals.size ||
+              this.pendingQuestions.size ||
+              this.nativeTasks?.busy() ||
+              this.subagentEvents?.backgroundBusy(),
           ),
       });
       if (this.interruptRequested) {
@@ -402,28 +418,31 @@ class KimiSession {
       if (anchor) log.record('context.anchor', anchor);
       const resetReason = !this.session
         ? 'new'
-        : this.currentScopeKey !== currentScopeKey
-          ? 'scope_changed'
-          : this.runtimeRevision !== runtime.revision
-            ? 'model_changed'
-            : this.lastApprovalMode !== approvalMode
-              ? 'approval_mode_changed'
-              : this.lastPluginKey !== pluginKey
-                ? 'plugins_changed'
-                : this.currentMcpKey !== currentMcpKey
-                  ? 'mcp_changed'
-                  : null;
+        : this.nativeDisconnected
+          ? 'native_disconnected'
+          : this.currentScopeKey !== currentScopeKey
+            ? 'scope_changed'
+            : this.runtimeRevision !== runtime.revision
+              ? 'model_changed'
+              : this.lastApprovalMode !== approvalMode
+                ? 'approval_mode_changed'
+                : this.lastPluginKey !== pluginKey
+                  ? 'plugins_changed'
+                  : this.currentMcpKey !== currentMcpKey
+                    ? 'mcp_changed'
+                    : null;
       if (resetReason) {
+        this.nativeTasks?.poll();
+        if (this.session && (this.nativeTasks?.busy() || this.subagentEvents?.backgroundBusy()))
+          throw Error('当前仍有后台任务运行。请等待原生任务完成后再切换工具范围或模型设置。');
         log.record('session.create', {
           reason: resetReason,
           previousScopeKey: this.currentScopeKey || null,
           currentScopeKey,
         });
         if (this.session) this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
-        await this.session?.close();
-        this.session = undefined;
-        this.processSandbox?.close();
-        this.processSandbox = null;
+        await this.closeNative();
+        this.initializingNative = true;
         if (this.sessionConfigDir && !this.persistentSession)
           fs.rmSync(this.sessionConfigDir, { recursive: true, force: true });
         const compatibilityKey = crypto
@@ -494,10 +513,34 @@ class KimiSession {
           this.emitAgent({ type: 'execution-boundary', ...this.processSandbox.boundary });
         }
         this.nativeWorkDir = this.processSandbox?.workDir || this.workDir;
+        if (this.sessionFactory === createSession) {
+          this.wireObserver = await createWireObserver({
+            executable: this.processSandbox.executable,
+            onMessage: envelope => {
+              const nativeEvent = envelope.params;
+              if (
+                nativeEvent?.type === 'ApprovalRequest' ||
+                nativeEvent?.type === 'ApprovalResponse'
+              )
+                this.emitEvent(nativeEvent, true);
+            },
+            onDisconnect: () => {
+              this.nativeDisconnected = true;
+              this.nativeTasks?.close();
+              this.subagentEvents?.disconnected();
+              for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
+            },
+          });
+          this.processSandbox.protectHostIpc(
+            path.dirname(this.wireObserver.executable),
+            path.join(path.dirname(this.wireObserver.executable), 'events.sock'),
+          );
+        }
         this.session = this.sessionFactory({
           workDir: this.processSandbox?.workDir || this.workDir,
           ...(this.persistentSession ? { sessionId: this.persistentSession.id } : {}),
-          executable: this.processSandbox?.executable || runtime.executable,
+          executable:
+            this.wireObserver?.executable || this.processSandbox?.executable || runtime.executable,
           shareDir: this.sessionConfigDir,
           model: 'industrial',
           thinking: runtime.profile.thinking,
@@ -522,6 +565,23 @@ class KimiSession {
           ],
           clientInfo: { name: 'industrial-agent-harness', version: '0.0.0' },
         });
+        this.subagentEvents = new SubagentEvents({
+          sessionId: this.session.sessionId,
+          emit: event => this.emitAgent(event),
+          parentArguments: id => this.pendingToolArgs.get(id),
+          originTurnId: turnId,
+          resolveOrigin: this.diagnostics.resolveToolTurn,
+        });
+        this.nativeDisconnected = false;
+        if (this.sessionFactory === createSession)
+          this.nativeTasks = new NativeTaskReader({
+            shareDir: this.sessionConfigDir,
+            directory: createKimiPaths(this.sessionConfigDir).sessionDir(
+              this.nativeWorkDir,
+              this.session.sessionId,
+            ),
+            projector: this.subagentEvents,
+          });
         this.currentScopeKey = currentScopeKey;
         this.currentMcpKey = currentMcpKey;
         this.runtimeRevision = runtime.revision;
@@ -534,6 +594,7 @@ class KimiSession {
               'Tools or model changed. A new context started; earlier messages remain available above.',
           });
         log.record('session.ready', { sessionId: this.session.sessionId || null, currentScopeKey });
+        this.initializingNative = false;
       } else
         log.record('session.reuse', { sessionId: this.session.sessionId || null, currentScopeKey });
       const projectContext = this.processSandbox
@@ -563,11 +624,13 @@ class KimiSession {
         return await turn.result;
       };
       const result = await Promise.race([consume(), forcedCancellation]);
+      this.nativeTasks?.poll();
+      if (result.status === 'cancelled') this.subagentEvents?.cancelForeground();
       emitMetrics();
       outcome = result.status;
       this.emitAgent({ type: 'done', result });
     } catch (error) {
-      if (this.turn) {
+      if (this.turn || this.initializingNative) {
         this.interruptRequested = true;
         try {
           await this.closeNative();
@@ -581,12 +644,15 @@ class KimiSession {
       emitMetrics();
       this.emitAgent({ type: 'error', message: String(error) });
     } finally {
+      this.initializingNative = false;
       try {
         this.turn = undefined;
         this.pendingToolArgs.clear();
         this.toolNames.clear();
         this.lastToolCall = null;
-        for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
+        for (const id of this.pendingApprovals.keys())
+          if (this.approvalSources.get(id)?.source_kind !== 'background_agent')
+            this.resolveApproval(id, 'expired');
         for (const [id, question] of this.pendingQuestions)
           if (question.state === 'pending') this.resolveQuestion(id, 'expired');
         this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
@@ -655,12 +721,25 @@ class KimiSession {
     this.log?.record('harness.event', event);
     this.emit(event);
   }
-  emitEvent(event) {
-    if (event.type === 'ContentPart') {
+  emitEvent(event, nativeApproval = false) {
+    if (
+      this.wireObserver &&
+      !nativeApproval &&
+      ['ApprovalRequest', 'ApprovalResponse'].includes(event.type)
+    )
+      return;
+    if (event.type === 'SubagentEvent') {
+      this.subagentEvents?.wire(event.payload);
+    } else if (event.type === 'ContentPart') {
       if (event.payload.type === 'text') this.emitAgent({ type: 'text', text: event.payload.text });
       else if (event.payload.type === 'think')
         this.emitAgent({ type: 'thinking', text: event.payload.think });
     } else if (event.type === 'ApprovalRequest') {
+      if (this.pendingApprovals.has(event.payload.id)) return;
+      this.nativeTasks?.poll();
+      this.approvalSources.set(event.payload.id, event.payload);
+      const parentToolCallId = this.subagentEvents?.approval(event.payload);
+      const originTurnId = this.subagentEvents?.agents.get(event.payload.agent_id)?.originTurnId;
       this.pendingApprovals.set(event.payload.id, 'pending');
       if (this.lastApprovalMode === 'auto' || this.activePluginTools?.has(event.payload.sender)) {
         // Enabling the plugin is the authorization: auto-approve its tool
@@ -679,6 +758,12 @@ class KimiSession {
           id: event.payload.id,
           description: event.payload.description,
           action: event.payload.action,
+          ...(event.payload.agent_id
+            ? { agentId: event.payload.agent_id, subagentType: event.payload.subagent_type }
+            : {}),
+          ...(parentToolCallId ? { parentToolCallId } : {}),
+          background: event.payload.source_kind === 'background_agent',
+          ...(originTurnId ? { turnId: originTurnId } : {}),
         });
     } else if (event.type === 'QuestionRequest') {
       const { id, tool_call_id, questions } = event.payload;
@@ -695,7 +780,7 @@ class KimiSession {
           arguments: this.pendingToolArgs.get(this.lastToolCall.id),
         });
       }
-      this.pendingToolArgs.set(event.payload.id, '');
+      this.pendingToolArgs.set(event.payload.id, event.payload.function.arguments || '');
       this.toolNames.set(event.payload.id, event.payload.function.name);
       this.lastToolCall = { id: event.payload.id, name: event.payload.function.name };
       this.emitAgent({
@@ -713,6 +798,8 @@ class KimiSession {
         );
     } else if (event.type === 'ToolResult') {
       const value = event.payload.return_value;
+      if (this.toolNames.get(event.payload.tool_call_id) === 'Agent')
+        this.subagentEvents?.finish(event.payload.tool_call_id, value);
       const rawArgs = this.pendingToolArgs.get(event.payload.tool_call_id) || '';
       if (rawArgs) {
         let args = rawArgs;
@@ -783,7 +870,22 @@ class KimiSession {
   resolveApproval(id, decision) {
     if (!this.pendingApprovals.has(id)) return;
     this.pendingApprovals.delete(id);
-    this.emitAgent({ type: 'approval-resolved', id, decision });
+    const source = this.approvalSources.get(id);
+    this.approvalSources.delete(id);
+    const parentToolCallId = this.subagentEvents?.agents.get(source?.agent_id)?.parentToolCallId;
+    const originTurnId = this.subagentEvents?.agents.get(source?.agent_id)?.originTurnId;
+    const anotherPending = [...this.approvalSources.entries()].some(
+      ([requestId, payload]) =>
+        payload.agent_id === source?.agent_id && this.pendingApprovals.has(requestId),
+    );
+    if (!anotherPending) this.subagentEvents?.approvalResolved(source?.agent_id);
+    this.emitAgent({
+      type: 'approval-resolved',
+      id,
+      decision,
+      ...(parentToolCallId ? { parentToolCallId } : {}),
+      ...(originTurnId ? { turnId: originTurnId } : {}),
+    });
   }
   resolveQuestion(id, decision, answers) {
     if (!this.pendingQuestions.has(id)) return;
@@ -846,11 +948,15 @@ class KimiSession {
       this.resolveApproval(id, response);
       return;
     }
-    if (!this.turn || this.pendingApprovals.get(id) !== 'pending')
+    if (
+      (!this.turn && !this.wireObserver?.hasApproval(id)) ||
+      this.pendingApprovals.get(id) !== 'pending'
+    )
       throw Error('This approval is no longer pending.');
     this.pendingApprovals.set(id, 'submitting');
     try {
-      await this.turn.approve(id, response);
+      if (this.wireObserver?.hasApproval(id)) await this.wireObserver.approve(id, response);
+      else await this.turn.approve(id, response);
       this.log?.record('approval.response', { id, response });
       this.resolveApproval(id, response);
     } catch (error) {
@@ -897,6 +1003,10 @@ class KimiSession {
     await this.diagnostics.resources?.remove(this.resourceId);
     await this.closeNative();
   }
+  hasBackgroundTasks() {
+    this.nativeTasks?.poll();
+    return Boolean(this.nativeTasks?.busy() || this.subagentEvents?.backgroundBusy());
+  }
   async closeNative() {
     if (this.closing) return this.closing;
     this.closing = this.disposeNative().finally(() => {
@@ -905,14 +1015,24 @@ class KimiSession {
     return this.closing;
   }
   async disposeNative() {
-    await this.session?.close();
-    if (this.interruptRequested && this.turn) this.cancelTurn?.({ status: 'cancelled' });
-    this.session = undefined;
-    if (this.sessionConfigDir && !this.persistentSession)
-      fs.rmSync(this.sessionConfigDir, { recursive: true, force: true });
-    this.sessionConfigDir = undefined;
-    this.processSandbox?.close();
-    this.processSandbox = null;
+    try {
+      await this.session?.close();
+    } finally {
+      this.nativeTasks?.poll();
+      this.nativeTasks?.close();
+      this.nativeTasks = undefined;
+      this.subagentEvents?.disconnected();
+      await this.wireObserver?.close();
+      this.wireObserver = undefined;
+      for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
+      if (this.interruptRequested && this.turn) this.cancelTurn?.({ status: 'cancelled' });
+      this.session = undefined;
+      if (this.sessionConfigDir && !this.persistentSession)
+        fs.rmSync(this.sessionConfigDir, { recursive: true, force: true });
+      this.sessionConfigDir = undefined;
+      this.processSandbox?.close();
+      this.processSandbox = null;
+    }
   }
 }
 

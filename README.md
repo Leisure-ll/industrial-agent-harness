@@ -20,6 +20,8 @@ Industrial Agent Harness connects local projects, Kimi Code, professional softwa
 - **Work from a real project.** Bind a local directory to a domain, keep multiple chats, resume sessions and inspect execution logs.
 - **Load relevant knowledge and tools.** The Capability Broker progressively discloses Skills and tool schemas, then enforces the selected scope at execution.
 - **Use project guidance.** Discover `.skill/`, `.skills/` and standard project Skill directories, and load project `AGENTS.md` through Kimi's native mechanism. See the [compatibility audit](doc/kimi-native-compatibility-audit.md) for remaining limitations.
+- **Follow native subagents.** Folded task cards show coder/explore/plan activity, separate tools and background approvals while Kimi retains dispatch, context and resume. Industrial edits stay with the parent Runtime path. See [integration and verification](doc/kimi-subagent-integration.md).
+- **Read formatted replies.** Parent and child answers render Markdown tables, lists and code. A compact, expandable task bar shows native Todo progress above the composer. See [chat presentation](doc/agent-ui-provenance.md).
 - **Keep engineering evidence.** The RTL runtime records inputs, actions, artifacts, verification and checkpoints. Input changes invalidate current evidence; interrupted work remains visible after restart.
 - **Inspect artifacts in the workbench.** View waveforms, netlists, layouts, KiCad designs, Godot assets and ordinary project files.
 - **Automate and extend.** Use the CLI's JSON Lines events, the Node SDK or stdio JSON-RPC; build independent Domain Packs with complete Skill resources and installation integrity checks.

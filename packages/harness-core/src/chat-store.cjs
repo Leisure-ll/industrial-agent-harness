@@ -165,6 +165,17 @@ class ChatStore {
     this.transaction(() => {
       if (!this.statement('SELECT id FROM turns WHERE id = ?').get(turnId))
         throw Error('Unknown chat turn.');
+      if (event.type === 'subagent-state') {
+        const previous = this.statement(
+          "SELECT sequence FROM chat_events WHERE turn_id = ? AND type = 'subagent-state' AND json_extract(event_json, '$.id') = ? ORDER BY sequence DESC LIMIT 1",
+        ).get(turnId, event.id);
+        if (previous) {
+          this.statement(
+            'UPDATE chat_events SET event_json = ? WHERE turn_id = ? AND sequence = ?',
+          ).run(JSON.stringify(event), turnId, previous.sequence);
+          return;
+        }
+      }
       if (event.type === 'text' || event.type === 'thinking') {
         const previous = this.statement(
           "SELECT sequence, type, event_json FROM chat_events WHERE turn_id = ? AND type NOT IN ('status', 'step') ORDER BY sequence DESC LIMIT 1",
@@ -188,6 +199,18 @@ class ChatStore {
         JSON.stringify(event),
       );
     });
+  }
+  toolCallTurn(chatId, toolCallId, createdAt = null) {
+    return (
+      this.statement(
+        "SELECT e.turn_id FROM chat_events e JOIN turns t ON t.id = e.turn_id WHERE t.chat_id = ? AND e.type = 'tool' AND json_extract(e.event_json, '$.id') = ? AND (? IS NULL OR t.created_at <= ?) ORDER BY t.rowid DESC LIMIT 1",
+      ).get(
+        chatId,
+        toolCallId,
+        createdAt ? new Date(createdAt * 1000).toISOString() : null,
+        createdAt ? new Date(createdAt * 1000).toISOString() : null,
+      )?.turn_id || null
+    );
   }
   finish(turnId, status) {
     this.statement('UPDATE turns SET status = ?, owner_pid = NULL WHERE id = ?').run(

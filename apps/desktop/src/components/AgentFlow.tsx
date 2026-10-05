@@ -1,5 +1,7 @@
 import type { AgentEvent } from '@industrial-agent-harness/viewer-builtin/api';
 import { ThinkingPreview } from './ThinkingPreview';
+import { SubagentCard } from './SubagentCard';
+import { AnswerMarkdown } from './AnswerMarkdown';
 import { memo, useRef, useState } from 'react';
 
 type ToolResult = Extract<AgentEvent, { type: 'tool-result' }>;
@@ -47,6 +49,12 @@ function ApprovalCard({
   return (
     <div className="ia-approval">
       <b>Approval requested · {event.action}</b>
+      {event.agentId && (
+        <small className="ia-approval-source">
+          子任务 · {event.subagentType || 'agent'}
+          {event.background ? ' · 后台' : ''}
+        </small>
+      )}
       <p>{event.description}</p>
       <button disabled={busy} onClick={() => void respond('approve')}>
         {busy ? 'Submitting…' : 'Approve'}
@@ -238,6 +246,9 @@ export const AgentFlow = memo(function AgentFlow({
   onLog?: (traceId?: string) => void;
 }) {
   const results = new Map<string, ToolResult>();
+  const subagents = new Map<string, Extract<AgentEvent, { type: 'subagent-state' }>>();
+  const childEvents = new Map<string, Extract<AgentEvent, { type: 'subagent-event' }>['event'][]>();
+  const firstChildIndex = new Map<string, number>();
   const toolIds = new Set<string>();
   const decisions = new Map<string, string>();
   const answered = new Map<string, Extract<AgentEvent, { type: 'question-resolved' }>>();
@@ -247,6 +258,22 @@ export const AgentFlow = memo(function AgentFlow({
   // per id so the Input shows the complete arguments without duplication.
   const lastToolIndex = new Map<string, number>();
   for (const [index, event] of events.entries()) {
+    if (event.type === 'subagent-state') {
+      subagents.set(event.id, event);
+      if (!firstChildIndex.has(event.id)) firstChildIndex.set(event.id, index);
+    }
+    if (event.type === 'subagent-event') {
+      const list = childEvents.get(event.id) || [];
+      const previous = list.at(-1);
+      if (
+        (event.event.type === 'text' || event.event.type === 'thinking') &&
+        previous?.type === event.event.type &&
+        previous.segment === event.event.segment
+      )
+        list[list.length - 1] = { ...previous, text: previous.text + event.event.text };
+      else list.push(event.event);
+      childEvents.set(event.id, list);
+    }
     if (event.type === 'tool') {
       toolIds.add(event.id);
       lastToolIndex.set(event.id, index);
@@ -314,7 +341,7 @@ export const AgentFlow = memo(function AgentFlow({
         if (event.type === 'text')
           return (
             <article className="ia-agent-text" key={index}>
-              <p>{event.text}</p>
+              <AnswerMarkdown text={event.text} active={running && index === lastActivity} />
             </article>
           );
         if (event.type === 'thinking')
@@ -330,7 +357,9 @@ export const AgentFlow = memo(function AgentFlow({
             <ApprovalCard
               key={index}
               event={event}
-              decision={decisions.get(event.id) || (!running ? 'expired' : undefined)}
+              decision={
+                decisions.get(event.id) || (!running && !event.background ? 'expired' : undefined)
+              }
               approve={approve}
             />
           );
@@ -350,6 +379,21 @@ export const AgentFlow = memo(function AgentFlow({
           );
         if (event.type === 'tool') {
           if (lastToolIndex.get(event.id) !== index) return null;
+          const children = [...subagents.values()].filter(
+            child => child.parentToolCallId === event.id,
+          );
+          if (children.length)
+            return (
+              <div className="ia-subagent-group" key={index}>
+                {children.map(child => (
+                  <SubagentCard
+                    key={child.id}
+                    state={child}
+                    events={childEvents.get(child.id) || []}
+                  />
+                ))}
+              </div>
+            );
           const result = results.get(event.id);
           return (
             <details className={`ia-agent-tool ${result?.error ? 'error' : ''}`} key={index}>
@@ -384,6 +428,17 @@ export const AgentFlow = memo(function AgentFlow({
                 )}
               </div>
             </details>
+          );
+        }
+        if (event.type === 'subagent-state') {
+          if (toolIds.has(event.parentToolCallId) || firstChildIndex.get(event.id) !== index)
+            return null;
+          return (
+            <SubagentCard
+              key={event.id}
+              state={subagents.get(event.id)!}
+              events={childEvents.get(event.id) || []}
+            />
           );
         }
         if (event.type === 'tool-result')

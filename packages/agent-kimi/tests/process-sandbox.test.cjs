@@ -5,6 +5,42 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { createProcessSandbox } = require('../src/process-sandbox.cjs');
+test(
+  'native descendants cannot connect to the host approval observer socket',
+  { skip: !['darwin', 'linux'].includes(process.platform) },
+  async t => {
+    const { createWireObserver } = require('../src/wire-observer.cjs');
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'observer-boundary-test-'));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    for (const name of ['project', 'share']) fs.mkdirSync(path.join(root, name));
+    const observer = await createWireObserver({
+      executable: '/usr/bin/python3',
+      onMessage: () => {},
+    });
+    t.after(() => observer.close());
+    const sandbox = createProcessSandbox({
+      executable: '/usr/bin/python3',
+      shareDir: path.join(root, 'share'),
+      projectDir: path.join(root, 'project'),
+    });
+    t.after(() => sandbox.close());
+    sandbox.protectHostIpc(
+      path.dirname(observer.executable),
+      path.join(path.dirname(observer.executable), 'events.sock'),
+    );
+    const probe = spawnSync(
+      sandbox.executable,
+      [
+        '-c',
+        "import socket,sys\ntry:\n s=socket.socket(socket.AF_UNIX);s.connect(sys.argv[1]);print('CONNECTED')\nexcept OSError:\n print('DENIED')",
+        path.join(path.dirname(observer.executable), 'events.sock'),
+      ],
+      { env: sandbox.env, encoding: 'utf8' },
+    );
+    assert.equal(probe.status, 0, probe.stderr);
+    assert.equal(probe.stdout.trim(), 'DENIED');
+  },
+);
 
 test(
   'a real descendant process can write session scratch but cannot overwrite project, lateral files, metadata or sandbox launcher',

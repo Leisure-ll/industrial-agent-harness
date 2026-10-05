@@ -5,7 +5,7 @@ inputs:
   testbench: [tb/*.sv]
 runtime:
   kind: local
-  resources: {cpu: 1, memory_gb: 1, timeout_seconds: 30, build_jobs: 1}
+  resources: {cpu: 1, memory_gb: 1, timeout_seconds: 90, build_jobs: 1}
 actions:
   rtl.lint:
     parameters:

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-05",
+  "platform": "macOS arm64",
+  "kernel": {
+    "cli": "1.51.0",
+    "sdk": "0.1.8",
+    "modified": false
+  },
+  "model": {
+    "provider": "openai_legacy",
+    "name": "Minimax-M3",
+    "controlledFixture": false
+  },
+  "interaction": "Normal Desktop production GUI; existing user model profile; real FreeCAD bearing-housing project; read-only analysis and planning.",
+  "children": [
+    {
+      "agentId": "a6587fa97",
+      "role": "explore",
+      "description": "核对尺寸与文件依据",
+      "status": "completed",
+      "startedAt": "2026-10-05T08:50:10.816Z",
+      "completedAt": "2026-10-05T09:00:31.310Z",
+      "toolResults": 16,
+      "processDisplayTruncated": true
+    },
+    {
+      "agentId": "aa435ba33",
+      "role": "plan",
+      "description": "规划 36→40 mm 改动方案",
+      "status": "completed",
+      "startedAt": "2026-10-05T08:50:10.925Z",
+      "completedAt": "2026-10-05T08:52:59.302Z",
+      "toolResults": 14,
+      "processDisplayTruncated": false
+    }
+  ],
+  "overlapObserved": true,
+  "rootStatus": "finished",
+  "approvalDecisions": {
+    "approve": 5
+  },
+  "inputHashesUnchanged": {
+    "BearingHousing.recipe.json": true,
+    "BearingHousing.FCStd": true,
+    "design-input.json": true
+  },
+  "industrialActionsInvoked": 0,
+  "historyRetainedInApplication": true,
+  "observedFinding": "The recipe declares the bearing-seat diameter, while existing readback reports overall bounds/volume/solid count and lacks a direct per-feature diameter assertion. This is an evidence coverage gap, not proof of a dimensional defect.",
+  "limits": [
+    "No model build, edit, export or engineering verification was performed.",
+    "Planning estimates and machining judgments are model suggestions, not verified engineering facts.",
+    "Elapsed time includes system lock and human approval waits; it is not a latency benchmark.",
+    "No assertion that this one model task measures agent task success rate."
+  ],
+  "historyRestoredAfterApplicationRestart": true
+}

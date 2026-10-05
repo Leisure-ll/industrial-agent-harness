@@ -17,6 +17,7 @@ const nativeFiles = [
   'tests/integration/external-mcp-kimi.test.cjs',
   'packages/agent-kimi/tests/vision-wire.test.cjs',
   'packages/agent-kimi/tests/parallel-wire.test.cjs',
+  'packages/agent-kimi/tests/subagents-wire.test.cjs',
   'packages/agent-kimi/tests/project-skills-wire.test.cjs',
   'tests/integration/session-resources-kimi.test.cjs',
   'tests/integration/session-chaos-kimi.test.cjs',
@@ -32,6 +33,7 @@ const transportFiles = [
 const linuxNativeFiles = [
   'packages/agent-kimi/tests/process-sandbox.test.cjs',
   'packages/agent-kimi/tests/linux-process-sandbox.test.cjs',
+  'packages/agent-kimi/tests/subagents-wire.test.cjs',
   'packages/agent-kimi/tests/project-skills-wire.test.cjs',
   'tests/integration/industrial-core-vertical-slice.test.cjs',
   'tests/integration/industrial-core-installed-pack.test.cjs',

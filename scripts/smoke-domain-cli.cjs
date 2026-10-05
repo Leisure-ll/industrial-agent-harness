@@ -195,15 +195,29 @@ try {
       'Use the host screenshot',
       '--scope-only',
     ];
-    const scope = JSON.parse(command(domain, args).split('\n')[0]).scope;
-    assert.equal(scope.tools.filter(id => id.startsWith('external.host.')).length, 3);
+    const resolved = JSON.parse(command(domain, args).split('\n')[0]);
+    assert.deepEqual(
+      resolved.scope.tools.filter(id => id.startsWith('external.host.')),
+      [],
+    );
+    assert.deepEqual(
+      resolved.trace.find(row => row.event === 'resource.execution-boundary').detail
+        .unavailableMcpServers,
+      ['external.host'],
+    );
+    assert.equal(fs.existsSync(path.join(temporary, 'host.json')), false);
     assert.deepEqual(
       JSON.parse(command(domain, [...args, '--disable-mcp', 'external.host']).split('\n')[0]).scope
         .tools,
       [],
     );
     console.log(
-      JSON.stringify({ domain, externalRegistrationShared: true, scoped: true, disable: true }),
+      JSON.stringify({
+        domain,
+        externalRegistrationShared: true,
+        executionExcluded: true,
+        disable: true,
+      }),
     );
   }
   command('godot', ['mcp', 'remove', 'external.host']);

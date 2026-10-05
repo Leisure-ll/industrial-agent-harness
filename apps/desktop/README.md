@@ -10,6 +10,8 @@ Electron MVP 工作台采用项目树、Agent 对话、Viewer 三列布局。左
 
 Kimi Code 会话需要本机 `kimi` CLI。界面会检测其可用性；选择工程目录、解析能力后即可运行任务，并查看文本、工具事件和审批请求。工具包括按 Scope 提供的只读产物元数据、共享 Chip MCP 和显式注册的外部 MCP；完整 Core 工业执行与验证闭环尚未完成。
 
+主回答及子任务摘要按 Markdown 排版，支持标题、列表、表格、引用和代码块；兼容模型在正文开头返回的思考标签会折叠显示。输入框上方的任务栏默认仅显示进度与当前项，可展开完整列表，状态沿用原生 Todo。`test:subagents` 同时覆盖排版、任务栏收展、窄窗口、深色主题和历史刷新；显示边界见 [聊天 UI](../../doc/agent-ui-provenance.md)。
+
 运行 `pnpm dev` 或从仓库根目录运行 `pnpm build && pnpm start`。版图渲染可先运行 `pnpm setup:layout`，或设置 `KLAYOUT_PYTHON`。
 
 ## Agent 行为日志
@@ -54,3 +56,8 @@ Chip 项目默认注册 `chip-pack.eda`，在全局 MCP & Skills 与项目详情
 `INDUSTRIAL_HARNESS_SESSION_IDLE_MS=100 pnpm --filter @industrial-agent-harness/desktop test:parallel` 还覆盖 200 次聊天/项目切换、160 次同帧双击、4 个后台任务与第 5 个拒绝、重载后问题恢复、重复 Stop、延迟历史与实时结束交错，以及带活动审批退出。SDK 会话可控，Renderer、IPC、持久化和资源管理使用生产路径；真实 Kimi 强杀/停止/恢复另由 `pnpm test:session-chaos` 检查。行为与边界见[验证报告](../../doc/session-resource-guards.md)。
 
 对话与右侧工作区之间的分隔条支持拖动与方向键调整，Agent 对话区可缩窄至 280 px，双击恢复默认比例。窗口缩小自动限制分栏宽度，全屏退出保留原分栏。CAD 使用当前视图区宽高比，拖动与全屏不拉伸模型；`test:cad` 包含实际渲染像素比例、分栏限位和恢复检查。
+
+
+## 原生子任务显示
+
+主 agent 派发的 coder/explore/plan 在对话内以折叠任务卡显示；展开看思考、工具输入/结果及摘要，审批按钮保持可见。后台任务在主回合结束后继续更新，聊天状态点仍保留；Scope/模型/资源设置等待相关任务结束。控制沿用 Kimi 原生工具，首版子 agent 不接入独立工业 Runtime 调用。运行 `KIMI_EXECUTABLE=/absolute/path/to/kimi pnpm --filter @industrial-agent-harness/desktop test:subagents` 验证真实 CLI → IPC/Store → GUI、后台审批和历史刷新；详见[边界与证据](../../doc/kimi-subagent-integration.md)。

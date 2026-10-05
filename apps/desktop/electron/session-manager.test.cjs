@@ -1,6 +1,20 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { SessionManager } = require('./session-manager.cjs');
+test('background tasks permit a root follow-up but guard settings and deletion until completion', async () => {
+  const manager = new SessionManager(),
+    project = { id: 'p', path: '/p', domain: 'example' };
+  const entry = manager.get(project, 'chat');
+  let background = true;
+  entry.agent = { hasBackgroundTasks: () => background, close: async () => {} };
+  assert.equal(manager.busy(entry), false);
+  assert.equal(manager.snapshots()[0].backgroundTasks, true);
+  assert.throws(() => manager.assertIdle('p'), /Stop running/);
+  await assert.rejects(manager.remove(project, 'chat'), /Stop this chat/);
+  background = false;
+  await manager.remove(project, 'chat');
+  assert.equal(manager.entries.size, 0);
+});
 test('reset reserves all targeted chats; failed cleanup waits for slower siblings and remains retryable', async () => {
   const manager = new SessionManager();
   const project = { id: 'p', path: '/p', domain: 'example' };

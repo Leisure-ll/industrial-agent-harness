@@ -414,11 +414,37 @@ export interface ResourceSettingsSnapshot {
   effective: { skills: string[]; mcpServers: string[] };
 }
 
+export type SubagentDisplayEvent =
+  | { type: 'text' | 'thinking'; text: string; segment?: number }
+  | { type: 'tool'; id: string; name: string; arguments: string }
+  | {
+      type: 'tool-result';
+      id: string;
+      error: boolean;
+      message: string;
+      output: string;
+      outputTruncated?: boolean;
+    }
+  | { type: 'compaction'; state: 'begin' | 'end' };
+export type SubagentState = {
+  type: 'subagent-state';
+  id: string;
+  agentId: string;
+  parentToolCallId: string;
+  taskId?: string;
+  subagentType: string;
+  description: string;
+  background: boolean;
+  status: 'running' | 'awaiting_approval' | 'completed' | 'failed' | 'cancelled' | 'lost';
+  summary?: string;
+  truncated?: boolean;
+};
 export type AgentEvent = {
   chatId?: string;
   projectId?: string;
   turnId?: string;
   eventRevision?: number;
+  parentToolCallId?: string;
 } & (
   | { type: 'user-images'; images: PromptImage[] }
   | { type: 'input-images'; images: PromptImage[] }
@@ -426,7 +452,23 @@ export type AgentEvent = {
   | { type: 'diagnostic-log'; traceId: string; path: string }
   | { type: 'text'; text: string }
   | { type: 'thinking'; text: string }
-  | { type: 'approval'; id: string; description: string; action: string }
+  | SubagentState
+  | {
+      type: 'subagent-event';
+      id: string;
+      agentId: string;
+      parentToolCallId: string;
+      event: SubagentDisplayEvent;
+    }
+  | {
+      type: 'approval';
+      id: string;
+      description: string;
+      action: string;
+      agentId?: string;
+      subagentType?: string;
+      background?: boolean;
+    }
   | {
       type: 'approval-resolved';
       id: string;
@@ -594,6 +636,7 @@ export interface DiagnosticContent {
 }
 
 export interface SessionStatus {
+  backgroundTasks?: boolean;
   chatId: string;
   projectId: string;
   running: boolean;
@@ -601,6 +644,7 @@ export interface SessionStatus {
   awaitingQuestion?: boolean;
 }
 export interface ChatSummary {
+  backgroundTasks?: boolean;
   id: string;
   running?: boolean;
   awaitingApproval?: boolean;
