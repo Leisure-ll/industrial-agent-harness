@@ -42,11 +42,19 @@ requireFromApp.resolve('../i18n.config.json');
 const skillsRoot = path.dirname(
   path.dirname(requireFromApp.resolve('@industrial-agent-harness/domain-skills')),
 );
-for (const name of ['skills', 'packs']) {
-  const directory = path.join(skillsRoot, name);
-  fs.rmSync(directory, { recursive: true, force: true });
-  fs.mkdirSync(directory);
-}
+const { listSkills, skillFile } = require(path.join(skillsRoot, 'src/registry.cjs'));
+const commonSkills = listSkills().filter(skill => skill.domain === '*');
+const commonDirectories = new Set(
+  commonSkills.map(skill => path.basename(path.dirname(skillFile(skill.id)))),
+);
+// Professional Skills ship in installable Packs; common Skills belong to Core.
+for (const name of fs.readdirSync(path.join(skillsRoot, 'skills')))
+  if (!commonDirectories.has(name))
+    fs.rmSync(path.join(skillsRoot, 'skills', name), { recursive: true, force: true });
+const packsDirectory = path.join(skillsRoot, 'packs');
+fs.rmSync(packsDirectory, { recursive: true, force: true });
+fs.mkdirSync(packsDirectory);
+for (const skill of commonSkills) skillFile(skill.id);
 for (const packageName of [
   '@industrial-agent-harness/viewer-builtin/runtime/layout',
   '@industrial-agent-harness/viewer-builtin/runtime/godot',

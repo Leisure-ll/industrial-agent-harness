@@ -37,12 +37,15 @@ test('the session caps requested completion tokens instead of the remaining wind
     model: 'Qwen3.8-27B',
     contextSize: 262144,
   });
-  assert.equal(sessionEnv(profile, 'secret-token').KIMI_MODEL_MAX_COMPLETION_TOKENS, '65536');
+  assert.match(configToml(profile), /max_output_size = 65536/);
   assert.equal(
-    sessionEnv(defaults, 'secret-token').KIMI_MODEL_MAX_COMPLETION_TOKENS,
-    '65536',
-    'both provider paths carry the cap',
+    sessionEnv(defaults, 'secret-token').HARNESS_MODEL_API_KEY,
+    'secret-token',
+    'the model key is supplied through the configured environment reference',
   );
+  assert.match(configToml(defaults), /max_output_size = 65536/);
+  assert.match(configToml({ ...profile, contextSize: 8192 }), /max_output_size = 2048/);
+  assert.equal(sessionEnv(profile, 'secret-token').KIMI_CODE_NO_AUTO_UPDATE, '1');
   assert.match(
     configToml(profile),
     /max_context_size = 262144/,

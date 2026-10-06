@@ -24,7 +24,7 @@ node headless/industrial-harness.cjs run \
   --task 'Inspect netlist signals' --scope-only
 ```
 
-macOS 可用 `shasum -a 256 -c` 代替 `sha256sum -c`。解压后整个 `headless/` 目录可移动，运行时不依赖原仓库。真实 Agent 运行还需单独安装 Kimi CLI，并设置 `KIMI_EXECUTABLE`、`KIMI_API_KEY`；当前 Release 仅发布无 UI Harness，不包含工业软件。发布工作流在 Linux 上解压并烟测；其他系统尚无 Release 包测试承诺。
+macOS 可用 `shasum -a 256 -c` 代替 `sha256sum -c`。解压后整个 `headless/` 目录可移动，运行时不依赖原仓库。当前源码构建的包内含 Kimi Code 2.1.1，实际 Agent 需模型 API key；`KIMI_EXECUTABLE` 是可选的同版本覆盖。历史 Release 按随包说明使用旧 CLI；本包不包含工业软件。发布工作流在 Linux 上解压并烟测；其他系统尚无 Release 包测试承诺。
 
 ## 开发与场景 Suite
 
@@ -37,7 +37,7 @@ node dist/headless/industrial-harness.cjs bench --suite examples/bench/scope-smo
 
 `bench` 读取 JSON suite，顺序运行多个 `run` 场景，逐场保存 JSONL，并生成 `summary.json`；断言失败时返回非零退出码。Suite 中 `projectDir` 和可选的 `artifactManifest` 相对于 suite 文件定位。每个场景可设置 `scopeOnly`、`disabledSkills`、`disabledMcpServers`、`timeoutMs`，并在 `expected` 中断言 `status`、`capabilityIds`、`skills`、`tools`、`mcpServers`。请使用全新的输出目录，避免覆盖先前证据。`examples/bench/scope-smoke.json` 是当前能力基线，其中 RTL 验证请求解析为空，表明该能力链尚未实现。
 
-打包目录包含 CLI、Broker、仓库 Skill 文件、MCP 注册表、Kimi SDK 接入与只读观察状态存储；不包含 Electron、Kimi CLI 或工业可执行文件。当前源码注册 Chip Pack 0.6.1，经共享 Scope Gateway 调用；需先准备固定 Python 环境。真实 Agent 场景还需配置 `KIMI_EXECUTABLE` 和模型 API Key。2026-10-03 的本地运行时修复需要同时重建 EDA 工具镜像，具体迁移和验证范围见 [运行时修复说明](../../domain-packs/chip/eda-harness/docs/runtime-reliability.md)。已有 GitHub Release 不会随本地源码修改而更新。
+打包目录包含 CLI、Broker、仓库 Skill 文件、MCP 注册表、随包 Kimi Code 2.1.1、Server API 接入与只读观察状态存储；不包含 Electron 或工业可执行文件。当前源码注册 Chip Pack 0.6.1，经共享 Scope Gateway 调用；需先准备固定 Python 环境。真实 Agent 场景还需模型 API Key，`KIMI_EXECUTABLE` 为可选的同版本覆盖。2026-10-03 的本地运行时修复需要同时重建 EDA 工具镜像，具体迁移和验证范围见 [运行时修复说明](../../domain-packs/chip/eda-harness/docs/runtime-reliability.md)。已有 GitHub Release 不会随本地源码修改而更新。
 
 如需独立使用完整芯片 MCP 工具集，请安装 [Chip Pack 0.6.1 Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.1-preview.1)。它已与本 CLI 的 Broker Scope 经共享网关连接，使用和验收路径见 [Chip Pack 文档](../../domain-packs/chip/README.md)。
 
@@ -105,3 +105,5 @@ CLI 与桌面版已默认注册同一 `chip-pack.eda`，按 Chip 项目与任务
 ## 会话资源保护
 
 CLI 与同一配置目录的 Desktop/其他 CLI 共用执行和常驻额度，默认 4/6；达到上限时以既有错误事件和非零退出码明确拒绝，不启动原生 Prompt。单次 CLI 结束时关闭 Kimi 并释放额度，保留聊天和原生上下文供恢复。额度、内存准入、配置项和真实进程压测见[多会话资源保护](../../doc/session-resource-guards.md)。
+
+真实运行在所有领域中提供 project.initialize、project.files.read/apply、project.tasks.inspect、project.task.run。空目录无需专业配置；共享 project.work Skill 用 harness.tasks.json 声明任务、读失败并修复重跑。格式、历史与离线限制见[共享工程底座](../../doc/shared-workspace.md)。

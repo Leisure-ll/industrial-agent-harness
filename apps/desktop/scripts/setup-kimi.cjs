@@ -1,17 +1,12 @@
 const { spawnSync } = require('node:child_process');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const directory = path.resolve(__dirname, '../.venv-kimi');
-const python = path.join(
-  directory,
-  process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
-);
-if (!fs.existsSync(python)) {
-  const created = spawnSync('uv', ['venv', '--python', '3.13', directory], { stdio: 'inherit' });
-  if (created.status !== 0) process.exit(created.status || 1);
-}
-const installed = spawnSync('uv', ['pip', 'install', '--python', python, 'kimi-cli==1.51.0'], {
-  stdio: 'inherit',
+const { bundledExecutable, KIMI_CODE_VERSION } = require('@industrial-agent-harness/agent-kimi');
+const result = spawnSync(process.execPath, [bundledExecutable(), '--version'], {
+  encoding: 'utf8',
+  env: { ...process.env, KIMI_CODE_NO_AUTO_UPDATE: '1', ELECTRON_RUN_AS_NODE: '1' },
+  timeout: 10000,
 });
-process.exitCode = installed.status === 0 ? 0 : 1;
+if (result.error || result.status !== 0 || result.stdout.trim() !== KIMI_CODE_VERSION)
+  throw Error('Run pnpm install to restore the pinned Kimi Code runtime.');
+process.stdout.write(
+  `Kimi Code ${KIMI_CODE_VERSION} is installed with the workspace dependencies.\n`,
+);

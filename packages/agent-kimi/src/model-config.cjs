@@ -68,14 +68,7 @@ function validateProfile(value) {
   };
 }
 
-// The kimi CLI (1.51.0) caps max_completion_tokens at (max_context_size minus
-// its own input estimate) with a fixed 1024-token safety margin. That estimate
-// under-counts proportionally (observed ~4.6% low on mixed tool-schema input:
-// 21320 estimated vs 22345 real), so the margin is exhausted on mid-size
-// prompts and strict OpenAI-compatible servers reject input + output > window
-// by a token. An explicit completion cap (the env equivalent of newer CLI's
-// max_output_size) keeps the request far inside the window regardless of
-// estimator drift.
+// Keep requested output comfortably inside the configured context window.
 const MODEL_MAX_COMPLETION_TOKENS = 65536;
 
 function configToml(profile) {
@@ -85,15 +78,15 @@ function configToml(profile) {
     ...(value.thinking ? ['thinking'] : []),
     ...(value.imageInput ? ['image_in'] : []),
   ];
-  return `default_model = "industrial"\ndefault_thinking = ${value.thinking}\ndefault_yolo = false\nshow_thinking_stream = true\ntelemetry = false\n\n[providers.industrial]\ntype = ${quote(value.provider)}\nbase_url = ${quote(value.endpoint)}\napi_key = "provided-by-harness-session"\n\n[models.industrial]\nprovider = "industrial"\nmodel = ${quote(value.model)}\nmax_context_size = ${value.contextSize}\ncapabilities = ${JSON.stringify(modelCapabilities)}\n`;
+  return `default_model = "industrial"\ndefault_permission_mode = "manual"\ntelemetry = false\nauto_session_title = false\n\n[thinking]\nenabled = ${value.thinking}\n\n[watch]\nenabled = false\n\n[providers.industrial]\ntype = ${quote(value.provider === 'openai_legacy' ? 'openai' : value.provider)}\nbase_url = ${quote(value.endpoint)}\napi_key_env = "HARNESS_MODEL_API_KEY"\n\n[models.industrial]\nprovider = "industrial"\nmodel = ${quote(value.model)}\nmax_context_size = ${value.contextSize}\nmax_output_size = ${Math.min(MODEL_MAX_COMPLETION_TOKENS, Math.floor(value.contextSize / 4))}\ncapabilities = ${JSON.stringify(modelCapabilities)}\n`;
 }
 
 function sessionEnv(profile, apiKey) {
   const value = validateProfile(profile);
   if (!apiKey) throw Error('Set a model API key before running Kimi.');
   const completionCap = {
-    KIMI_MODEL_MAX_COMPLETION_TOKENS: String(MODEL_MAX_COMPLETION_TOKENS),
-    KIMI_CLI_NO_AUTO_UPDATE: '1',
+    HARNESS_MODEL_API_KEY: apiKey,
+    KIMI_CODE_NO_AUTO_UPDATE: '1',
   };
   return value.provider === 'kimi'
     ? {

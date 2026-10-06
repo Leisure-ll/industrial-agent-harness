@@ -2,7 +2,7 @@
 
 项目首页：[English](../README.md) · [简体中文](../README.zh-CN.md)。当前版本为**开发者预览版（Developer Preview）**，许可证见 [MIT License](../LICENSE) 与[第三方清单](../THIRD_PARTY_NOTICES.md)。
 
-这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi SDK 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。Chip Pack、PCB Bench 与 Godot 本地 MCP 已通过共用网关接入 Desktop/CLI；完整 Core Domain Runtime、工业状态闭环及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
+这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi Code 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。Chip Pack、PCB Bench 与 Godot 本地 MCP 已通过共用网关接入 Desktop/CLI；完整 Core Domain Runtime、工业状态闭环及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
 
 2026-10-04 更新：[三轨整改记录](harness-quality-three-tracks.md)记录首条真实 RTL 持久化闭环、发行资源修复、SDK 和配对评测入口。受保护的 Agent 当前在 macOS Apple Silicon（arm64）验证；桌面构建与首次启动 CI 保留 Apple Silicon 与 Windows x64，Intel Mac 暂不支持，范围决定见 [PD-036](product-decisions.md#pd-036暂停-intel-mac-支持)。其他领域及平台仍需接入和验收。2026-09-23 评审文件保留为历史基线。
 
@@ -10,16 +10,17 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 
 当前里程碑是 **Industrial Core Vertical Slice**。2026-09-23 的架构评审材料已核对并纳入以下四页；它们是现状、约束、路线和验收的主入口，旧版开发计划保留为背景资料。
 
-| 当前评审文档 | 用途 |
-| --- | --- |
-| [现状与缺口](01-current-state-and-gaps.md) | 已实现的 Workbench MVP、缺失的工业内核与替换方向 |
-| [架构不变量](02-architecture-invariants.md) | 硬约束、当前 Gate 和已有 Prototype 的限界 |
-| [实施路线图](03-implementation-roadmap.md) | P0–P3 顺序及首条真实 Vertical Slice 的交付条件 |
-| [Definition of Done 与架构测试](04-definition-of-done-and-architecture-tests.md) | 模块完成标准、CI 门禁与尚未满足的 E2E Gate |
-| [Prototype Register](prototype-register.json) | 机器可读的现有捷径、冻结范围和替换目标 |
+| 当前评审文档                                                                     | 用途                                             |
+| -------------------------------------------------------------------------------- | ------------------------------------------------ |
+| [现状与缺口](01-current-state-and-gaps.md)                                       | 已实现的 Workbench MVP、缺失的工业内核与替换方向 |
+| [架构不变量](02-architecture-invariants.md)                                      | 硬约束、当前 Gate 和已有 Prototype 的限界        |
+| [实施路线图](03-implementation-roadmap.md)                                       | P0–P3 顺序及首条真实 Vertical Slice 的交付条件   |
+| [Definition of Done 与架构测试](04-definition-of-done-and-architecture-tests.md) | 模块完成标准、CI 门禁与尚未满足的 E2E Gate       |
+| [Prototype Register](prototype-register.json)                                    | 机器可读的现有捷径、冻结范围和替换目标           |
 
 | 文档 | 内容 |
 | --- | --- |
+| [Kimi Code 迁移](kimi-code-migration.md) | 固定 2.1.1、认证 Server API、身份映射与外壳兼容验收 |
 | [系统架构](architecture.md) | Kimi Code、桌面端、Broker、工业运行时与领域包的职责和数据流 |
 | [Capability Broker](capability-broker.md) | Capability 解析、skill 与 MCP 工具的渐进式披露、Scope 和 Trace |
 | [Viewer 层](viewer-layer.md) | 内置查看、关键产物预览、外部打开与证据边界 |
@@ -37,6 +38,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [Domain Pack](domain-pack.md) | 芯片与 PCB 等领域的扩展方式和最小契约 |
 | [Pack 作者教程](pack-authoring.md) | 独立构建、安装和验证外部 Pack，资源与升级兼容 |
 | [工业契约版本](contracts-versioning.md) | v1 工业事实、旧观察数据与 TypeScript 消费 |
+| [共享工程底座](shared-workspace.md) | 全领域空工程初始化、受控编辑、声明任务和外部 MCP |
 | [P0 工业闭环](p0-industrial-runtime.md) | 真实 RTL、隔离、持久化和失败恢复的范围 |
 | [FreeCAD CAD Pack](freecad-domain-pack.md) | 参数化 3D 零件建模、持久 Runtime、独立几何回读、实体 Viewer 与 macOS arm64 原生 CI |
 | [Kimi 原生机制兼容性审计](kimi-native-compatibility-audit.md) | 项目发现、输入命令、配置、会话、环境和执行边界的实际差异及修复 |

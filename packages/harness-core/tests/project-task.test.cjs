@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { resolveProjectTask } = require('../src/index.cjs');
 const { randomUUID } = require('node:crypto');
 
-test('protected Runtime scopes exclude configured host services without changing resource preferences', () => {
+test('protected Runtime scopes include registered MCP tools and honor disable policy without changing preferences', () => {
   const external = [
     { id: 'external.example', title: 'Example', tools: [{ id: 'external.example.call' }] },
   ];
@@ -41,14 +41,15 @@ test('protected Runtime scopes exclude configured host services without changing
     'external.example.call',
   ]);
   const protectedTask = call({ task: 'prepare', state });
-  assert.deepEqual(protectedTask.scope.tools, ['example.prepare']);
+  assert.deepEqual(protectedTask.scope.tools, ['example.prepare', 'external.example.call']);
   assert.ok(
     protectedTask.trace.some(
-      t =>
-        t.event === 'resource.execution-boundary' &&
-        t.detail.unavailableMcpServers.includes('external.example'),
+      t => t.event === 'mcp.external.scope' && t.detail.tools.includes('external.example.call'),
     ),
   );
+  policy.mcpServers.push('external.example');
+  assert.deepEqual(call({ task: 'prepare', state }).scope.tools, ['example.prepare']);
+  policy.mcpServers.pop();
   assert.deepEqual(policy, { skills: [], mcpServers: [] });
   assert.equal(external.length, 1);
 });

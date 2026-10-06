@@ -1,8 +1,10 @@
 const {
   createSession,
   createExternalTool,
-  createKimiPaths,
-} = require('@moonshot-ai/kimi-agent-sdk');
+  bundledExecutable,
+  KIMI_CODE_VERSION,
+} = require('./code-session.cjs');
+const { createKimiPaths } = require('./legacy-paths.cjs');
 const { z } = require('zod');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
@@ -112,7 +114,12 @@ function prepareSessionFiles(scope, runtime, persistentDirectory, projectDir, pl
     );
     writeMcpConfig(
       directory,
-      selectMcpServers(scope, runtime.disabledMcpServers, undefined, runtime.externalServers),
+      selectMcpServers(
+        scope,
+        runtime.disabledMcpServers,
+        undefined,
+        runtime.hostRuntimeExternal ? [] : runtime.externalServers,
+      ),
       {
         projectDir,
         environment: runtime.environment,
@@ -292,6 +299,10 @@ class KimiSession {
       this.getRuntime(),
       this.plugins,
       Boolean(this.diagnostics.industrialRuntime),
+      this.diagnostics.industrialRuntime
+        ?.descriptors?.()
+        .filter(tool => tool.effect === 'external')
+        .map(tool => tool.id),
     );
     if (!runtime.apiKey) throw Error('Set a model API key before running Kimi.');
     const approvalMode = runtime.approvalMode || 'ask';
@@ -379,7 +390,7 @@ class KimiSession {
         log.record('resource.filtered', { ...excluded, reason: 'protected-industrial-execution' });
         this.emitAgent({
           type: 'text',
-          text: '本轮使用项目内已接入的工业工具。外部 MCP 服务和应用控制在当前隔离下暂不可用。\n',
+          text: '本轮部分资源因执行边界暂不可用，已接入的项目工具可继续使用。\n',
         });
       }
       const anchor = await this.diagnostics.getContextAnchor?.();
@@ -419,7 +430,7 @@ class KimiSession {
           previousScopeKey: this.currentScopeKey || null,
           currentScopeKey,
         });
-        if (this.session) this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
+        if (this.session) await this.captureKimiSnapshot(log, 'before-reset', runtime.apiKey);
         await this.session?.close();
         this.session = undefined;
         this.processSandbox?.close();
@@ -430,9 +441,15 @@ class KimiSession {
           .createHash('sha256')
           .update(
             JSON.stringify({
+              runtime: `kimi-code-server-v1:${KIMI_CODE_VERSION}`,
               scope: currentScopeKey,
               profile: runtime.profile,
-              executable: runtime.executable || 'kimi',
+              executable:
+                !runtime.executable ||
+                runtime.executable === 'kimi' ||
+                runtime.executable === bundledExecutable()
+                  ? `@moonshot-ai/kimi-code@${KIMI_CODE_VERSION}`
+                  : runtime.executable,
               disabledMcpServers: runtime.disabledMcpServers || [],
               mcpRuntime,
               plugins: pluginKey,
@@ -448,14 +465,9 @@ class KimiSession {
           .digest('hex');
         this.persistentSession = this.diagnostics.resolveSession?.(compatibilityKey);
         const stored = this.persistentSession;
-        if (stored?.initialized) {
+        if (stored?.initialized && this.sessionFactory !== createSession) {
           const context = path.join(
-            createKimiPaths(stored.shareDir).sessionDir(
-              this.sessionFactory === createSession
-                ? path.join(fs.realpathSync(stored.shareDir), 'workspace')
-                : this.workDir,
-              stored.id,
-            ),
+            createKimiPaths(stored.shareDir).sessionDir(this.workDir, stored.id),
             'context.jsonl',
           );
           if (!fs.existsSync(context) || !fs.statSync(context).size)
@@ -471,20 +483,23 @@ class KimiSession {
           plugins,
         );
         if (this.sessionFactory === createSession) {
-          // External host services can mutate unrelated applications outside this
-          // process boundary. Do not expose them as an industrial execution path.
+          // Native child MCP gateways stay outside the industrial boundary.
+          // Registered services instead use the audited host Runtime.
           const externalSelected = selectMcpServers(
             scope,
             runtime.disabledMcpServers,
             undefined,
             runtime.externalServers,
           ).some(provider => provider.transport === 'external');
-          if (externalSelected || enabledPlugins(plugins).length)
+          if ((externalSelected && !runtime.hostRuntimeExternal) || enabledPlugins(plugins).length)
             throw Error(
               '当前工业执行隔离不支持外部 MCP 服务或应用控制插件。请在本次项目资源设置中停用这些服务后重试；工业修改仅能通过已接入的 Domain Runtime。',
             );
           this.processSandbox = createProcessSandbox({
-            executable: runtime.executable || 'kimi',
+            executable:
+              !runtime.executable || runtime.executable === 'kimi'
+                ? bundledExecutable()
+                : runtime.executable,
             shareDir: this.sessionConfigDir,
             projectDir: this.workDir,
             protectedPaths: this.diagnostics.protectedPaths || [],
@@ -494,22 +509,27 @@ class KimiSession {
           this.emitAgent({ type: 'execution-boundary', ...this.processSandbox.boundary });
         }
         this.nativeWorkDir = this.processSandbox?.workDir || this.workDir;
+        const hostedTools = runtimeTools(
+          this.diagnostics.industrialRuntime,
+          this.getScope,
+          (descriptor, request) => this.requestRuntimeApproval(descriptor, request),
+          result => this.diagnostics.onIndustrialResult?.(result),
+          { imageInput: Boolean(runtime.profile.imageInput) },
+        );
+        this.hostRuntimeTools = new Set(hostedTools.map(tool => tool.name));
         this.session = this.sessionFactory({
           workDir: this.processSandbox?.workDir || this.workDir,
+          projectDir: this.workDir,
           ...(this.persistentSession ? { sessionId: this.persistentSession.id } : {}),
           executable: this.processSandbox?.executable || runtime.executable,
           shareDir: this.sessionConfigDir,
+          resumeRequired: Boolean(stored?.initialized),
           model: 'industrial',
           thinking: runtime.profile.thinking,
           env: this.processSandbox?.env || runtime.env,
           yoloMode: approvalMode === 'auto',
           externalTools: [
-            ...runtimeTools(
-              this.diagnostics.industrialRuntime,
-              this.getScope,
-              (descriptor, request) => this.requestRuntimeApproval(descriptor, request),
-              result => this.diagnostics.onIndustrialResult?.(result),
-            ),
+            ...hostedTools,
             ...externalTools(
               this.getScope,
               this.lookupArtifact,
@@ -557,7 +577,10 @@ class KimiSession {
       const consume = async () => {
         for await (const event of turn) {
           if (this.turn !== turn) return { status: 'cancelled' };
-          log.record('sdk.event', redactImagePayloads(event));
+          log.record(
+            event.type === 'NativeEvent' ? 'kimi-code.event' : 'sdk.event',
+            redactImagePayloads(event),
+          );
           this.emitEvent(event);
         }
         return await turn.result;
@@ -589,19 +612,20 @@ class KimiSession {
         for (const id of this.pendingApprovals.keys()) this.resolveApproval(id, 'expired');
         for (const [id, question] of this.pendingQuestions)
           if (question.state === 'pending') this.resolveQuestion(id, 'expired');
-        this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
+        await this.captureKimiSnapshot(log, 'after-turn', runtime.apiKey);
         if (
           this.persistentSession &&
           this.sessionConfigDir &&
-          fs.existsSync(
-            path.join(
-              createKimiPaths(this.sessionConfigDir).sessionDir(
-                this.nativeWorkDir || this.workDir,
-                this.persistentSession.id,
+          (this.session?.contextInitialized ||
+            fs.existsSync(
+              path.join(
+                createKimiPaths(this.sessionConfigDir).sessionDir(
+                  this.nativeWorkDir || this.workDir,
+                  this.persistentSession.id,
+                ),
+                'context.jsonl',
               ),
-              'context.jsonl',
-            ),
-          )
+            ))
         )
           this.diagnostics.sessionInitialized?.(this.persistentSession.id);
         log.record('run.end', {
@@ -623,8 +647,29 @@ class KimiSession {
       }
     }
   }
-  captureKimiSnapshot(log, phase, apiKey) {
+  async captureKimiSnapshot(log, phase, apiKey) {
     if (!this.sessionConfigDir || !this.session?.sessionId) return;
+    if (this.session.diagnosticSnapshot) {
+      try {
+        const rows = await this.session.diagnosticSnapshot();
+        if (!rows) return;
+        let content = rows.map(row => JSON.stringify(row)).join('\n') + '\n';
+        if (apiKey) content = content.replaceAll(apiKey, '[REDACTED_API_KEY]');
+        const target = path.join(path.dirname(log.file), `${log.traceId}.${phase}.context.jsonl`);
+        fs.writeFileSync(target, content, { flag: 'wx', mode: 0o600 });
+        log.record('kimi.snapshot', {
+          phase,
+          kind: 'context',
+          format: 'kimi-code-server-v1',
+          path: target,
+          bytes: Buffer.byteLength(content),
+          sha256: crypto.createHash('sha256').update(content).digest('hex'),
+        });
+      } catch (error) {
+        log.record('kimi.snapshot_error', { phase, kind: 'context', message: String(error) });
+      }
+      return;
+    }
     const sessionDir = path.join(
       createKimiPaths(this.sessionConfigDir).sessionsDir(this.nativeWorkDir || this.workDir),
       this.session.sessionId,
@@ -662,16 +707,32 @@ class KimiSession {
         this.emitAgent({ type: 'thinking', text: event.payload.think });
     } else if (event.type === 'ApprovalRequest') {
       this.pendingApprovals.set(event.payload.id, 'pending');
-      if (this.lastApprovalMode === 'auto' || this.activePluginTools?.has(event.payload.sender)) {
-        // Enabling the plugin is the authorization: auto-approve its tool
-        // approvals for this session instead of surfacing them to the user.
+      const hostedApproval =
+        event.payload.harness_callback === true && this.hostRuntimeTools?.has(event.payload.sender);
+      if (
+        hostedApproval ||
+        this.lastApprovalMode === 'auto' ||
+        this.activePluginTools?.has(event.payload.sender)
+      ) {
+        // Harness Runtime callbacks enforce Scope and approval inside their
+        // handlers. Preserve that boundary instead of adding an MCP transport
+        // approval before discovery or before recording a rejected Action.
         this.log?.record('approval.auto', {
           sender: event.payload.sender,
           id: event.payload.id,
-          reason: this.lastApprovalMode === 'auto' ? 'user_mode' : 'enabled_plugin',
+          reason: hostedApproval
+            ? 'host_runtime_boundary'
+            : this.lastApprovalMode === 'auto'
+              ? 'user_mode'
+              : 'enabled_plugin',
         });
-        this.approve(event.payload.id, 'approve_for_session').catch(error =>
-          this.emitAgent({ type: 'approval_error', id: event.payload.id, message: String(error) }),
+        this.approve(event.payload.id, hostedApproval ? 'approve' : 'approve_for_session').catch(
+          error =>
+            this.emitAgent({
+              type: 'approval_error',
+              id: event.payload.id,
+              message: String(error),
+            }),
         );
       } else
         this.emitAgent({
@@ -738,7 +799,7 @@ class KimiSession {
       if (typeof value.output === 'string') output = value.output;
       else {
         const parts = Array.isArray(value.output) ? value.output : [];
-        imageCount = parts.filter(part => part?.type === 'image_url').length;
+        imageCount = parts.filter(part => ['image_url', 'image'].includes(part?.type)).length;
         output = parts
           .filter(part => part?.type === 'text')
           .map(part => part.text)
@@ -810,7 +871,7 @@ class KimiSession {
       throw Error('Answer every question before continuing.');
     this.pendingQuestions.set(id, { ...pending, state: 'submitting' });
     try {
-      // Kimi CLI 1.51.0 uses QuestionRequest.id as its Wire RPC id.
+      // The transport adapts the existing question identifier to its native API.
       await this.turn.respondQuestion(id, id, answers);
       this.log?.record('question.response', { id, answers });
       this.resolveQuestion(id, skipped ? 'skipped' : 'answered', answers);
@@ -920,6 +981,8 @@ module.exports = {
   createProcessSandbox,
   runtimeTools,
   KimiSession,
+  bundledExecutable,
+  KIMI_CODE_VERSION,
   externalTools,
   prepareSessionFiles,
   boundedJson,

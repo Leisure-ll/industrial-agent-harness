@@ -32,17 +32,17 @@ flowchart TD
 
 ## 职责
 
-| 组成 | 拥有的数据与行为 |
-| --- | --- |
-| Kimi Code | Agent Loop、会话、对话上下文、压缩、工具调用及其原生能力 |
-| Kimi Integration | 启动和连接、会话控制、事件转换、权限响应、有限的 Industrial Context 传递 |
-| Capability Broker | Domain State 获取、Capability 解析、Skill Batch、Tool Scope、Session Scope 与 Disclosure Trace |
-| Industrial Runtime | Action 生命周期、状态变化、产物来源、Verification、Checkpoint 与 Trajectory |
-| Industrial MCP Gateway | 统一的领域工具入口、能力发现、工具范围与调用转发 |
-| Domain Pack | 某领域的状态提供者、能力声明、skills、tools、verifiers、viewers 与 bridges |
-| Viewer Core 与内置 Viewer | 按产物身份选择显示方式、生成派生显示数据；在桌面端展示关键工程产物 |
-| Electron 桌面端 | 用户交互、项目选择、对话和工程证据的展示；通过受限 IPC 访问本地服务 |
-| Headless CLI | 以命令行和机器可读事件调用同一套 Broker、Kimi Integration 与工业运行时；不依赖 Electron 和 Viewer UI |
+| 组成                      | 拥有的数据与行为                                                                                     |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Kimi Code                 | Agent Loop、会话、对话上下文、压缩、工具调用及其原生能力                                             |
+| Kimi Integration          | 启动和连接、会话控制、事件转换、权限响应、有限的 Industrial Context 传递                             |
+| Capability Broker         | Domain State 获取、Capability 解析、Skill Batch、Tool Scope、Session Scope 与 Disclosure Trace       |
+| Industrial Runtime        | Action 生命周期、状态变化、产物来源、Verification、Checkpoint 与 Trajectory                          |
+| Industrial MCP Gateway    | 统一的领域工具入口、能力发现、工具范围与调用转发                                                     |
+| Domain Pack               | 某领域的状态提供者、能力声明、skills、tools、verifiers、viewers 与 bridges                           |
+| Viewer Core 与内置 Viewer | 按产物身份选择显示方式、生成派生显示数据；在桌面端展示关键工程产物                                   |
+| Electron 桌面端           | 用户交互、项目选择、对话和工程证据的展示；通过受限 IPC 访问本地服务                                  |
+| Headless CLI              | 以命令行和机器可读事件调用同一套 Broker、Kimi Integration 与工业运行时；不依赖 Electron 和 Viewer UI |
 
 Kimi Integration 可以使用 Kimi 专属事件和会话语义。工业侧的契约保持独立，不把 Kimi 类型传入 Core，也不把芯片或 PCB 规则写入 Core。当前不建设跨 Agent 的通用运行时适配层；将来增加其他 Agent 时，再为其建立独立接入。
 
@@ -69,6 +69,6 @@ Harness 提供结构化的 Industrial Context，例如领域、阶段、当前�
 
 ## 仓库映射
 
-已落实的目录：`apps/desktop`、`apps/cli`、`packages/harness-core`、`packages/agent-kimi`、`packages/contracts`、`packages/domain-skills`、`packages/domain-runtime`、`packages/domain-mcp`、`packages/viewer-core`、`packages/viewer-builtin`、`packages/computer-use-bridge`。CLI 与桌面端共用 Broker、项目 Domain 约束、Capability Registry 和 Kimi Integration；CLI 的无模型 Scope 路径已验证，真实模型任务仍需 bench 环境验证。Viewer Core 已有初始类型契约；三组 EDA Viewer 已接入桌面端。Kimi SDK 固定为 `0.1.8`，开发环境 Kimi CLI 固定为 `1.51.0`。Domain Runtime 当前提供文件观察；Domain MCP 已接入 Chip Pack 的独立运行时，经共享 Scope Gateway 供两个入口调用，尚未形成完整 Core 工业状态闭环。`apps/desktop/viewer-host` 是桌面 Viewer 容器的结构占位。
+已落实的目录：`apps/desktop`、`apps/cli`、`packages/harness-core`、`packages/agent-kimi`、`packages/contracts`、`packages/domain-skills`、`packages/domain-runtime`、`packages/domain-mcp`、`packages/viewer-core`、`packages/viewer-builtin`、`packages/computer-use-bridge`。CLI 与桌面端共用 Broker、项目 Domain 约束、Capability Registry 和 Kimi Integration；CLI 的无模型 Scope 路径已验证，真实模型任务仍需 bench 环境验证。Viewer Core 已有初始类型契约；三组 EDA Viewer 已接入桌面端。Kimi Code 固定为 `2.1.1`，通过独立本地 REST/WebSocket 与认证 MCP 回调接入，见 [迁移记录](kimi-code-migration.md)。Domain Runtime 当前提供文件观察；Domain MCP 已接入 Chip Pack 的独立运行时，经共享 Scope Gateway 供两个入口调用，尚未形成完整 Core 工业状态闭环。`apps/desktop/viewer-host` 是桌面 Viewer 容器的结构占位。
 
 计划新增的职责包括完整本地控制面、Domain Pack SDK、Bridge/Verifier 扩展点、参考领域和打包流水线。桌面主进程仍包含部分项目与会话编排逻辑，后续应继续下沉到共享的无界面层；CLI 不通过这些 Electron 代码调用任务。具体拆包以实现时的依赖边界为准。

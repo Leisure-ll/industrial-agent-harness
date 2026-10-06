@@ -7,6 +7,10 @@ const { spawnSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
 const nativeFiles = [
+  'packages/agent-kimi/tests/code-session-heartbeat.test.cjs',
+  'tests/integration/workspace-runtime.test.cjs',
+  'tests/integration/agent-question-kimi.test.cjs',
+  'tests/integration/compaction-compat-kimi.test.cjs',
   'tests/integration/freecad-runtime.test.cjs',
   'tests/integration/industrial-core-vertical-slice.test.cjs',
   'tests/integration/industrial-core-installed-pack.test.cjs',
@@ -30,6 +34,12 @@ const transportFiles = [
   'tests/integration/chip-runtime-reliability.test.cjs',
 ];
 const linuxNativeFiles = [
+  'packages/agent-kimi/tests/code-session-heartbeat.test.cjs',
+  'tests/integration/workspace-runtime.test.cjs',
+  'tests/integration/domain-mcp-kimi.test.cjs',
+  'tests/integration/external-mcp-kimi.test.cjs',
+  'tests/integration/agent-question-kimi.test.cjs',
+  'tests/integration/compaction-compat-kimi.test.cjs',
   'packages/agent-kimi/tests/process-sandbox.test.cjs',
   'packages/agent-kimi/tests/linux-process-sandbox.test.cjs',
   'packages/agent-kimi/tests/project-skills-wire.test.cjs',
@@ -175,9 +185,9 @@ async function main(suite) {
   for (const tool of suite === 'benchmark'
     ? ['iverilog', 'vvp']
     : suite.startsWith('native')
-      ? ['verilator']
+      ? ['verilator', 'rg']
       : []) {
-    const result = spawnSync(tool, [tool === 'verilator' ? '--version' : '-V'], {
+    const result = spawnSync(tool, [tool === 'verilator' || tool === 'rg' ? '--version' : '-V'], {
       encoding: 'utf8',
     });
     if (result.error || result.status !== 0) throw Error(`Missing required verifier: ${tool}`);

@@ -7,7 +7,8 @@ const http = require('node:http');
 const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '../..');
 const executable =
-  process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+  process.env.KIMI_EXECUTABLE ||
+  require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
 
 test(
   'paired model drivers consume the pinned native Kimi and production Harness through the same controlled provider',

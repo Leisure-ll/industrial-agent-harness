@@ -8,7 +8,8 @@ const { spawn } = require('node:child_process');
 const { ChatStore } = require('../../packages/harness-core/src/index.cjs');
 const root = path.resolve(__dirname, '../..');
 const executable =
-  process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+  process.env.KIMI_EXECUTABLE ||
+  require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
 
 test(
   'real pinned Kimi CLI resumes three turns across separate CLI processes and rotates model context',
@@ -31,7 +32,10 @@ test(
         activeChild.kill('SIGTERM');
         return;
       }
-      const n = body.messages.filter(message => message.role === 'user').length;
+      const n = body.messages.filter(
+        message =>
+          message.role === 'user' && JSON.stringify(message.content).includes('User task:'),
+      ).length;
       const answer = `ACK turn ${n}`;
       if (body.stream) {
         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
@@ -137,20 +141,33 @@ test(
       JSON.stringify(request.messages).includes('User task:'),
     );
     assert.deepEqual(
-      turns.map(request => request.messages.filter(message => message.role === 'user').length),
+      turns.map(
+        request =>
+          request.messages.filter(
+            message =>
+              message.role === 'user' && JSON.stringify(message.content).includes('User task:'),
+          ).length,
+      ),
       [1, 2, 3],
     );
     assert.ok(JSON.stringify(turns[2].messages).includes(token));
     assert.ok(
       turns[2].messages.some(
-        message => message.role === 'assistant' && message.content === 'ACK turn 2',
+        message =>
+          message.role === 'assistant' && JSON.stringify(message.content).includes('ACK turn 2'),
       ),
     );
     await run('Changed model. Reply ACK.', chatId, 'test-second');
     const last = requests
       .filter(request => JSON.stringify(request.messages).includes('User task:'))
       .at(-1);
-    assert.equal(last.messages.filter(message => message.role === 'user').length, 1);
+    assert.equal(
+      last.messages.filter(
+        message =>
+          message.role === 'user' && JSON.stringify(message.content).includes('User task:'),
+      ).length,
+      1,
+    );
     await run('Interrupt this pending turn.', chatId, 'test-second', true);
     await run('Continue after interruption.', chatId, 'test-second');
     const resumed = requests

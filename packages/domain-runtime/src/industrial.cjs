@@ -434,7 +434,7 @@ class IndustrialRuntime {
         projectDir: this.projectDir,
         project: this.project,
       });
-      if (!sameInputs(after.inputHashes, action.inputHashes))
+      if (tool.descriptor.effect !== 'inputs' && !sameInputs(after.inputHashes, action.inputHashes))
         verification = {
           ...verification,
           status: 'insufficient_evidence',
@@ -460,7 +460,11 @@ class IndustrialRuntime {
     let next = state;
     // Read-only host diagnostics are recorded as Actions/Checkpoints, but must
     // not replace a design's accepted state, artifacts or verification evidence.
-    if (permitted && tool.descriptor.risk === 'mutating')
+    if (
+      permitted &&
+      tool.descriptor.risk === 'mutating' &&
+      !['inputs', 'external'].includes(tool.descriptor.effect)
+    )
       next = DomainStateSchema.parse({
         ...state,
         id: crypto.randomUUID(),
@@ -474,6 +478,9 @@ class IndustrialRuntime {
         artifacts,
         verificationIds: [verification.id],
       });
+    // Input edits invalidate prior acceptance and retain its immutable evidence.
+    // File integrity is not an engineering verifier for the resulting design.
+    if (permitted && tool.descriptor.effect === 'inputs') next = await this.inspect();
     const checkpoint = this.transaction(() => {
       for (const artifact of artifacts) this.put('artifact', artifact.id, artifact);
       this.put('verification', verification.id, verification);

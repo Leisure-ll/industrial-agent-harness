@@ -321,7 +321,17 @@ async function runWithStore(options, output, environment, Session, chats, regist
         industrialRuntime: bundle?.runtime,
         protectedPaths: bundle?.protectedPaths,
         onIndustrialResult: result => {
-          scope.stateId = result.state.id;
+          const refreshed = resolveProjectTask(
+            options.domain,
+            { task: options.task, state: result.state },
+            scope,
+            [...registry.capabilities, ...bundle.capabilities],
+            disabled,
+            externalServers,
+            registry.domains,
+          );
+          Object.assign(scope, refreshed.scope);
+          broker.trace.push(...refreshed.trace);
           const event = { type: 'industrial_result', ...result };
           chats.append(turnId, event);
           send(event);

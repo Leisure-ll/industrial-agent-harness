@@ -290,7 +290,8 @@ test(
     const project = path.join(directory, 'project');
     fs.mkdirSync(project);
     const native =
-      process.env.KIMI_EXECUTABLE || path.join(repo, 'apps/desktop/.venv-kimi/bin/kimi');
+      process.env.KIMI_EXECUTABLE ||
+      require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
     assert.ok(fs.existsSync(native), 'Pinned Kimi is required; this test cannot be skipped.');
     const fixture = await startModel({
       success: 'CAD_GEOMETRY_RECORDED',
@@ -323,7 +324,7 @@ test(
     const hostTools = toolSnapshot('external.native-trap', [
       {
         name: 'call',
-        description: 'Host service unavailable to industrial tasks',
+        description: 'Registered host service must remain idle unless explicitly called',
         inputSchema: { type: 'object', properties: {} },
       },
     ]);
@@ -401,11 +402,10 @@ test(
     assert.equal(engineering.verification.status, 'passed', JSON.stringify(engineering));
     assert.ok(JSON.stringify(fixture.requests).includes('sketch_pad'));
     assert.equal(rows.at(-1).engineering.checkpointId, engineering.checkpoint.id);
-    assert.equal(fs.existsSync(marker), false, 'Unavailable host MCP must not start');
-    assert.ok(
-      rows.find(r => r.type === 'scope').trace.some(t => t.event === 'resource.execution-boundary'),
-    );
-    assert.ok(rows.some(r => r.type === 'execution_policy'));
+    assert.equal(fs.existsSync(marker), false, 'An unused registered host MCP must not start');
+    assert.ok(rows.find(r => r.type === 'scope').scope.tools.includes(hostTools[0].id));
+    assert.ok(rows.find(r => r.type === 'scope').trace.some(t => t.event === 'mcp.external.scope'));
+    assert.ok(JSON.stringify(fixture.requests).includes('external_tool_call'));
   },
 );
 test(

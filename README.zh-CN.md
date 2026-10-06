@@ -40,7 +40,7 @@ flowchart LR
 
 ## 快速开始
 
-准备 **Node.js 24+** 和 **pnpm 11.1.3**。实际运行 Agent 还需 **uv**、**Python 3.13**、固定版本的 Kimi CLI 和模型 API 配置。受保护的 Agent 支持 **macOS Apple Silicon（arm64）** 与具备 bubblewrap 的 **Linux x86-64**；使用其他平台前请查看[预览版范围](#预览版范围)。
+准备 **Node.js 24+** 和 **pnpm 11.1.3**。Kimi Code 2.1.1 随依赖安装，实际运行 Agent 需模型 API 配置；Chip MCP 另需 **uv** 和 **Python 3.13**。受保护的 Agent 支持 **macOS Apple Silicon（arm64）** 与具备 bubblewrap 的 **Linux x86-64**；使用其他平台前请查看[预览版范围](#预览版范围)。
 
 ```sh
 git clone https://github.com/Zhiman-BJ/industrial-agent-harness.git
@@ -72,7 +72,7 @@ pnpm dev
 
 在 **Settings → Model API** 配置模型，再添加本地工程并选择领域。打开右侧工作区即可浏览文件；查看文件不需要模型 API Key。
 
-准备脚本安装 **Kimi CLI 1.51.0**，接入层使用 **Kimi Agent SDK 0.1.8**。版图查看另需 KLayout Python，可运行 `pnpm --filter @industrial-agent-harness/desktop setup:layout`，或设置 `KLAYOUT_PYTHON`。
+准备脚本检查随包 **Kimi Code 2.1.1**，桌面和 CLI 共用认证 Server API 接入，不需要单独安装 Python Kimi。历史、诊断与兼容性边界见[迁移记录](doc/kimi-code-migration.md)。版图查看另需 KLayout Python，可运行 `pnpm --filter @industrial-agent-harness/desktop setup:layout`，或设置 `KLAYOUT_PYTHON`。
 
 ### 3. 在 macOS Apple Silicon 验证真实 RTL 闭环
 
@@ -81,8 +81,7 @@ pnpm dev
 ```sh
 brew install verilator
 (cd domain-packs/chip/eda-harness && uv sync --frozen --no-dev --python 3.13)
-KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" \
-  HARNESS_REQUIRE_CORE_NATIVE=1 pnpm run test:industrial-core
+HARNESS_REQUIRE_CORE_NATIVE=1 pnpm run test:industrial-core
 ```
 
 测试运行真实 RTL 仿真，检查断言、波形、失败处理、安装态 Pack 完整性和重启恢复。模型响应来自本地受控提供方，不消耗模型 API 额度，也不用于衡量模型能力。真实任务的准备方式和证据边界见[工业运行时说明](doc/p0-industrial-runtime.md)。
@@ -153,7 +152,7 @@ pnpm run format:check
 
 - **平台：** 桌面构建与首次启动 CI 目标为 macOS Apple Silicon（arm64）和 Windows x64。Intel Mac 暂不支持，不再发布 Intel 安装包或对应 Pack 目录目标；具备 Intel 测试机并完成安装及运行时验收后再恢复。签名安装器与真实升级仍需单独验收。
 - **受保护执行：** macOS 使用 Seatbelt；Linux x86-64 使用 bubblewrap/seccomp，需允许非特权用户命名空间。Windows 受保护 Agent 执行仍不可用。
-- **工具兼容性：** 旧 MCP 写入被阻止，受保护会话拒绝启用外部 MCP 服务与 Computer Use，等待这些能力接入 Runtime。
+- **工具兼容性：** 旧领域 MCP 写入仍受隔离限制；所有领域都有受控文件编辑、声明任务执行和经 Runtime 审计的外部 MCP。独立 Computer Use 插件仍不可用。
 - **工程验收：** 首条 Core 路径验证声明的 RTL/testbench 断言与证据；覆盖率充分性、物理签核和其他领域的完整闭环尚待实现与验收。
 - **打包与评测：** 已记录本地未签名桌面检查和受控模型验证；签名发行、跨平台完整资格验证和正式付费模型比较仍需分别完成。
 
@@ -164,3 +163,5 @@ pnpm run format:check
 项目自有贡献采用 **[MIT License](LICENSE)**，包括已获授权的 EDA Harness 与 EDA Harness demo 代码。
 
 内置渲染器、字体、依赖和单独安装的专业工具保留各自许可证，完整发行物并非全部采用 MIT。请查阅 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 和相关来源记录。本仓许可证不授予外部私有 PCB 资源的公众复用权。
+
+所有领域共用的初始化、编辑、本地/Docker 任务和外部 MCP 见[共享工程底座](doc/shared-workspace.md)。打包消费者 CI 验证空工程创建、失败和修复；专业工具、模型及签核由 Pack/工程负责。

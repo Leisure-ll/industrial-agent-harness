@@ -16,7 +16,8 @@ const { startModel } = require('./fixtures/session-resource-model.cjs');
 const execute = promisify(execFile);
 const root = path.resolve(__dirname, '../..');
 const executable =
-  process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+  process.env.KIMI_EXECUTABLE ||
+  require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
 
 test(
   'native idle eviction resumes saved Kimi context; another CLI process shares admission and resident limits',

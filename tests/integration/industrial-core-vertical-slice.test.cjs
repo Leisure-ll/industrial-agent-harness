@@ -163,7 +163,7 @@ test(
     const yaml = path.join(project, 'eda.yaml');
     fs.writeFileSync(
       yaml,
-      fs.readFileSync(yaml, 'utf8').replace('timeout_seconds: 30', 'timeout_seconds: 1'),
+      fs.readFileSync(yaml, 'utf8').replace('timeout_seconds: 60', 'timeout_seconds: 1'),
     );
     const runtime = open();
     t.after(() => runtime.close());
@@ -396,7 +396,8 @@ test(
   async t => {
     const { directory, project } = workspace(t);
     const native =
-      process.env.KIMI_EXECUTABLE || path.join(root, 'apps/desktop/.venv-kimi/bin/kimi');
+      process.env.KIMI_EXECUTABLE ||
+      require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
     assert.ok(fs.existsSync(native), 'The mandatory Core gate requires the pinned Kimi CLI.');
     const fixture = await startModel({
       success: 'CORE_VERIFICATION_RECORDED',
@@ -405,7 +406,7 @@ test(
         const id = prompt.match(/expectedStateId=([a-f0-9-]{36})/)?.[1];
         assert.ok(id, 'Real Kimi prompt must disclose the persisted DomainState identity.');
         return [
-          { name: 'Shell', arguments: { command: 'printf bypass > project/rtl/counter.sv' } },
+          { name: 'Bash', arguments: { command: 'printf bypass > project/rtl/counter.sv' } },
           {
             name: 'industrial_action_call',
             arguments: { toolId: 'chip.rtl.verify', inputs: {}, expectedStateId: id },
@@ -456,7 +457,13 @@ test(
         timeout: 90000,
         maxBuffer: 4 * 1024 * 1024,
       },
-    );
+    ).catch(error => {
+      // Node's Error inspector truncates large JSONL stdout before the final
+      // error row. Keep the useful tail in CI so failures remain diagnosable.
+      t.diagnostic('CLI stdout tail:\n' + String(error.stdout || '').slice(-24000));
+      t.diagnostic('CLI stderr tail:\n' + String(error.stderr || '').slice(-8000));
+      throw error;
+    });
     const rows = result.stdout.trim().split('\n').map(JSON.parse);
     assert.equal(rows.at(-1).status, 'finished', result.stderr + result.stdout);
     assert.deepEqual(fs.readFileSync(path.join(project, 'rtl/counter.sv')), before);

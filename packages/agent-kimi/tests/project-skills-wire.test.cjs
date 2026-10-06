@@ -48,8 +48,8 @@ test(
     }
     const fixture = await startModel({
       calls: [
-        { name: 'ReadFile', arguments: { path: files[0] } },
-        { name: 'Glob', arguments: { pattern: '*.sv', directory: fs.realpathSync(project) } },
+        { name: 'Read', arguments: { path: files[0] } },
+        { name: 'Glob', arguments: { pattern: '*.sv', path: fs.realpathSync(project) } },
       ],
       success: 'PROJECT_SKILL_READ',
     });

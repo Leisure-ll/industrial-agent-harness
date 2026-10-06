@@ -137,7 +137,8 @@ async function run(window) {
       `(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'Use the host screenshot and click');area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
     );
     await evaluate(`document.querySelector('.ia-send').click()`);
-    for (let index = 0; index < calls.length; index++) {
+    const approvals = calls.filter(call => call.name === 'external_tool_call').length;
+    for (let index = 0; index < approvals; index++) {
       await wait(`Boolean(document.querySelector('.ia-approval button'))`);
       if (index === 0) {
         const rejected = await evaluate(
@@ -156,6 +157,17 @@ async function run(window) {
       fixture.requests.some(request =>
         JSON.stringify(request.messages).includes('data:image/png;base64,'),
       ),
+    );
+    assert.ok(
+      fixture.requests.some(request =>
+        request.messages.some(message =>
+          (typeof message.content === 'string'
+            ? message.content
+            : message.content?.map(part => part.text || '').join('\n') || ''
+          ).includes('"total":3'),
+        ),
+      ),
+      'Empty discovery arguments must apply pagination defaults through the native SDK.',
     );
     fs.writeFileSync(
       path.join(evidence, 'external-mcp-chat.png'),
@@ -179,7 +191,7 @@ async function run(window) {
         desktop: true,
         cliShared: true,
         pinnedKimi: true,
-        approvals: calls.length,
+        approvals,
         nativeImage: true,
         busyChangeRejected: true,
         screenshotDirectory: evidence,

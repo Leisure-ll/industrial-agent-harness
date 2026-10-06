@@ -36,7 +36,10 @@ test('desktop chats share one actual persistent project runtime and reopen its f
       },
     ],
   };
-  const runtimes = new ProjectRuntimes({ directory: path.join(directory, 'state') });
+  const runtimes = new ProjectRuntimes({
+    directory: path.join(directory, 'state'),
+    environment: { INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(directory, 'config') },
+  });
   t.after(() => {
     runtimes.close();
     fs.rmSync(directory, { recursive: true, force: true });
@@ -53,4 +56,40 @@ test('desktop chats share one actual persistent project runtime and reopen its f
   assert.equal(reopened.runtime.latestCheckpoint().id, checkpoint.id);
   fs.appendFileSync(path.join(projectDir, 'design.txt'), ' changed');
   assert.notEqual((await reopened.runtime.inspect()).id, state.id);
+});
+test('external MCP changes made by another client renew an idle project Runtime and preserve its facts', async t => {
+  const { ExternalMcpRegistry } = require('@industrial-agent-harness/harness-core');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-mcp-runtime-')),
+    projectDir = path.join(directory, 'project');
+  fs.mkdirSync(projectDir);
+  const config = path.join(directory, 'config'),
+    registry = new ExternalMcpRegistry(config);
+  const runtimes = new ProjectRuntimes({
+    directory: path.join(directory, 'state'),
+    environment: { INDUSTRIAL_HARNESS_CONFIG_DIR: config },
+  });
+  t.after(() => {
+    runtimes.close();
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
+  const project = { path: projectDir, domain: 'example' },
+    packs = { runtimePacks: [] };
+  const first = runtimes.get(project, packs),
+    state = await first.runtime.inspect();
+  const server = path.resolve(
+    __dirname,
+    '../../../tests/integration/fixtures/external-mcp-server.cjs',
+  );
+  await registry.add(
+    JSON.stringify({ mcpServers: { host: { command: process.execPath, args: [server] } } }),
+  );
+  const next = runtimes.get(project, packs);
+  assert.notEqual(next, first);
+  assert.equal((await next.runtime.inspect()).id, state.id);
+  assert.ok(next.runtime.descriptors().some(tool => tool.effect === 'external'));
+  registry.remove('external.host');
+  const removed = runtimes.get(project, packs);
+  assert.notEqual(removed, next);
+  assert.ok(!removed.runtime.descriptors().some(tool => tool.effect === 'external'));
+  assert.equal((await removed.runtime.inspect()).id, state.id);
 });

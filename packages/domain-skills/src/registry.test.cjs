@@ -8,6 +8,7 @@ const { listSkills, skillFile, materializeSkills } = require('./registry.cjs');
 
 test('every capability skill has a repository file and only scoped skills reach Kimi', t => {
   const expected = new Set(capabilities.flatMap(item => item.skills.map(skill => skill.id)));
+  expected.add('project.work');
   assert.deepEqual(new Set(listSkills().map(item => item.id)), expected);
   for (const id of expected) assert.match(fs.readFileSync(skillFile(id), 'utf8'), /^---\nname:/);
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-skills-test-'));

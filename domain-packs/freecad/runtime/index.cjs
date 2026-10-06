@@ -272,6 +272,7 @@ function createRuntimePlugin({ environment = process.env } = {}) {
   const available = process.platform === 'darwin' && process.arch === 'arm64' && !!command;
   return {
     available,
+    workspaceProtectedPaths: projectDir => [path.join(projectDir, 'cad-output')],
     stateProvider: ({ projectDir }) => inspectInputs(projectDir),
     protectedPaths: [path.resolve(__dirname, '..')],
     tools: ['build', 'inspect', 'export', 'edit'].map(operation => ({

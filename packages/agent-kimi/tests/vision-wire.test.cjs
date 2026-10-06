@@ -7,12 +7,12 @@ const path = require('node:path');
 const { KimiSession } = require('../src/index.cjs');
 const { validateProfile, writeCliConfig, sessionEnv } = require('../src/model-config.cjs');
 
-// Opt-in integration: uses the pinned, installed CLI and SDK with a local API server.
+// Real integration: uses the pinned, bundled Kimi Code runtime with a local API server.
 // No credentials, model network, renderer, or substitute agent loop are involved.
 for (const provider of ['openai_legacy', 'kimi'])
   test(
     `real Kimi CLI delivers inline images through ${provider} and retains them in native history`,
-    { skip: !process.env.KIMI_EXECUTABLE, timeout: 45000 },
+    { skip: false, timeout: 45000 },
     async t => {
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kimi-vision-wire-'));
       const requests = [];
@@ -92,7 +92,14 @@ for (const provider of ['openai_legacy', 'kimi'])
       );
       assert.equal(requests.length, 1);
       assert.equal(requests[0].url, '/v1/chat/completions');
-      const firstUser = requests[0].body.messages.filter(message => message.role === 'user').at(-1);
+      const firstUser = requests[0].body.messages
+        .filter(
+          message =>
+            message.role === 'user' &&
+            Array.isArray(message.content) &&
+            message.content.some(part => part.type === 'image_url'),
+        )
+        .at(-1);
       assert.ok(
         firstUser,
         JSON.stringify({

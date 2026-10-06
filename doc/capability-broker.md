@@ -4,16 +4,16 @@ Capability Broker 是工业能力的本地调度层。它根据当前 Domain Sta
 
 ## 核心概念
 
-| 概念 | 含义 |
-| --- | --- |
-| Domain | 工业领域，例如 chip 或 pcb |
-| Domain State | 项目当前阶段、产物、问题和指标的结构化描述 |
-| Capability | 可执行的工业意图及其适用条件 |
+| 概念              | 含义                                                                             |
+| ----------------- | -------------------------------------------------------------------------------- |
+| Domain            | 工业领域，例如 chip 或 pcb                                                       |
+| Domain State      | 项目当前阶段、产物、问题和指标的结构化描述                                       |
+| Capability        | 可执行的工业意图及其适用条件                                                     |
 | Capability Bundle | 一个 Capability 对应的 skills、canonical tools、viewer、verification、依赖与冲突 |
-| Skill Batch | 当前任务需要的一组知识与流程说明 |
-| Tool Scope | 当前会话允许发现和调用的一组工具 |
-| Session Scope | 某会话当前激活的能力、skills 和 tools |
-| Disclosure Trace | 候选、筛选、披露、调用与范围变化的记录 |
+| Skill Batch       | 当前任务需要的一组知识与流程说明                                                 |
+| Tool Scope        | 当前会话允许发现和调用的一组工具                                                 |
+| Session Scope     | 某会话当前激活的能力、skills 和 tools                                            |
+| Disclosure Trace  | 候选、筛选、披露、调用与范围变化的记录                                           |
 
 例如芯片 placement 拥塞优化可以把密度调优、拥塞诊断、时序分析的 skills 与相关 OpenROAD 工具组合成一个 Bundle。PCB DRC 修复则应得到另一组能力，而不会看到芯片物理设计工具。
 
@@ -52,7 +52,7 @@ requires: [common.checkpoint]
 
 多个 Capability 可以合并，但要展开依赖、检测冲突、稳定去重并保留来源。Tool Scope 必须在实际调用边界实施 allowlist；只在提示词中列出允许工具不足以形成执行约束。对会修改项目的工具，还需要项目绑定和权限判定。
 
-Broker 可以先作为独立本地 Sidecar 实现，再与控制面和 MCP Gateway 协同部署。计划材料分别提出 REST/WebSocket、Kimi 本地 API、直接连接现有 MCP 以及统一 Gateway；这些是待验证的集成方案，不是已经确定的 SDK 能力。最终接口以 `@moonshot-ai/kimi-agent-sdk@0.1.8` 的实测结果和跨平台打包验证为准。
+Broker 可以先作为独立本地 Sidecar 实现，再与控制面和 MCP Gateway 协同部署。计划材料分别提出 REST/WebSocket、Kimi 本地 API、直接连接现有 MCP 以及统一 Gateway；这些是待验证的集成方案，不是已经确定的 SDK 能力。当前接口已迁至固定 Kimi Code 2.1.1 的公开 Server API，见 [迁移记录](kimi-code-migration.md)；跨平台打包仍需独立验收。
 
 ## Trace 与评估
 

@@ -1,6 +1,6 @@
 # 外部 MCP：Desktop / CLI 共用注册
 
-2026-10-04 边界更新：以下注册、管理与协议实现仍保留。实际受保护的工业 Kimi 会话会拒绝启用外部 MCP 应用服务；这类宿主服务须接入工业 Action 与证据边界后才能恢复组合执行。已注册服务可在项目中停用，CLI 用 `--disable-mcp external.<名称>`。下文的执行证据属于此前版本的协议验收，当前限制见[安全边界](../SECURITY.md)。
+2026-10-05 更新：显式注册的外部 MCP 已通过共享宿主 Runtime 调用，可与受保护的 Kimi 会话组合。每次调用重查审批、Scope、参数和服务快照，持久记录 Run/Action、脱敏响应和 Checkpoint；外部结果保持 not_run，不覆盖工程验收。独立应用控制插件仍受限制。
 
 外部服务可显式注册一次，在 Desktop 和 Chip / PCB / Godot CLI 包中共用。支持本地 stdio、Streamable HTTP 和旧 SSE；使用固定的官方 TypeScript MCP SDK 1.30.1。不自动安装服务、软件镜像或申请操作系统授权，也不读取项目里的任意 MCP 启动配置。
 
@@ -30,7 +30,7 @@ node industrial-harness.cjs mcp remove external.computer-use
       "command": "/absolute/path/to/mcp-server",
       "args": [],
       "cwd": "/absolute/existing/directory",
-      "envRefs": {"SERVICE_TOKEN": "COMPUTER_USE_TOKEN"}
+      "envRefs": { "SERVICE_TOKEN": "COMPUTER_USE_TOKEN" }
     }
   }
 }
@@ -46,7 +46,7 @@ node industrial-harness.cjs mcp remove external.computer-use
     "remote-host": {
       "url": "https://example.com/mcp",
       "type": "http",
-      "headerEnv": {"Authorization": "COMPUTER_USE_AUTH"}
+      "headerEnv": { "Authorization": "COMPUTER_USE_AUTH" }
     }
   }
 }
@@ -56,20 +56,22 @@ node industrial-harness.cjs mcp remove external.computer-use
 
 ## Scope、审批和结果
 
-通用服务在每个已有领域中可用，不生成新的工业 Capability 或 Domain。Broker 应用资源策略后，只把有效服务的 canonical Tool ID 放入 Scope 并记录 Trace。模型先获得 `external_tool_list / external_tool_describe / external_tool_call / external_tool_result_read` 四个固定入口，工具详情按需读取。原始工具名和 canonical ID 分开，不因重名调用另一服务。
+通用服务在每个已有领域中可用，不生成新的工业 Capability 或 Domain。Broker 应用资源策略后，只把有效服务的 canonical Tool ID 放入 Scope 并记录 Trace。模型先获得 `external_tool_list / external_tool_describe / external_tool_call` 三个固定入口，完整响应通过 `industrial_artifact_read` 分页，工具详情按需读取。原始工具名和 canonical ID 分开，不因重名调用另一服务。
 
 Gateway 调用前再次检查 ID、参数和当前服务的完整工具快照。发现新增、删除或 schema/描述变化时拒绝执行，要求 **Refresh tools**。配置、快照或引用环境值变化后，下一轮建立新 Kimi 会话段，保留产品历史；正在运行的 Gateway 使用固定 Scope。Desktop 禁止影响运行中聊天的配置修改；其他进程修改在下一轮生效，不承诺撤销已发出的操作。
 
-所有外部实际调用标为 mutating，不能靠服务自报 `readOnlyHint` 绕过 Kimi 审批。CLI 默认 `--approval reject`；自动批准需显式 `--approval approve`，将批准这一轮所有待审批操作。添加/刷新会启动用户选中的程序来发现工具，因此只添加可信服务。超时或失败不自动重发操作，返回说明“执行结果可能未知”，需检查软件实际状态后再决定重试。
+所有外部实际调用标为 mutating，不能靠服务自报 `readOnlyHint` 绕过 Runtime 审批。CLI 默认 `--approval reject`；自动批准需显式 `--approval approve`，将批准这一轮所有待审批操作。添加/刷新会启动用户选中的程序来发现工具，因此只添加可信服务。超时或失败不自动重发操作，返回说明“执行结果可能未知”，需检查软件实际状态后再决定重试。
 
-PNG/JPEG/WebP 原生 MCP ImageContent 继续传给 Kimi 模型，最多四张、合计 8 MiB；截图需视觉模型，Desktop 打开 Model API 的 Image input，CLI 使用 `--image-input`。文字最多 16 KiB，大返回在私有目录缓存并通过响应 ID 分页，单次与缓存总量上限 8 MiB。已知外部凭据在文本返回、缓存和诊断 JSONL 中脱敏；截图与工程资料仍按项目数据管理。
+PNG/JPEG/WebP 原生 MCP ImageContent 继续传给 Kimi 模型，最多四张；完整响应上限 4 MiB，超限明确失败并提示结果可能未知；截图需视觉模型，Desktop 打开 Model API 的 Image input，CLI 使用 `--image-input`。即时文字最多 64 KiB；完整响应以内容绑定的 report.external 保存，通过 industrial_artifact_read 按字节分页，单页最多 64 KiB。已知外部凭据在文本返回、缓存和诊断 JSONL 中脱敏；截图与工程资料仍按项目数据管理。
 
-**MCP roots 是上下文，不是操作系统沙箱**。computer-use 可控制项目之外的应用；权限由服务及操作系统决定。外部返回为 `verificationStatus: not_run`，不写入 DomainState 或产生工业验收结论。工业 Action 仍需独立 Domain Runtime / Verifier 接入，不能将外部 host 调用当作工业闭环完成。
+**MCP roots 是上下文，不是操作系统沙箱**。computer-use 可控制项目之外的应用；权限由服务及操作系统决定。外部返回为 `verificationStatus: not_run`，不替换 DomainState 的工程验收或产生工业验收结论。工业 Action 仍需独立 Domain Runtime / Verifier 接入，不能将外部 host 调用当作工业闭环完成。
 
 ## 持久化与验证
 
 注册存于 `~/.industrial-agent-harness/external-mcp.json`，与同目录 `resource-settings.json` 共用；`INDUSTRIAL_HARNESS_CONFIG_DIR` 可隔离二者，CLI 管理命令支持 `--config-dir`。POSIX 文件 0600，原子替换并用跨进程锁；损坏时明确失败，不静默覆盖。项目不保存启动命令。最多 16 个服务、每个 128 个工具、总计 512 个工具；超限或不支持的 schema 拒绝注册。会话私有配置包含执行所需凭据，不写入用户 `~/.kimi`。
 
-`pnpm test:external-mcp` 检查实际 stdio/HTTP/SSE、共享策略、越权/参数/快照变化、分页、脱敏及损坏。安装固定 Kimi CLI 1.51.0 后，还运行真实 Kimi 审批、拒绝后无 host 修改和 MCP 图片进入模型请求的测试；缺少 CLI 时该项明确跳过。
+`pnpm test:external-mcp` 检查实际 stdio/HTTP/SSE、共享策略、越权/参数/快照变化、分页、脱敏及损坏。使用随依赖安装的 Kimi Code 2.1.1，还运行真实 Kimi 审批、拒绝后无 host 修改和 MCP 图片进入模型请求的测试。原生 CI 缺少固定内核时直接失败。
 
-macOS Desktop：构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:external-mcp`，验证实际表单添加、CLI 共享读取、项目禁用、五次 Kimi 审批、图片输入、运行中拒绝修改、刷新/移除。受控模型与 MCP fixture 不代表任意供应商 computer-use 安装兼容性或屏幕录制/辅助功能权限已就绪。
+macOS Desktop：构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:external-mcp`，验证实际表单添加、CLI 共享读取、项目禁用、两次实际调用审批、无参分页默认值、图片输入、运行中拒绝修改、刷新/移除。发现和 schema 读取不启动服务，不请求修改审批。原生 macOS CI 强制该界面链路；受控模型与 MCP fixture 不代表任意供应商 computer-use 安装兼容性或屏幕录制/辅助功能权限已就绪。
+
+受保护会话不启动外部服务的 Kimi 子 MCP Gateway；同名发现/调用入口由 SDK 宿主 callback 进入 Runtime，参数可用 argumentsJson 保留数值与数组。跨进程注册变化拒绝旧调用，需开启新轮；失败、超时、取消不自动重发。桌面表单保持原有配置流程，修改服务后重建空闲 Runtime。真实 Kimi、打包 Chip CLI 及 stdio/HTTP/SSE 回归验证了该路径，不代表任意外部应用兼容。

@@ -85,7 +85,11 @@ const {
 const { SessionManager, finishTurn } = require('./session-manager.cjs');
 const { ProjectRuntimes } = require('./project-runtimes.cjs');
 const { CoreUpdater } = require('./updater.cjs');
-const { KimiSession } = require('@industrial-agent-harness/agent-kimi');
+const {
+  KimiSession,
+  bundledExecutable,
+  KIMI_CODE_VERSION,
+} = require('@industrial-agent-harness/agent-kimi');
 const { ObservedContextStore } = require('@industrial-agent-harness/domain-runtime');
 const {
   createGuiPlugin,
@@ -260,7 +264,6 @@ function sessionContext(entry) {
   );
   return entry.context;
 }
-const projectRuntimes = new ProjectRuntimes(contextStoreOptions());
 async function resolveSessionTask(entry, request, registry) {
   entry.runtimeBundle = projectRuntimes.get(entry.project, registry);
   const state = entry.runtimeBundle ? await entry.runtimeBundle.runtime.inspect() : null;
@@ -291,6 +294,13 @@ const resourceSettings = new ResourceSettings(
     : undefined,
 );
 const externalRegistry = new ExternalMcpRegistry(path.dirname(resourceSettings.file));
+const projectRuntimes = new ProjectRuntimes({
+  ...contextStoreOptions(),
+  environment: {
+    ...process.env,
+    INDUSTRIAL_HARNESS_CONFIG_DIR: path.dirname(resourceSettings.file),
+  },
+});
 const sessionResources = new SessionResourceManager({
   directory: path.dirname(resourceSettings.file),
 });
@@ -363,12 +373,7 @@ function readApiKey() {
 }
 function kimiExecutable() {
   if (process.env.KIMI_EXECUTABLE) return process.env.KIMI_EXECUTABLE;
-  const local = path.join(
-    desktopRoot,
-    '.venv-kimi',
-    process.platform === 'win32' ? 'Scripts/kimi.exe' : 'bin/kimi',
-  );
-  return fs.existsSync(local) ? local : 'kimi';
+  return bundledExecutable();
 }
 function modelStatus() {
   return {
@@ -782,13 +787,23 @@ function registerHandlers() {
     )
       return { available: true, version: 'SDK seam selftest', projectDir, configured: true };
     const executable = kimiExecutable();
-    const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 3000 });
+    const script = /\.[cm]?js$/.test(executable);
+    const command = script ? process.execPath : executable;
+    const prefix = script ? [executable] : [];
+    const probeOptions = {
+      encoding: 'utf8',
+      timeout: 10000,
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', KIMI_CODE_NO_AUTO_UPDATE: '1' },
+    };
+    const result = spawnSync(command, [...prefix, '--version'], probeOptions);
     const help =
-      result.status === 0
-        ? spawnSync(executable, ['--help'], { encoding: 'utf8', timeout: 3000 })
-        : null;
+      result.status === 0 ? spawnSync(command, [...prefix, 'web', '--help'], probeOptions) : null;
     const available =
-      !result.error && result.status === 0 && help?.status === 0 && help.stdout.includes('--wire');
+      !result.error &&
+      result.status === 0 &&
+      help?.status === 0 &&
+      result.stdout.trim() === KIMI_CODE_VERSION &&
+      help.stdout.includes('--no-open');
     return {
       available,
       version: available ? result.stdout.split('\n')[0].trim() : '',
@@ -869,6 +884,7 @@ function registerHandlers() {
     changingResources = true;
     try {
       await sessions.reset();
+      projectRuntimes.close();
       if (operation === 'add') return await externalRegistry.add(request?.configuration);
       if (typeof request?.id !== 'string') throw Error('Choose an external MCP service.');
       return operation === 'refresh'
@@ -1100,8 +1116,19 @@ function registerHandlers() {
         {
           industrialRuntime: entry.runtimeBundle?.runtime,
           protectedPaths: entry.runtimeBundle?.protectedPaths,
-          onIndustrialResult: result => {
-            entry.scope.stateId = result.state.id;
+          onIndustrialResult: async result => {
+            const registry = currentRegistry();
+            const refreshed = resolveProjectTask(
+              entry.project.domain,
+              { ...entry.resolvedRequest, state: result.state },
+              entry.scope,
+              [...registry.capabilities, ...entry.runtimeBundle.capabilities],
+              projectResourcePolicy(entry.project),
+              entry.externalServers,
+              registry.domains,
+            );
+            Object.assign(entry.scope, refreshed.scope);
+            entry.trace.push(...refreshed.trace);
             entry.agent.emit({ type: 'industrial-result', ...result });
           },
           resources: sessionResources,
