@@ -49,7 +49,8 @@ function loadRegistry() {
         })),
     };
   }
-  const bundles = new PackManager()
+  const manager = new PackManager();
+  const bundles = manager
     .list()
     .filter(bundle => !distributionDomain || bundle.domain === distributionDomain);
   const domains = bundles
@@ -97,6 +98,9 @@ function loadRegistry() {
         domain: pack.domain,
         version: pack.version,
         runtime: pack.runtime,
+        managed: true,
+        runtimeEnvironment: manager.runtimeAssets.environment(bundle.runtimeAssets),
+        runtimeProtectedPaths: [manager.runtimeAssets.directory],
         directory: path.join(bundle.location, 'domain-packs', pack.provider.packDirectory),
       })),
   );

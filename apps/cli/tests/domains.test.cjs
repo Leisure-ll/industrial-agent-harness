@@ -5,7 +5,12 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
-const { createArchive, digest, signCatalog } = require('@industrial-agent-harness/pack-manager');
+const {
+  PackManager,
+  createArchive,
+  digest,
+  signCatalog,
+} = require('@industrial-agent-harness/pack-manager');
 const { loadRegistry } = require('@industrial-agent-harness/domain-skills');
 const { runDomains } = require('../src/domains.cjs');
 const { run } = require('../src/main.cjs');
@@ -225,8 +230,19 @@ test('real Chip and PCB Packs install first; Godot can be added later without lo
     sink,
   );
   assert.equal(JSON.parse(sink.text.split('\n')[0]).scope.domain, 'godot');
-  if (process.platform === 'darwin') {
-    await runDomains(['install', 'cad', ...options], sink);
+  if (process.platform === 'darwin' && process.arch === 'arm64') {
+    // Registration can be checked without preparing a multi-gigabyte native
+    // dependency in the cross-platform unit suite. The mandatory macOS CAD
+    // installer gate exercises automatic preparation and real native tasks.
+    const manager = new PackManager({ directory: store, keys: JSON.parse(fs.readFileSync(keys)) });
+    const catalog = await manager.catalog('https://updates.example/catalog.json');
+    await manager.install(catalog.packs.find(item => item.domain === 'cad'));
+    assert.equal(
+      manager.runtimeAssets.status(
+        manager.list().find(item => item.domain === 'cad').runtimeAssets,
+      )[0].ready,
+      false,
+    );
     assert.deepEqual(
       loadRegistry().domains.map(item => item.id),
       ['cad', 'chip', 'godot', 'pcb'],

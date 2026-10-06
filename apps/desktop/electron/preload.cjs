@@ -11,6 +11,12 @@ const api = {
   domainAvailable: () => ipcRenderer.invoke('domains:available'),
   domainInstall: domains => ipcRenderer.invoke('domains:install', { domains }),
   domainRemove: domain => ipcRenderer.invoke('domains:remove', { domain }),
+  domainRepair: domain => ipcRenderer.invoke('domains:repair', { domain }),
+  onDomainProgress: callback => {
+    const listener = (_event, progress) => callback(progress);
+    ipcRenderer.on('domains:progress', listener);
+    return () => ipcRenderer.removeListener('domains:progress', listener);
+  },
   coreUpdateStatus: () => ipcRenderer.invoke('update:status'),
   coreUpdateCheck: () => ipcRenderer.invoke('update:check'),
   coreUpdateInstall: () => ipcRenderer.invoke('update:install'),

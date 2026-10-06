@@ -3,6 +3,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const zlib = require('node:zlib');
+const { RuntimeAssetManager, validateRuntimeAssets } = require('./runtime-assets.cjs');
 
 const MAX_COMPRESSED = 128 * 1024 * 1024;
 const MAX_EXPANDED = 512 * 1024 * 1024;
@@ -50,6 +51,7 @@ function safeRelative(value) {
 }
 
 function validateBundle(bundle) {
+  validateRuntimeAssets(bundle?.runtimeAssets);
   if (
     bundle?.schemaVersion !== 1 ||
     !ID.test(bundle.domain || '') ||
@@ -371,6 +373,8 @@ class PackManager {
     this.keys = keys;
     this.channel = channel;
     this.verifiedEntries = new WeakSet();
+    this.bundledEntries = new WeakMap();
+    this.runtimeAssets = new RuntimeAssetManager({ directory: this.directory });
   }
   stateFile() {
     return path.join(this.directory, 'installed.json');
@@ -538,7 +542,38 @@ class PackManager {
     }
     return catalog;
   }
-  async install(entry, { bytes, allowUnsigned = false } = {}) {
+  bundledCatalog(directory) {
+    // Only the adapter may supply Core-owned resources. Renderer/project paths
+    // never enter this trust boundary; the app signature protects this index.
+    const root = fs.realpathSync(directory);
+    const catalog = JSON.parse(fs.readFileSync(path.join(root, 'catalog.unsigned.json'), 'utf8'));
+    if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.packs))
+      throw Error('Invalid bundled catalog.');
+    for (const entry of catalog.packs) {
+      if (
+        !ID.test(entry.domain || '') ||
+        !VERSION.test(entry.version || '') ||
+        !SHA.test(entry.sha256 || '') ||
+        !Number.isSafeInteger(entry.size) ||
+        entry.size <= 0 ||
+        entry.size > MAX_COMPRESSED ||
+        !Array.isArray(entry.platforms)
+      )
+        throw Error('Invalid bundled Pack.');
+      const relative = safeRelative(entry.url),
+        file = fs.realpathSync(path.join(root, relative));
+      if (!file.startsWith(root + path.sep)) throw Error('Bundled Pack escaped Core resources.');
+      Object.freeze(entry.platforms);
+      Object.freeze(entry);
+      this.verifiedEntries.add(entry);
+      this.bundledEntries.set(entry, file);
+    }
+    return catalog;
+  }
+  async install(
+    entry,
+    { bytes, allowUnsigned = false, prepareRuntime = false, onProgress, signal } = {},
+  ) {
     if (!allowUnsigned && !this.verifiedEntries.has(entry))
       throw Error('Pack must come from a verified catalog.');
     if (
@@ -549,12 +584,21 @@ class PackManager {
       throw Error('Invalid Pack selection.');
     if (entry.platforms && !entry.platforms.includes(`${process.platform}-${process.arch}`))
       throw Error('Domain Pack does not support this platform.');
-    const archive = bytes || (await download(entry.url, entry.size));
+    const archive =
+      bytes ||
+      (this.bundledEntries.has(entry)
+        ? fs.readFileSync(this.bundledEntries.get(entry))
+        : await download(entry.url, entry.size));
     if (digest(archive) !== entry.sha256) throw Error('Domain Pack archive hash mismatch.');
+    if (archive.length !== entry.size) throw Error('Domain Pack archive size mismatch.');
     const { bundle, files } = decodeArchive(archive);
     if (bundle.domain !== entry.domain || bundle.version !== entry.version)
       throw Error('Domain Pack catalog identity mismatch.');
     if (bundle.coreApi !== 1) throw Error('Domain Pack requires another Core API.');
+    this.assertIdle(bundle.domain);
+    // A failed toolchain preparation must not activate an unusable Pack update.
+    if (prepareRuntime)
+      await this.runtimeAssets.ensure(bundle.runtimeAssets, { onProgress, signal });
     const parent = path.join(this.directory, bundle.domain);
     const target = path.join(parent, bundle.version);
     const staging = path.join(parent, `.staging-${crypto.randomUUID()}`);
@@ -620,4 +664,5 @@ module.exports = {
   defaultPackDirectory,
   digest,
   validateBundle,
+  RuntimeAssetManager,
 };

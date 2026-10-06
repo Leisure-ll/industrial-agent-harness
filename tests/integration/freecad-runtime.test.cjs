@@ -221,7 +221,7 @@ test(
 );
 test(
   'signed installed CAD Pack keeps its inventory intact and restores persisted acceptance after reopening',
-  { timeout: 150000 },
+  { timeout: 600000 },
   async t => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'installed-cad-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -252,8 +252,16 @@ test(
     } finally {
       global.fetch = fetch;
     }
+    if (process.env.HARNESS_FREECAD_ARCHIVE) {
+      const asset = require('../../packages/domain-skills/packs/freecad-local.json')
+        .runtimeAssets[0];
+      const cache = path.join(manager.runtimeAssets.directory, 'cache');
+      fs.mkdirSync(cache, { recursive: true });
+      fs.copyFileSync(process.env.HARNESS_FREECAD_ARCHIVE, path.join(cache, asset.sha256 + '.dmg'));
+    }
     await manager.install(entry, {
       bytes: fs.readFileSync(path.join(output, path.basename(entry.url))),
+      prepareRuntime: true,
     });
     const prior = process.env.INDUSTRIAL_HARNESS_PACK_STORE;
     process.env.INDUSTRIAL_HARNESS_PACK_STORE = manager.directory;

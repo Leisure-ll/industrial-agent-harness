@@ -21,7 +21,7 @@ Public source, headless archives, Domain Packs and desktop staging must include 
 
 ## External FreeCAD runtime
 
-FreeCAD 1.1.4 is an external prerequisite for the CAD Pack, downloaded separately from [official releases](https://github.com/FreeCAD/FreeCAD/releases/tag/1.1.4) for native acceptance. Its binaries are not distributed inside this repository or Pack archives. FreeCAD is primarily LGPL-2.1-or-later, with additional upstream component licenses; consult the official distribution notices and [upstream LICENSE](https://github.com/FreeCAD/FreeCAD/blob/1.1.4/LICENSE). Harness native bridge is original repository code under MIT.
+FreeCAD 1.1.4 is a managed dependency for the CAD Pack, downloaded separately from [official releases](https://github.com/FreeCAD/FreeCAD/releases/tag/1.1.4) for installation and native acceptance. The full upstream app, signature and bundled licenses are preserved in the user-owned runtime store. Its binaries are not distributed inside this repository or Pack archives. FreeCAD is primarily LGPL-2.1-or-later, with additional upstream component licenses; consult the official distribution notices and [upstream LICENSE](https://github.com/FreeCAD/FreeCAD/blob/1.1.4/LICENSE). Harness native bridge is original repository code under MIT.
 
 ## Bundled OCCT CAD visualization
 

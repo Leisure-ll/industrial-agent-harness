@@ -36,10 +36,8 @@ const features = {
     prerequisites: ['A Godot Web Export is required for project preview'],
   },
   cad: {
-    summary: 'FreeCAD parametric solid modelling, readback verification and CAD mesh viewer',
-    prerequisites: [
-      'FreeCAD 1.1.4 macOS arm64; configure INDUSTRIAL_HARNESS_FREECAD_CMD when outside /Applications',
-    ],
+    summary: 'FreeCAD parametric modelling, geometry verification and OCCT CAD viewer',
+    prerequisites: ['FreeCAD 1.1.4 is prepared automatically on Apple Silicon (620 MB download)'],
   },
 };
 const providerPacks = loadDomainPacks();
@@ -52,7 +50,7 @@ for (const [domain, [label, emoji]] of Object.entries(labels)) {
   if (selectedDomains && !selectedDomains.includes(domain)) continue;
   const platforms = (process.env.HARNESS_PACK_PLATFORMS || `${process.platform}-${process.arch}`)
     .split(',')
-    .filter(platform => domain !== 'cad' || platform.startsWith('darwin-'));
+    .filter(platform => domain !== 'cad' || platform === 'darwin-arm64');
   if (!platforms.length) continue;
   const directory = path.join(output, domain);
   fs.mkdirSync(directory, { recursive: true });
@@ -118,6 +116,7 @@ for (const [domain, [label, emoji]] of Object.entries(labels)) {
     ],
     skills,
     providerPacks: providers,
+    runtimeAssets: providers.flatMap(pack => pack.runtimeAssets || []),
   };
   fs.writeFileSync(path.join(directory, 'bundle.json'), JSON.stringify(bundle, null, 2) + '\n');
   const archive = createArchive(directory);
@@ -132,6 +131,7 @@ for (const [domain, [label, emoji]] of Object.entries(labels)) {
     prerequisites: bundle.prerequisites,
     sha256: digest(archive),
     size: archive.length,
+    runtimeDownloadSize: bundle.runtimeAssets.reduce((sum, asset) => sum + asset.size, 0),
     url: file,
     platforms,
   });

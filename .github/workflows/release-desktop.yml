@@ -53,6 +53,7 @@ jobs:
           node scripts/smoke-packaged-desktop.cjs
           node scripts/smoke-packaged-desktop.cjs --domains
           node scripts/smoke-packaged-kimi.cjs
+          node scripts/smoke-packaged-cad.cjs dist/ci-reports/cad-release-native
 
   installers:
     strategy:

@@ -31,9 +31,15 @@ function createProjectRuntime({
   if (root)
     for (const cached of Object.keys(require.cache))
       if (cached.startsWith(root + path.sep)) delete require.cache[cached];
-  const plugin = entry ? require(entry).createRuntimePlugin({ environment }) : {};
+  const plugin = entry
+    ? require(entry).createRuntimePlugin({
+        environment: { ...environment, ...pack.runtimeEnvironment },
+        managed: Boolean(pack.managed),
+      })
+    : {};
   const protectedPaths = [
     root,
+    ...(pack?.runtimeProtectedPaths || []),
     directory,
     ...(plugin.protectedPaths || []),
     ...(plugin.workspaceProtectedPaths?.(projectDir) || []),

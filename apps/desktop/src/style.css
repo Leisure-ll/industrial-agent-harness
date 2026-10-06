@@ -1550,6 +1550,24 @@ body,
   padding: 7px 0;
   font-size: 12px;
 }
+.ia-domain-progress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 0;
+}
+.ia-domain-progress progress {
+  flex: 1;
+  min-width: 100px;
+  accent-color: var(--ia-accent);
+}
+.ia-domain-readiness {
+  display: block;
+  color: var(--ia-muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
 .ia-domains-installed-row button,
 .ia-domains-actions button {
   border: 1px solid var(--ia-border);

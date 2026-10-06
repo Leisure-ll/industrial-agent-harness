@@ -212,6 +212,7 @@ export interface ViewerHostApi {
   domains(): Promise<DomainOption[]>;
   domainStatus(): Promise<{
     managed: boolean;
+    catalogWarning?: string;
     installed: Array<{
       domain: string;
       version: string;
@@ -219,6 +220,7 @@ export interface ViewerHostApi {
       emoji: string;
       summary?: string;
       prerequisites?: string[];
+      runtimeState?: 'ready' | 'needs-preparation' | null;
     }>;
     errors: Array<{ domain: string; version: string; message: string }>;
   }>;
@@ -231,11 +233,22 @@ export interface ViewerHostApi {
       summary?: string;
       prerequisites?: string[];
       size: number;
+      runtimeDownloadSize?: number;
       platforms: string[];
     }>
   >;
   domainInstall(domains: string[]): Promise<{ installed: DomainOption[] }>;
   domainRemove(domain: string): Promise<{ installed: DomainOption[] }>;
+  domainRepair(domain: string): Promise<{ installed: DomainOption[] }>;
+  onDomainProgress(
+    callback: (progress: {
+      domain: string;
+      label: string;
+      phase: 'downloading' | 'installing' | 'checking' | 'ready';
+      received?: number;
+      total?: number;
+    }) => void,
+  ): () => void;
   coreUpdateStatus(): Promise<CoreUpdateState>;
   coreUpdateCheck(): Promise<CoreUpdateState>;
   coreUpdateInstall(): Promise<void>;
