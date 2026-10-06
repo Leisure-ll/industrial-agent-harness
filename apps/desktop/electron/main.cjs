@@ -201,7 +201,7 @@ const coreUpdater = new CoreUpdater({
 });
 let sessionApiKey = '';
 let modelRevision = 0;
-let appSettings = { guiPluginEnabled: false, approvalMode: 'ask' };
+let appSettings = { guiPluginEnabled: false };
 let guiBridge;
 const chats = new ChatStore(
   process.argv.some(flag => flag.endsWith('-selftest'))
@@ -426,7 +426,7 @@ function startGuiInstall() {
       }),
     );
 }
-function runtimeConfig(project = activeProject(), externalServers = externalRegistry.records()) {
+function runtimeConfig(project, externalServers, chatId) {
   const profile = readProfile(configDir());
   const apiKey = readApiKey();
   return {
@@ -438,7 +438,7 @@ function runtimeConfig(project = activeProject(), externalServers = externalRegi
     env: sessionEnv(profile, apiKey),
     disabledMcpServers: projectResourcePolicy(project).mcpServers,
     externalServers,
-    approvalMode: appSettings.approvalMode,
+    approvalMode: chats.get(chatId, project.path, project.domain).approvalMode,
   };
 }
 
@@ -720,18 +720,6 @@ function registerHandlers() {
   ipcMain.handle('broker:trace', () => selectedSession().trace);
   ipcMain.handle('model:get', () => modelStatus());
   ipcMain.handle('settings:gui-state', () => guiBridgeState());
-  ipcMain.handle('settings:approval-mode', () => appSettings.approvalMode);
-  ipcMain.handle('settings:set-approval-mode', (event, mode) => {
-    if (
-      event.sender !== mainWindow?.webContents ||
-      event.senderFrame !== mainWindow.webContents.mainFrame
-    )
-      throw Error('Settings require the main app window.');
-    if (!['ask', 'auto'].includes(mode)) throw Error('Invalid approval mode.');
-    appSettings = { ...appSettings, approvalMode: mode };
-    saveSettings(configDir(), appSettings);
-    return mode;
-  });
   ipcMain.handle('settings:set-gui', (_event, { enabled }) => {
     appSettings = { ...appSettings, guiPluginEnabled: Boolean(enabled) };
     saveSettings(configDir(), appSettings);
@@ -974,6 +962,17 @@ function registerHandlers() {
     activeChatId = id;
     return history;
   });
+  ipcMain.handle('chat:set-approval-mode', (event, request) => {
+    chatRequest(event);
+    const project = activeProject();
+    if (request?.projectId !== project.id || request?.chatId !== activeChatId)
+      throw Error('Approval mode belongs to the selected chat.');
+    if (sessions.busy(sessions.find(request.chatId)))
+      throw Error('Stop this chat before changing approval mode.');
+    const mode = chats.setApprovalMode(request.chatId, project.path, project.domain, request.mode);
+    notifySessions();
+    return mode;
+  });
   ipcMain.handle('chat:delete', async (event, id) => {
     chatRequest(event);
     chats.get(id, projectDir, activeProject().domain);
@@ -1102,7 +1101,7 @@ function registerHandlers() {
         id => sessionContext(entry).readArtifact(id),
         id => loadDetail(id, entry),
         emit,
-        () => runtimeConfig(entry.project, entry.externalServers),
+        () => runtimeConfig(entry.project, entry.externalServers, entry.id),
         process.argv.includes('--parallel-selftest')
           ? require('./parallel-selftest.cjs').createSession
           : process.argv.includes('--image-input-selftest')

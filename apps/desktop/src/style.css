@@ -532,6 +532,22 @@ body,
   align-items: center;
   justify-content: space-between;
 }
+.ia-chat-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ia-chat-approval-mode {
+  max-width: 150px;
+  color: var(--ia-muted);
+  background: transparent;
+  border: 1px solid var(--ia-border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 11px;
+}
 .ia-context-select {
   display: flex;
   gap: 4px;

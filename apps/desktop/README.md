@@ -33,7 +33,7 @@ Desktop 与同一配置目录的 CLI 默认共用 4 个执行额度、6 个常�
 
 配置保存到 `~/.industrial-agent-harness/resource-settings.json`（权限 0600、原子替换），与 CLI 共用；`INDUSTRIAL_HARNESS_CONFIG_DIR` 可指定隔离配置目录。项目按真实目录绑定，原项目禁用列表首次启动时迁移为显式禁用，之后恢复继承不会再次迁移。资源变更关闭旧 Kimi session、清空 Broker Scope，下一任务重新解析；正在执行或准备任务时拒绝更改。该配置只管理资源启用，不修改项目源码或用户 Kimi 配置。
 
-**Settings → Approval mode** 可选 Request approval（默认）与 Auto approve。后者启用 Kimi 原生自动审批，对文件、Shell 与 MCP 操作不再逐次询问；运行中的轮次保持其启动时模式，下轮生效。Agent 的结构化提问显示在当前聊天，支持单选、多选、自定义答案和跳过，回答后原轮次继续；提交失败可重试。
+**对话输入框 → 审批模式** 可选 Request approval（默认）与 Auto approve，按对话保存，切换项目、对话和重启保留各自选择。新对话与没有偏好的旧对话默认请求审批，不继承旧的全局自动批准设置。Auto approve 启用 Kimi 原生自动审批，对当前对话的文件、Shell 与 MCP 操作不再逐次询问；运行中不能修改该对话的模式，其他空闲对话仍可独立设置。Agent 的结构化提问显示在当前聊天，支持单选、多选、自定义答案和跳过，回答后原轮次继续；提交失败可重试。
 
 审批提交期间禁用按钮，提交成功或 SDK `ApprovalResponse` 到达后折叠为 Approved/Rejected 记录，移除行动按钮；失败保留请求供重试，任务结束的未决请求标为过期。后端拒绝重复、过期和非法审批。`test:logs` 同时覆盖配置继承、项目隔离、正在运行时禁止改配置、审批失败重试/批准/拒绝/过期及现有日志读取。
 
