@@ -111,6 +111,9 @@ jobs:
           node scripts/smoke-packaged-desktop.cjs
           node scripts/smoke-packaged-desktop.cjs --domains
           node scripts/smoke-packaged-kimi.cjs
+      - name: Verify signed Apple Silicon CAD installer
+        if: matrix.platform == 'mac'
+        run: node scripts/smoke-packaged-cad.cjs dist/ci-reports/cad-signed-install --dmg
       - name: Upload install and OTA assets
         uses: actions/upload-artifact@v4
         with:
