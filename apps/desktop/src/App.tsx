@@ -235,6 +235,7 @@ export function App() {
     }
     chatIdRef.current = history.chat.id;
     setActiveChatId(history.chat.id);
+    setApprovalMode(history.chat.approvalMode);
     setTurns(history.turns);
     setHistoryBefore(history.before);
     setHasEarlier(history.hasMore);
@@ -272,6 +273,7 @@ export function App() {
     const selectedChat = list.chats.find(chat => chat.id === chatIdRef.current);
     setAgentBusy(Boolean(selectedSession?.running || selectedChat?.running));
     setAgentOwned(Boolean(selectedSession));
+    if (selectedChat) setApprovalMode(selectedChat.approvalMode);
     if (openSelected && list.activeId) {
       const selectedChatId = chatIdRef.current;
       const history = await readHistory(() =>
@@ -287,6 +289,7 @@ export function App() {
     } else if (openSelected) {
       chatIdRef.current = null;
       setActiveChatId(null);
+      setApprovalMode('ask');
       setTurns([]);
       setHasEarlier(false);
     }
@@ -392,10 +395,6 @@ export function App() {
     void window.viewerHost
       .modelGet()
       .then(profile => setModelImageInput(profile.imageInput))
-      .catch(reason => setError(String(reason)));
-    void window.viewerHost
-      .approvalMode()
-      .then(setApprovalMode)
       .catch(reason => setError(String(reason)));
     void window.viewerHost
       .domains()
@@ -756,6 +755,22 @@ export function App() {
       endNavigation();
     }
   }
+  async function changeChatApprovalMode(mode: 'ask' | 'auto') {
+    const chatId = chatIdRef.current;
+    const projectId = projectIdRef.current;
+    if (!chatId || !projectId || agentBusy || navigating || approvalModeBusy) return;
+    setApprovalModeBusy(true);
+    try {
+      const saved = await window.viewerHost!.setChatApprovalMode({ projectId, chatId, mode });
+      if (chatId === chatIdRef.current && projectId === projectIdRef.current)
+        setApprovalMode(saved);
+    } catch (reason) {
+      if (chatId === chatIdRef.current && projectId === projectIdRef.current)
+        setBrokerError(String(reason));
+    } finally {
+      setApprovalModeBusy(false);
+    }
+  }
   async function resolveTask(context?: { domain: string; stage: string }, prompt = task) {
     if (
       navigationPending.current ||
@@ -1098,8 +1113,7 @@ export function App() {
                         : agentStatus.gui.install !== 'ready'
                           ? t('Installing…')
                           : t(
-                              'Ready · v{0} · macOS: grant Screen Recording & Accessibility in System Settings → Privacy & Security.',
-                              { '0': agentStatus.gui.version || 'unknown' },
+                              'Desktop control is installed. On macOS, enable Screen Recording and Accessibility permissions in System Settings.',
                             )}
                   </p>
                 )}
@@ -1110,33 +1124,6 @@ export function App() {
                     )}
                   </p>
                 )}
-                <div className="ia-settings-row">
-                  <span>{t('Approval mode')}</span>
-                  <select
-                    aria-label={t('Approval mode')}
-                    value={approvalMode}
-                    disabled={approvalModeBusy}
-                    onChange={event => {
-                      const mode = event.target.value as 'ask' | 'auto';
-                      setApprovalModeBusy(true);
-                      void window
-                        .viewerHost!.setApprovalMode(mode)
-                        .then(setApprovalMode)
-                        .catch(reason => setError(String(reason)))
-                        .finally(() => setApprovalModeBusy(false));
-                    }}
-                  >
-                    <option value="ask">{t('Request approval')}</option>
-                    <option value="auto">{t('Auto approve')}</option>
-                  </select>
-                </div>
-                <p className="ia-settings-note">
-                  {approvalMode === 'auto'
-                    ? t(
-                        'Kimi can run tools without approval prompts, including file changes and external services. Questions still wait for your answer.',
-                      )
-                    : t('Kimi asks before actions that require approval.')}
-                </p>
                 <div className="ia-settings-row">
                   <span>{t('Model API')}</span>
                   <button
@@ -1432,11 +1419,34 @@ export function App() {
                     }}
                   />
                   <div className="ia-composer-footer">
-                    <DomainPill
-                      domain={fixedDomain}
-                      domains={domains}
-                      label={t('Session domain')}
-                    />
+                    <div className="ia-chat-controls">
+                      <DomainPill
+                        domain={fixedDomain}
+                        domains={domains}
+                        label={t('Session domain')}
+                      />
+                      <select
+                        className="ia-chat-approval-mode"
+                        aria-label={t('Approval mode for this chat')}
+                        title={
+                          approvalMode === 'auto'
+                            ? t(
+                                'Tools are automatically approved in this chat only. Questions still wait for your answer.',
+                              )
+                            : t(
+                                'Ask before actions in this chat. New chats use this mode by default.',
+                              )
+                        }
+                        value={approvalMode}
+                        disabled={!activeChatId || agentBusy || navigating || approvalModeBusy}
+                        onChange={event =>
+                          void changeChatApprovalMode(event.target.value as 'ask' | 'auto')
+                        }
+                      >
+                        <option value="ask">{t('Request approval')}</option>
+                        <option value="auto">{t('Auto approve')}</option>
+                      </select>
+                    </div>
                     <div className="ia-send-actions">
                       <ImageAttachButton
                         attachments={attachments}

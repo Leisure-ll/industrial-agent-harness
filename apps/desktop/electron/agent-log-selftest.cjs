@@ -547,13 +547,14 @@ async function run(window) {
       fs.readdirSync(path.join(evidence, 'state')).some(file => file.endsWith('.sqlite')),
       'self-test project observations stay in isolated user data',
     );
-    await evaluate(`document.querySelector('.ia-settings-button').click()`);
-    await wait(`Boolean(document.querySelector('select[aria-label="Approval mode"]'))`);
+    await wait(`Boolean(document.querySelector('.ia-chat-approval-mode:not(:disabled)'))`);
     await evaluate(
-      `(() => {const select=document.querySelector('select[aria-label="Approval mode"]');select.value='auto';select.dispatchEvent(new Event('change',{bubbles:true}));})()`,
+      `(() => {const select=document.querySelector('.ia-chat-approval-mode');select.value='auto';select.dispatchEvent(new Event('change',{bubbles:true}));})()`,
     );
-    await wait(`document.querySelector('select[aria-label="Approval mode"]')?.value==='auto'`);
-    assert.equal(await evaluate(`window.viewerHost.approvalMode()`), 'auto');
+    await wait(
+      `window.viewerHost.chats().then(list=>list.chats.find(chat=>chat.id===list.activeId)?.approvalMode==='auto')`,
+    );
+    assert.equal(await evaluate(`document.querySelector('.ia-chat-approval-mode').value`), 'auto');
     console.log(
       JSON.stringify({
         ok: true,

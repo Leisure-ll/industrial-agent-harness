@@ -67,6 +67,55 @@ test('desktop drafts reuse actual empty chats within the project/domain and pres
   );
 });
 
+test('approval mode is scoped to one chat, persists across stores and cannot change an executing chat', t => {
+  const { directory, project, store, openStore } = fixture(t);
+  const first = store.create(project, 'test-domain');
+  const second = store.create(project, 'test-domain');
+  assert.equal(first.approvalMode, 'ask');
+  assert.equal(store.setApprovalMode(first.id, project, 'test-domain', 'auto'), 'auto');
+  const reopened = openStore();
+  assert.equal(reopened.history(first.id, project, 'test-domain').chat.approvalMode, 'auto');
+  assert.equal(reopened.get(second.id, project, 'test-domain').approvalMode, 'ask');
+  assert.equal(reopened.create(project, 'test-domain').approvalMode, 'ask');
+  assert.equal(
+    store.list(project, 'test-domain').find(chat => chat.id === first.id).approvalMode,
+    'auto',
+  );
+  const other = path.join(directory, 'other');
+  fs.mkdirSync(other);
+  assert.throws(() => store.setApprovalMode(first.id, other, 'test-domain', 'auto'), /unavailable/);
+  assert.throws(
+    () => store.setApprovalMode(first.id, project, 'other-domain', 'auto'),
+    /unavailable/,
+  );
+  assert.throws(
+    () => store.setApprovalMode(first.id, project, 'test-domain', 'invalid'),
+    /Invalid/,
+  );
+  const release = store.acquire(first.id);
+  assert.throws(
+    () => reopened.setApprovalMode(first.id, project, 'test-domain', 'ask'),
+    /Stop this chat/,
+  );
+  store.setApprovalMode(second.id, project, 'test-domain', 'auto');
+  release();
+  const turn = store.beginTurn(first.id, 'held turn');
+  assert.throws(
+    () => store.setApprovalMode(first.id, project, 'test-domain', 'ask'),
+    /Stop this chat/,
+  );
+  store.finish(turn, 'finished');
+  store.setApprovalMode(first.id, project, 'test-domain', 'ask');
+  assert.equal(reopened.get(first.id, project, 'test-domain').approvalMode, 'ask');
+  assert.equal(reopened.get(second.id, project, 'test-domain').approvalMode, 'auto');
+  store.remove(first.id, project, 'test-domain');
+  assert.equal(
+    store.db.prepare('SELECT COUNT(*) AS n FROM chat_preferences WHERE chat_id = ?').get(first.id)
+      .n,
+    0,
+  );
+});
+
 test('concurrent desktop draft requests from separate processes create only one chat', async t => {
   const { directory, project, store } = fixture(t);
   t.after(() => store.close());

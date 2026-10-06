@@ -373,8 +373,11 @@ export interface ViewerHostApi {
     chatId?: string,
   ): Promise<void>;
   answerAgentQuestion(id: string, answers: Record<string, string>, chatId?: string): Promise<void>;
-  approvalMode(): Promise<'ask' | 'auto'>;
-  setApprovalMode(mode: 'ask' | 'auto'): Promise<'ask' | 'auto'>;
+  setChatApprovalMode(request: {
+    projectId: string;
+    chatId: string;
+    mode: 'ask' | 'auto';
+  }): Promise<'ask' | 'auto'>;
   interruptAgent(chatId?: string): Promise<void>;
   onAgentEvent(callback: (event: AgentEvent) => void): () => void;
 }
@@ -653,6 +656,7 @@ export interface SessionStatus {
 }
 export interface ChatSummary {
   id: string;
+  approvalMode: 'ask' | 'auto';
   running?: boolean;
   awaitingApproval?: boolean;
   awaitingQuestion?: boolean;

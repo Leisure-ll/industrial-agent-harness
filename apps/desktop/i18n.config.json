@@ -128,17 +128,25 @@
       "en": "Installing…",
       "zh-CN": "正在安装…"
     },
-    "Ready · v{0} · macOS: grant Screen Recording & Accessibility in System Settings → Privacy & Security.": {
-      "en": "Ready · v{0} · macOS: grant Screen Recording & Accessibility in System Settings → Privacy & Security.",
-      "zh-CN": "已就绪 · v{0} · macOS：请在系统设置 → 隐私与安全性中授予屏幕录制和辅助功能权限。"
+    "Desktop control is installed. On macOS, enable Screen Recording and Accessibility permissions in System Settings.": {
+      "en": "Desktop control is installed. On macOS, enable Screen Recording and Accessibility permissions in System Settings.",
+      "zh-CN": "桌面操作组件已安装。macOS 上需在系统设置中开启屏幕录制和辅助功能权限。"
     },
     "Enabling installs the computer-use engine and lets Kimi drive desktop apps. It can be disabled at any time.": {
       "en": "Enabling installs the computer-use engine and lets Kimi drive desktop apps. It can be disabled at any time.",
       "zh-CN": "开启后将安装桌面操作引擎，让 Kimi 操作桌面应用。可随时关闭。"
     },
-    "Approval mode": {
-      "en": "Approval mode",
-      "zh-CN": "审批模式"
+    "Approval mode for this chat": {
+      "en": "Approval mode for this chat",
+      "zh-CN": "当前对话的审批模式"
+    },
+    "Tools are automatically approved in this chat only. Questions still wait for your answer.": {
+      "en": "Tools are automatically approved in this chat only. Questions still wait for your answer.",
+      "zh-CN": "仅当前对话自动批准工具操作；提问仍等待你回答。"
+    },
+    "Ask before actions in this chat. New chats use this mode by default.": {
+      "en": "Ask before actions in this chat. New chats use this mode by default.",
+      "zh-CN": "当前对话的操作先请求审批。新对话默认使用此模式。"
     },
     "Request approval": {
       "en": "Request approval",

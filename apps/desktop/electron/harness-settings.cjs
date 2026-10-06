@@ -11,10 +11,9 @@ function readSettings(directory) {
     const value = JSON.parse(fs.readFileSync(settingsFile(directory), 'utf8'));
     return {
       guiPluginEnabled: Boolean(value.guiPluginEnabled),
-      approvalMode: value.approvalMode === 'auto' ? 'auto' : 'ask',
     };
   } catch {
-    return { guiPluginEnabled: false, approvalMode: 'ask' };
+    return { guiPluginEnabled: false };
   }
 }
 

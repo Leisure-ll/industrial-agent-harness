@@ -43,8 +43,7 @@ const api = {
   agentStatus: () => ipcRenderer.invoke('agent:status'),
   guiState: () => ipcRenderer.invoke('settings:gui-state'),
   setGuiPlugin: enabled => ipcRenderer.invoke('settings:set-gui', { enabled }),
-  approvalMode: () => ipcRenderer.invoke('settings:approval-mode'),
-  setApprovalMode: mode => ipcRenderer.invoke('settings:set-approval-mode', mode),
+  setChatApprovalMode: request => ipcRenderer.invoke('chat:set-approval-mode', request),
   onGuiProgress: callback => {
     const listener = (_event, value) => callback(value);
     ipcRenderer.on('settings:gui-progress', listener);
