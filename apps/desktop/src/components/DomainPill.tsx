@@ -1,5 +1,6 @@
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import type { DomainOption } from '@industrial-agent-harness/viewer-builtin/api';
+import { Layers3 } from 'lucide-react';
 
 export function DomainPill({
   domain,
@@ -18,7 +19,7 @@ export function DomainPill({
       role="status"
       aria-label={`${t(label || 'Domain')}: ${t(selected?.label || domain || 'None')}`}
     >
-      <span aria-hidden="true">{selected?.emoji || '✨'}</span>
+      <span aria-hidden="true">{selected?.emoji || <Layers3 size={13} />}</span>
       <span>{t(selected?.label || domain || 'No domain')}</span>
     </span>
   );

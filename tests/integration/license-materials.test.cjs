@@ -9,6 +9,7 @@ test('public source retains original license and bundled component notices witho
     'LICENSE',
     'THIRD_PARTY_NOTICES.md',
     'SECURITY.md',
+    'apps/desktop/src/assets/fonts/OFL.txt',
     'packages/viewer-builtin/src/kicad/vendor/LICENSE.md',
     'packages/viewer-builtin/src/kicad/vendor/earcut-LICENSE',
     'packages/viewer-builtin/src/kicad/vendor/newstroke-NOTICES.txt',
@@ -23,4 +24,23 @@ test('public source retains original license and bundled component notices witho
   assert.match(notices, /excluded from public bundles/);
   assert.match(notices, /copyright holder explicitly granted MIT/);
   assert.ok(fs.statSync(path.join(root, 'domain-packs/chip/eda-harness/LICENSE')).size > 100);
+});
+
+test('desktop staging retains the bundled font license and provenance', () => {
+  const os = require('node:os');
+  const { copyDesktopNotices } = require('../../scripts/release-notices.cjs');
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-font-notices-'));
+  try {
+    copyDesktopNotices(target);
+    assert.equal(
+      fs.readFileSync(path.join(target, 'licenses/ibm-plex-sans/OFL.txt'), 'utf8'),
+      fs.readFileSync(path.join(root, 'apps/desktop/src/assets/fonts/OFL.txt'), 'utf8'),
+    );
+    assert.match(
+      fs.readFileSync(path.join(target, 'licenses/ibm-plex-sans/README.md'), 'utf8'),
+      /@fontsource-variable\/ibm-plex-sans@5\.3\.0/,
+    );
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+  }
 });

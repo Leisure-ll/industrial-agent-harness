@@ -12,6 +12,7 @@ function copyReleaseNotices(target, root = path.resolve(__dirname, '..')) {
 
 function copyDesktopNotices(target, root = path.resolve(__dirname, '..')) {
   const groups = [
+    ['apps/desktop/src/assets/fonts', 'ibm-plex-sans'],
     ['packages/viewer-builtin/src/kicad/vendor', 'kicanvas'],
     ['packages/viewer-builtin/src/waveform/surfer', 'surfer'],
     ['packages/viewer-builtin/src/cad/occt', 'occt'],
@@ -22,7 +23,7 @@ function copyDesktopNotices(target, root = path.resolve(__dirname, '..')) {
     for (const name of fs.readdirSync(path.join(root, source)))
       if (group === 'occt' && ['native', 'source'].includes(name))
         fs.cpSync(path.join(root, source, name), path.join(destination, name), { recursive: true });
-      else if (/license|notice|readme|manifest|exception/i.test(name))
+      else if (/license|notice|readme|manifest|exception|ofl/i.test(name))
         fs.copyFileSync(path.join(root, source, name), path.join(destination, name));
   }
   fs.copyFileSync(

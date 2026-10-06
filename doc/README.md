@@ -47,6 +47,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [配对评测基线](benchmark-baseline.md) | 原生 Kimi/Harness、冻结输入、独立验收与正式结果边界 |
 | [早期开发计划](development-plan.md) | 两份原始 Plan 的阶段性整理；里程碑顺序以新的实施路线图为准 |
 | [产品决策记录](product-decisions.md) | 已确认的用户交互与项目模型决定，包括 Project、目录、Domain 和 Session 的关系 |
+| [桌面 UI 优化](desktop-ui-refinement.md) | Impeccable 产品模式、设计系统、首次使用与项目导航、主题与窗口验收 |
 | [桌面语言切换](desktop-languages.md) | 中英文与跟随系统、偏好保存、自有控件范围、状态保留与验证 |
 | [架构决策记录](decisions.md) | 已确定的决定、提案间的差异和需要验证的接口 |
 | [27B / 256k 上下文适配计划](27b-256k-context-plan.md) | Kimi 接入的输出边界、会话复用、观测与后续评测门禁 |

@@ -1,7 +1,7 @@
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useState } from 'react';
 import { ResourceSettings } from './ResourceSettings';
-import { FolderOpen, MessageSquarePlus } from 'lucide-react';
+import { MessageSquarePlus } from 'lucide-react';
 import type { DomainOption, ProjectBinding } from '@industrial-agent-harness/viewer-builtin/api';
 
 export function ProjectDetails({
@@ -44,11 +44,23 @@ export function ProjectDetails({
   return (
     <div className="ia-project-page">
       <div className="ia-project-page-inner">
-        <span className="ia-project-page-icon">
-          <FolderOpen size={21} />
-        </span>
-        <h1>{project.name}</h1>
-        <p className="ia-project-page-subtitle">{t('Project details')}</p>
+        <div className="ia-project-page-heading">
+          <div>
+            <h1>{project.name}</h1>
+            <p className="ia-project-page-subtitle">{t('Project details')}</p>
+          </div>
+          <button
+            className="ia-project-start"
+            onClick={() => void onNewChat()}
+            disabled={busy || !project.domain}
+          >
+            <MessageSquarePlus size={15} />
+            {t('New chat')}
+          </button>
+        </div>
+        {!project.domain && (
+          <p className="ia-project-hint">{t('Select and save a domain to start a chat.')}</p>
+        )}
         <div className="ia-project-properties">
           <div className="ia-project-property">
             <span>{t('Local directory')}</span>
@@ -89,17 +101,6 @@ export function ProjectDetails({
           onChanged={onResourcesChanged}
         />
         {error && <p className="ia-project-error">{t(error)}</p>}
-        <button
-          className="ia-project-start"
-          onClick={() => void onNewChat()}
-          disabled={busy || !project.domain}
-        >
-          <MessageSquarePlus size={15} />
-          {t('New chat')}
-        </button>
-        {!project.domain && (
-          <p className="ia-project-hint">{t('Select and save a domain to start a chat.')}</p>
-        )}
       </div>
     </div>
   );

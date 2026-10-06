@@ -2,6 +2,7 @@ import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
+  ArrowUp,
   Bug,
   ChevronDown,
   ChevronRight,
@@ -854,7 +855,7 @@ export function App() {
     >
       <div className="ia-columns">
         {leftOpen && (
-          <aside className="ia-tree ia-sidebar">
+          <aside className="ia-tree ia-sidebar" aria-label={t('Project navigation')}>
             <div className="ia-sidebar-brand">
               <span className="ia-product-mark">
                 <Cpu size={16} />
@@ -864,6 +865,7 @@ export function App() {
                 className="ia-icon"
                 onClick={() => setLeftOpen(false)}
                 title={t('Hide sidebar')}
+                aria-label={t('Hide sidebar')}
               >
                 <PanelLeftClose size={16} />
               </button>
@@ -889,6 +891,7 @@ export function App() {
                       className={`ia-project-row ${active ? 'selected' : ''}`}
                       onClick={() => void selectProject(item.id)}
                       title={item.path}
+                      aria-current={active && page === 'project' ? 'page' : undefined}
                       disabled={navigating || submitting.current}
                     >
                       <FolderOpen size={15} />
@@ -988,6 +991,7 @@ export function App() {
               <button
                 className="ia-settings-button"
                 onClick={() => setSettingsOpen(value => !value)}
+                aria-expanded={settingsOpen}
               >
                 <Settings2 size={16} />
                 {t('Settings')} <ChevronRight size={14} />
@@ -997,7 +1001,11 @@ export function App() {
               <div className="ia-settings-popover">
                 <div className="ia-settings-title">
                   <b>{t('Settings')}</b>
-                  <button className="ia-icon" onClick={() => setSettingsOpen(false)}>
+                  <button
+                    className="ia-icon"
+                    onClick={() => setSettingsOpen(false)}
+                    aria-label={t('Close settings')}
+                  >
                     ×
                   </button>
                 </div>
@@ -1169,12 +1177,22 @@ export function App() {
                   className="ia-icon"
                   onClick={() => setLeftOpen(true)}
                   title={t('Show sidebar')}
+                  aria-label={t('Show sidebar')}
                 >
                   <PanelLeftOpen size={16} />
                 </button>
               )}
-              <Folder size={14} />
-              <b>{projectName}</b>
+              <button
+                className="ia-header-project"
+                onClick={() => setPage('project')}
+                disabled={!activeProject}
+                title={activeProject?.path}
+                aria-label={t('Project details: {0}', { '0': projectName })}
+              >
+                <Folder size={16} />
+                <b>{projectName}</b>
+                {activeProject && <ChevronDown size={13} />}
+              </button>
             </div>
             <div className="ia-chat-actions">
               <button
@@ -1190,12 +1208,16 @@ export function App() {
                 className={debug ? 'active' : ''}
                 onClick={() => setDebug(value => !value)}
                 title={t('Toggle debug logs')}
+                aria-label={t('Toggle debug logs')}
+                aria-pressed={debug}
               >
                 <Bug size={15} />
               </button>
               <button
                 onClick={() => setRightOpen(value => !value)}
                 title={rightOpen ? t('Hide workspace') : t('Show workspace')}
+                aria-label={rightOpen ? t('Hide workspace') : t('Show workspace')}
+                aria-pressed={rightOpen}
               >
                 {rightOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
               </button>
@@ -1236,15 +1258,48 @@ export function App() {
                 )}
                 {!turns.length && (
                   <div className="ia-chat-welcome">
-                    <span className="ia-welcome-icon">
-                      <Cpu size={22} />
-                    </span>
-                    <h1>{t('What are you working on?')}</h1>
+                    <h1>
+                      {activeProject
+                        ? t('What are you working on?')
+                        : t('Start with your project.')}
+                    </h1>
                     <p>
-                      {t(
-                        'Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.',
-                      )}
+                      {activeProject
+                        ? t(
+                            'Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.',
+                          )
+                        : t(
+                            'Choose a local folder and a domain, then describe what you want to work on.',
+                          )}
                     </p>
+                    <div className="ia-welcome-actions">
+                      {activeProject ? (
+                        <>
+                          <button onClick={() => setPage('project')}>
+                            <Settings2 size={15} />
+                            {t('Project details')}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRightOpen(true);
+                              setFileTreeOpen(true);
+                            }}
+                          >
+                            <FolderOpen size={15} />
+                            {t('Browse project files')}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="ia-welcome-create"
+                          onClick={chooseProject}
+                          disabled={navigating || submitting.current}
+                        >
+                          <Plus size={16} />
+                          {t('New project')}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
                 {turns.map((turn, index) => (
@@ -1333,9 +1388,14 @@ export function App() {
                   )}
                   <textarea
                     aria-label={t('Engineering task')}
-                    placeholder={t('Ask about your project…')}
+                    aria-describedby="ia-composer-help"
+                    placeholder={
+                      activeProject
+                        ? t('Ask about your project…')
+                        : t('Create or choose a project to start…')
+                    }
                     value={task}
-                    disabled={agentBusy || navigating}
+                    disabled={agentBusy || navigating || !fixedDomain}
                     onChange={event => setTask(event.target.value)}
                     onKeyDown={event => {
                       if (
@@ -1369,6 +1429,7 @@ export function App() {
                               .catch(reason => setBrokerError(String(reason)));
                           }}
                           title={t('Stop agent')}
+                          aria-label={t('Stop agent')}
                         >
                           <Square size={14} />
                         </button>
@@ -1388,6 +1449,7 @@ export function App() {
                             turns.at(-1)?.status !== 'scoped'
                           }
                           title={t('Run with Kimi')}
+                          aria-label={t('Run with Kimi')}
                         >
                           <Play size={14} />
                         </button>
@@ -1398,25 +1460,39 @@ export function App() {
                         disabled={
                           navigating ||
                           agentBusy ||
+                          !fixedDomain ||
                           attachments.loading ||
                           (!task.trim() && !attachments.images.length) ||
                           (attachments.images.length > 0 && !modelImageInput)
                         }
                         title={t('Send task')}
+                        aria-label={t('Send task')}
                       >
-                        <ChevronRight size={17} />
+                        <ArrowUp size={18} />
                       </button>
                     </div>
                   </div>
                 </div>
+                <p id="ia-composer-help" className="ia-sr-only">
+                  {t('Press Enter to send. Press Shift+Enter for a new line.')}
+                </p>
                 <div className="ia-composer-hint">
-                  {!agentStatus?.available
-                    ? t('Kimi CLI is required to run Agent tasks')
-                    : !agentStatus.configured
-                      ? t('Configure the Model API in Settings to run Kimi')
-                      : !agentStatus.projectDir
-                        ? t('Choose a project to run Kimi')
-                        : t('Kimi ready')}
+                  <span role="status">
+                    {!activeProject
+                      ? t('Choose a project to run Kimi')
+                      : !agentStatus?.available
+                        ? t('Kimi CLI is required to run Agent tasks')
+                        : !agentStatus.configured
+                          ? t('Configure the Model API in Settings to run Kimi')
+                          : !agentStatus.projectDir
+                            ? t('Choose a project to run Kimi')
+                            : t('Kimi ready')}
+                  </span>
+                  <span className="ia-composer-shortcuts" aria-hidden="true">
+                    <kbd>Enter</kbd> {t('Send')}
+                    <span>·</span>
+                    <kbd>Shift Enter</kbd> {t('New line')}
+                  </span>
                 </div>
               </div>
             </>
@@ -1437,6 +1513,7 @@ export function App() {
                       setSelectedProjectFile('');
                     }}
                     title={t('Close file')}
+                    aria-label={t('Close file')}
                   >
                     <X size={13} />
                   </button>
@@ -1491,10 +1568,16 @@ export function App() {
                   className="ia-file-tree-toggle"
                   onClick={() => setFileTreeOpen(value => !value)}
                   title={fileTreeOpen ? t('Hide file tree') : t('Show file tree')}
+                  aria-label={fileTreeOpen ? t('Hide file tree') : t('Show file tree')}
+                  aria-pressed={fileTreeOpen}
                 >
                   {fileTreeOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
                 </button>
-                <button onClick={() => setRightOpen(false)} title={t('Hide workspace')}>
+                <button
+                  onClick={() => setRightOpen(false)}
+                  title={t('Hide workspace')}
+                  aria-label={t('Hide workspace')}
+                >
                   <X size={15} />
                 </button>
               </div>
