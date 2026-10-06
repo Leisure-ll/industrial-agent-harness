@@ -90,6 +90,8 @@ Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v
 
 需要下载包时，请查看 [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases)，并按对应版本说明安装。[无界面安装](apps/cli/README.md#github-release-安装)和[领域 CLI 分包](doc/domain-cli-downloads.md)提供校验与外部依赖说明。历史归档不会自动获得当前源码的新功能。
 
+Apple Silicon 桌面构建包含可选 CAD Pack。首次选择 CAD 会自动准备固定官方 FreeCAD；设置 → 领域显示就绪状态并提供修复。Core 内置 Kimi Code 2.1.1，用户填写模型 API 配置即可，不需要开发工具或命令路径配置。详见[构建、安装验收与发行边界](doc/macos-cad-distribution.md)。
+
 ## 领域扩展
 
 | 领域                                  | 预览版已提供                                                              | 依赖与限制                                                                                                   |
@@ -97,7 +99,7 @@ Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v
 | [Chip](domain-packs/chip/README.md)   | EDA 知识与工具注册、持久化的声明式 RTL 验证路径，以及波形、网表、版图查看 | Core 路径需要 Python 与 Verilator；其他 EDA 流程另需工具、镜像或 PDK，完整执行仍需接入 Runtime。             |
 | [PCB](doc/pcb-mcp-integration.md)     | KiCad 查看、受范围约束的工具注册和外部设计 Skill 加载                     | 完整工具和 Skill 需要授权的固定 PCB-bench checkout 与匹配 KiCad 环境；私有 actor 资源不包含在公开发行包内。  |
 | [Godot](domain-packs/godot/README.md) | 源码与素材检查、Web Export 查看和原生场景工具注册                         | 原生工具需要 Godot 4；Web Export 需要匹配导出模板与 Viewer Bridge，原生写工具仍需接入受保护的 Runtime 路径。 |
-| [CAD · FreeCAD](doc/freecad-domain-pack.md) | 参数化草图、拉伸、打孔、布尔建模和版本化参数/轮廓修改；FCStd/STEP/STL 导出、独立回读验证与 OCCT 查看 | 原生执行需 FreeCAD 1.1.4 macOS arm64；只支持受限原生特征，不验收机械强度或可制造性。 |
+| [CAD · FreeCAD](doc/freecad-domain-pack.md) | 参数化草图、拉伸、打孔、布尔建模和版本化参数/轮廓修改；FCStd/STEP/STL 导出、独立回读验证与 OCCT 查看 | 打包桌面版自动准备 FreeCAD 1.1.4 macOS arm64；只支持受限原生特征，不验收机械强度或可制造性。 |
 
 按 [Pack 作者教程](doc/pack-authoring.md)独立开发扩展。领域代码留在 Pack 内，共享 Core 与 Broker 不依赖具体领域。已注册、能够显示或原生烟测成功，均不代表完整工业工作流已经验收。
 

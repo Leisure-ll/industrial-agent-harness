@@ -90,6 +90,8 @@ For Linux x86-64 Chip users, the [one-command installer](releases/chip-linux-ins
 
 Prefer a packaged preview? Browse [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases) and follow that version's instructions. [Headless installation](apps/cli/README.md#github-release-安装) and [domain CLI packages](doc/domain-cli-downloads.md) cover checksums and external dependencies. Existing archives do not acquire newer source features automatically.
 
+Apple Silicon desktop builds include an optional CAD Pack. Select CAD on first launch to prepare the pinned official FreeCAD automatically; Settings → Domains provides readiness and repair. Core bundles Kimi Code 2.1.1. Users supply their model API configuration; CAD setup needs no development tools or command-path configuration. [Build, installation acceptance and release limits](doc/macos-cad-distribution.md).
+
 ## Domain Packs
 
 | Domain                                | Available in this preview                                                                                               | Dependencies and limits                                                                                                                                         |
@@ -97,7 +99,7 @@ Prefer a packaged preview? Browse [GitHub Releases](https://github.com/Zhiman-BJ
 | [Chip](domain-packs/chip/README.md)   | EDA knowledge and tool registration; a persistent, declared RTL verification path; waveform, netlist and layout viewers | Python and Verilator for the Core path; other EDA flows need their own tools, images or PDKs. Broader EDA execution still needs Runtime integration.            |
 | [PCB](doc/pcb-mcp-integration.md)     | KiCad viewers, scoped tool registration and external design Skill loading                                               | Full tools and Skills require an authorized, fixed PCB-bench checkout and matching KiCad environment. Private actor resources are excluded from public bundles. |
 | [Godot](domain-packs/godot/README.md) | Source and asset inspection, Web Export viewing and registered native scene tools                                       | Native tools require Godot 4; Web Export needs matching export templates and the Viewer Bridge. Native write tools still need the protected Runtime path.       |
-| [CAD · FreeCAD](doc/freecad-domain-pack.md) | Parametric sketches, pads, holes, boolean solids and versioned parameter/outline edits; FCStd/STEP/STL export, independent geometry readback and OCCT viewing | Requires FreeCAD 1.1.4 on macOS arm64 for native execution. Bounded native feature types; no mechanical strength or manufacturing acceptance. |
+| [CAD · FreeCAD](doc/freecad-domain-pack.md) | Parametric sketches, pads, holes, boolean solids and versioned parameter/outline edits; FCStd/STEP/STL export, independent geometry readback and OCCT viewing | Packaged Desktop prepares FreeCAD 1.1.4 automatically on macOS arm64. Bounded native feature types; no mechanical strength or manufacturing acceptance. |
 
 Build your own Pack with the [Pack authoring tutorial](doc/pack-authoring.md). Domain code lives in Packs; the shared Core and Broker remain independent of concrete domains. Registration, a rendered preview or a successful native smoke check does not imply a complete industrial workflow.
 

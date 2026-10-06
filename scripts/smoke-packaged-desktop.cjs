@@ -96,5 +96,5 @@ if (
   throw result.error || Error(`Packaged Desktop first-run smoke failed: ${result.status}`);
 }
 process.stdout.write(
-  `${process.argv.includes('--domains') ? 'Chip + PCB first install and Godot/CAD add-on passed' : 'First-run Domain selection passed'}: ${screenshot}\n`,
+  `${process.argv.includes('--domains') ? 'Chip + PCB first install and Godot add-on passed' : 'First-run Domain selection passed'}: ${screenshot}\n`,
 );

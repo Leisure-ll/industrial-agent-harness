@@ -14,3 +14,5 @@ pnpm --filter @industrial-agent-harness/desktop test:cad
 ```
 
 `scripts/setup-freecad.cjs` prepares the pinned official runtime for macOS arm64 CI. Its upstream download SHA and provenance are recorded in the integration guide.
+
+Apple Silicon packaged Desktop offers this Pack on first launch and automatically prepares the pinned official FreeCAD. Settings → Domains supports readiness and repair. Development command overrides remain supported outside the managed install. See [installation flow](../../doc/macos-cad-distribution.md).

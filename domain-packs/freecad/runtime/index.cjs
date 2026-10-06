@@ -5,13 +5,17 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { validateRecipe, validateInputs, applyChanges, guides } = require('./recipe.cjs');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
-const VERSION = '1.1.4-pack.2';
+const VERSION = '1.1.4-pack.3';
 
-function executable(environment) {
+function executable(environment, managed) {
   const candidates = [
     environment.INDUSTRIAL_HARNESS_FREECAD_CMD,
-    '/Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd',
-    path.join(os.homedir(), 'Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd'),
+    ...(!managed
+      ? [
+          '/Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd',
+          path.join(os.homedir(), 'Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd'),
+        ]
+      : []),
   ].filter(Boolean);
   return candidates.find(file => fs.existsSync(file));
 }
@@ -267,8 +271,8 @@ function verify({ result, artifacts, readArtifact, action }) {
     },
   };
 }
-function createRuntimePlugin({ environment = process.env } = {}) {
-  const command = executable(environment);
+function createRuntimePlugin({ environment = process.env, managed = false } = {}) {
+  const command = executable(environment, managed);
   const available = process.platform === 'darwin' && process.arch === 'arm64' && !!command;
   return {
     available,
@@ -288,7 +292,9 @@ function createRuntimePlugin({ environment = process.env } = {}) {
         validateInputs(operation, inputs);
         if (!available)
           throw Error(
-            'Install FreeCAD 1.1.4 for macOS arm64 and set INDUSTRIAL_HARNESS_FREECAD_CMD to its freecadcmd executable.',
+            managed
+              ? 'FreeCAD needs preparation. Open Settings → Domains and repair CAD.'
+              : 'Install FreeCAD 1.1.4 for macOS arm64 and set INDUSTRIAL_HARNESS_FREECAD_CMD to its freecadcmd executable.',
           );
         const outputRoot = path.join(projectDir, 'cad-output');
         if (

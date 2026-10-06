@@ -18,7 +18,10 @@ module.exports = {
     'THIRD_PARTY_NOTICES.md',
     'licenses/**/*',
   ],
-  extraResources: [{ from: 'pack-feed.json', to: 'pack-feed.json' }],
+  extraResources: [
+    { from: 'pack-feed.json', to: 'pack-feed.json' },
+    { from: 'bootstrap-packs', to: 'bootstrap-packs' },
+  ],
   asar: true,
   forceCodeSigning: release,
   mac: {

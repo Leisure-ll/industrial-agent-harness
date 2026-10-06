@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "id": "freecad-local",
   "domain": "cad",
-  "version": "1.1.4-pack.2",
+  "version": "1.1.4-pack.3",
   "provider": {
     "id": "freecad-local.runtime",
     "title": "FreeCAD 1.1.4 · persistent native tools",
     "domain": "cad",
-    "version": "1.1.4-pack.2",
+    "version": "1.1.4-pack.3",
     "transport": "runtime",
     "packDirectory": "freecad",
-    "sourceSha256": "1297905ab6aa5ddda7f107b96963e025dc57a624f52fb7c5c7b28d6b31d14477",
+    "sourceSha256": "4158fe9e76bbc8bebbb2d47a631768a65c723c7f9f6c22b0521baf9eaf3ef8fa",
     "tools": [
       {
         "id": "cad.freecad.build",
@@ -53,7 +53,7 @@
       "runtime"
     ],
     "sourceFiles": {
-      "runtime/index.cjs": "0102df40d198c3e59218f3cc7b7b611c0b771649cf91354cd20eefd76121768e",
+      "runtime/index.cjs": "3852041021af251eeeff4d4466e0bfbe2bda046a97daa4bf89a2e4f16b113724",
       "runtime/native.py": "b271d6760f104e0cc877bf9fa4ace304648047a3c138f7e57412373fcc20dab4",
       "runtime/recipe.cjs": "8d0f0dc69776359a590561c65c9ca51289bdb417294dddf99317438d080670f3"
     }
@@ -141,6 +141,31 @@
       "verification": [
         "cad.freecad.geometry"
       ]
+    }
+  ],
+  "runtimeAssets": [
+    {
+      "id": "freecad",
+      "label": "FreeCAD",
+      "version": "1.1.4",
+      "type": "macos-app-dmg",
+      "platform": "darwin-arm64",
+      "url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.4/FreeCAD_1.1.4-macOS-arm64-py311.dmg",
+      "sha256": "071343b4abb70492b75c973f41eaf1d2528f9b9c7ea018d22a4f46ae14d27ac0",
+      "size": 649760538,
+      "app": "FreeCAD.app",
+      "executable": "Contents/Resources/bin/freecadcmd",
+      "environment": "INDUSTRIAL_HARNESS_FREECAD_CMD",
+      "versionArgs": [
+        "--keep-deprecated-paths",
+        "--version"
+      ],
+      "versionText": "1.1.4",
+      "profileEnvironment": {
+        "FREECAD_USER_HOME": "home",
+        "FREECAD_USER_DATA": "data",
+        "FREECAD_USER_TEMP": "temp"
+      }
     }
   ]
 }

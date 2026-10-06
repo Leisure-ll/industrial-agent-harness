@@ -1,6 +1,6 @@
 # FreeCAD CAD Pack V1
 
-2026-10-04：首批面向 3D 零件建模。实际执行依赖官方 **FreeCAD 1.1.4 macOS arm64**；Windows/Linux 原生 CAD 执行尚未验收。Pack 包含 Harness 自有桥接代码与 Skill，不捆绑 FreeCAD 二进制。上游来源和许可证见 [FreeCAD 1.1.4](https://github.com/FreeCAD/FreeCAD/releases/tag/1.1.4) 与 [FreeCAD license](https://github.com/FreeCAD/FreeCAD/blob/1.1.4/LICENSE)。
+2026-10-04：首批面向 3D 零件建模。实际执行依赖官方 **FreeCAD 1.1.4 macOS arm64**；Windows/Linux 原生 CAD 执行尚未验收。Pack 包含 Harness 自有桥接代码、Skill 和固定依赖声明，不捆绑 FreeCAD 二进制。2026-10-06 起，Apple Silicon 桌面安装包内置可选 CAD Pack，选择后自动下载官方 DMG 并准备用户私有运行时；设置内可检查／修复，无需手动配置命令路径。开发源代码模式仍支持显式命令环境变量。见[分发说明](macos-cad-distribution.md)。上游来源和许可证见 [FreeCAD 1.1.4](https://github.com/FreeCAD/FreeCAD/releases/tag/1.1.4) 与 [FreeCAD license](https://github.com/FreeCAD/FreeCAD/blob/1.1.4/LICENSE)。
 
 ## 工具与执行
 

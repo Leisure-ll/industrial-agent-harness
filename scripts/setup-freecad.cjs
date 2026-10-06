@@ -50,7 +50,10 @@ async function main() {
     ),
   );
   if (process.env.GITHUB_ENV)
-    fs.appendFileSync(process.env.GITHUB_ENV, `INDUSTRIAL_HARNESS_FREECAD_CMD=${command}\n`);
+    fs.appendFileSync(
+      process.env.GITHUB_ENV,
+      `INDUSTRIAL_HARNESS_FREECAD_CMD=${command}\nHARNESS_FREECAD_ARCHIVE=${dmg}\n`,
+    );
   console.log(command);
 }
 main().catch(error => {

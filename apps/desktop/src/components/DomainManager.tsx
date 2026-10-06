@@ -9,6 +9,7 @@ type Installed = {
   emoji: string;
   summary?: string;
   prerequisites?: string[];
+  runtimeState?: 'ready' | 'needs-preparation' | null;
 };
 type Available = {
   domain: string;
@@ -18,6 +19,7 @@ type Available = {
   summary?: string;
   prerequisites?: string[];
   size: number;
+  runtimeDownloadSize?: number;
   platforms: string[];
 };
 
@@ -41,15 +43,24 @@ export function DomainManager({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [feedError, setFeedError] = useState('');
+  const [updateWarning, setUpdateWarning] = useState(false);
   const [managed, setManaged] = useState(false);
   const [diagnostics, setDiagnostics] = useState<Array<{ domain: string; message: string }>>([]);
+  const [progress, setProgress] = useState<{
+    label: string;
+    phase: string;
+    received?: number;
+    total?: number;
+  } | null>(null);
   useEffect(() => {
     dialog.current?.showModal();
     void refresh();
+    return window.viewerHost!.onDomainProgress(setProgress);
   }, []);
   async function refresh() {
     setLoading(true);
     setFeedError('');
+    setUpdateWarning(false);
     try {
       const status = await window.viewerHost!.domainStatus();
       setInstalled(status.installed);
@@ -59,6 +70,7 @@ export function DomainManager({
       if (status.managed) {
         try {
           setAvailable(await window.viewerHost!.domainAvailable());
+          setUpdateWarning(Boolean((await window.viewerHost!.domainStatus()).catalogWarning));
         } catch (reason) {
           setFeedError(String(reason));
           setAvailable([]);
@@ -73,6 +85,7 @@ export function DomainManager({
   async function install() {
     if (!selected.length || busy || saving) return;
     setSaving(true);
+    setProgress(null);
     setError('');
     try {
       const result = await window.viewerHost!.domainInstall(selected);
@@ -85,6 +98,23 @@ export function DomainManager({
       await refresh();
     } finally {
       setSaving(false);
+      setProgress(null);
+    }
+  }
+  async function repair(domain: string) {
+    if (busy || saving) return;
+    setSaving(true);
+    setError('');
+    setProgress(null);
+    try {
+      const result = await window.viewerHost!.domainRepair(domain);
+      onChanged(result.installed);
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      await refresh();
+      setSaving(false);
+      setProgress(null);
     }
   }
   async function remove(domain: string) {
@@ -108,14 +138,20 @@ export function DomainManager({
   }
   const installedById = new Map(installed.map(item => [item.domain, item]));
   const selectable = available.filter(
-    item => installedById.get(item.domain)?.version !== item.version,
+    item =>
+      !installedById.has(item.domain) ||
+      item.version.localeCompare(installedById.get(item.domain)!.version, 'en', { numeric: true }) >
+        0,
   );
   return (
     <dialog
       ref={dialog}
       className="ia-resource-modal ia-domains-modal"
       aria-label={t('Manage domains')}
-      onCancel={onClose}
+      onCancel={event => {
+        if (saving) event.preventDefault();
+        else onClose();
+      }}
     >
       <header>
         <div>
@@ -126,12 +162,41 @@ export function DomainManager({
               : t('Add missing domains and install available updates.')}
           </p>
         </div>
-        <button aria-label={t('Close domain manager')} onClick={onClose}>
+        <button aria-label={t('Close domain manager')} disabled={saving} onClick={onClose}>
           ×
         </button>
       </header>
       <div className="ia-domains-content">
         {loading && <p role="status">{t('Checking domains…')}</p>}
+        {updateWarning && (
+          <p role="status">{t('Updates unavailable. Bundled domains can still be installed.')}</p>
+        )}
+        {progress && (
+          <div className="ia-domain-progress" role="status">
+            <span>
+              {progress.label} ·{' '}
+              {t(
+                (
+                  {
+                    downloading: 'Downloading…',
+                    installing: 'Preparing…',
+                    checking: 'Checking…',
+                    ready: 'Ready to use',
+                  } as Record<string, string>
+                )[progress.phase] || 'Preparing…',
+              )}
+            </span>
+            {progress.phase === 'downloading' && (
+              <>
+                <progress max={progress.total} value={progress.received} />
+                <small>
+                  {((progress.received || 0) / 1024 / 1024).toFixed(0)} /{' '}
+                  {((progress.total || 0) / 1024 / 1024).toFixed(0)} MB
+                </small>
+              </>
+            )}
+          </div>
+        )}
         {error && (
           <p role="alert" className="ia-project-error">
             {t(error)}
@@ -176,12 +241,13 @@ export function DomainManager({
                         {current
                           ? `${current.version} → ${item.version}`
                           : t('Install {0}', { '0': item.version })}{' '}
-                        · {(item.size / 1024 / 1024).toFixed(1)} {t('MB download')}
+                        · {((item.size + (item.runtimeDownloadSize || 0)) / 1024 / 1024).toFixed(0)}{' '}
+                        {t('MB download')}
                       </small>
-                      {item.summary && <small>{item.summary}</small>}
+                      {item.summary && <small>{t(item.summary)}</small>}
                       {item.prerequisites?.length ? (
                         <small>
-                          {t('Needs:')} {item.prerequisites.join('; ')}
+                          {t('Needs:')} {item.prerequisites.map(text => t(text)).join('; ')}
                         </small>
                       ) : null}
                     </span>
@@ -199,7 +265,17 @@ export function DomainManager({
                   <div key={item.domain} className="ia-domains-installed-row">
                     <span>
                       {item.emoji} {t(item.label)} · {item.version}
+                      {item.runtimeState && (
+                        <small className="ia-domain-readiness">
+                          {t(item.runtimeState === 'ready' ? 'Ready to use' : 'Needs preparation')}
+                        </small>
+                      )}
                     </span>
+                    {item.runtimeState && (
+                      <button disabled={saving || busy} onClick={() => void repair(item.domain)}>
+                        {t(item.runtimeState === 'ready' ? 'Check / repair' : 'Prepare / retry')}
+                      </button>
+                    )}
                     <button disabled={saving || busy} onClick={() => void remove(item.domain)}>
                       {t('Remove')}
                     </button>
@@ -214,7 +290,9 @@ export function DomainManager({
           <button onClick={() => void refresh()} disabled={loading || saving}>
             {t('Check updates')}
           </button>
-          <button onClick={onClose}>{firstRun ? t('Skip for now') : t('Close')}</button>
+          <button disabled={saving} onClick={onClose}>
+            {firstRun ? t('Skip for now') : t('Close')}
+          </button>
           {managed && (
             <button
               className="ia-domains-primary"

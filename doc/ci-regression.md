@@ -28,6 +28,10 @@ POSIX 文件权限位断言只在 macOS/Linux 执行，Windows 的 ACL 需单独
 
 Linux/Windows 基础回归与 Windows 桌面启动不等于工业 Agent 验收。新增 `native-linux` 门禁和安装消费验证单独覆盖 Linux x86-64；Linux ARM64 与 Windows 工业 Agent 仍未支持。Intel Mac 按 [PD-036](product-decisions.md#pd-036暂停-intel-mac-支持) 暂停支持。签名发行、真实 OTA、真实模型 API 和完整工程任务评测仍属于独立发布验收。
 
+## Apple Silicon CAD 安装门禁
+
+桌面安装工作流从实际 DMG 复制 Core，首选 CAD 后由生产 Pack Manager 下载和准备固定官方 FreeCAD。清除开发命令路径，在独立 store 用真实 Kimi Code、审批、建模、尺寸修改、独立回读和 OCCT Viewer 验证，再测试损坏修复与重启。模型响应来自本地受控服务，不评价模型推理质量。证据包括 `acceptance.json`、`restart.json`、界面截图与实际工程输出，排除大型 app 和依赖缓存。原生 CAD 失败不能降级为仅检查注册或跳过。详见 [分发说明](macos-cad-distribution.md)。
+
 ## 本地复现
 
 先执行 `pnpm install --frozen-lockfile`，再按需要运行：
