@@ -126,7 +126,7 @@ test('exit zero, stale reports and malformed reports do not become acceptance; t
           test: {
             command: [process.execPath, '{input}/runner.cjs'],
             inputs: ['runner.cjs'],
-            timeoutMs: 200,
+            timeoutMs: mode === 'timeout' ? 200 : 10000,
             ...(mode === 'no-verifier'
               ? {}
               : { verification: { kind: 'checks-json', path: 'checks.json' } }),
@@ -142,10 +142,11 @@ test('exit zero, stale reports and malformed reports do not become acceptance; t
     );
     assert.notEqual(result.state.status, 'verified');
     assert.ok(result.artifacts.some(a => a.kind === 'log.task'));
-    if (mode === 'timeout') {
-      const report = result.artifacts.find(a => a.kind === 'report.execution');
-      assert.equal(JSON.parse(bundle.runtime.readArtifact(report.id).content).status, 'TIMEOUT');
-    }
+    const report = result.artifacts.find(a => a.kind === 'report.execution');
+    assert.equal(
+      JSON.parse(bundle.runtime.readArtifact(report.id).content).status,
+      mode === 'timeout' ? 'TIMEOUT' : 'COMPLETED',
+    );
   }
 });
 test(
