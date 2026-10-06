@@ -2503,6 +2503,42 @@
     "Choose engineering project": {
       "en": "Choose engineering project",
       "zh-CN": "选择工程项目目录"
+    },
+    "Project navigation": {
+      "en": "Project navigation",
+      "zh-CN": "项目导航"
+    },
+    "Project details: {0}": {
+      "en": "Project details: {0}",
+      "zh-CN": "项目详情：{0}"
+    },
+    "Start with your project.": {
+      "en": "Start with your project.",
+      "zh-CN": "从你的项目开始。"
+    },
+    "Choose a local folder and a domain, then describe what you want to work on.": {
+      "en": "Choose a local folder and a domain, then describe what you want to work on.",
+      "zh-CN": "选择本地文件夹和领域，再描述你想完成的任务。"
+    },
+    "Browse project files": {
+      "en": "Browse project files",
+      "zh-CN": "浏览项目文件"
+    },
+    "Create or choose a project to start…": {
+      "en": "Create or choose a project to start…",
+      "zh-CN": "创建或选择项目后开始…"
+    },
+    "Press Enter to send. Press Shift+Enter for a new line.": {
+      "en": "Press Enter to send. Press Shift+Enter for a new line.",
+      "zh-CN": "按 Enter 发送，按 Shift+Enter 换行。"
+    },
+    "Send": {
+      "en": "Send",
+      "zh-CN": "发送"
+    },
+    "New line": {
+      "en": "New line",
+      "zh-CN": "换行"
     }
   }
 }

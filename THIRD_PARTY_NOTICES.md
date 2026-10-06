@@ -4,6 +4,7 @@ The root MIT license covers original Industrial Agent Harness contributions. Exi
 
 | Component | Source / checked-in identity | Terms and retained notices | Distribution boundary |
 | --- | --- | --- | --- |
+| IBM Plex Sans desktop font | Unmodified Latin variable WOFF2 from `@fontsource-variable/ibm-plex-sans@5.3.0`; digest and provenance in `apps/desktop/src/assets/fonts/README.md` | SIL Open Font License 1.1; full `OFL.txt` retained | Self-hosted renderer asset. Desktop staging includes `licenses/ibm-plex-sans/OFL.txt` and its provenance README. |
 | KiCanvas renderer | `theacodes/kicanvas`, `b031159eb74aaa7eef2b026fd85d35bc05ff2095` | MIT; `packages/viewer-builtin/src/kicad/vendor/LICENSE.md`, `NOTICE.md`, `manifest.json` | Bundled JavaScript is third-party code; preserve the complete vendor notices. Local build only removes Google Fonts injection. |
 | Earcut in KiCanvas | Upstream bundled dependency | ISC; `packages/viewer-builtin/src/kicad/vendor/earcut-LICENSE` | Preserve the copyright and full license in desktop distributions. |
 | Material Symbols Outlined | Google Fonts snapshot documented in the vendor `NOTICE.md` | Apache-2.0; `symbols-LICENSE` | The font retains its upstream terms and digest. |

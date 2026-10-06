@@ -1,5 +1,7 @@
 # Desktop
 
+界面采用 Impeccable 的产品模式做局部优化：项目名称与领域分层、当前聊天单独高亮、首次使用提供创建入口，项目详情首屏可新建聊天；统一自托管字体、主题对比度、输入焦点和窄窗口布局。设计规则见 [DESIGN.md](DESIGN.md)，变更与验证范围见[桌面 UI 优化](../../doc/desktop-ui-refinement.md)。构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:ui` 可验证实际桌面交互链路。
+
 当前开发者预览版的桌面构建与首次启动 CI 目标为 **macOS Apple Silicon（arm64）和 Windows x64**。Intel Mac 暂不支持，已退出 CI 与安装包发行矩阵；恢复前需有对应测试机并完成安装、运行与升级验收。签名安装器和真实 OTA 尚待验证，Windows 的真实工业 Agent 执行也仍受[执行边界](../../SECURITY.md)限制。
 
 当前桌面支持同一项目或跨项目的多个聊天同时执行，切换聊天不会中断后台任务。项目行显示运行数，聊天行用状态点标记执行中或等待审批；Approve/Reject 与 Stop 只作用于当前聊天。全局模型/资源修改需要相关会话空闲，项目配置仅限制该项目。实现与验证见 [并行会话](../../doc/parallel-sessions.md)。
