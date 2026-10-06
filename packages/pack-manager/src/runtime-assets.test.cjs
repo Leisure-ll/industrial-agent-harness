@@ -39,7 +39,7 @@ function fixture(t) {
     } else if (file.endsWith('/hdiutil') && args[0] === 'detach')
       fs.rmSync(path.join(args[1], asset.app), { recursive: true });
     else if (file.endsWith('/ditto')) fs.cpSync(args[0], args[1], { recursive: true });
-    else if (file.endsWith('/modeler')) return wrongVersion ? '1.0.0' : 'Modeler 1.2.3';
+    else if (path.basename(file) === 'modeler') return wrongVersion ? '1.0.0' : 'Modeler 1.2.3';
     return '';
   };
   const manager = new RuntimeAssetManager({
