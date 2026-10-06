@@ -20,10 +20,22 @@ test(
       shareDir: path.join(directory, 'share'),
       projectDir: path.join(directory, 'project'),
       protectedPaths: [path.join(directory, 'state')],
-      environment: { ...process.env, KIMI_SHARE_DIR: path.join(directory, 'foreign-share') },
+      environment: {
+        ...process.env,
+        KIMI_SHARE_DIR: path.join(directory, 'foreign-share'),
+        HARNESS_TEST_REMOTE_TOKEN: 'host-only-secret',
+      },
+      hostOnlyEnv: ['HARNESS_TEST_REMOTE_TOKEN'],
     });
     t.after(() => sandbox.close());
     assert.equal(sandbox.env.KIMI_SHARE_DIR, fs.realpathSync(path.join(directory, 'share')));
+    assert.equal(sandbox.env.HARNESS_TEST_REMOTE_TOKEN, undefined);
+    const credentialProbe = spawnSync(
+      sandbox.executable,
+      ['-c', 'import os; assert "HARNESS_TEST_REMOTE_TOKEN" not in os.environ'],
+      { env: sandbox.env, encoding: 'utf8' },
+    );
+    assert.equal(credentialProbe.status, 0, credentialProbe.stderr);
     fs.symlinkSync(path.join(directory, 'project'), path.join(directory, 'share', 'project-link'));
     const probe = `import json, pathlib, subprocess, sys\nresults=[]\nfor name in sys.argv[1:]:\n try:\n  pathlib.Path(name).write_text('bypass')\n  results.append(True)\n except OSError as error:\n  if error.errno not in (1,13,30): raise\n  results.append(False)\n# Descendants inherit the same restriction, including an arbitrary shell.\np=subprocess.run(['/bin/sh','-c','printf bypass > "$1"','probe',sys.argv[1]],capture_output=True)\nprint(json.dumps({'writes':results,'child':p.returncode}))`;
     const probeResult = spawnSync(

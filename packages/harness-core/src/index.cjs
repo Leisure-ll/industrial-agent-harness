@@ -18,6 +18,14 @@ const {
 function resourceCatalog(domain, external = []) {
   return { skills: listSkills(domain), mcpServers: listMcpServers(domain, external) };
 }
+function runtimeCapabilities(registry, bundle) {
+  return [
+    ...registry.capabilities.filter(
+      item => !bundle?.runtime.hostRuntimeOnly || item.domain !== bundle.runtime.domain,
+    ),
+    ...(bundle?.capabilities || []),
+  ];
+}
 
 function effectiveCapabilities(registry, disabled = {}) {
   const disabledSkills = new Set(disabled.skills || []);
@@ -108,6 +116,8 @@ function resolveProjectTask(
 
 module.exports = {
   createProjectRuntime,
+  runtimeCapabilities,
+  RemoteSettings: require('./remote-settings.cjs').RemoteSettings,
   ...sessionResources,
   availableMemoryBytes,
   ChatStore,

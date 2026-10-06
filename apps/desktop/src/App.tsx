@@ -54,6 +54,7 @@ import { GlobalResourceSettings } from './components/ResourceSettings';
 import { DomainManager } from './components/DomainManager';
 import { CoreUpdatePanel } from './components/CoreUpdatePanel';
 import { ModelSettings } from './components/ModelSettings';
+import { RemoteTaskStatus } from './components/RemoteExecution';
 import { ProjectDetails } from './components/ProjectDetails';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { WorkspaceDivider } from './components/WorkspaceDivider';
@@ -156,6 +157,9 @@ export function App() {
   }>();
   const [agentEvents, setAgentEvents] = useState<AgentEvent[]>([]);
   const [agentBusy, setAgentBusy] = useState(false);
+  const [remoteExecution, setRemoteExecution] = useState<{ projectId: string; ready: boolean }>();
+  const remoteExecutionReady =
+    remoteExecution?.projectId === activeProjectId && remoteExecution.ready;
   const [approvalMode, setApprovalMode] = useState<'ask' | 'auto'>('ask');
   const [approvalModeBusy, setApprovalModeBusy] = useState(false);
   const [guiInstall, setGuiInstall] = useState('');
@@ -777,6 +781,7 @@ export function App() {
       submitting.current ||
       startingAgent.current ||
       agentBusy ||
+      (activeProject?.executionLocation === 'remote' && !remoteExecutionReady) ||
       attachments.loading ||
       (!prompt.trim() && !attachments.images.length)
     )
@@ -843,6 +848,10 @@ export function App() {
     setBroker(undefined);
     setCapabilityDetail(undefined);
     setBrokerError('');
+    void window
+      .viewerHost!.projectBindings()
+      .then(bindings => setProjects(bindings.projects))
+      .catch(reason => setError(String(reason)));
   }
   async function showDetail(id: string) {
     try {
@@ -1355,6 +1364,14 @@ export function App() {
                   )}
                 </p>
               )}
+              {activeProject?.executionLocation === 'remote' && (
+                <RemoteTaskStatus
+                  key={activeProject.id}
+                  projectId={activeProject.id}
+                  onReady={ready => setRemoteExecution({ projectId: activeProject.id, ready })}
+                  onConfigure={() => setPage('project')}
+                />
+              )}
               <div className="ia-composer-wrap">
                 <div
                   className="ia-composer"
@@ -1405,7 +1422,12 @@ export function App() {
                         : t('Create or choose a project to start…')
                     }
                     value={task}
-                    disabled={agentBusy || navigating || !fixedDomain}
+                    disabled={
+                      agentBusy ||
+                      navigating ||
+                      !fixedDomain ||
+                      (activeProject?.executionLocation === 'remote' && !remoteExecutionReady)
+                    }
                     onChange={event => setTask(event.target.value)}
                     onKeyDown={event => {
                       if (
@@ -1494,6 +1516,8 @@ export function App() {
                           navigating ||
                           agentBusy ||
                           !fixedDomain ||
+                          (activeProject?.executionLocation === 'remote' &&
+                            !remoteExecutionReady) ||
                           attachments.loading ||
                           (!task.trim() && !attachments.images.length) ||
                           (attachments.images.length > 0 && !modelImageInput)

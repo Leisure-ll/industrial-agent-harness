@@ -83,9 +83,11 @@ const { createViewerRegistry } = require('@industrial-agent-harness/viewer-core/
 const { resolve, discloseDetail } = require('@industrial-agent-harness/capability-broker');
 const {
   resolveProjectTask,
+  runtimeCapabilities,
   effectiveCapabilities,
   resourceCatalog: baseResourceCatalog,
   ResourceSettings,
+  RemoteSettings,
   ChatStore,
   defaultChatDirectory,
   ExternalMcpRegistry,
@@ -316,12 +318,13 @@ function sessionContext(entry) {
 }
 async function resolveSessionTask(entry, request, registry) {
   entry.runtimeBundle = projectRuntimes.get(entry.project, registry);
+  if (entry.runtimeBundle?.runtime.hostRuntimeOnly) entry.externalServers = [];
   const state = entry.runtimeBundle ? await entry.runtimeBundle.runtime.inspect() : null;
   return resolveProjectTask(
     entry.project.domain,
     { ...request, ...(state ? { state } : {}) },
     entry.scope,
-    [...registry.capabilities, ...(entry.runtimeBundle?.capabilities || [])],
+    runtimeCapabilities(registry, entry.runtimeBundle),
     projectResourcePolicy(entry.project),
     entry.externalServers,
     registry.domains,
@@ -344,7 +347,9 @@ const resourceSettings = new ResourceSettings(
     : undefined,
 );
 const externalRegistry = new ExternalMcpRegistry(path.dirname(resourceSettings.file));
+const remoteSettings = new RemoteSettings({ directory: path.dirname(resourceSettings.file) });
 const projectRuntimes = new ProjectRuntimes({
+  remoteSettings,
   ...contextStoreOptions(),
   environment: {
     ...process.env,
@@ -375,7 +380,16 @@ function activeProject() {
   return projectBindings.projects.find(item => item.id === projectBindings.activeId) || null;
 }
 function projectSnapshot() {
-  return { ...projectBindings, projectDir: projectDir || null };
+  return {
+    ...projectBindings,
+    projects: projectBindings.projects.map(project => ({
+      ...project,
+      executionLocation: project.domain
+        ? remoteSettings.project(project.path, project.domain).location
+        : 'local',
+    })),
+    projectDir: projectDir || null,
+  };
 }
 function clearProjectArtifacts() {
   contextStore?.close();
@@ -839,7 +853,7 @@ function registerHandlers() {
     const detail = discloseDetail(
       entry.scope,
       effectiveCapabilities(
-        [...currentRegistry().capabilities, ...(entry.runtimeBundle?.capabilities || [])],
+        runtimeCapabilities(currentRegistry(), entry.runtimeBundle),
         projectResourcePolicy(entry.project),
       ),
       capabilityId,
@@ -977,6 +991,75 @@ function registerHandlers() {
       throw Error('Open this project before configuring resources.');
     return request?.projectId !== undefined ? activeProject() : null;
   }
+  function executionProject(event, request) {
+    const project = resourceProject(event, request);
+    if (!project?.domain) throw Error('Choose a project with a domain.');
+    return project;
+  }
+  ipcMain.handle('remote:service', event => {
+    resourceProject(event, {});
+    return remoteSettings.view();
+  });
+  ipcMain.handle('remote:check', async event => {
+    resourceProject(event, {});
+    return remoteSettings.check();
+  });
+  ipcMain.handle('remote:project', async (event, request) => {
+    const project = executionProject(event, request);
+    const binding = remoteSettings.project(project.path, project.domain);
+    if (remoteSettings.view().status === 'unchecked') await remoteSettings.check();
+    return {
+      location: binding.location,
+      files: binding.files || [],
+      syncedAt: binding.syncedAt || null,
+      task: remoteSettings.task(project.path, project.domain),
+      service: remoteSettings.view(),
+    };
+  });
+  ipcMain.handle('remote:files', (event, request) => {
+    const project = executionProject(event, request);
+    return remoteSettings.candidates(project.path);
+  });
+  async function executionChange(event, request, operation) {
+    const project = executionProject(event, request);
+    if (changingResources) throw Error('Settings are being saved.');
+    sessions.assertIdle(project.id);
+    changingResources = true;
+    try {
+      await sessions.reset(project.id);
+      projectRuntimes.reset(project);
+      const result = await operation(project);
+      notifySessions();
+      return result;
+    } finally {
+      changingResources = false;
+    }
+  }
+  ipcMain.handle('remote:set-location', (event, request) =>
+    executionChange(event, request, project => {
+      remoteSettings.setLocation(project.path, project.domain, request.location);
+      return projectSnapshot();
+    }),
+  );
+  ipcMain.handle('remote:review', (event, request) =>
+    executionChange(event, request, project =>
+      remoteSettings.review(project.path, project.domain, request.files),
+    ),
+  );
+  ipcMain.handle('remote:sync', (event, request) =>
+    executionChange(event, request, async project => {
+      await remoteSettings.sync(project.path, project.domain, request.reviewId);
+      return projectSnapshot();
+    }),
+  );
+  ipcMain.handle('remote:task', async (event, request) => {
+    const project = executionProject(event, request);
+    return remoteSettings.refreshTask(project.path, project.domain);
+  });
+  ipcMain.handle('remote:cancel', async (event, request) => {
+    const project = executionProject(event, request);
+    return remoteSettings.cancelTask(project.path, project.domain, request);
+  });
   ipcMain.handle('resource:get', (event, request) => {
     const project = resourceProject(event, request);
     return resourceSettings.snapshot(resourceCatalog(project?.domain), project?.path);
@@ -1268,7 +1351,7 @@ function registerHandlers() {
               entry.project.domain,
               { ...entry.resolvedRequest, state: result.state },
               entry.scope,
-              [...registry.capabilities, ...entry.runtimeBundle.capabilities],
+              runtimeCapabilities(registry, entry.runtimeBundle),
               projectResourcePolicy(entry.project),
               entry.externalServers,
               registry.domains,

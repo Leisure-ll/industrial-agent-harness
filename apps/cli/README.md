@@ -113,3 +113,7 @@ CLI 与同一配置目录的 Desktop/其他 CLI 共用执行和常驻额度，�
 Managed runtime dependencies declared by a Pack are prepared by `domains install/update`. Use `domains repair DOMAIN` to check and repair them; `domains list` reports their readiness. Apple Silicon CAD uses the same pinned official FreeCAD installation as Desktop. See [macOS CAD distribution](../../doc/macos-cad-distribution.md).
 
 `doctor --project-dir DIR --domain DOMAIN` runs without model credentials and records a read-only environment Action. It probes protected local execution, declared executables/dependency roots and available offline Docker images. Exit 2 means a required prerequisite is missing. Shared tools include `project.environment.inspect`; input selection, local read permissions and approval previews are documented in [Shared workspace](../../doc/shared-workspace.md).
+
+## 内置远程体验
+
+`remote status|connect|use|sync|task|cancel` 与桌面共用项目运行配置。用户无需手填服务名或 URL，首次上传需选择文件并显式传入 `--confirm-upload`。公网与登录配置留空时显示尚未配置；内部连接、原生检查验收和当前限制见[内置远程运行](../../doc/remote-execution.md)。

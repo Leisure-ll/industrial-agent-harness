@@ -2651,6 +2651,186 @@
     "Embedded image": {
       "en": "Embedded image",
       "zh-CN": "嵌入图片"
+    },
+    "Zhiman Remote": {
+      "en": "Zhiman Remote",
+      "zh-CN": "知满远程"
+    },
+    "Not configured": {
+      "en": "Not configured",
+      "zh-CN": "尚未配置"
+    },
+    "Connection credentials needed": {
+      "en": "Connection credentials needed",
+      "zh-CN": "连接凭据尚未配置"
+    },
+    "Not connected": {
+      "en": "Not connected",
+      "zh-CN": "未连接"
+    },
+    "Connected": {
+      "en": "Connected",
+      "zh-CN": "已连接"
+    },
+    "Temporarily unavailable": {
+      "en": "Temporarily unavailable",
+      "zh-CN": "暂时不可用"
+    },
+    "Run domain tools remotely without installing the toolchain on this computer.": {
+      "en": "Run domain tools remotely without installing the toolchain on this computer.",
+      "zh-CN": "在远端运行领域工具，无需在本机安装工具链。"
+    },
+    "The trial service address and sign-in settings will be supplied with the app. They are not configured yet.": {
+      "en": "The trial service address and sign-in settings will be supplied with the app. They are not configured yet.",
+      "zh-CN": "体验服务地址和登录配置由应用提供，目前尚未配置。"
+    },
+    "Check connection": {
+      "en": "Check connection",
+      "zh-CN": "检查连接"
+    },
+    "Connecting…": {
+      "en": "Connecting…",
+      "zh-CN": "正在连接…"
+    },
+    "Execution location": {
+      "en": "Execution location",
+      "zh-CN": "运行位置"
+    },
+    "This computer": {
+      "en": "This computer",
+      "zh-CN": "本机"
+    },
+    "Zhiman Remote (trial)": {
+      "en": "Zhiman Remote (trial)",
+      "zh-CN": "知满远程（体验）"
+    },
+    "Approved files synced": {
+      "en": "Approved files synced",
+      "zh-CN": "已同步授权文件"
+    },
+    "The trial service is not configured yet. You can save this choice and connect when it is available.": {
+      "en": "The trial service is not configured yet. You can save this choice and connect when it is available.",
+      "zh-CN": "体验服务尚未配置。可以先保存这个选择，待服务开放后连接。"
+    },
+    "Connect": {
+      "en": "Connect",
+      "zh-CN": "连接"
+    },
+    "This domain is not available remotely yet.": {
+      "en": "This domain is not available remotely yet.",
+      "zh-CN": "这个领域暂未开放远程运行。"
+    },
+    "Only files you confirm below will be uploaded. Changes to these files sync before the next task; adding files requires another confirmation.": {
+      "en": "Only files you confirm below will be uploaded. Changes to these files sync before the next task; adding files requires another confirmation.",
+      "zh-CN": "只上传你确认的文件。这些文件修改后会在下次任务前同步；增加文件需要再次确认。"
+    },
+    "Manage synced files": {
+      "en": "Manage synced files",
+      "zh-CN": "管理同步文件"
+    },
+    "Choose files to sync": {
+      "en": "Choose files to sync",
+      "zh-CN": "选择同步文件"
+    },
+    "No eligible files found.": {
+      "en": "No eligible files found.",
+      "zh-CN": "没有可同步的文件。"
+    },
+    "Review upload": {
+      "en": "Review upload",
+      "zh-CN": "查看上传清单"
+    },
+    "Confirm file upload": {
+      "en": "Confirm file upload",
+      "zh-CN": "确认上传文件"
+    },
+    "Destination: {0}": {
+      "en": "Destination: {0}",
+      "zh-CN": "上传至：{0}"
+    },
+    "Total: {0} files · {1} bytes": {
+      "en": "Total: {0} files · {1} bytes",
+      "zh-CN": "共 {0} 个文件 · {1} 字节"
+    },
+    "Confirm and sync": {
+      "en": "Confirm and sync",
+      "zh-CN": "确认并同步"
+    },
+    "Syncing…": {
+      "en": "Syncing…",
+      "zh-CN": "正在同步…"
+    },
+    "Back": {
+      "en": "Back",
+      "zh-CN": "返回"
+    },
+    "Self-hosted services and other MCP servers": {
+      "en": "Self-hosted services and other MCP servers",
+      "zh-CN": "自建服务与其他 MCP"
+    },
+    "Preparing remote task…": {
+      "en": "Preparing remote task…",
+      "zh-CN": "正在准备远程任务…"
+    },
+    "Waiting for an available sandbox…": {
+      "en": "Waiting for an available sandbox…",
+      "zh-CN": "正在等待可用沙箱…"
+    },
+    "Preparing sandbox…": {
+      "en": "Preparing sandbox…",
+      "zh-CN": "正在准备沙箱…"
+    },
+    "Running remotely…": {
+      "en": "Running remotely…",
+      "zh-CN": "正在远程运行…"
+    },
+    "Collecting results…": {
+      "en": "Collecting results…",
+      "zh-CN": "正在收集结果…"
+    },
+    "Remote task completed": {
+      "en": "Remote task completed",
+      "zh-CN": "远程任务已完成"
+    },
+    "Remote task failed": {
+      "en": "Remote task failed",
+      "zh-CN": "远程任务失败"
+    },
+    "Remote task cancelled": {
+      "en": "Remote task cancelled",
+      "zh-CN": "远程任务已取消"
+    },
+    "Checking remote task outcome…": {
+      "en": "Checking remote task outcome…",
+      "zh-CN": "正在核对远程任务结果…"
+    },
+    "Queue position {0}": {
+      "en": "Queue position {0}",
+      "zh-CN": "排队第 {0} 位"
+    },
+    "Cancel task": {
+      "en": "Cancel task",
+      "zh-CN": "取消任务"
+    },
+    "Could not refresh task status. Check the connection.": {
+      "en": "Could not refresh task status. Check the connection.",
+      "zh-CN": "无法刷新任务状态，请检查连接。"
+    },
+    "Zhiman Remote is not configured.": {
+      "en": "Zhiman Remote is not configured.",
+      "zh-CN": "知满远程服务尚未配置。"
+    },
+    "Choose and confirm files in Project execution settings before running remotely.": {
+      "en": "Choose and confirm files in Project execution settings before running remotely.",
+      "zh-CN": "请先在项目运行设置中选择并确认要同步的文件。"
+    },
+    "A remote task is still pending. Check its status before changing execution settings.": {
+      "en": "A remote task is still pending. Check its status before changing execution settings.",
+      "zh-CN": "远程任务仍未结束，请先查看任务状态。"
+    },
+    "Selected files changed. Review them again before uploading.": {
+      "en": "Selected files changed. Review them again before uploading.",
+      "zh-CN": "所选文件已变化，请重新查看清单后上传。"
     }
   }
 }

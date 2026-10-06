@@ -49,6 +49,12 @@ class ProjectRuntimes {
       if (errors.length) throw new AggregateError(errors, 'Some project runtimes could not close.');
     });
   }
+  reset(project) {
+    const key = JSON.stringify([project.path, project.domain]);
+    const bundle = this.bundles.get(key);
+    if (bundle) bundle.runtime.close();
+    this.bundles.delete(key);
+  }
 }
 
 module.exports = { ProjectRuntimes };
