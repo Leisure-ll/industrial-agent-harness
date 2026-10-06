@@ -71,8 +71,12 @@ function run(command, args, { cwd, env, signal, timeout = 60000 } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, env, signal, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '',
-      overflow = false;
-    const timer = setTimeout(() => child.kill('SIGKILL'), timeout);
+      overflow = false,
+      timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGKILL');
+    }, timeout);
     const receive = bytes => {
       output += bytes;
       if (output.length > 1024 * 1024) {
@@ -88,7 +92,8 @@ function run(command, args, { cwd, env, signal, timeout = 60000 } = {}) {
     });
     child.on('close', code => {
       clearTimeout(timer);
-      if (code === 0 && !overflow) resolve(output);
+      if (timedOut) reject(Error(`Runtime preparation timed out after ${timeout / 1000} seconds.`));
+      else if (code === 0 && !overflow) resolve(output);
       else reject(Error(`Runtime preparation failed (${code}): ${output.slice(-2000)}`));
     });
   });
@@ -311,7 +316,7 @@ class RuntimeAssetManager {
           await this.command(
             '/usr/bin/hdiutil',
             ['attach', '-readonly', '-nobrowse', '-mountpoint', mount, archive],
-            { signal },
+            { signal, timeout: 5 * 60 * 1000 },
           );
           mounted = true;
           const source = fs.realpathSync(path.join(mount, asset.app));
