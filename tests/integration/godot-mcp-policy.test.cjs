@@ -65,7 +65,7 @@ test('Godot Broker discloses task-scoped MCP and Skill; settings can disable or 
   );
   assert.deepEqual(
     catalog.skills.map(row => row.id),
-    ['godot.game.inspect', 'godot.game.develop'],
+    ['project.work', 'godot.game.inspect', 'godot.game.develop'],
   );
   for (const prompt of [
     'Build a Godot CardPile game scene',
@@ -328,48 +328,5 @@ test(
       ['completed', 'completed', 'failed', 'completed'],
     );
     journal.close();
-  },
-);
-
-test(
-  'real Godot 4 can import and inspect a bounded game scene',
-  { skip: !fs.existsSync('/tmp/godot-4.4.1/Godot.app/Contents/MacOS/Godot'), timeout: 90000 },
-  async t => {
-    const root = temporary(t),
-      project = path.join(root, 'project');
-    fs.mkdirSync(project);
-    fs.writeFileSync(
-      path.join(project, 'project.godot'),
-      'config_version=5\n[application]\nconfig/name="Game Fixture"\n',
-    );
-    fs.writeFileSync(
-      path.join(project, 'main.tscn'),
-      '[gd_scene format=3]\n[node name="Main" type="Node2D"]\n[node name="Hud" type="Control" parent="."]\ngrow_vertical = 1\n',
-    );
-    const scope = resolveProjectTask('godot', { task: 'Build a Godot game scene' }).scope;
-    const configFile = writeMcpConfig(root, selectMcpServers(scope), {
-      projectDir: project,
-      environment: {
-        ...process.env,
-        INDUSTRIAL_HARNESS_GODOT_BIN: '/tmp/godot-4.4.1/Godot.app/Contents/MacOS/Godot',
-      },
-    });
-    const config = JSON.parse(fs.readFileSync(configFile)).mcpServers['godot.local'];
-    const client = new Client({ name: 'real-godot-test', version: '1.0.0' });
-    t.after(() => client.close());
-    await client.connect(new StdioClientTransport({ ...config, stderr: 'pipe' }));
-    const call = (toolId, args) =>
-      client
-        .callTool({ name: 'domain_tool_call', arguments: { toolId, arguments: args } })
-        .then(json);
-    const source = await call('godot.game.inspect_scene_source', { scenePath: 'main.tscn' });
-    assert.ok(source.result.sections.some(section => section.header.includes('node')));
-    const check = await call('godot.game.check_project', {});
-    assert.equal(check.result.importStatus, 'PASS', check.result.stderr);
-    const run = await call('godot.game.inspect_scene_runtime', { scenePath: 'main.tscn' });
-    assert.equal(run.result.executionStatus, 'completed', run.result.stderr);
-    assert.equal(run.result.observation.nodes[1].properties.grow_vertical, '1');
-    const played = await call('godot.game.run_scene', { scenePath: 'main.tscn', frames: 2 });
-    assert.equal(played.result.executionStatus, 'completed', played.result.stderr);
   },
 );

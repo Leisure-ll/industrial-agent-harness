@@ -17,7 +17,10 @@ async function captureSettled(window, { rect, output } = {}) {
   // React state, OCCT pose/resize and Chromium composition finish on separate
   // frames. Inspect actual settled pixels after allowing queued pose frames.
   await window.webContents.executeJavaScript(
-    `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+    `new Promise((resolve,reject) => {
+      const timer=setTimeout(()=>reject(Error('CAD render frames did not arrive within 5 seconds.')),5000);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{clearTimeout(timer);resolve();}));
+    })`,
     true,
   );
   let image,

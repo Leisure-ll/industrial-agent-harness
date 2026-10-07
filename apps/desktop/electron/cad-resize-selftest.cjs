@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { transitionFullscreen } = require('./navigation-selftest.cjs');
 const { viewportRect, captureSettled } = require('./cad-render-selftest.cjs');
 
 async function verifyResize(window, project) {
@@ -151,19 +152,18 @@ async function verifyResize(window, project) {
   const fitted = await capture(),
     fittedRatio = modelRatio(fitted),
     restoredWidth = (await layout()).workspace;
-  await evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`);
-  await pause(2000);
+  await transitionFullscreen(window, true, () =>
+    evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`),
+  );
+  await pause();
   assert.equal(await evaluate(`Boolean(document.fullscreenElement)`), true);
   const fullscreen = await capture();
   sameShape(fullscreen, fittedRatio, 'Entering fullscreen');
   fs.writeFileSync(path.join(project, 'cad-resize-before.png'), fitted.toPNG());
   fs.writeFileSync(path.join(project, 'cad-resize-fullscreen.png'), fullscreen.toPNG());
-  await evaluate(`document.querySelector('button[aria-label="Exit viewer fullscreen"]').click()`);
-  const deadline = Date.now() + 25000;
-  while (await evaluate(`Boolean(document.fullscreenElement)`)) {
-    if (Date.now() > deadline) throw Error('Fullscreen exit did not finish.');
-    await pause(100);
-  }
+  await transitionFullscreen(window, false, () =>
+    evaluate(`document.querySelector('button[aria-label="Exit viewer fullscreen"]').click()`),
+  );
   await pause(1000);
   sameShape(await capture(), fittedRatio, 'Exiting fullscreen');
   assert.ok(

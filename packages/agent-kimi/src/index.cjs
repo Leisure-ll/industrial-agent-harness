@@ -290,6 +290,8 @@ class KimiSession {
     this.pendingApprovals = new Map();
     this.runtimeApprovals = new Map();
     this.pendingQuestions = new Map();
+    this.backgroundTasks = false;
+    this.nativeBackgroundRunning = false;
   }
   async run(task, attachments = []) {
     if (this.running || this.turn || this.backgroundTasks)

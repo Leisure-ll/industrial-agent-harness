@@ -101,7 +101,7 @@ Apple Silicon desktop builds include an optional CAD Pack. Select CAD on first l
 | [Godot](domain-packs/godot/README.md) | Source and asset inspection, Web Export viewing and registered native scene tools                                       | Native tools require Godot 4; Web Export needs matching export templates and the Viewer Bridge. Native write tools still need the protected Runtime path.       |
 | [CAD · FreeCAD](doc/freecad-domain-pack.md) | Parametric sketches, pads, holes, boolean solids and versioned parameter/outline edits; FCStd/STEP/STL export, independent geometry readback and OCCT viewing | Packaged Desktop prepares FreeCAD 1.1.4 automatically on macOS arm64. Bounded native feature types; no mechanical strength or manufacturing acceptance. |
 
-Build your own Pack with the [Pack authoring tutorial](doc/pack-authoring.md). Domain code lives in Packs; the shared Core and Broker remain independent of concrete domains. Registration, a rendered preview or a successful native smoke check does not imply a complete industrial workflow.
+Build your own Pack with the [Pack authoring tutorial](doc/pack-authoring.md). Domain code lives in Packs; the shared Core and Broker remain independent of concrete domains. Registration, a rendered preview or a successful native smoke check does not imply a complete industrial workflow. PCB/Godot still need shared Domain Runtime plugins and independent task verification ([#50](https://github.com/Zhiman-BJ/industrial-agent-harness/issues/50)); see the [cross-scope release audit](doc/release-readiness-20261007.md).
 
 ## Viewers
 

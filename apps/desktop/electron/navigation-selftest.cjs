@@ -29,6 +29,11 @@ async function verifyNavigation(window, measure, { percent = true } = {}) {
     await wait(() =>
       evaluate(`document.querySelector('output[aria-label="Viewer zoom"]')?.innerText === '100%'`),
     );
+  // Ready navigation can precede the first canvas ResizeObserver paint.
+  await wait(async () => {
+    const value = await measure();
+    return Number.isFinite(value) && value > 0;
+  });
   const fitted = await measure();
   assert.ok(Number.isFinite(fitted) && fitted > 0, `Native fitted view: ${fitted}`);
   await click('Zoom in');
@@ -51,10 +56,7 @@ async function verifyNavigation(window, measure, { percent = true } = {}) {
       cause: error,
     });
   }
-  await click('Fullscreen viewer');
-  await wait(() =>
-    evaluate(`Boolean(document.fullscreenElement?.classList.contains('ia-workspace'))`),
-  );
+  await transitionFullscreen(window, true, () => click('Fullscreen viewer'));
   assert.equal(
     await evaluate(
       `Boolean(document.querySelector('button[aria-label="Zoom in"]') && document.querySelector('.ia-viewer-footer'))`,
@@ -62,8 +64,7 @@ async function verifyNavigation(window, measure, { percent = true } = {}) {
     true,
     'fullscreen retains controls and status',
   );
-  await click('Exit viewer fullscreen');
-  await wait(() => evaluate(`!document.fullscreenElement`));
+  await transitionFullscreen(window, false, () => click('Exit viewer fullscreen'));
   // Let the native canvas ResizeObserver settle before fitting the restored panel.
   await new Promise(resolve => setTimeout(resolve, 300));
   await click('Fit viewer');
@@ -88,4 +89,31 @@ async function verifyWheel(window, measure, dispatch) {
   }
   await evaluate(`document.querySelector('button[aria-label="Fit viewer"]').click()`);
 }
-module.exports = { verifyNavigation, verifyWheel };
+// macOS emits HTML fullscreen before its native Space transition finishes.
+// Tests must await both so the next real input is not sent during the animation.
+async function transitionFullscreen(window, active, action) {
+  let nativeSettled = process.platform !== 'darwin';
+  const event = active ? 'enter-full-screen' : 'leave-full-screen';
+  const settled = () => {
+    nativeSettled = true;
+  };
+  window.once(event, settled);
+  try {
+    await action();
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
+      const html = await window.webContents.executeJavaScript(
+        'Boolean(document.fullscreenElement)',
+        true,
+      );
+      if (nativeSettled && html === active) return;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    throw Error(
+      `Fullscreen transition did not settle (active=${active}, native=${nativeSettled}).`,
+    );
+  } finally {
+    window.removeListener(event, settled);
+  }
+}
+module.exports = { verifyNavigation, verifyWheel, transitionFullscreen };

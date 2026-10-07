@@ -1446,6 +1446,9 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // Pixel assertions must keep receiving frames when another test app or
+      // a hosted desktop temporarily covers this window.
+      backgroundThrottling: !process.argv.some(flag => flag.endsWith('-selftest')),
     },
   });
   if (process.argv.includes('--cad-selftest') || process.argv.includes('--cad-resize-selftest'))

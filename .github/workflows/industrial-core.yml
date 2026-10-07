@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           unset KIMI_EXECUTABLE
-          for domain in chip pcb; do
+          for domain in chip pcb godot; do
             node scripts/package-headless.cjs "dist/workspace-$domain" --domain "$domain"
             node scripts/smoke-workspace-cli.cjs "$GITHUB_WORKSPACE/dist/workspace-$domain/industrial-harness.cjs" "$domain" "dist/ci-reports/workspace-$domain.json"
           done
@@ -72,7 +72,7 @@ jobs:
       - name: Verify Desktop conversations, controls, documents and native subagents
         shell: bash
         run: |
-          for suite in ui language documents images parallel chats logs mcp subagents; do
+          for suite in ui language documents images parallel chats logs mcp subagents kicad engineering; do
             pnpm --filter @industrial-agent-harness/desktop "test:$suite" 2>&1 | tee "dist/ci-reports/desktop-$suite.log"
           done
       - name: Collect native FreeCAD startup diagnostics

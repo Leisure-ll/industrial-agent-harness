@@ -18,6 +18,7 @@ const nativeFiles = [
   'packages/domain-runtime/tests/industrial-recovery.test.cjs',
   'tests/integration/license-materials.test.cjs',
   'tests/integration/domain-mcp-kimi.test.cjs',
+  'tests/integration/pcb-mcp-kimi.test.cjs',
   'tests/integration/external-mcp-kimi.test.cjs',
   'packages/agent-kimi/tests/vision-wire.test.cjs',
   'packages/agent-kimi/tests/parallel-wire.test.cjs',
@@ -31,12 +32,15 @@ const transportFiles = [
   'tests/integration/external-mcp.test.cjs',
   'tests/integration/domain-mcp-scope.test.cjs',
   'tests/integration/pcb-mcp-transport.test.cjs',
+  'tests/integration/pcb-mcp-policy.test.cjs',
+  'tests/integration/godot-mcp-policy.test.cjs',
   'tests/integration/chip-runtime-reliability.test.cjs',
 ];
 const linuxNativeFiles = [
   'packages/agent-kimi/tests/code-session-heartbeat.test.cjs',
   'tests/integration/workspace-runtime.test.cjs',
   'tests/integration/domain-mcp-kimi.test.cjs',
+  'tests/integration/pcb-mcp-kimi.test.cjs',
   'tests/integration/external-mcp-kimi.test.cjs',
   'tests/integration/agent-question-kimi.test.cjs',
   'tests/integration/compaction-compat-kimi.test.cjs',
