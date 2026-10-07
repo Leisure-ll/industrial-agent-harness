@@ -34,7 +34,23 @@ async function verifyNavigation(window, measure, { percent = true } = {}) {
     const value = await measure();
     return Number.isFinite(value) && value > 0;
   });
-  const fitted = await measure();
+  // Embedded viewers can publish readiness before their final ResizeObserver
+  // fit. Use a settled native scale as the baseline for subsequent real inputs.
+  let fitted,
+    previousFit,
+    fitStable = 0;
+  await wait(async () => {
+    fitted = await measure();
+    fitStable =
+      Number.isFinite(fitted) &&
+      fitted > 0 &&
+      Number.isFinite(previousFit) &&
+      Math.abs(fitted / previousFit - 1) < 1e-6
+        ? fitStable + 1
+        : 0;
+    previousFit = fitted;
+    return fitStable >= 7;
+  });
   assert.ok(Number.isFinite(fitted) && fitted > 0, `Native fitted view: ${fitted}`);
   await click('Zoom in');
   await wait(async () => (await measure()) > fitted * 1.05);
@@ -66,7 +82,7 @@ async function verifyNavigation(window, measure, { percent = true } = {}) {
   );
   await transitionFullscreen(window, false, () => click('Exit viewer fullscreen'));
   // Let the native canvas ResizeObserver settle before fitting the restored panel.
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 1000));
   await click('Fit viewer');
 }
 async function verifyWheel(window, measure, dispatch) {
