@@ -121,7 +121,13 @@ if (process.env.HARNESS_RELEASE_BUILD === '1') {
 fs.writeFileSync(
   path.join(target, 'pack-feed.json'),
   JSON.stringify(
-    { schemaVersion: 1, channel, catalogUrl: feedUrl || null, publicKeys: keys },
+    {
+      schemaVersion: 1,
+      channel,
+      catalogUrl: feedUrl || null,
+      publicKeys: keys,
+      coreUpdateEnabled: Boolean(coreUrl),
+    },
     null,
     2,
   ) + '\n',

@@ -20,6 +20,15 @@ export function appendDisplayEvents(current: AgentEvent[], events: AgentEvent[])
   )
     contentIndex--;
   for (const event of events) {
+    if (event.type === 'subagent-state') {
+      const index = updated.findIndex(
+        item => item.type === 'subagent-state' && item.id === event.id,
+      );
+      if (index >= 0) {
+        updated[index] = event;
+        continue;
+      }
+    }
     const previous = updated[contentIndex];
     if (
       (previous?.type === 'text' && event.type === 'text') ||

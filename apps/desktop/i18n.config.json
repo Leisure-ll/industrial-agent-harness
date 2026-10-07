@@ -4,15 +4,11 @@
   "locales": {
     "zh-CN": {
       "label": "简体中文",
-      "systemLanguages": [
-        "zh"
-      ]
+      "systemLanguages": ["zh"]
     },
     "en": {
       "label": "English",
-      "systemLanguages": [
-        "en"
-      ]
+      "systemLanguages": ["en"]
     }
   },
   "messages": {
@@ -98,7 +94,7 @@
     },
     "Running": {
       "en": "Running",
-      "zh-CN": "运行中"
+      "zh-CN": "进行中"
     },
     "Light": {
       "en": "Light",
@@ -1730,7 +1726,7 @@
     },
     "Background": {
       "en": "Background",
-      "zh-CN": "背景"
+      "zh-CN": "后台"
     },
     "Asset background": {
       "en": "Asset background",
@@ -2575,6 +2571,78 @@
     "Updates unavailable. Bundled domains can still be installed.": {
       "en": "Updates unavailable. Bundled domains can still be installed.",
       "zh-CN": "暂时无法检查更新，仍可安装随应用提供的领域包。"
+    },
+    "Resize chat and workspace": {
+      "en": "Resize chat and workspace",
+      "zh-CN": "调整对话和工作区宽度"
+    },
+    "Drag to resize chat and Viewer; double-click to reset": {
+      "en": "Drag to resize chat and Viewer; double-click to reset",
+      "zh-CN": "拖动调整对话和 Viewer 宽度；双击恢复默认"
+    },
+    "Collapse task list": {
+      "en": "Collapse task list",
+      "zh-CN": "收起任务列表"
+    },
+    "Expand task list": {
+      "en": "Expand task list",
+      "zh-CN": "展开任务列表"
+    },
+    "Tasks": {
+      "en": "Tasks",
+      "zh-CN": "任务"
+    },
+    "All tasks completed": {
+      "en": "All tasks completed",
+      "zh-CN": "全部完成"
+    },
+    "Task progress": {
+      "en": "Task progress",
+      "zh-CN": "任务完成进度"
+    },
+    "Current task": {
+      "en": "Current task",
+      "zh-CN": "当前项"
+    },
+    "Pending": {
+      "en": "Pending",
+      "zh-CN": "待办"
+    },
+    "Subtask": {
+      "en": "Subtask",
+      "zh-CN": "子任务"
+    },
+    "Completed": {
+      "en": "Completed",
+      "zh-CN": "已完成"
+    },
+    "Failed": {
+      "en": "Failed",
+      "zh-CN": "失败"
+    },
+    "Stopped": {
+      "en": "Stopped",
+      "zh-CN": "已停止"
+    },
+    "Cancel download": {
+      "en": "Cancel download",
+      "zh-CN": "取消下载"
+    },
+    "Markdown display limit reached; original text follows.": {
+      "en": "Markdown display limit reached; original text follows.",
+      "zh-CN": "正文排版超出显示限制，以下保留原文。"
+    },
+    "Application updates are not configured for this local build.": {
+      "en": "Application updates are not configured for this local build.",
+      "zh-CN": "本地版本尚未配置应用更新。"
+    },
+    "Image: {0}": {
+      "en": "Image: {0}",
+      "zh-CN": "图片：{0}"
+    },
+    "Embedded image": {
+      "en": "Embedded image",
+      "zh-CN": "嵌入图片"
     }
   }
 }

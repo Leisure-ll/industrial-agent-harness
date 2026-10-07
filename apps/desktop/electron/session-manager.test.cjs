@@ -148,3 +148,31 @@ test('deleting an idle chat reserves it until its native session has closed', as
   await removing;
   assert.equal(manager.entries.has('chat'), false);
 });
+
+test('native background work keeps admission and Pack leases until its terminal event', () => {
+  const { SessionManager, finishTurn } = require('./session-manager.cjs');
+  const sessions = new SessionManager();
+  const entry = sessions.get(
+    { id: 'background-project', path: '/background-project', domain: 'fixture' },
+    'background-chat',
+  );
+  entry.agent = { running: false, backgroundTasks: true };
+  let finished = 0,
+    released = 0;
+  entry.release = () => released++;
+  entry.releasePack = () => released++;
+  finishTurn(
+    entry,
+    () => finished++,
+    () => {},
+  );
+  assert.equal(finished, 1);
+  assert.equal(released, 0);
+  assert.equal(sessions.snapshots()[0].backgroundTasks, true);
+  assert.throws(() => sessions.assertIdle(), /running chats/);
+  entry.agent.backgroundTasks = false;
+  entry.backgroundRelease();
+  assert.equal(released, 2);
+  assert.equal(entry.backgroundRelease, undefined);
+  assert.equal(sessions.busy(entry), false);
+});

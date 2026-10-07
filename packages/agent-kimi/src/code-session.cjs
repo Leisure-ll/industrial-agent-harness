@@ -175,6 +175,7 @@ class CodeSession {
     this.questions = new Map();
     this.cursors = new Set();
     this.controllers = new Set();
+    this.subagents = new Map();
   }
   async request(route, { method = 'GET', body, timeout = 15000 } = {}) {
     const controller = new AbortController();
@@ -212,7 +213,7 @@ class CodeSession {
   async initialize() {
     if (!this.initializing)
       this.initializing = this.start().catch(async error => {
-        this.active?.finish(null, error);
+        this.failTurns(error);
         await this.close();
         throw error;
       });
@@ -270,13 +271,13 @@ class CodeSession {
         this.exitError = Error(
           `Kimi Code process exited (${signal || code}). ${this.startupLog || ''}`,
         );
-        this.active?.finish(null, this.exitError);
+        this.failTurns(this.exitError);
         resolve();
       }),
     );
     this.child.once('error', error => {
       this.exitError = error;
-      this.active?.finish(null, error);
+      this.failTurns(error);
     });
     const log = chunk => {
       const raw = chunk.toString();
@@ -427,7 +428,7 @@ class CodeSession {
             else reject(Error(`Kimi Code subscription failed: ${frame.msg}`));
           } else this.onFrame(frame);
         } catch (error) {
-          this.active?.finish(null, error);
+          this.failTurns(error);
         }
       });
       socket.addEventListener('close', () => {
@@ -437,13 +438,31 @@ class CodeSession {
           this.transportError = Error(
             'Kimi Code event connection closed; the task was not automatically retried.',
           );
-          this.active?.finish(null, this.transportError);
+          this.failTurns(this.transportError);
         }
       });
     });
   }
+  failTurns(error) {
+    if (this.closed) return;
+    this.active?.finish(null, error);
+    this.backgroundTurn?.finish(null, error);
+    if (
+      [...this.subagents.values()].some(
+        child => child.background && ['running', 'awaiting_approval'].includes(child.status),
+      )
+    )
+      this.options.onBackgroundEvent?.({
+        type: 'BackgroundFailure',
+        payload: { message: error.message },
+      });
+  }
   prompt(content) {
-    if (this.closed || (this.active && !this.active.ended))
+    if (
+      this.closed ||
+      (this.active && !this.active.ended) ||
+      (this.backgroundTurn && !this.backgroundTurn.ended)
+    )
       throw Error('Kimi Code session is closed or busy.');
     const turn = new Turn(this);
     this.active = turn;
@@ -468,29 +487,107 @@ class CodeSession {
     return turn;
   }
   onFrame(frame) {
-    const turn = this.active;
-    if (!turn || turn.ended || frame.session_id !== this.nativeId) return;
+    let turn = this.active && !this.active.ended ? this.active : this.backgroundTurn;
+    if (frame.session_id !== this.nativeId) return;
     const p = frame.payload || {};
-    if (p.agentId && p.agentId !== 'main') return;
+    if (frame.type === 'resync_required') {
+      this.failTurns(Error('Kimi Code event resync is required; execution was not retried.'));
+      return;
+    }
+    const control = /^(event\.(approval|question)\.|subagent\.)/.test(frame.type);
+    // Native child approvals share the session control plane, even though their
+    // agent and turn identities differ from the main conversation.
+    if (p.agentId && p.agentId !== 'main' && !control) return;
     if (!frame.volatile && Number.isSafeInteger(frame.seq)) {
       const id = `${frame.epoch}:${frame.seq}`;
       if (this.cursors.has(id)) return;
       this.cursors.add(id);
       if (this.cursors.size > 2000) this.cursors.delete(this.cursors.values().next().value);
     }
-    turn.push({ type: 'NativeEvent', payload: this.redact(frame) });
-    const emit = (type, payload) => turn.push({ type, payload });
-    if (frame.type === 'turn.started' && p.promptId && p.promptId !== turn.promptId) return;
+    if (
+      (!turn || turn.ended) &&
+      frame.type === 'turn.started' &&
+      (!p.agentId || p.agentId === 'main')
+    ) {
+      // Automatic follow-ups are initiated by Kimi's native background task
+      // notification policy. Forward them without scheduling or replaying work.
+      turn = new Turn(this);
+      turn.promptId = p.promptId;
+      turn.push = event => this.options.onBackgroundEvent?.(event);
+      const finish = turn.finish.bind(turn);
+      turn.finish = (result, error) => {
+        if (turn.ended) return;
+        finish(result, error);
+        this.options.onBackgroundEvent?.({
+          type: 'BackgroundTurnEnd',
+          payload: { result, error: error?.message },
+        });
+      };
+      this.backgroundTurn = turn;
+      this.options.onBackgroundEvent?.({ type: 'BackgroundTurnBegin', payload: {} });
+    }
+    const emit = (type, payload) => {
+      const event = { type, payload };
+      if (turn && !turn.ended) turn.push(event);
+      else this.options.onBackgroundEvent?.(event);
+    };
+    if (frame.type.startsWith('subagent.') && p.subagentId) {
+      const previous = this.subagents.get(p.subagentId) || {};
+      const state = {
+        ...previous,
+        id: `${this.nativeId}:${p.subagentId}`,
+        agentId: p.subagentId,
+        parentToolCallId: p.parentToolCallId || previous.parentToolCallId || '',
+        subagentType: p.subagentName || previous.subagentType || 'agent',
+        description: p.description || previous.description || p.subagentId,
+        background: p.runInBackground ?? previous.background ?? false,
+        status:
+          {
+            spawned: 'running',
+            started: 'running',
+            completed: 'completed',
+            failed: 'failed',
+            cancelled: 'cancelled',
+          }[frame.type.slice(9)] || previous.status,
+        ...(p.resultSummary ? { summary: this.redact(p.resultSummary) } : {}),
+        ...(p.error ? { summary: this.redact(String(p.error)) } : {}),
+      };
+      this.subagents.set(p.subagentId, state);
+      emit('SubagentState', state);
+      return;
+    }
+    if (!turn || turn.ended) {
+      // Background work retains native control events; it must not end or write
+      // into the already completed main turn.
+      if (!control) return;
+    }
+    if (turn && !turn.ended) turn.push({ type: 'NativeEvent', payload: this.redact(frame) });
+    if (!control && frame.type === 'turn.started' && p.promptId && p.promptId !== turn.promptId)
+      return;
     if (frame.type === 'turn.started') {
       turn.turnId = p.turnId;
       this.contextInitialized = true;
       emit('TurnBegin', {});
     }
-    if (p.turnId !== undefined && turn.turnId !== undefined && p.turnId !== turn.turnId) return;
+    if (!control && p.turnId !== undefined && turn.turnId !== undefined && p.turnId !== turn.turnId)
+      return;
+    if (
+      p.agentId &&
+      p.agentId !== 'main' &&
+      this.subagents.has(p.agentId) &&
+      /^event\.(approval|question)\.(requested|resolved)$/.test(frame.type)
+    ) {
+      const state = {
+        ...this.subagents.get(p.agentId),
+        status: frame.type.endsWith('requested') ? 'awaiting_approval' : 'running',
+      };
+      this.subagents.set(p.agentId, state);
+      emit('SubagentState', state);
+    }
     switch (frame.type) {
       case 'assistant.delta':
       case 'thinking.delta': {
-        const key = frame.type;
+        const key = `${turn.stepId || 'initial'}:${frame.type}`;
         const offset = turn.offsets.get(key) || 0;
         const delta = p.delta || '';
         if (Number.isSafeInteger(frame.offset) && frame.offset > offset)
@@ -508,6 +605,7 @@ class CodeSession {
         break;
       }
       case 'turn.step.started':
+        turn.stepId = p.stepId || p.step || p.stepIndex || p.n;
         emit('StepBegin', { n: p.step ?? p.stepIndex ?? p.n ?? 1 });
         break;
       case 'tool.call.started':
@@ -548,6 +646,8 @@ class CodeSession {
       case 'event.approval.requested':
         emit('ApprovalRequest', {
           id: p.approval_id,
+          agentId: p.agentId === 'main' ? undefined : p.agentId,
+          background: this.subagents.get(p.agentId)?.background || turn === this.backgroundTurn,
           sender: toolName(p.tool_name),
           harness_callback: p.tool_name?.startsWith('mcp__harness_adapter__') === true,
           action: p.action,
@@ -567,6 +667,8 @@ class CodeSession {
         this.questions.set(p.question_id, p.questions);
         emit('QuestionRequest', {
           id: p.question_id,
+          agentId: p.agentId === 'main' ? undefined : p.agentId,
+          background: this.subagents.get(p.agentId)?.background || turn === this.backgroundTurn,
           tool_call_id: p.tool_call_id,
           questions: p.questions.map(item => ({
             ...item,
@@ -665,6 +767,7 @@ class CodeSession {
     this.closed = true;
     this.closing = (async () => {
       this.active?.finish({ status: 'cancelled' });
+      this.backgroundTurn?.finish({ status: 'cancelled' });
       this.socket?.close();
       for (const controller of this.controllers) controller.abort();
       if (this.child && this.child.exitCode === null && !this.exitError) {

@@ -1,3 +1,4 @@
+const { Transfer } = require('./transfer.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -100,50 +101,39 @@ function run(command, args, { cwd, env, signal, timeout = 60000 } = {}) {
 }
 async function download(asset, target, { signal, onProgress }) {
   const temporary = target + '.' + crypto.randomUUID() + '.partial';
-  const timeout = AbortSignal.timeout(20 * 60 * 1000);
-  const cancellation = signal ? AbortSignal.any([signal, timeout]) : timeout;
-  let response,
-    url = asset.url;
-  try {
-    for (let redirects = 0; redirects <= 5; redirects++) {
-      if (new URL(url).protocol !== 'https:') throw Error('Runtime downloads require HTTPS.');
-      response = await fetch(url, { redirect: 'manual', signal: cancellation });
-      if (![301, 302, 303, 307, 308].includes(response.status)) break;
-      if (redirects === 5 || !response.headers.get('location'))
-        throw Error('Too many runtime redirects.');
-      url = new URL(response.headers.get('location'), url).toString();
-      await response.body?.cancel();
-    }
-    if (!response.ok || !response.body)
-      throw Error(`Runtime download failed: HTTP ${response.status}`);
-    const fd = fs.openSync(temporary, 'wx', 0o600),
-      digest = crypto.createHash('sha256');
-    let received = 0,
-      reported = 0;
+  const transfer = new Transfer({ signal });
+  return transfer.run(async () => {
     try {
-      for await (const chunk of response.body) {
-        cancellation.throwIfAborted();
-        received += chunk.length;
-        if (received > asset.size) {
-          await response.body.cancel().catch(() => {});
-          throw Error('Runtime download size mismatch.');
+      const response = await transfer.response(asset.url);
+      const fd = fs.openSync(temporary, 'wx', 0o600),
+        digest = crypto.createHash('sha256');
+      let received = 0,
+        reported = 0;
+      try {
+        for await (const chunk of response.body) {
+          transfer.signal.throwIfAborted();
+          transfer.touch();
+          received += chunk.length;
+          if (received > asset.size) {
+            throw Error('Runtime download size mismatch.');
+          }
+          digest.update(chunk);
+          fs.writeFileSync(fd, chunk);
+          if (received - reported >= 1024 * 1024 || received === asset.size) {
+            onProgress({ phase: 'downloading', received, total: asset.size });
+            reported = received;
+          }
         }
-        digest.update(chunk);
-        fs.writeFileSync(fd, chunk);
-        if (received - reported >= 1024 * 1024 || received === asset.size) {
-          onProgress({ phase: 'downloading', received, total: asset.size });
-          reported = received;
-        }
+      } finally {
+        fs.closeSync(fd);
       }
+      if (received !== asset.size || digest.digest('hex') !== asset.sha256)
+        throw Error('Runtime download hash or size mismatch.');
+      fs.renameSync(temporary, target);
     } finally {
-      fs.closeSync(fd);
+      fs.rmSync(temporary, { force: true });
     }
-    if (received !== asset.size || digest.digest('hex') !== asset.sha256)
-      throw Error('Runtime download hash or size mismatch.');
-    fs.renameSync(temporary, target);
-  } finally {
-    fs.rmSync(temporary, { force: true });
-  }
+  });
 }
 class RuntimeAssetManager {
   constructor({

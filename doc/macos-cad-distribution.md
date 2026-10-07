@@ -10,7 +10,7 @@
 4. 准备成功后配置模型 API，创建绑定本地目录的 CAD 项目，发送建模或修改任务。Core 内置 Kimi Code 2.1.1；最终用户不需要 Node、pnpm、Python Kimi 或命令路径设置。
 5. 设置 → 领域可补装、更新和检查／修复。原生依赖缺失或主执行文件变化会显示需要准备；修复重新检查签名和版本，可复用已验证的下载缓存。重启保留项目、依赖、历史 Action 和 Checkpoint。
 
-下载和校验失败不激活新 Pack，也不覆盖旧版本。准备期间界面保留进度，禁止重复准备及新任务；安装后的项目绑定不会自动改变。网络更新目录不可用时，应用仍提供随 Core 带来的可选包，并提示暂时无法检查更新。在线 Pack 更新沿用签名目录验证。旧版 CAD Pack 未声明托管依赖时，请先更新 Pack。
+下载和校验失败不激活新 Pack，也不覆盖旧版本。准备期间界面保留进度，支持取消；关闭界面也会取消当前准备。连接或传输 60 秒无进展时明确失败，默认总下载上限 20 分钟，清理临时文件并支持重试。正常更新拒绝降级，同版本可检查／修复。准备期间禁止重复准备及新任务；安装后的项目绑定不会自动改变。网络更新目录不可用时，应用仍提供随 Core 带来的可选包，并提示暂时无法检查更新。在线 Pack 更新沿用签名目录验证。旧版 CAD Pack 未声明托管依赖时，请先更新 Pack。
 
 ## 安装层和执行层
 
@@ -33,7 +33,7 @@ apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-
 node scripts/smoke-packaged-cad.cjs dist/ci-reports/cad-install --dmg
 ```
 
-阶段目录与验收目录每次需新建。默认构建在 Apple Silicon 嵌入可选 CAD Pack；`HARNESS_BOOTSTRAP_DOMAINS` 可指定其他受支持包或留空。生产构建仍要求既有的发行源、公钥、签名和公证配置，见[发行规划](installation-and-ota-plan.md)。
+阶段目录与验收目录每次需新建。未配置 Core 更新源的本地构建明确显示未配置应用更新，不访问占位地址；运行中的原生后台子任务及后续回答也阻止 Pack/配置更新。默认构建在 Apple Silicon 嵌入可选 CAD Pack；`HARNESS_BOOTSTRAP_DOMAINS` 可指定其他受支持包或留空。生产构建仍要求既有的发行源、公钥、签名和公证配置，见[发行规划](installation-and-ota-plan.md)。
 
 安装验收从真实 DMG 复制应用，在仓库之外的应用工作目录与独立用户 store 运行；清除 FreeCAD 和 Kimi 路径覆盖，使用 Core 内置可选包。默认依赖从官方 HTTPS 下载；本地可用 `HARNESS_CAD_INSTALL_ARCHIVE` 提供同一官方 DMG 缓存，该输入依然经过全部校验、真实挂载、复制和原生探测。不会使用已挂载的开发 FreeCAD。
 

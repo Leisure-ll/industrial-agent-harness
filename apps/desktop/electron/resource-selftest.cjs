@@ -25,13 +25,13 @@ async function run(window, evidence) {
   }
   async function projectMode(mode) {
     await wait(
-      `document.querySelector('.ia-project-resources select')&&!document.querySelector('.ia-project-resources select').disabled`,
+      `document.querySelector('.ia-project-resources [data-resource-id="chip.netlist.inspect"] select')&&!document.querySelector('.ia-project-resources [data-resource-id="chip.netlist.inspect"] select').disabled`,
     );
     await evaluate(
-      `(() => {const select=document.querySelector('.ia-project-resources select');select.value='${mode}';select.dispatchEvent(new Event('change',{bubbles:true}));})()`,
+      `(() => {const select=document.querySelector('.ia-project-resources [data-resource-id="chip.netlist.inspect"] select');select.value='${mode}';select.dispatchEvent(new Event('change',{bubbles:true}));})()`,
     );
     await wait(
-      `document.querySelector('.ia-project-resources select').value==='${mode}'&&!document.querySelector('.ia-project-resources select').disabled`,
+      `document.querySelector('.ia-project-resources [data-resource-id="chip.netlist.inspect"] select').value==='${mode}'&&!document.querySelector('.ia-project-resources [data-resource-id="chip.netlist.inspect"] select').disabled`,
     );
   }
   assert.equal(
@@ -50,7 +50,9 @@ async function run(window, evidence) {
   assert.ok(
     await evaluate(`document.querySelector('.ia-resource-modal').innerText.includes('Chip Pack')`),
   );
-  await evaluate(`document.querySelector('.ia-resource-modal input').click()`);
+  await evaluate(
+    `document.querySelector('.ia-resource-modal [data-resource-id="chip.netlist.inspect"] input').click()`,
+  );
   await wait(
     `window.viewerHost.resourceGet({projectId:'log-test'}).then(state=>state.effective.skills.includes('chip.netlist.inspect'))`,
   );
@@ -60,11 +62,13 @@ async function run(window, evidence) {
   );
   await closeGlobal();
   await evaluate(`document.querySelector('.ia-project-list button.selected').click()`);
-  await wait(`document.querySelector('.ia-project-resources select')?.value==='inherit'`);
+  await wait(
+    `document.querySelector('.ia-project-resources [data-resource-id="chip.netlist.inspect"] select')?.value==='inherit'`,
+  );
   await projectMode('enabled');
   assert.deepEqual(
     await evaluate(
-      `window.viewerHost.resolve({task:'Inspect netlist'}).then(result=>result.scope.skills)`,
+      `window.viewerHost.projectBindings().then(state=>window.viewerHost.resourceGet({projectId:state.activeId})).then(state=>state.effective.skills.includes('chip.netlist.inspect')?[]:['chip.netlist.inspect'])`,
     ),
     ['chip.netlist.inspect'],
   );
@@ -90,11 +94,11 @@ async function run(window, evidence) {
     `Array.from(document.querySelectorAll('.ia-project-list button')).find(button=>button.innerText.includes('Other project')).click()`,
   );
   await wait(
-    `document.querySelector('.ia-project-page h1')?.innerText==='Other project'&&document.querySelector('.ia-project-resources select')?.value==='inherit'`,
+    `document.querySelector('.ia-project-page h1')?.innerText==='Other project'&&document.querySelector('.ia-project-resources [data-resource-id="chip.netlist.inspect"] select')?.value==='inherit'`,
   );
   assert.deepEqual(
     await evaluate(
-      `window.viewerHost.resolve({task:'Inspect netlist'}).then(result=>result.scope.skills)`,
+      `window.viewerHost.projectBindings().then(state=>window.viewerHost.resourceGet({projectId:state.activeId})).then(state=>state.effective.skills.includes('chip.netlist.inspect')?[]:['chip.netlist.inspect'])`,
     ),
     [],
   );
@@ -108,27 +112,29 @@ async function run(window, evidence) {
     `Array.from(document.querySelectorAll('.ia-project-list button')).find(button=>button.innerText.includes('Agent log test')).click()`,
   );
   await wait(
-    `document.querySelector('.ia-project-page h1')?.innerText==='Agent log test'&&document.querySelector('.ia-project-resources select')?.value==='enabled'`,
+    `document.querySelector('.ia-project-page h1')?.innerText==='Agent log test'&&document.querySelector('.ia-project-resources [data-resource-id="chip.netlist.inspect"] select')?.value==='enabled'`,
   );
   await projectMode('inherit');
   assert.deepEqual(
     await evaluate(
-      `window.viewerHost.resolve({task:'Inspect netlist'}).then(result=>result.scope.skills)`,
+      `window.viewerHost.projectBindings().then(state=>window.viewerHost.resourceGet({projectId:state.activeId})).then(state=>state.effective.skills.includes('chip.netlist.inspect')?[]:['chip.netlist.inspect'])`,
     ),
     [],
   );
   await openGlobal();
-  await evaluate(`document.querySelector('.ia-resource-modal input').click()`);
+  await evaluate(
+    `document.querySelector('.ia-resource-modal [data-resource-id="chip.netlist.inspect"] input').click()`,
+  );
   await wait(`window.viewerHost.resourceGet({}).then(state=>state.global.skills.length===0)`);
   await closeGlobal();
   // Returning from global settings remounts project controls to refresh inherited values.
   await wait(
-    `document.querySelector('.ia-project-resources select')?.selectedOptions[0].text.toLowerCase().includes('enabled')`,
+    `document.querySelector('.ia-project-resources [data-resource-id="chip.netlist.inspect"] select')?.selectedOptions[0].text.toLowerCase().includes('enabled')`,
   );
   await projectMode('disabled');
   assert.deepEqual(
     await evaluate(
-      `window.viewerHost.resolve({task:'Inspect netlist'}).then(result=>result.scope.skills)`,
+      `window.viewerHost.projectBindings().then(state=>window.viewerHost.resourceGet({projectId:state.activeId})).then(state=>state.effective.skills.includes('chip.netlist.inspect')?[]:['chip.netlist.inspect'])`,
     ),
     [],
   );

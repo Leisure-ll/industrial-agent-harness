@@ -55,6 +55,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [聊天持久化](chat-persistence.md) | Desktop/CLI 历史聊天、Kimi 原生上下文恢复、Scope 会话段、中断与验证边界 |
 | [按领域下载 CLI](domain-cli-downloads.md) | Chip/PCB/Godot 独立包、默认领域绑定与测试依赖 |
 | [Linux Chip 一键安装 preview.3](../releases/chip-linux-installer-v0.1.0-preview.3.md) | Docker helper 升级、宿主环境检查、受保护 Agent 与安装验证 |
+| [2026-10-07 发布整改](release-readiness-20261007.md) | 全部审计问题修复、本地 DMG、原生 subagent/Viewer/Pack 验收与公众发行边界 |
 | [Apple Silicon CAD 分发](macos-cad-distribution.md) | 首次选择、官方 FreeCAD 自动准备、修复、真实任务与发行边界 |
 | [安装、补装与 OTA 规划](installation-and-ota-plan.md) | macOS/Windows 桌面安装、多选 Domain、后续补装与 Core/Pack 更新的 P3 提案 |
 | [CLI 与 Bench 入口](../apps/cli/README.md) | 无界面单任务命令、JSON Lines 事件、模型与工件输入 |

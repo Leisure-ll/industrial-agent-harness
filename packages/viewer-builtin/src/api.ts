@@ -213,6 +213,10 @@ export interface ViewerHostApi {
   domainStatus(): Promise<{
     managed: boolean;
     catalogWarning?: string;
+    operation?: {
+      active: boolean;
+      progress: { label: string; phase: string; received?: number; total?: number } | null;
+    } | null;
     installed: Array<{
       domain: string;
       version: string;
@@ -234,9 +238,11 @@ export interface ViewerHostApi {
       prerequisites?: string[];
       size: number;
       runtimeDownloadSize?: number;
+      updateAvailable?: boolean;
       platforms: string[];
     }>
   >;
+  domainCancel(): Promise<{ cancelled: boolean }>;
   domainInstall(domains: string[]): Promise<{ installed: DomainOption[] }>;
   domainRemove(domain: string): Promise<{ installed: DomainOption[] }>;
   domainRepair(domain: string): Promise<{ installed: DomainOption[] }>;
@@ -244,7 +250,8 @@ export interface ViewerHostApi {
     callback: (progress: {
       domain: string;
       label: string;
-      phase: 'downloading' | 'installing' | 'checking' | 'ready';
+      phase: 'downloading' | 'installing' | 'checking' | 'ready' | 'finished';
+      active?: boolean;
       received?: number;
       total?: number;
     }) => void,
@@ -393,6 +400,7 @@ export interface DomainOption {
 export interface CoreUpdateState {
   status:
     | 'development'
+    | 'unconfigured'
     | 'idle'
     | 'checking'
     | 'current'
@@ -427,16 +435,31 @@ export interface ResourceSettingsSnapshot {
   effective: { skills: string[]; mcpServers: string[] };
 }
 
+export type SubagentState = {
+  type: 'subagent-state';
+  id: string;
+  agentId: string;
+  parentToolCallId: string;
+  subagentType: string;
+  description: string;
+  background: boolean;
+  status: 'running' | 'awaiting_approval' | 'completed' | 'failed' | 'cancelled';
+  summary?: string;
+};
 export type AgentEvent = {
   chatId?: string;
   projectId?: string;
   turnId?: string;
   eventRevision?: number;
+  agentId?: string;
+  background?: boolean;
 } & (
   | { type: 'user-images'; images: PromptImage[] }
   | { type: 'input-images'; images: PromptImage[] }
   | { type: 'context-reset'; message: string }
   | { type: 'diagnostic-log'; traceId: string; path: string }
+  | { type: 'background-state'; running: boolean }
+  | SubagentState
   | { type: 'text'; text: string }
   | { type: 'thinking'; text: string }
   | { type: 'approval'; id: string; description: string; action: string }
@@ -607,6 +630,7 @@ export interface DiagnosticContent {
 }
 
 export interface SessionStatus {
+  backgroundTasks?: boolean;
   chatId: string;
   projectId: string;
   running: boolean;
@@ -634,6 +658,8 @@ export interface ChatTurn {
 }
 export interface ChatHistory {
   eventRevision?: number;
+  agentId?: string;
+  background?: boolean;
   executing?: boolean;
   chat: ChatSummary;
   turns: ChatTurn[];

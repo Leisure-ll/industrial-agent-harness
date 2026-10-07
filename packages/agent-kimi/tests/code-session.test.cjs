@@ -278,3 +278,85 @@ test(
     );
   },
 );
+
+test(
+  'tool preamble does not swallow the final answer when native step offsets restart',
+  { timeout: 20000 },
+  async t => {
+    const f = await fixture(t, {
+      beforeTool: 'Checking the requested file. '.repeat(8),
+      calls: [
+        { name: 'Bash', arguments: { command: 'echo OFFSET_OK', description: 'Read-only marker' } },
+      ],
+      success: 'FINAL_ANSWER_OK',
+    });
+    const events = await consume(f.session, async (event, turn) => {
+      if (event.type === 'ApprovalRequest') await turn.approve(event.payload.id, 'approve');
+    });
+    assert.equal(
+      events
+        .filter(e => e.type === 'ContentPart')
+        .map(e => e.payload.text || '')
+        .join(''),
+      'Checking the requested file. '.repeat(8) + 'FINAL_ANSWER_OK',
+    );
+  },
+);
+
+test(
+  'native child approval is routed once, rejection and approval settle the parent with lifecycle and summary',
+  { timeout: 45000 },
+  async t => {
+    for (const decision of ['reject', 'approve']) {
+      const child = body =>
+        body.messages.some(
+          m => m.role === 'user' && JSON.stringify(m.content).includes('CHILD_ONLY'),
+        );
+      const f = await fixture(t, {
+        calls: body =>
+          child(body)
+            ? [
+                {
+                  name: 'Bash',
+                  arguments: {
+                    command: 'echo CHILD_TOOL_OK',
+                    description: 'Read-only child marker',
+                  },
+                },
+              ]
+            : [
+                {
+                  name: 'Agent',
+                  arguments: {
+                    description: 'Inspect independently',
+                    prompt: 'CHILD_ONLY: run the marker, then summarize.',
+                    subagent_type: 'coder',
+                  },
+                },
+              ],
+        success: body => (child(body) ? 'CHILD_SUMMARY_OK' : 'PARENT_FINAL_OK'),
+      });
+      const events = await consume(f.session, async (event, turn) => {
+        if (event.type === 'ApprovalRequest') {
+          assert.notEqual(event.payload.agentId, 'main');
+          assert.ok(event.payload.agentId);
+          await turn.approve(event.payload.id, decision);
+        }
+      });
+      assert.equal(events.filter(e => e.type === 'ApprovalRequest').length, 1);
+      assert.ok(events.some(e => e.type === 'SubagentState' && e.payload.status === 'running'));
+      assert.ok(events.some(e => e.type === 'SubagentState' && e.payload.status === 'completed'));
+      assert.equal(
+        events
+          .filter(e => e.type === 'ContentPart')
+          .map(e => e.payload.text || '')
+          .join(''),
+        decision === 'approve' ? 'PARENT_FINAL_OK' : 'MCP_REJECTED',
+      );
+      assert.ok(
+        !events.some(e => e.type === 'ContentPart' && /CHILD_SUMMARY/.test(e.payload.text || '')),
+        'child output stays out of main answer',
+      );
+    }
+  },
+);

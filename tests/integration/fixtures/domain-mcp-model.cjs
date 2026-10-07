@@ -9,7 +9,7 @@ async function startModel(options = {}) {
     const body = JSON.parse(raw); requests.push(body);
     const results = body.messages.filter(message => message.role === 'tool');
     const rejected = options.stopOnRejection !== false && results.some(message => /The tool call is rejected by the user|rejected|denied/i.test(JSON.stringify(message.content)));
-    const index = results.length;
+    const index = options.resultIndex ? options.resultIndex(body) : options.perPrompt ? body.messages.slice(body.messages.findLastIndex(message => message.role === 'user') + 1).filter(message => message.role === 'tool').length : results.length;
     const calls = (typeof options.calls === 'function' ? options.calls(body) : options.calls) || [
       {name: 'domain_tool_describe', arguments: {toolId: 'eda.harness.create_goal'}},
       {name: 'domain_tool_call', arguments: {toolId: 'eda.harness.create_goal', arguments: {description: 'MCP_INTEGRATION_GOAL', constraints: {}, required_verification: []}}},
@@ -23,10 +23,11 @@ async function startModel(options = {}) {
     }
     const success = typeof options.success === 'function' ? options.success(body, requests.length - 1) : options.success;
     const usage = (typeof options.usage === 'function' ? options.usage(body, requests.length - 1) : options.usage) || {prompt_tokens: 100, completion_tokens: 10, total_tokens: 110};
-    const message = call ? {role: 'assistant', content: null, tool_calls: [{id: `mcp-call-${index}`, type: 'function', function: {name: call.name, arguments: JSON.stringify(call.arguments)}}]} : {role: 'assistant', content: rejected ? 'MCP_REJECTED' : success || 'MCP_CONTEXT_CONFIRMED'};
+    const message = call ? {role: 'assistant', content: options.beforeTool || null, tool_calls: [{id: `mcp-call-${index}`, type: 'function', function: {name: call.name, arguments: JSON.stringify(call.arguments)}}]} : {role: 'assistant', content: rejected ? 'MCP_REJECTED' : success || 'MCP_CONTEXT_CONFIRMED'};
     if (body.stream) {
       response.writeHead(200, {'Content-Type': 'text/event-stream'});
       if (options.thinking) response.write(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {reasoning_content: options.thinking}, finish_reason: null}]})}\n\n`);
+      if (call && options.beforeTool) response.write(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {content: options.beforeTool}, finish_reason: null}]})}\n\n`);
       const delta = call ? {role: 'assistant', tool_calls: [{index: 0, ...message.tool_calls[0]}]} : message;
       response.write(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta, finish_reason: null}]})}\n\n`);
       response.end(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {}, finish_reason: call ? 'tool_calls' : 'stop'}], usage})}\n\ndata: [DONE]\n\n`);

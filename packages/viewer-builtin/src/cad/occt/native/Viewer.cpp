@@ -223,7 +223,10 @@ public:
   void pose(double yaw,double pitch,double zoom,int x,int y) {
     if(!std::isfinite(yaw)||!std::isfinite(pitch)||!std::isfinite(zoom)||zoom<0.1||zoom>20)
       throw std::runtime_error("Invalid CAD camera pose");
+    // Fit captures orientation/scale, but resize owns the current window ratio.
+    const double aspect = view->Camera()->Aspect();
     view->Camera()->Copy(fitted);
+    view->Camera()->SetAspect(aspect);
     view->SetProj(std::cos(pitch)*std::cos(yaw),std::cos(pitch)*std::sin(yaw),std::sin(pitch));
     view->SetUp(0,0,1);
     view->Camera()->SetScale(fitScale/zoom);

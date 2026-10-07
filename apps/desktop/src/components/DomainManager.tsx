@@ -20,6 +20,7 @@ type Available = {
   prerequisites?: string[];
   size: number;
   runtimeDownloadSize?: number;
+  updateAvailable?: boolean;
   platforms: string[];
 };
 
@@ -55,7 +56,13 @@ export function DomainManager({
   useEffect(() => {
     dialog.current?.showModal();
     void refresh();
-    return window.viewerHost!.onDomainProgress(setProgress);
+    return window.viewerHost!.onDomainProgress(progress => {
+      if (progress.active === false) {
+        setSaving(false);
+        setProgress(null);
+        void refresh();
+      } else setProgress(progress);
+    });
   }, []);
   async function refresh() {
     setLoading(true);
@@ -64,6 +71,8 @@ export function DomainManager({
     try {
       const status = await window.viewerHost!.domainStatus();
       setInstalled(status.installed);
+      setSaving(Boolean(status.operation?.active));
+      if (status.operation?.progress) setProgress(status.operation.progress);
       setManaged(status.managed);
       setDiagnostics(status.errors);
       if (status.managed) onChanged(await window.viewerHost!.domains());
@@ -138,19 +147,20 @@ export function DomainManager({
   }
   const installedById = new Map(installed.map(item => [item.domain, item]));
   const selectable = available.filter(
-    item =>
-      !installedById.has(item.domain) ||
-      item.version.localeCompare(installedById.get(item.domain)!.version, 'en', { numeric: true }) >
-        0,
+    item => !installedById.has(item.domain) || item.updateAvailable === true,
   );
+  async function close() {
+    if (saving) await window.viewerHost!.domainCancel();
+    onClose();
+  }
   return (
     <dialog
       ref={dialog}
       className="ia-resource-modal ia-domains-modal"
       aria-label={t('Manage domains')}
       onCancel={event => {
-        if (saving) event.preventDefault();
-        else onClose();
+        event.preventDefault();
+        void close().catch(reason => setError(String(reason)));
       }}
     >
       <header>
@@ -162,7 +172,10 @@ export function DomainManager({
               : t('Add missing domains and install available updates.')}
           </p>
         </div>
-        <button aria-label={t('Close domain manager')} disabled={saving} onClick={onClose}>
+        <button
+          aria-label={t('Close domain manager')}
+          onClick={() => void close().catch(reason => setError(String(reason)))}
+        >
           ×
         </button>
       </header>
@@ -186,6 +199,16 @@ export function DomainManager({
                 )[progress.phase] || 'Preparing…',
               )}
             </span>
+            {saving && (
+              <button
+                type="button"
+                onClick={() =>
+                  void window.viewerHost!.domainCancel().catch(reason => setError(String(reason)))
+                }
+              >
+                {t('Cancel download')}
+              </button>
+            )}
             {progress.phase === 'downloading' && (
               <>
                 <progress max={progress.total} value={progress.received} />
@@ -290,7 +313,7 @@ export function DomainManager({
           <button onClick={() => void refresh()} disabled={loading || saving}>
             {t('Check updates')}
           </button>
-          <button disabled={saving} onClick={onClose}>
+          <button onClick={() => void close().catch(reason => setError(String(reason)))}>
             {firstRun ? t('Skip for now') : t('Close')}
           </button>
           {managed && (

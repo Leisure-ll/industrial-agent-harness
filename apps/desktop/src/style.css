@@ -314,7 +314,7 @@ body,
   white-space: nowrap;
 }
 .ia-chat {
-  min-width: 320px;
+  min-width: 280px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -802,7 +802,7 @@ body,
   display: flex !important;
   justify-content: flex-start !important;
   gap: 6px !important;
-  padding: 3px 0 !important;
+  padding: 10px 12px !important;
   font-size: 11px !important;
 }
 .ia-todo-title small {
@@ -1029,7 +1029,7 @@ body,
   border-top: 1px solid var(--ia-border);
 }
 .ia-chat {
-  min-width: 320px;
+  min-width: 280px;
   container-type: inline-size;
 }
 .ia-chat-header {
@@ -2740,5 +2740,303 @@ body,
 }
 .ia-project-page-heading .ia-project-start {
   margin-top: 0;
+  flex-shrink: 0;
+}
+
+/* Compact conversation and resizable workspace. */
+.ia-markdown {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ia-markdown {
+  font-size: 13px;
+  line-height: 1.75;
+}
+.ia-markdown > :first-child {
+  margin-top: 0;
+}
+.ia-markdown > :last-child {
+  margin-bottom: 0;
+}
+.ia-markdown h1,
+.ia-markdown h2,
+.ia-markdown h3,
+.ia-markdown h4,
+.ia-markdown h5,
+.ia-markdown h6 {
+  margin: 1.4em 0 0.6em;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.ia-markdown h1 {
+  font-size: 21px;
+}
+.ia-markdown h2 {
+  font-size: 18px;
+}
+.ia-markdown h3 {
+  font-size: 15px;
+}
+.ia-markdown h4,
+.ia-markdown h5,
+.ia-markdown h6 {
+  font-size: 13px;
+}
+.ia-markdown ul,
+.ia-markdown ol {
+  padding-left: 1.7em;
+  margin: 0.8em 0;
+}
+.ia-markdown li {
+  margin: 0.35em 0;
+}
+.ia-markdown li > p {
+  margin: 0.35em 0;
+}
+.ia-markdown blockquote {
+  margin: 1em 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--ia-border);
+  color: var(--ia-muted);
+}
+.ia-markdown hr {
+  border: 0;
+  border-top: 1px solid var(--ia-border);
+  margin: 1.4em 0;
+}
+.ia-markdown :not(pre) > code {
+  padding: 2px 5px;
+  background: var(--ia-code);
+  border-radius: 4px;
+  font-size: 0.9em;
+  white-space: break-spaces;
+}
+.ia-markdown pre {
+  max-width: 100%;
+  margin: 1em 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+  background: var(--ia-code);
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+}
+.ia-markdown .ia-answer-source {
+  max-height: 400px;
+  white-space: pre-wrap;
+}
+.ia-markdown-table {
+  max-width: 100%;
+  overflow: auto;
+  margin: 1em 0;
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+}
+.ia-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.ia-markdown th,
+.ia-markdown td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--ia-border);
+  vertical-align: top;
+  min-width: 90px;
+}
+.ia-markdown th {
+  text-align: left;
+  background: var(--ia-panel);
+  font-weight: 600;
+}
+.ia-markdown tr:last-child td {
+  border-bottom: 0;
+}
+.ia-markdown-link {
+  color: var(--rp-blue);
+}
+.ia-markdown-image {
+  color: var(--ia-muted);
+}
+.ia-markdown .contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+.ia-subagent-group {
+  display: grid;
+  gap: 8px;
+}
+.ia-subagent-card {
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+  margin: 8px 0;
+}
+.ia-subagent-card > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.ia-subagent-title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.ia-subagent-role,
+.ia-subagent-status,
+.ia-approval-source {
+  font-size: 12px;
+  color: var(--ia-muted);
+}
+.ia-subagent-status {
+  white-space: nowrap;
+}
+.ia-subagent-status.running {
+  color: var(--ia-accent);
+}
+.ia-subagent-status.awaiting_approval {
+  color: var(--ia-warning);
+}
+.ia-subagent-card.error {
+  border-color: var(--ia-danger);
+}
+.ia-subagent-content {
+  border-top: 1px solid var(--ia-border);
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+}
+.ia-approval-source {
+  display: block;
+  margin-top: 6px;
+}
+.ia-todo-wrap {
+  flex-shrink: 0;
+  min-width: 0;
+  padding: 0 max(22px, calc((100% - 690px) / 2));
+}
+.ia-todo {
+  padding: 0;
+  max-height: none;
+  border: 1px solid var(--ia-border);
+  border-radius: 10px;
+  background: var(--ia-raised);
+  overflow: hidden;
+}
+.ia-todo-title > svg,
+.ia-todo-label,
+.ia-todo-count {
+  flex-shrink: 0;
+}
+.ia-todo-title > svg {
+  color: var(--ia-muted);
+}
+.ia-todo-label {
+  font-weight: 600;
+}
+.ia-todo-count {
+  color: var(--ia-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ia-todo-current {
+  flex: 1;
+  min-width: 0;
+  padding-left: 6px;
+  color: var(--ia-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ia-todo-progress {
+  flex: 0 0 42px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--ia-border);
+}
+.ia-todo-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--rp-blue);
+}
+.ia-todo-title > svg:last-child {
+  transition: transform 150ms ease;
+}
+.ia-todo-title > svg.expanded {
+  transform: rotate(180deg);
+}
+.ia-todo ol {
+  list-style: none;
+  padding: 8px 12px;
+  margin: 0;
+  border-top: 1px solid var(--ia-border);
+  max-height: min(25vh, 220px);
+  overflow: auto;
+}
+.ia-todo li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ia-muted);
+}
+.ia-todo-status {
+  display: inline-flex;
+  flex: 0 0 16px;
+  justify-content: center;
+  margin-top: 2px;
+}
+.ia-todo li > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ia-todo li[data-status='done'] .ia-todo-status {
+  color: var(--ia-success);
+}
+.ia-todo li[data-status='in_progress'] {
+  color: var(--ia-text);
+}
+.ia-todo li[data-status='in_progress'] .ia-todo-status {
+  color: var(--rp-blue);
+}
+.ia-todo-spin {
+  animation: ia-spin 1.4s linear infinite;
+}
+.ia-workspace-divider {
+  flex: 0 0 6px;
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.ia-workspace-divider::after {
+  content: '';
+  position: absolute;
+  inset: 0 2px;
+  background: var(--ia-border);
+}
+.ia-workspace-divider:hover::after,
+.ia-workspace-divider:focus-visible::after {
+  background: var(--ia-accent);
+}
+.ia-workspace-divider:focus-visible {
+  outline: 2px solid var(--ia-accent);
+}
+
+.ia-chat-header > div:first-child {
+  min-width: 0;
+}
+.ia-header-project b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ia-chat-actions {
   flex-shrink: 0;
 }

@@ -3,6 +3,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const zlib = require('node:zlib');
+const { Transfer } = require('./transfer.cjs');
 const { RuntimeAssetManager, validateRuntimeAssets } = require('./runtime-assets.cjs');
 
 const MAX_COMPRESSED = 128 * 1024 * 1024;
@@ -344,27 +345,57 @@ function verifyInstalledFiles(directory) {
       throw Error(`Installed Pack resource changed: ${file.path}`);
 }
 
-async function download(url, expectedSize, maxBytes = MAX_COMPRESSED) {
-  let response;
-  for (let redirects = 0; redirects <= 5; redirects++) {
-    if (new URL(url).protocol !== 'https:') throw Error('Pack downloads require HTTPS.');
-    response = await fetch(url, { redirect: 'manual' });
-    if (![301, 302, 303, 307, 308].includes(response.status)) break;
-    if (redirects === 5 || !response.headers.get('location'))
-      throw Error('Pack download has too many redirects.');
-    url = new URL(response.headers.get('location'), url).toString();
-    await response.body?.cancel();
+function compareVersions(a, b) {
+  if (!VERSION.test(a) || !VERSION.test(b)) throw Error('Invalid Pack version.');
+  const parse = value => {
+    const dash = value.indexOf('-');
+    const core = dash < 0 ? value : value.slice(0, dash);
+    const pre = dash < 0 ? undefined : value.slice(dash + 1);
+    return { core: core.split('.').map(BigInt), pre: pre?.split('.') };
+  };
+  const left = parse(a),
+    right = parse(b);
+  for (let i = 0; i < 3; i++)
+    if (left.core[i] !== right.core[i]) return left.core[i] > right.core[i] ? 1 : -1;
+  if (!left.pre || !right.pre) return left.pre ? -1 : right.pre ? 1 : 0;
+  for (let i = 0; i < Math.max(left.pre.length, right.pre.length); i++) {
+    const x = left.pre[i],
+      y = right.pre[i];
+    if (x === y) continue;
+    if (x === undefined || y === undefined) return x === undefined ? -1 : 1;
+    const xn = /^\d+$/.test(x),
+      yn = /^\d+$/.test(y);
+    if (xn && yn) {
+      if (BigInt(x) === BigInt(y)) continue;
+      return BigInt(x) > BigInt(y) ? 1 : -1;
+    }
+    if (xn !== yn) return xn ? -1 : 1;
+    return x > y ? 1 : -1;
   }
-  if (!response.ok) throw Error(`Pack download failed: HTTP ${response.status}`);
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of response.body) {
-    size += chunk.length;
-    if (size > maxBytes) throw Error('Pack download exceeds size limits.');
-    chunks.push(chunk);
-  }
-  if (expectedSize != null && size !== expectedSize) throw Error('Pack download size mismatch.');
-  return Buffer.concat(chunks);
+  return 0;
+}
+async function download(url, expectedSize, maxBytes = MAX_COMPRESSED, options = {}) {
+  return new Transfer(options).run(async transfer => {
+    const response = await transfer.response(url),
+      chunks = [];
+    let size = 0,
+      reported = 0;
+    options.onProgress?.({ phase: 'downloading', received: 0, total: expectedSize });
+    for await (const chunk of response.body) {
+      transfer.signal.throwIfAborted();
+      transfer.touch();
+      size += chunk.length;
+      if (size > maxBytes || (expectedSize != null && size > expectedSize))
+        throw Error('Pack download exceeds size limits.');
+      chunks.push(chunk);
+      if (size - reported >= 65536 || size === expectedSize) {
+        options.onProgress?.({ phase: 'downloading', received: size, total: expectedSize });
+        reported = size;
+      }
+    }
+    if (expectedSize != null && size !== expectedSize) throw Error('Pack download size mismatch.');
+    return Buffer.concat(chunks);
+  });
 }
 
 class PackManager {
@@ -528,8 +559,10 @@ class PackManager {
   list() {
     return this.scan().installed;
   }
-  async catalog(url) {
-    const envelope = JSON.parse((await download(url, undefined, 2 * 1024 * 1024)).toString('utf8'));
+  async catalog(url, options = {}) {
+    const envelope = JSON.parse(
+      (await download(url, undefined, 2 * 1024 * 1024, options)).toString('utf8'),
+    );
     const catalog = verifyCatalog(envelope, this.keys);
     if (catalog.channel !== this.channel) throw Error('Pack catalog channel mismatch.');
     for (const entry of catalog.packs) {
@@ -572,7 +605,15 @@ class PackManager {
   }
   async install(
     entry,
-    { bytes, allowUnsigned = false, prepareRuntime = false, onProgress, signal } = {},
+    {
+      bytes,
+      allowUnsigned = false,
+      prepareRuntime = false,
+      onProgress,
+      signal,
+      stallMs,
+      timeoutMs,
+    } = {},
   ) {
     if (!allowUnsigned && !this.verifiedEntries.has(entry))
       throw Error('Pack must come from a verified catalog.');
@@ -584,13 +625,29 @@ class PackManager {
       throw Error('Invalid Pack selection.');
     if (entry.platforms && !entry.platforms.includes(`${process.platform}-${process.arch}`))
       throw Error('Domain Pack does not support this platform.');
+    const assertVersion = () => {
+      const active = this.readState().active[entry.domain];
+      if (active && compareVersions(entry.version, active) < 0)
+        throw Error(
+          `Pack update would downgrade ${entry.domain} from ${active} to ${entry.version}. The installed version was preserved.`,
+        );
+    };
+    signal?.throwIfAborted();
+    assertVersion();
+    const report = progress => onProgress?.({ label: entry.label || entry.domain, ...progress });
     const archive =
       bytes ||
       (this.bundledEntries.has(entry)
         ? fs.readFileSync(this.bundledEntries.get(entry))
-        : await download(entry.url, entry.size));
+        : await download(entry.url, entry.size, MAX_COMPRESSED, {
+            signal,
+            onProgress: report,
+            stallMs,
+            timeoutMs,
+          }));
     if (digest(archive) !== entry.sha256) throw Error('Domain Pack archive hash mismatch.');
     if (archive.length !== entry.size) throw Error('Domain Pack archive size mismatch.');
+    signal?.throwIfAborted();
     const { bundle, files } = decodeArchive(archive);
     if (bundle.domain !== entry.domain || bundle.version !== entry.version)
       throw Error('Domain Pack catalog identity mismatch.');
@@ -605,7 +662,10 @@ class PackManager {
     const backup = path.join(parent, `.previous-${crypto.randomUUID()}`);
     try {
       return this.withLock(() => {
+        signal?.throwIfAborted();
+        assertVersion();
         this.assertIdle(bundle.domain);
+        report({ phase: 'installing' });
         fs.mkdirSync(staging, { recursive: true, mode: 0o700 });
         for (const file of files) {
           const output = path.join(staging, ...file.path.split('/'));
@@ -665,4 +725,5 @@ module.exports = {
   digest,
   validateBundle,
   RuntimeAssetManager,
+  compareVersions,
 };

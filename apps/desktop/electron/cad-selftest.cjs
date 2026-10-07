@@ -188,6 +188,8 @@ async function run(window) {
   if (process.env.HARNESS_CAD_SELFTEST_OUTPUT)
     fs.copyFileSync(path.join(project, 'cad-viewer.png'), process.env.HARNESS_CAD_SELFTEST_OUTPUT);
   await require('./cad-inspection-selftest.cjs').verifyInspection(window, project);
+  if (process.argv.includes('--cad-resize-selftest'))
+    await require('./cad-resize-selftest.cjs').verifyResize(window, project);
   await open('model.step');
   await open('model.stl');
   assert.equal(

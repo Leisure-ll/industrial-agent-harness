@@ -9,6 +9,7 @@ const api = {
   domains: () => ipcRenderer.invoke('broker:domains'),
   domainStatus: () => ipcRenderer.invoke('domains:status'),
   domainAvailable: () => ipcRenderer.invoke('domains:available'),
+  domainCancel: () => ipcRenderer.invoke('domains:cancel'),
   domainInstall: domains => ipcRenderer.invoke('domains:install', { domains }),
   domainRemove: domain => ipcRenderer.invoke('domains:remove', { domain }),
   domainRepair: domain => ipcRenderer.invoke('domains:repair', { domain }),

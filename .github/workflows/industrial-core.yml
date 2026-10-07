@@ -63,12 +63,18 @@ jobs:
         run: |
           pnpm --filter @industrial-agent-harness/desktop build
           export HARNESS_CAD_SELFTEST_OUTPUT="$GITHUB_WORKSPACE/dist/ci-reports/cad-viewer.png"
-          pnpm --filter @industrial-agent-harness/desktop test:cad 2>&1 | tee dist/ci-reports/cad-viewer.log
+          pnpm --filter @industrial-agent-harness/desktop test:cad-resize 2>&1 | tee dist/ci-reports/cad-viewer.log
       - name: Verify external MCP through the real Desktop settings and approval flow
         shell: bash
         run: |
           export KIMI_EXECUTABLE="$(node -p "require('./packages/agent-kimi/src/code-session.cjs').bundledExecutable()")"
           pnpm --filter @industrial-agent-harness/desktop test:external-mcp 2>&1 | tee dist/ci-reports/external-mcp-desktop.log
+      - name: Verify Desktop conversations, controls, documents and native subagents
+        shell: bash
+        run: |
+          for suite in ui language documents images parallel chats logs mcp subagents; do
+            pnpm --filter @industrial-agent-harness/desktop "test:$suite" 2>&1 | tee "dist/ci-reports/desktop-$suite.log"
+          done
       - name: Collect native FreeCAD startup diagnostics
         if: failure()
         run: |

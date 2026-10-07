@@ -230,11 +230,12 @@ async function run(window, store) {
       const restored = await evaluate(
         `window.viewerHost.chatHistory({id:${JSON.stringify(original)}})`,
       );
-      assert.deepEqual(restored.turns.at(-1).broker.scope.skills, []);
+      assert.ok(!restored.turns.at(-1).broker.scope.skills.includes('chip.netlist.inspect'));
+      assert.ok(restored.turns.at(-1).broker.scope.skills.includes('project.work'));
       assert.ok(
         restored.turns
           .at(-1)
-          .events.some(event => event.type === 'text' && event.text === 'Remembered turn 1.'),
+          .events.some(event => event.type === 'text' && event.text === 'Remembered turn 4.'),
       );
       await window.webContents.reload();
       await wait(`document.querySelectorAll('.ia-chat-turn').length===4`);

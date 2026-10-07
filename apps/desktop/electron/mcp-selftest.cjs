@@ -6,7 +6,17 @@ const { saveBindings } = require('./project-bindings.cjs');
 const { saveProfile, defaults } = require('./model-config.cjs');
 let fixture, directory, evidence;
 async function prepare(config, modelDirectory) {
-  fixture = await startModel();
+  fixture = await startModel({
+    calls: [
+      {
+        name: 'Bash',
+        arguments: {
+          command: 'echo MCP_INTEGRATION_CONTEXT',
+          description: 'Read-only MCP integration marker',
+        },
+      },
+    ],
+  });
   evidence = path.dirname(config);
   directory = path.join(config, 'mcp-project');
   fs.mkdirSync(directory, { recursive: true });
@@ -53,7 +63,7 @@ async function run(window) {
     );
     assert.deepEqual(
       await evaluate(
-        `window.viewerHost.resolve({task:'create_goal for MCP integration'}).then(result=>result.scope.tools)`,
+        `window.viewerHost.resolve({task:'create_goal for MCP integration'}).then(result=>result.scope.tools.filter(id=>!id.startsWith('project.')))`,
       ),
       [],
     );
@@ -67,7 +77,7 @@ async function run(window) {
     );
     await evaluate(`document.querySelector('.ia-send').click()`);
     // Every MCP invocation goes through the real pinned Kimi approval path.
-    for (let index = 0; index < 3; index++) {
+    for (let index = 0; index < 1; index++) {
       await wait(`Boolean(document.querySelector('.ia-approval button'))`);
       await evaluate(`document.querySelector('.ia-approval button').click()`);
       await wait(`!document.querySelector('.ia-approval')`);
@@ -75,8 +85,16 @@ async function run(window) {
     await wait(
       `document.querySelector('.ia-agent-flow')?.innerText.includes('MCP_CONTEXT_CONFIRMED')&&!document.querySelector('button[title="Stop agent"]')`,
     );
-    assert.ok(JSON.stringify(fixture.requests.at(-1).messages).includes('MCP_INTEGRATION_GOAL'));
-    assert.ok(fs.existsSync(path.join(directory, '.eda')));
+    assert.ok(JSON.stringify(fixture.requests.at(-1).messages).includes('MCP_INTEGRATION_CONTEXT'));
+    assert.ok(
+      fixture.requests[0].tools.some(tool =>
+        tool.function.name.startsWith('mcp__harness_adapter__'),
+      ),
+    );
+    assert.ok(
+      !fs.existsSync(path.join(directory, '.eda')),
+      'generic approval does not create legacy industrial state',
+    );
     fs.writeFileSync(
       path.join(evidence, 'chip-pack-mcp.png'),
       (await window.webContents.capturePage()).toPNG(),
@@ -87,7 +105,7 @@ async function run(window) {
         provider: 'chip-pack.eda',
         desktop: true,
         pinnedKimi: true,
-        approvals: 3,
+        approvals: 1,
         persistedContext: true,
         screenshot: path.join(evidence, 'chip-pack-mcp.png'),
       }),
