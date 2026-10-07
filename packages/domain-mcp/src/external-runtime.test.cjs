@@ -80,7 +80,7 @@ async function open(t, transport, sessionOptions) {
       },
     );
   };
-  return { marker, drift, registry, runtime, run, secret, environment };
+  return { marker, drift, registry, runtime, run, secret, environment, remote };
 }
 
 test(
@@ -169,6 +169,26 @@ test(
     assert.match(changed.action.diagnostics.join(), /environment changed/);
     assert.equal(fs.readFileSync(marker, 'utf8'), before);
     assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+    assert.equal(
+      (await run('click', { x: 3, y: 4 }, true, true, 'new-chat')).action.status,
+      'completed',
+    );
+  },
+);
+test(
+  'SSE disconnection cannot replace service state through SDK automatic reconnection',
+  { timeout: 30000 },
+  async t => {
+    const { runtime, run, marker, remote } = await open(t, 'sse');
+    await run('click', { x: 1, y: 2 }, true, true, 'chat');
+    const before = fs.readFileSync(marker, 'utf8');
+    await remote.disconnectSse();
+    // EventSource normally reconnects after three seconds, possibly with a new service session.
+    await new Promise(resolve => setTimeout(resolve, 4000));
+    const lost = await run('click', { x: 3, y: 4 }, true, true, 'chat');
+    assert.equal(lost.action.status, 'failed');
+    assert.match(lost.action.diagnostics.join(), /state was lost/);
+    assert.equal(fs.readFileSync(marker, 'utf8'), before);
     assert.equal(
       (await run('click', { x: 3, y: 4 }, true, true, 'new-chat')).action.status,
       'completed',

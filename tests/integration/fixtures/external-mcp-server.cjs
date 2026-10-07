@@ -63,7 +63,7 @@ async function startRemoteFixture(options = {}) {
     } catch {if (!response.headersSent) response.writeHead(500); response.end();}
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  return {url: `http://127.0.0.1:${server.address().port}`, close: async () => {await Promise.allSettled([...active].map(mcp => mcp.close())); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));}};
+  return {url: `http://127.0.0.1:${server.address().port}`, disconnectSse: async () => {await Promise.allSettled([...legacy.values()].map(transport => transport.close()));}, close: async () => {await Promise.allSettled([...active].map(mcp => mcp.close())); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));}};
 }
 
 if (require.main === module) void createFixture({marker: process.env.FIXTURE_CLICK_MARKER, driftFile: process.env.FIXTURE_DRIFT_FILE, secret: process.env.FIXTURE_SECRET}).connect(new StdioServerTransport());

@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { ChatStore } = require('../packages/harness-core/src/index.cjs');
+const { DatabaseSync } = require('node:sqlite');
 const { saveProfile, readProfile } = require('../packages/agent-kimi/src/model-config.cjs');
 const { startModel } = require('../tests/integration/fixtures/domain-mcp-model.cjs');
 const execute = promisify(execFile);
@@ -145,7 +146,12 @@ async function main() {
     assert.equal(before.turns.length, 2);
     assert.equal(before.sessions.length, 1);
     const preserved = [
-      ...snapshot(config),
+      // Resource leases are operational data: each CLI process changes this
+      // database even after deleting its leases. Preserve settings byte-for-byte,
+      // and validate lease cleanup semantically instead.
+      ...snapshot(config).filter(
+        item => !/^session-resources\.sqlite(?:-wal|-shm)?$/.test(path.basename(item.file)),
+      ),
       ...snapshot(project),
       ...snapshot(path.join(chats, 'sessions', before.sessions[0].id)),
     ];
@@ -203,6 +209,22 @@ async function main() {
     );
     assert.notEqual(after.sessions[1].compatibility_key, before.sessions[0].compatibility_key);
     for (const item of preserved) assert.equal(digest(item.file), item.sha256, item.file);
+    const resources = new DatabaseSync(path.join(config, 'session-resources.sqlite'), {
+      readOnly: true,
+    });
+    try {
+      assert.equal(resources.prepare('PRAGMA integrity_check').get().integrity_check, 'ok');
+      assert.equal(
+        resources.prepare('SELECT COUNT(*) AS count FROM session_leases').get().count,
+        0,
+      );
+      assert.equal(
+        resources.prepare('SELECT COUNT(*) AS count FROM resource_owners').get().count,
+        0,
+      );
+    } finally {
+      resources.close();
+    }
     const report = {
       status: 'PASS',
       previousRelease: 'chip-linux-installer-v0.1.0-preview.4',
@@ -215,6 +237,7 @@ async function main() {
       modelProfileRetained: true,
       mcpRegistrationRetained: true,
       projectResourcePolicyRetained: true,
+      resourceLeasesCleaned: true,
       previousInstallRetained: true,
       installedLauncher: newEntry,
     };

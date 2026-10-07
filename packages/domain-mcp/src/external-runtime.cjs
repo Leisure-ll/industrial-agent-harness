@@ -96,6 +96,8 @@ function createExternalRuntimePlugin({ servers, environment, registry, sessionOp
                 'External MCP tool surface changed; refresh the registration before calling.',
               );
             if (signal.aborted) throw Error('External MCP call was cancelled before execution.');
+            if (connection.closed)
+              throw Error('External MCP session state was lost before execution.');
             callStarted = true;
             const result = await connection.client.callTool(
               { name: tool.name, arguments: inputs.arguments },
