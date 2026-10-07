@@ -38,6 +38,7 @@ jobs:
       - name: Verify Desktop conversations, controls, documents and native subagents
         shell: bash
         run: |
+          mkdir -p dist/ci-reports
           pnpm --filter @industrial-agent-harness/desktop build
           for suite in chats logs mcp subagents kicad engineering ui language documents images parallel; do
             pnpm --filter @industrial-agent-harness/desktop "test:$suite" 2>&1 | tee "dist/ci-reports/desktop-$suite.log"
