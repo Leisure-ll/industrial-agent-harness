@@ -2701,6 +2701,13 @@ body,
   .ia-sidebar {
     flex-basis: 204px;
   }
+  /* Keep chat names readable with classic scrollbar gutters on small screens. */
+  .ia-project-chats {
+    margin-left: 12px;
+  }
+  .ia-chat-row .ia-sidebar-chat {
+    padding-inline: 6px !important;
+  }
   .ia-sidebar-brand {
     padding: 0 12px;
     gap: 8px;

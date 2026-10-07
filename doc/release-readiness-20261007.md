@@ -48,7 +48,7 @@ node scripts/smoke-packaged-cad.cjs /absolute/fresh-evidence --dmg
 
 PCB/Godot 注册与共享工程 Runtime 的差距单独提交 [#50](https://github.com/Zhiman-BJ/industrial-agent-harness/issues/50)。本轮增强回归而不扩写两个完整工程 Runtime；公开能力说明保持这个限制。PCB 的固定源码在获授权的本机镜像中提取并对照登记摘要，只用于完整性与协议检查，不随仓库或公共包分发，也不把本地开发镜像当作正式固定环境。
 
-桌面全屏回归等待 macOS 的原生窗口切换事件及 HTML 状态，避免在系统 Space 动画完成前退出。画布像素必须在有界时间内实际绘制；OCCT 帧等待也有失败期限。专用 selftest 窗口关闭后台节流，正常应用保留默认设置。
+桌面全屏回归等待 macOS 的原生窗口切换事件及 HTML 状态，避免在系统 Space 动画完成前退出。画布像素必须在有界时间内实际绘制；OCCT 帧等待也有失败期限。专用 selftest 窗口关闭后台节流，正常应用保留默认设置。聊天列表在小窗口减少缩进与按钮留白，为标题和删除入口保留空间；重启回归固定检查 1000 px 窗口。macOS CI 在准备大型 FreeCAD 依赖前先跑桌面回归，更早报告界面失败。
 
 ## 后续公众发行条件
 

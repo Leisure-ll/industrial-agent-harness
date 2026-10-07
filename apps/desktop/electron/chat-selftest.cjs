@@ -240,14 +240,33 @@ async function run(window, store) {
       await window.webContents.reload();
       await wait(`document.querySelectorAll('.ia-chat-turn').length===4`);
     }
+    // Hosted Macs can have a 1024px desktop. Verify the supported narrow window,
+    // rather than relying on the local monitor's larger startup dimensions.
+    window.setContentSize(1000, 720);
+    // Custom scrollbars reserve a classic gutter even on Macs using overlays.
+    await window.webContents.insertCSS('.ia-project-list::-webkit-scrollbar { width: 15px; }');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const titleLayout = await evaluate(`(() => {
+      const title=document.querySelector('.ia-sidebar-chat span');
+      return { viewport:innerWidth, sidebar:document.querySelector('.ia-sidebar').getBoundingClientRect().width,
+        title:title.getBoundingClientRect().width, text:title.textContent };
+    })()`);
+    console.log('Chat title layout:', JSON.stringify(titleLayout));
     assert.ok(
-      await evaluate(
-        `document.querySelector('.ia-sidebar-chat span').getBoundingClientRect().width>60`,
-      ),
-      'sidebar chat title remains visible',
+      titleLayout.title > 60,
+      'sidebar chat title remains visible: ' + JSON.stringify(titleLayout),
     );
     const evidence = path.join(store.directory, `desktop-chat-${stage}.png`);
     fs.writeFileSync(evidence, (await window.webContents.capturePage()).toPNG());
+    if (process.env.CI && process.env.GITHUB_WORKSPACE) {
+      const report = path.join(process.env.GITHUB_WORKSPACE, 'dist/ci-reports');
+      fs.mkdirSync(report, { recursive: true });
+      fs.copyFileSync(evidence, path.join(report, `desktop-chat-${stage}.png`));
+      fs.writeFileSync(
+        path.join(report, `desktop-chat-${stage}-layout.json`),
+        JSON.stringify(titleLayout),
+      );
+    }
     console.log(
       JSON.stringify({
         ok: true,
@@ -263,6 +282,14 @@ async function run(window, store) {
       path.join(store.directory, 'desktop-chat-failure.png'),
       (await window.webContents.capturePage()).toPNG(),
     );
+    if (process.env.CI && process.env.GITHUB_WORKSPACE) {
+      const report = path.join(process.env.GITHUB_WORKSPACE, 'dist/ci-reports');
+      fs.mkdirSync(report, { recursive: true });
+      fs.copyFileSync(
+        path.join(store.directory, 'desktop-chat-failure.png'),
+        path.join(report, `desktop-chat-${stage}-failure.png`),
+      );
+    }
     throw error;
   }
 }

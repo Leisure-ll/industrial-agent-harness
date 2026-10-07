@@ -35,6 +35,13 @@ jobs:
           node apps/desktop/scripts/setup-kimi.cjs
           cd domain-packs/chip/eda-harness
           uv sync --frozen --no-dev --python 3.13
+      - name: Verify Desktop conversations, controls, documents and native subagents
+        shell: bash
+        run: |
+          pnpm --filter @industrial-agent-harness/desktop build
+          for suite in chats logs mcp subagents kicad engineering ui language documents images parallel; do
+            pnpm --filter @industrial-agent-harness/desktop "test:$suite" 2>&1 | tee "dist/ci-reports/desktop-$suite.log"
+          done
       - name: Prepare pinned official FreeCAD runtime
         run: node scripts/setup-freecad.cjs
       - name: Build independent CAD CLI for native execution
@@ -61,7 +68,6 @@ jobs:
       - name: Verify real FreeCAD artifacts through the Desktop viewer
         shell: bash
         run: |
-          pnpm --filter @industrial-agent-harness/desktop build
           export HARNESS_CAD_SELFTEST_OUTPUT="$GITHUB_WORKSPACE/dist/ci-reports/cad-viewer.png"
           pnpm --filter @industrial-agent-harness/desktop test:cad-resize 2>&1 | tee dist/ci-reports/cad-viewer.log
       - name: Verify external MCP through the real Desktop settings and approval flow
@@ -69,12 +75,6 @@ jobs:
         run: |
           export KIMI_EXECUTABLE="$(node -p "require('./packages/agent-kimi/src/code-session.cjs').bundledExecutable()")"
           pnpm --filter @industrial-agent-harness/desktop test:external-mcp 2>&1 | tee dist/ci-reports/external-mcp-desktop.log
-      - name: Verify Desktop conversations, controls, documents and native subagents
-        shell: bash
-        run: |
-          for suite in ui language documents images parallel chats logs mcp subagents kicad engineering; do
-            pnpm --filter @industrial-agent-harness/desktop "test:$suite" 2>&1 | tee "dist/ci-reports/desktop-$suite.log"
-          done
       - name: Collect native FreeCAD startup diagnostics
         if: failure()
         run: |
