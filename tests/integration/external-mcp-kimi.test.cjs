@@ -67,6 +67,10 @@ test(
             name: 'external_tool_call',
             arguments: { toolId: click, argumentsJson: JSON.stringify({ x: 12, y: 24 }) },
           },
+          {
+            name: 'external_tool_call',
+            arguments: { toolId: click, argumentsJson: JSON.stringify({ x: 13, y: 25 }) },
+          },
           { name: 'external_tool_call', arguments: { toolId: screenshot, argumentsJson: '{}' } },
         ],
       });
@@ -103,7 +107,7 @@ test(
       const rows = stdout.trim().split('\n').map(JSON.parse),
         results = rows.filter(row => row.type === 'industrial_result');
       assert.equal(rows.at(-1).status, 'finished', stderr + stdout);
-      assert.equal(results.length, 2);
+      assert.equal(results.length, 3);
       assert.ok(
         model.requests.some(request =>
           request.messages.some(message =>
@@ -120,7 +124,13 @@ test(
         assert.equal(fs.existsSync(marker), false);
         assert.ok(results.every(result => result.action.status === 'failed'));
       } else {
-        assert.deepEqual(JSON.parse(fs.readFileSync(marker)).arguments, { x: 12, y: 24 });
+        const clickResult = JSON.parse(fs.readFileSync(marker));
+        assert.deepEqual(clickResult.arguments, { x: 13, y: 25 });
+        assert.equal(
+          clickResult.count,
+          2,
+          'Actual installed CLI must retain the MCP process across approved calls.',
+        );
         assert.ok(
           results.every(
             result =>

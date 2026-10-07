@@ -17,3 +17,5 @@ Runtime Tool 可携带输入指南，通过受 Scope 约束的 `describeTool` �
 Read-only host Tools still enter `IndustrialRuntime.execute` with the current project, Broker Scope and State identity. Their Actions, diagnostics and Checkpoints are persisted, but successful or failed observations do not replace the engineering State, artifacts or verification identities. Readiness is separate from engineering acceptance.
 
 createWorkspacePlugin 提供所有领域共用的初始化、受控文件读写和声明任务执行。effect=inputs 的编辑回执保留旧验收并标 stale；effect=external 记录宿主服务 Action 与未验收响应而不替换工程 State。执行只有明确 checks-json 才能通过，退出码不能单独建立验收。格式、限额和真实消费者回归见[共享工程底座](../../doc/shared-workspace.md)。
+
+`doctor --project-dir DIR --domain DOMAIN` runs without model credentials and records a read-only environment Action. It probes protected local execution, declared executables/dependency roots and available offline Docker images. Exit 2 means a required prerequisite is missing. Shared tools include `project.environment.inspect`; input selection, local read permissions and approval previews are documented in [Shared workspace](../../doc/shared-workspace.md).

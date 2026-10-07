@@ -11,18 +11,62 @@ const {
 const {
   hash,
   projectFile,
-  inputIndex,
+  createInputIndexer,
   applyFiles,
   manifest,
   runDirectory,
   readBytes,
 } = require('./workspace-files.cjs');
 const { executeTask } = require('./task-process.cjs');
+const { preflight } = require('./preflight.cjs');
 const VERSION = '1.0.0';
 const fileVerifier = 'project.files.integrity',
   taskVerifier = 'project.task.checks';
 const json = value => JSON.stringify(value, null, 2) + '\n';
+function editPreview(projectDir, changes, protectedPaths) {
+  const summary = changes.map(
+    change =>
+      `${change.content === null ? 'Delete' : change.expectedSha256 === null ? 'Create' : 'Modify'} ${change.path}`,
+  );
+  const diffs = changes.map(change => {
+    const file = projectFile(projectDir, change.path, protectedPaths);
+    const before = fs.existsSync(file) ? readBytes(file).toString('utf8').split('\n') : [];
+    const after = change.content === null ? [] : change.content.split('\n');
+    let start = 0,
+      end = 0;
+    while (start < before.length && start < after.length && before[start] === after[start]) start++;
+    while (
+      end < before.length - start &&
+      end < after.length - start &&
+      before[before.length - end - 1] === after[after.length - end - 1]
+    )
+      end++;
+    const from = Math.max(0, start - 3),
+      tail = Math.min(end, 3);
+    return (
+      `--- ${change.path} (current)\n+++ ${change.path} (proposed)\n` +
+      before
+        .slice(from, start)
+        .map(line => ' ' + line)
+        .concat(
+          before.slice(start, before.length - end).map(line => '-' + line),
+          after.slice(start, after.length - end).map(line => '+' + line),
+          after.slice(after.length - end, after.length - end + tail).map(line => ' ' + line),
+        )
+        .join('\n')
+    );
+  });
+  return {
+    title: `Edit ${changes.length} project files`,
+    text: summary.join('\n') + '\n\n' + diffs.join('\n\n'),
+  };
+}
 const guides = {
+  'project.environment.inspect': {
+    inputs: {},
+    description:
+      'Check protected local execution, declared executables, dependency directories and offline Docker images without a model request or engineering acceptance.',
+  },
   'project.initialize': {
     inputs: { name: 'string' },
     description:
@@ -90,6 +134,7 @@ function createWorkspacePlugin({
   protectedPaths = [],
   inspectionDiagnostics = () => [],
 }) {
+  const indexer = createInputIndexer();
   const tool = (id, risk, execute, effect) => ({
     descriptor: {
       schemaVersion: '1',
@@ -100,14 +145,36 @@ function createWorkspacePlugin({
       verification: risk === 'read-only' ? [] : [effect === 'inputs' ? fileVerifier : taskVerifier],
     },
     guide: guides[id],
+    preview: ({ projectDir, inputs }) => {
+      if (id === 'project.files.apply')
+        return editPreview(
+          projectDir,
+          ProjectFileApplyRequestSchema.parse(inputs).changes,
+          protectedPaths,
+        );
+      if (id === 'project.task.run') {
+        const request = ProjectTaskRunRequestSchema.parse(inputs),
+          task = manifest(projectDir, protectedPaths).tasks[request.task];
+        return {
+          title: `Run task ${request.task}`,
+          text: json(task || { error: 'Task is not declared.' }),
+        };
+      }
+      return { title: guides[id].description, text: json(inputs) };
+    },
     execute,
   });
   return {
-    stateProvider: ({ projectDir }) => ({
+    stateProvider: async ({ projectDir }) => ({
       stage: null,
-      inputHashes: inputIndex(projectDir, protectedPaths),
+      inputHashes: await indexer.index(projectDir, protectedPaths),
     }),
     tools: [
+      tool('project.environment.inspect', 'read-only', context => {
+        if (Object.keys(context.inputs).length)
+          throw Error('Environment inspection accepts an empty inputs object.');
+        return preflight(context, environment, protectedPaths);
+      }),
       tool(
         'project.initialize',
         'mutating',
@@ -135,7 +202,7 @@ function createWorkspacePlugin({
         },
         'inputs',
       ),
-      tool('project.files.read', 'read-only', ({ projectDir, inputs, action }) => {
+      tool('project.files.read', 'read-only', async ({ projectDir, inputs, action }) => {
         const request = ProjectFileReadRequestSchema.parse(inputs);
         let value;
         if (request.path) {
@@ -145,7 +212,11 @@ function createWorkspacePlugin({
             sha256: hash(bytes),
             content: new TextDecoder('utf-8', { fatal: true }).decode(bytes),
           };
-        } else value = { files: inputIndex(projectDir, protectedPaths) };
+        } else
+          value = {
+            files: await indexer.index(projectDir, protectedPaths),
+            diagnostics: indexer.diagnostics,
+          };
         return receipt(projectDir, action, 'report.files', value);
       }),
       tool(
@@ -170,7 +241,7 @@ function createWorkspacePlugin({
         }
         return receipt(projectDir, action, 'report.tasks', {
           ...value,
-          inspectionDiagnostics: inspectionDiagnostics(),
+          inspectionDiagnostics: [...indexer.diagnostics, ...inspectionDiagnostics()],
         });
       }),
       tool(

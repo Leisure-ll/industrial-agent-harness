@@ -2,8 +2,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const { hash } = require('./workspace-files.cjs');
+const os = require('node:os');
 
-function executable(command, environment) {
+function executable(command, environment, preservePath = false) {
   const candidates = command.includes(path.sep)
     ? [path.resolve(command)]
     : (environment.PATH || process.env.PATH || '')
@@ -12,7 +13,8 @@ function executable(command, environment) {
   for (const file of candidates)
     try {
       fs.accessSync(file, fs.constants.X_OK);
-      if (fs.statSync(file).isFile()) return fs.realpathSync(file);
+      if (fs.statSync(file).isFile())
+        return preservePath ? path.resolve(file) : fs.realpathSync(file);
     } catch {}
   throw Error('Task executable is unavailable: ' + command);
 }
@@ -57,16 +59,88 @@ function filter() {
   });
   return bytes;
 }
-function localCommand(argv, directory, work, environment) {
+function localCommand(argv, directory, input, work, environment, task) {
   const target = executable(argv[0], environment);
-  const identity = { executable: target, sha256: hash(fs.readFileSync(target)) };
+  const launchPath = executable(argv[0], environment, true);
+  const systemRoots =
+    process.platform === 'darwin'
+      ? [
+          '/System',
+          '/usr',
+          '/bin',
+          '/sbin',
+          '/Library/Developer/CommandLineTools',
+          '/Library/Frameworks',
+          '/opt/homebrew/Cellar',
+          '/opt/homebrew/opt',
+          '/usr/local/Cellar',
+          '/usr/local/opt',
+          '/opt/homebrew/etc/openssl@3/openssl.cnf',
+          '/usr/local/etc/openssl@3/openssl.cnf',
+        ]
+      : [
+          '/usr',
+          '/bin',
+          '/sbin',
+          '/lib',
+          '/lib64',
+          '/etc/ld.so.cache',
+          '/etc/alternatives',
+          '/etc/passwd',
+          '/etc/group',
+          '/etc/nsswitch.conf',
+          '/etc/localtime',
+          '/etc/fonts',
+          '/etc/ssl/openssl.cnf',
+          '/etc/ssl/certs',
+        ];
+  const roots = new Set(systemRoots.filter(file => fs.existsSync(file)));
+  // Preserve virtual-environment launch paths, and expose that installation's
+  // libraries without granting the enclosing user home or arbitrary host data.
+  for (const file of [target, launchPath]) {
+    const parent = path.dirname(file),
+      prefix = path.dirname(parent);
+    if (
+      ['bin', 'sbin'].includes(path.basename(parent)) &&
+      ![
+        '/',
+        '/Users',
+        '/home',
+        '/opt',
+        '/usr/local',
+        '/opt/homebrew',
+        os.homedir(),
+        path.join(os.homedir(), '.local'),
+      ].includes(prefix) &&
+      !['/Users', '/home'].includes(path.dirname(prefix)) &&
+      // A launcher in the original project must not expose unselected sources.
+      prefix !== path.resolve(directory, '..', '..')
+    )
+      roots.add(prefix);
+    else roots.add(file);
+  }
+  for (const dependency of task.runtime.readOnlyDirs || []) {
+    const root = fs.realpathSync(dependency);
+    if (!fs.statSync(root).isDirectory()) throw Error('Task dependency is not a directory.');
+    roots.add(root);
+  }
+  roots.add(fs.realpathSync(input));
+  const identity = {
+    executable: target,
+    launchPath,
+    sha256: hash(fs.readFileSync(target)),
+    readOnlyRoots: [...roots],
+  };
   if (process.platform === 'darwin' && fs.existsSync('/usr/bin/sandbox-exec')) {
     const profile = path.join(directory, 'task.sb');
     fs.writeFileSync(
       profile,
-      `(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* (subpath ${JSON.stringify(work)}) (literal "/dev/null"))\n(deny network*)\n(deny appleevent-send)\n`,
+      `(version 1)\n(allow default)\n(deny file-read-data)\n(allow file-read-data (literal "/"))\n(allow file-read-data ${[...roots, fs.realpathSync(work), '/dev'].map(file => `(${fs.statSync(file).isDirectory() ? 'subpath' : 'literal'} ${JSON.stringify(file)})`).join(' ')})\n(deny file-write*)\n(allow file-write* (subpath ${JSON.stringify(work)}) (literal "/dev/null"))\n(deny network*)\n(deny appleevent-send)\n`,
     );
-    return { argv: ['/usr/bin/sandbox-exec', '-f', profile, target, ...argv.slice(1)], identity };
+    return {
+      argv: ['/usr/bin/sandbox-exec', '-f', profile, launchPath, ...argv.slice(1)],
+      identity,
+    };
   }
   if (process.platform === 'linux') {
     const bwrap = executable('bwrap', environment);
@@ -80,9 +154,9 @@ function localCommand(argv, directory, work, environment) {
         '--new-session',
         '--cap-drop',
         'ALL',
-        '--ro-bind',
+        '--tmpfs',
         '/',
-        '/',
+        ...[...roots].flatMap(root => ['--ro-bind', root, root]),
         '--proc',
         '/proc',
         '--dev',
@@ -95,7 +169,7 @@ function localCommand(argv, directory, work, environment) {
         '--seccomp',
         '3',
         '--',
-        target,
+        launchPath,
         ...argv.slice(1),
       ],
       identity,
@@ -255,7 +329,7 @@ async function executeTask(task, { directory, input, work, actionId, environment
     cleanup = () =>
       spawnSync(docker, ['rm', '--force', name], { env, timeout: 10000, stdio: 'ignore' });
   } else {
-    const local = localCommand(argv, directory, work, environment);
+    const local = localCommand(argv, directory, input, work, environment, task);
     command = local.argv;
     identity = local.identity;
     seccomp = local.seccomp;

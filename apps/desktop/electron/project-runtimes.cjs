@@ -25,16 +25,18 @@ class ProjectRuntimes {
     return bundle;
   }
   close() {
-    const errors = [];
+    const errors = [],
+      closing = [];
     for (const [key, bundle] of this.bundles) {
       try {
-        bundle.runtime.close();
+        closing.push(bundle.runtime.close());
         this.bundles.delete(key);
       } catch (error) {
         errors.push(error);
       }
     }
     if (errors.length) throw new AggregateError(errors, 'Some project runtimes could not close.');
+    return Promise.all(closing);
   }
 }
 

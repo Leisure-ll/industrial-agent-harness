@@ -74,6 +74,9 @@ function createProjectRuntime({
     stateProvider,
     tools: [...workspace.tools, ...(plugin.tools || []), ...external.tools],
     verifiers: { ...workspace.verifiers, ...(plugin.verifiers || {}), ...external.verifiers },
+    dispose: () => Promise.all([external.dispose(), plugin.dispose?.()]),
+    releaseOwner: ownerId =>
+      Promise.all([external.releaseOwner(ownerId), plugin.releaseOwner?.(ownerId)]),
   });
   protectedPaths.push(runtime.directory);
   return {

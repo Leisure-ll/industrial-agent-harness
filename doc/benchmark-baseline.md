@@ -47,7 +47,7 @@ node scripts/benchmark-harness.cjs PROJECT DOMAIN TASK_FILE OUTPUT_DIR PROFILE_F
 
 把 smoke Suite 改为 `mode:paired-model` 后，必须补齐 `model` 和冻结环境；两支 command 分别调用上述驱动。参数占位符支持 `{projectDir}`、`{domain}`、`{taskFile}`、`{outputDir}`、`{suiteDir}`、`{seed}`、`{maxMs}`。命令的 `sha256` 是可执行文件身份，`files:[{path,sha256}]` 是实现与配置文件身份。正式 mode 要求两个驱动和独立 Verifier 都有冻结文件身份，工具也有身份；预检失败时不会生成正式结果。
 
-当前生产 Chip Runtime 只开放已声明的 RTL lint/仿真，不提供任意源码修复工具。因此本例 counter repair 尚不能作为 Harness 已支持的正式修复任务。可用的声明式工程任务参考 `tests/integration/fixtures/industrial-rtl/eda.yaml`；首轮正式对照需要为其编写并冻结独立 Verifier、任务集和原生执行策略。不得让 Harness 的驱动直接写源码来填补生产 Runtime 缺口。
+专业 Chip Runtime 仍仅开放已声明的 RTL lint/仿真；现有共享 Runtime 已提供受审批的源码修改与声明任务执行。但本例 counter repair 的冻结任务、独立 Verifier 和原生执行策略尚未补齐，不能因此作为已验收的正式 benchmark。可用的声明式工程任务参考 `tests/integration/fixtures/industrial-rtl/eda.yaml`；首轮正式对照需要为其编写并冻结独立 Verifier、任务集和原生执行策略。不得让 Harness 的驱动直接写源码来填补生产 Runtime 缺口。
 
 ## 汇总解释
 

@@ -12,6 +12,7 @@ const {ListToolsRequestSchema, CallToolRequestSchema} = mcpRequire('@modelcontex
 const image = {type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6i8AAAAASUVORK5CYII='};
 const empty = {type: 'object', properties: {}, additionalProperties: false};
 function createFixture(options = {}) {
+  let count = 0;
   const server = new Server({name: 'Controlled external computer-use fixture', version: '1.0.0'}, {capabilities: {tools: {}}});
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     if (options.driftFile && fs.existsSync(options.driftFile) && fs.readFileSync(options.driftFile, 'utf8') === 'fail') throw Error(`Controlled tool-list failure: ${options.secret} ${'界'.repeat(20000)}`);
@@ -27,7 +28,7 @@ function createFixture(options = {}) {
     if (request.params.name === 'long_text') return {content: [{type: 'text', text: '界'.repeat(20000) + (options.secret || '')}]};
     if (request.params.name === 'click') {
       const {roots} = await server.listRoots();
-      const evidence = {clicked: true, arguments: request.params.arguments, roots};
+      const evidence = {clicked: true, arguments: request.params.arguments, roots, count: ++count, pid: process.pid};
       if (options.marker) fs.writeFileSync(options.marker, JSON.stringify(evidence));
       return {content: [{type: 'text', text: JSON.stringify(evidence)}]};
     }

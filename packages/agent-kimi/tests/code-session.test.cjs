@@ -33,16 +33,74 @@ async function fixture(t, options = {}) {
   return { model, session, directory };
 }
 
-async function consume(session, onEvent) {
+async function consume(session, onEvent, expectedStatus = 'finished') {
   const turn = session.prompt('Execute the controlled task');
   const events = [];
   for await (const event of turn) {
     events.push(event);
     await onEvent?.(event, turn);
   }
-  assert.equal((await turn.result).status, 'finished');
+  assert.equal((await turn.result).status, expectedStatus);
   return events;
 }
+
+test('native frame boundary preserves child interactions, rejects other sessions and keeps stream replay/gap checks', () => {
+  const session = createSession({ shareDir: os.tmpdir() }),
+    events = [];
+  session.nativeId = 'bound';
+  session.active = {
+    ended: false,
+    turnId: 2,
+    push: e => events.push(e),
+    offsets: new Map(),
+    calls: new Map(),
+  };
+  const frame = (type, payload, seq, offset) => ({
+    type,
+    payload,
+    session_id: 'bound',
+    epoch: 'epoch',
+    seq,
+    offset,
+  });
+  const question = frame(
+    'event.question.requested',
+    {
+      agentId: 'child',
+      turnId: 99,
+      question_id: 'q',
+      questions: [{ id: 'item', question: 'Choose', options: [{ id: 'yes', label: 'Yes' }] }],
+    },
+    1,
+  );
+  session.onFrame({ ...question, session_id: 'other' });
+  session.onFrame(question);
+  session.onFrame(question);
+  session.onFrame(frame('assistant.delta', { agentId: 'child', delta: 'HIDDEN' }, 2, 0));
+  assert.deepEqual(
+    events.filter(e => e.type === 'QuestionRequest').map(e => e.payload.agentId),
+    ['child'],
+  );
+  session.onFrame(frame('turn.step.started', { agentId: 'main', turnId: 2, step: 1 }, 3));
+  session.onFrame(frame('assistant.delta', { agentId: 'main', turnId: 2, delta: 'abc' }, 4, 0));
+  session.onFrame(frame('assistant.delta', { agentId: 'main', turnId: 2, delta: 'bc' }, 5, 1));
+  const second = frame('turn.step.started', { agentId: 'main', turnId: 2, step: 2 }, 6);
+  session.onFrame(second);
+  session.onFrame(frame('assistant.delta', { agentId: 'main', turnId: 2, delta: 'd' }, 7, 0));
+  session.onFrame(second);
+  assert.equal(
+    events
+      .filter(e => e.type === 'ContentPart')
+      .map(e => e.payload.text)
+      .join(''),
+    'abcd',
+  );
+  assert.throws(
+    () =>
+      session.onFrame(frame('assistant.delta', { agentId: 'main', turnId: 2, delta: 'gap' }, 8, 5)),
+    /gap/,
+  );
+});
 
 test('real thinking and answer streams retain separate offsets', { timeout: 15000 }, async t => {
   const f = await fixture(t, {
@@ -71,6 +129,114 @@ test('real thinking and answer streams retain separate offsets', { timeout: 1500
     ),
   );
 });
+
+test(
+  'native multi-step text and thinking survive a tool call, including shorter final output',
+  { timeout: 20000 },
+  async t => {
+    const f = await fixture(t, {
+      calls: () => [{ name: 'Read', arguments: { path: path.join(f.directory, 'input.txt') } }],
+      stepText: 'I will read the controlled file.',
+      thinking: (_, index) => (index === 0 ? 'FIRST_THINKING' : 'SECOND_THINKING'),
+      success: 'DONE',
+    });
+    fs.writeFileSync(path.join(f.directory, 'input.txt'), 'controlled input');
+    f.session.options.thinking = true;
+    const config = path.join(f.directory, 'config.toml');
+    fs.writeFileSync(
+      config,
+      fs
+        .readFileSync(config, 'utf8')
+        .replace('enabled = false', 'enabled = true')
+        .replace('capabilities = []', 'capabilities = ["thinking"]'),
+    );
+    const events = await consume(f.session);
+    assert.equal(
+      events
+        .filter(e => e.type === 'ContentPart' && e.payload.text)
+        .map(e => e.payload.text)
+        .join(''),
+      'I will read the controlled file.DONE',
+    );
+    assert.equal(
+      events
+        .filter(e => e.type === 'ContentPart' && e.payload.think)
+        .map(e => e.payload.think)
+        .join(''),
+      'FIRST_THINKINGSECOND_THINKING',
+    );
+    assert.equal(f.model.requests.length, 2);
+  },
+);
+
+test(
+  'native child approvals support approve, reject and cancel through the parent session',
+  { timeout: 60000 },
+  async t => {
+    for (const decision of ['approve', 'reject', 'cancel']) {
+      const child = body =>
+        body.messages.some(
+          m => m.role === 'user' && JSON.stringify(m.content).includes('CONTROLLED_CHILD_JOB'),
+        );
+      const f = await fixture(t, {
+        stopOnRejection: false,
+        calls: body =>
+          child(body)
+            ? [
+                {
+                  name: 'Bash',
+                  arguments: {
+                    command: 'printf CHILD_OK > child-marker.txt',
+                    description: 'Controlled child write',
+                  },
+                },
+              ]
+            : [
+                {
+                  name: 'Agent',
+                  arguments: {
+                    prompt: 'CONTROLLED_CHILD_JOB',
+                    description: 'Controlled interaction test',
+                    subagent_type: 'coder',
+                  },
+                },
+              ],
+        success: body => (child(body) ? 'CHILD_FINISHED' : 'PARENT_FINISHED'),
+      });
+      const events = await consume(
+        f.session,
+        async (event, turn) => {
+          if (event.type === 'ApprovalRequest') {
+            if (event.payload.agentId !== 'main' && decision === 'cancel') await turn.interrupt();
+            else
+              await turn.approve(
+                event.payload.id,
+                event.payload.agentId !== 'main' ? decision : 'approve',
+              );
+          }
+        },
+        decision === 'cancel' ? 'cancelled' : 'finished',
+      );
+      assert.ok(
+        events.some(
+          e => e.type === 'ApprovalRequest' && e.payload.agentId && e.payload.agentId !== 'main',
+        ),
+      );
+      assert.equal(
+        fs.existsSync(path.join(f.directory, 'child-marker.txt')),
+        decision === 'approve',
+      );
+      if (decision !== 'cancel')
+        assert.equal(
+          events
+            .filter(e => e.type === 'ContentPart' && e.payload.text)
+            .map(e => e.payload.text)
+            .join(''),
+          'PARENT_FINISHED',
+        );
+    }
+  },
+);
 
 test(
   'failed configured MCP blocks prompting instead of silently omitting tools',

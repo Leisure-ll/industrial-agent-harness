@@ -648,7 +648,7 @@ function registerHandlers() {
       throw Error('Choose one or more distinct Domains.');
     sessions.assertIdle();
     await sessions.reset();
-    projectRuntimes.close();
+    await projectRuntimes.close();
     const { manager, packs } = await availablePacks();
     const selected = request.domains.map(id => {
       const item = packs.find(pack => pack.domain === id);
@@ -665,7 +665,7 @@ function registerHandlers() {
     if (projectBindings.projects.some(project => project.domain === request.domain))
       throw Error('A Project still uses this Domain.');
     await sessions.reset();
-    projectRuntimes.close();
+    await projectRuntimes.close();
     packManager.remove(request.domain);
     return { installed: installedDomains() };
   });
@@ -884,7 +884,7 @@ function registerHandlers() {
     changingResources = true;
     try {
       await sessions.reset();
-      projectRuntimes.close();
+      await projectRuntimes.close();
       if (operation === 'add') return await externalRegistry.add(request?.configuration);
       if (typeof request?.id !== 'string') throw Error('Choose an external MCP service.');
       return operation === 'refresh'
@@ -1831,7 +1831,7 @@ app.on('before-quit', event => {
       await sessions.close();
     } finally {
       try {
-        projectRuntimes.close();
+        await projectRuntimes.close();
       } finally {
         await Promise.allSettled([sessionResources.close(), guiBridge?.close()]);
       }

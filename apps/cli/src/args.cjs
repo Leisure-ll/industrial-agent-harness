@@ -28,11 +28,11 @@ function parseArgs(argv) {
   if (
     argv[0] === '--help' ||
     argv[0] === '-h' ||
-    (['run', 'chats'].includes(argv[0]) && (argv[1] === '--help' || argv[1] === '-h'))
+    (['run', 'chats', 'doctor'].includes(argv[0]) && (argv[1] === '--help' || argv[1] === '-h'))
   )
     return { help: true };
-  if (!['run', 'chats'].includes(argv[0]))
-    throw Error('Expected run or chats. Use --help for usage.');
+  if (!['run', 'chats', 'doctor'].includes(argv[0]))
+    throw Error('Expected run, chats or doctor. Use --help for usage.');
   const options = {
     command: argv[0],
     scopeOnly: false,
@@ -80,9 +80,13 @@ function parseArgs(argv) {
     options.domain = distributionDomain;
   }
   if (!options.projectDir || !options.domain) throw Error('Provide --project-dir and --domain.');
-  if (options.command === 'chats') {
+  if (options.command === 'chats' || options.command === 'doctor') {
     if (options.scopeOnly || options.task || options.taskFile || options.chatId)
-      throw Error('chats only lists project history; use run to submit a task.');
+      throw Error(
+        options.command === 'doctor'
+          ? 'doctor checks the environment; use run to submit a task.'
+          : 'chats only lists project history; use run to submit a task.',
+      );
     return options;
   }
   if (Boolean(options.task) === Boolean(options.taskFile))

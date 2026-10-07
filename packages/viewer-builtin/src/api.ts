@@ -426,7 +426,20 @@ export type AgentEvent = {
   | { type: 'diagnostic-log'; traceId: string; path: string }
   | { type: 'text'; text: string }
   | { type: 'thinking'; text: string }
-  | { type: 'approval'; id: string; description: string; action: string }
+  | {
+      type: 'approval';
+      id: string;
+      description: string;
+      action: string;
+      agentId?: string;
+      preview?: {
+        title: string;
+        text: string;
+        truncated: boolean;
+        stateId: string;
+        requestSha256: string;
+      };
+    }
   | {
       type: 'approval-resolved';
       id: string;
@@ -434,6 +447,7 @@ export type AgentEvent = {
     }
   | {
       type: 'question';
+      agentId?: string;
       id: string;
       toolCallId: string;
       questions: Array<{

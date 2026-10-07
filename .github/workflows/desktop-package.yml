@@ -46,6 +46,12 @@ jobs:
           mkdir -p dist/ci-reports
           node scripts/smoke-packaged-desktop.cjs 2>&1 | tee dist/ci-reports/desktop-first-run.log
           node scripts/smoke-packaged-desktop.cjs --domains 2>&1 | tee dist/ci-reports/desktop-domains.log
+      - name: Verify workbench UI and language switching
+        shell: bash
+        run: |
+          export INDUSTRIAL_UI_SCREENSHOTS="$GITHUB_WORKSPACE/dist/ci-reports/ui"
+          pnpm --filter @industrial-agent-harness/desktop test:ui 2>&1 | tee dist/ci-reports/desktop-ui.log
+          pnpm --filter @industrial-agent-harness/desktop test:language 2>&1 | tee dist/ci-reports/desktop-language.log
       - name: Retain installed application evidence
         if: always()
         uses: actions/upload-artifact@v4

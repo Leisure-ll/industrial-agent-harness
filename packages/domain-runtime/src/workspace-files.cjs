@@ -43,37 +43,180 @@ function readBytes(file, maximum = 262144) {
   if (fs.statSync(file).size > maximum) throw Error('File exceeds the bounded read size.');
   return fs.readFileSync(file);
 }
-function inputIndex(projectDir, protectedPaths = []) {
-  projectDir = fs.realpathSync(projectDir);
-  const entries = {};
-  let total = 0,
-    count = 0;
-  function visit(relative, depth = 0) {
-    if (depth > 32) throw Error('Project input depth exceeds the workspace limit.');
-    const directory = path.join(projectDir, relative);
-    for (const entry of fs
-      .readdirSync(directory, { withFileTypes: true })
-      .sort((a, b) => a.name.localeCompare(b.name))) {
-      if (excluded.has(entry.name)) continue;
-      if (++count > 10000) throw Error('Project input entries exceed the workspace limit.');
-      const name = relative ? relative + '/' + entry.name : entry.name;
-      const file = path.join(projectDir, name);
-      if (protectedPaths.some(root => inside(file, canonicalPath(root)))) continue;
-      if (entry.isSymbolicLink())
-        throw Error('Project input paths cannot contain symlinks: ' + name);
-      if (entry.isDirectory()) visit(name, depth + 1);
-      else if (entry.isFile()) {
-        projectFile(projectDir, name, protectedPaths);
-        const bytes = readBytes(file, 64 * 1024 * 1024);
-        total += bytes.length;
-        if (total > 256 * 1024 * 1024 || Object.keys(entries).length >= 10000)
-          throw Error('Project input scan exceeds the bounded workspace limit.');
-        entries[name] = hash(bytes);
+function* scanCandidates(projectDir, protectedPaths, diagnostics) {
+  const seen = new Set(),
+    protectedRoots = protectedPaths.map(canonicalPath);
+  const note = (name, reason) => {
+    if (diagnostics.length < 100) diagnostics.push(`Input omitted: ${name}: ${reason}`);
+  };
+  let declaration;
+  try {
+    declaration = manifest(projectDir, protectedPaths);
+  } catch (error) {
+    note('harness.tasks.json', error.message);
+    declaration = { tasks: {} };
+  }
+  const required = new Set([
+    'harness.tasks.json',
+    'harness.project.json',
+    ...Object.values(declaration.tasks).flatMap(task => task.inputs),
+  ]);
+  for (const name of [...required].sort()) {
+    if (!fs.lstatSync(path.join(projectDir, name), { throwIfNoEntry: false })) {
+      if (!['harness.tasks.json', 'harness.project.json'].includes(name))
+        note(name, 'Declared input is missing.');
+      continue;
+    }
+    seen.add(name);
+    yield { name, required: true };
+  }
+  const ignored = declaration.workspace?.ignore || [];
+  let count = 0,
+    stopped = false;
+  function* visit(name, depth = 0) {
+    if (stopped || ignored.some(root => name === root || name.startsWith(root + '/'))) return;
+    if (name.split('/').some(part => excluded.has(part))) return;
+    const file = path.join(projectDir, name);
+    if (protectedRoots.some(root => inside(file, root))) return;
+    if (++count > 10000 || depth > 32) {
+      note(
+        name || '.',
+        'Workspace scan limit reached; use workspace.inputs/ignore to narrow discovery.',
+      );
+      stopped = count > 10000;
+      return;
+    }
+    let stat;
+    try {
+      stat = fs.lstatSync(file, { throwIfNoEntry: false });
+    } catch (error) {
+      note(name, error.message);
+      return;
+    }
+    if (!stat) {
+      note(name, 'Path is missing.');
+      return;
+    }
+    if (stat.isSymbolicLink()) {
+      note(name, 'Symlink cannot be used as an input.');
+      return;
+    }
+    if (stat.isDirectory()) {
+      let children;
+      try {
+        children = fs.readdirSync(file).sort();
+      } catch (error) {
+        note(name, error.message);
+        return;
       }
+      for (const entry of children) yield* visit(name ? name + '/' + entry : entry, depth + 1);
+    } else if (!seen.has(name)) {
+      seen.add(name);
+      yield { name, required: false };
     }
   }
-  visit('');
+  for (const root of declaration.workspace?.inputs || ['']) yield* visit(root);
+}
+function fileIdentity(stat) {
+  return [stat.dev, stat.ino, stat.mode, stat.size, stat.mtimeNs, stat.ctimeNs].join(':');
+}
+function indexFile(projectDir, name, protectedPaths, total) {
+  const file = projectFile(projectDir, name, protectedPaths),
+    stat = fs.statSync(file, { bigint: true });
+  if (stat.size > 64n * 1024n * 1024n || total + Number(stat.size) > 256 * 1024 * 1024)
+    throw Error('Input exceeds the bounded workspace size.');
+  return { file, stat, size: Number(stat.size), identity: fileIdentity(stat) };
+}
+function inputIndex(projectDir, protectedPaths = []) {
+  projectDir = fs.realpathSync(projectDir);
+  const entries = {},
+    diagnostics = [];
+  let total = 0;
+  for (const { name } of scanCandidates(projectDir, protectedPaths, diagnostics)) {
+    try {
+      const info = indexFile(projectDir, name, protectedPaths, total);
+      entries[name] = hash(readBytes(info.file, 64 * 1024 * 1024));
+      total += info.size;
+    } catch (error) {
+      if (diagnostics.length < 100) diagnostics.push(`Input omitted: ${name}: ${error.message}`);
+    }
+  }
   return entries;
+}
+function createInputIndexer() {
+  const cache = new Map();
+  let diagnostics = [],
+    tail = Promise.resolve();
+  async function scan(projectDir, protectedPaths) {
+    projectDir = fs.realpathSync(projectDir);
+    const entries = {},
+      used = new Set(),
+      notes = [];
+    let total = 0,
+      count = 0;
+    for (const { name } of scanCandidates(projectDir, protectedPaths, notes)) {
+      try {
+        const info = indexFile(projectDir, name, protectedPaths, total);
+        const cached = cache.get(info.file);
+        let value = cached?.identity === info.identity ? cached.hash : null;
+        if (!value) {
+          const handle = await fs.promises.open(
+            info.file,
+            fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0),
+          );
+          try {
+            if (fileIdentity(await handle.stat({ bigint: true })) !== info.identity)
+              throw Error('Input changed during indexing; inspect again.');
+            const digest = crypto.createHash('sha256'),
+              buffer = Buffer.alloc(65536);
+            let read = 0,
+              bytesRead;
+            while (
+              ({ bytesRead } = await handle.read(
+                buffer,
+                0,
+                Math.min(buffer.length, info.size - read + 1),
+                read,
+              )).bytesRead
+            ) {
+              read += bytesRead;
+              if (read > info.size) throw Error('Input grew during indexing; inspect again.');
+              digest.update(buffer.subarray(0, bytesRead));
+            }
+            if (
+              read !== info.size ||
+              fileIdentity(await handle.stat({ bigint: true })) !== info.identity ||
+              fileIdentity(fs.statSync(info.file, { bigint: true })) !== info.identity
+            )
+              throw Error('Input changed during indexing; inspect again.');
+            value = digest.digest('hex');
+          } finally {
+            await handle.close();
+          }
+          cache.set(info.file, { identity: info.identity, hash: value });
+        }
+        entries[name] = value;
+        used.add(info.file);
+        total += info.size;
+      } catch (error) {
+        if (notes.length < 100) notes.push(`Input omitted: ${name}: ${error.message}`);
+      }
+      if (++count % 128 === 0) await new Promise(resolve => setImmediate(resolve));
+    }
+    for (const file of cache.keys()) if (!used.has(file)) cache.delete(file);
+    diagnostics = notes;
+    return entries;
+  }
+  return {
+    index(projectDir, protectedPaths = []) {
+      const result = tail.then(() => scan(projectDir, protectedPaths));
+      tail = result.catch(() => {});
+      return result;
+    },
+    get diagnostics() {
+      return [...diagnostics];
+    },
+  };
 }
 function manifest(projectDir, protectedPaths = []) {
   const file = projectFile(projectDir, 'harness.tasks.json', protectedPaths);
@@ -175,4 +318,13 @@ function runDirectory(projectDir, actionId) {
   fs.mkdirSync(directory, { mode: 0o700 });
   return directory;
 }
-module.exports = { hash, projectFile, inputIndex, applyFiles, manifest, runDirectory, readBytes };
+module.exports = {
+  hash,
+  projectFile,
+  inputIndex,
+  createInputIndexer,
+  applyFiles,
+  manifest,
+  runDirectory,
+  readBytes,
+};

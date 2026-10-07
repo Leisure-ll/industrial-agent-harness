@@ -131,9 +131,20 @@ async function connectExternal(server, projectDir, environment = process.env) {
           });
   }
   client.onerror = () => {};
+  let closed = false;
+  client.onclose = () => {
+    closed = true;
+  };
   try {
     await client.connect(transport, { timeout: 10000 });
-    return { client, close: () => client.close(), redact };
+    return {
+      client,
+      close: () => client.close(),
+      redact,
+      get closed() {
+        return closed;
+      },
+    };
   } catch {
     await client.close().catch(() => {});
     throw Error(

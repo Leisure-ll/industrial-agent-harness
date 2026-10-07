@@ -147,7 +147,7 @@ export interface ProjectTask {
   timeoutMs: number;
   verification?: { kind: 'checks-json'; path: string };
   runtime:
-    | { kind: 'local' }
+    | { kind: 'local'; readOnlyDirs?: string[] }
     | { kind: 'docker'; image: string; cpus: number; memoryMb: number; pids: number };
 }
 export const ProjectPathSchema: z.ZodType<string>;
@@ -158,6 +158,7 @@ export const ProjectFileApplyRequestSchema: z.ZodType<{
 }>;
 export const ProjectTaskManifestSchema: z.ZodType<{
   schemaVersion: '1';
+  workspace?: { inputs?: string[]; ignore?: string[] };
   tasks: Record<string, ProjectTask>;
 }>;
 export const ProjectTaskRunRequestSchema: z.ZodType<{ task: string }>;

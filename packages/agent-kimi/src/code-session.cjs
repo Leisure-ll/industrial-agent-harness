@@ -471,7 +471,12 @@ class CodeSession {
     const turn = this.active;
     if (!turn || turn.ended || frame.session_id !== this.nativeId) return;
     const p = frame.payload || {};
-    if (p.agentId && p.agentId !== 'main') return;
+    // Upstream deliberately delivers interactions for every agent even with a
+    // main-only transcript subscription. Their IDs route through the parent
+    // session API; filtering them would leave native children awaiting input.
+    const interaction =
+      frame.type.startsWith('event.approval.') || frame.type.startsWith('event.question.');
+    if (p.agentId && p.agentId !== 'main' && !interaction) return;
     if (!frame.volatile && Number.isSafeInteger(frame.seq)) {
       const id = `${frame.epoch}:${frame.seq}`;
       if (this.cursors.has(id)) return;
@@ -486,7 +491,13 @@ class CodeSession {
       this.contextInitialized = true;
       emit('TurnBegin', {});
     }
-    if (p.turnId !== undefined && turn.turnId !== undefined && p.turnId !== turn.turnId) return;
+    if (
+      !interaction &&
+      p.turnId !== undefined &&
+      turn.turnId !== undefined &&
+      p.turnId !== turn.turnId
+    )
+      return;
     switch (frame.type) {
       case 'assistant.delta':
       case 'thinking.delta': {
@@ -508,6 +519,9 @@ class CodeSession {
         break;
       }
       case 'turn.step.started':
+        // Native stream offsets start at zero for each step, not each turn.
+        // Durable frame deduplication above prevents replay from clearing them.
+        turn.offsets.clear();
         emit('StepBegin', { n: p.step ?? p.stepIndex ?? p.n ?? 1 });
         break;
       case 'tool.call.started':
@@ -548,6 +562,7 @@ class CodeSession {
       case 'event.approval.requested':
         emit('ApprovalRequest', {
           id: p.approval_id,
+          agentId: p.agentId || 'main',
           sender: toolName(p.tool_name),
           harness_callback: p.tool_name?.startsWith('mcp__harness_adapter__') === true,
           action: p.action,
@@ -567,6 +582,7 @@ class CodeSession {
         this.questions.set(p.question_id, p.questions);
         emit('QuestionRequest', {
           id: p.question_id,
+          agentId: p.agentId || 'main',
           tool_call_id: p.tool_call_id,
           questions: p.questions.map(item => ({
             ...item,
