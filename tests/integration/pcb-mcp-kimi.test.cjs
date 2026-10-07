@@ -100,7 +100,7 @@ test(
       if (approval === 'approve') {
         assert.match(
           JSON.stringify(requests.at(-1).messages.filter(message => message.role === 'tool')),
-          /Operation not permitted|EACCES|EPERM|Read-only file system/,
+          /Operation not permitted|EACCES|EPERM|EROFS|read-only file system/i,
         );
         assert.ok(
           rows.some(
