@@ -86,7 +86,21 @@ async function run(window) {
         function find(root) {for (const node of root.querySelectorAll('*')) {if (node.localName === '${tag}') return node; if (node.shadowRoot) {const found = find(node.shadowRoot); if (found) return found;}}}
         return find(document);
       })()`;
-      const measure = () => frame.executeJavaScript(`${native}.viewer.viewport.camera.zoom`);
+      let lastView;
+      const measure = async () => {
+        const view = await frame.executeJavaScript(`(() => {
+          const element = ${native}, camera = element.viewer.viewport.camera;
+          return {zoom: camera.zoom, viewport: [...camera.viewport_size],
+            canvas: [element.canvas.clientWidth, element.canvas.clientHeight],
+            fonts: document.fonts.status};
+        })()`);
+        const signature = JSON.stringify(view);
+        if (signature !== lastView) {
+          console.log('KiCad navigation:', file, signature);
+          lastView = signature;
+        }
+        return view.zoom;
+      };
       try {
         await verifyNavigation(window, measure);
       } catch (error) {
