@@ -86,6 +86,30 @@ async function run(window) {
         function find(root) {for (const node of root.querySelectorAll('*')) {if (node.localName === '${tag}') return node; if (node.shadowRoot) {const found = find(node.shadowRoot); if (found) return found;}}}
         return find(document);
       })()`;
+      // KiCanvas keeps camera.zoom unchanged when its canvas resizes. A stable
+      // zoom alone therefore does not mean the initial layout is ready to Fit.
+      // Wait for fonts and matching, settled canvas/viewport dimensions first.
+      await frame.executeJavaScript('document.fonts.ready.then(() => true)');
+      let previousSize,
+        stableSize = 0;
+      await waitFor(async () => {
+        const size = await frame.executeJavaScript(`(() => {
+          const element = ${native}, camera = element.viewer.viewport.camera;
+          return [element.canvas.clientWidth, element.canvas.clientHeight,
+            camera.viewport_size.x, camera.viewport_size.y];
+        })()`);
+        const signature = JSON.stringify(size);
+        stableSize =
+          size[0] > 100 &&
+          size[1] > 100 &&
+          size[0] === size[2] &&
+          size[1] === size[3] &&
+          signature === previousSize
+            ? stableSize + 1
+            : 0;
+        previousSize = signature;
+        return stableSize >= 7;
+      });
       let lastView;
       const measure = async () => {
         const view = await frame.executeJavaScript(`(() => {
@@ -177,10 +201,11 @@ async function run(window) {
     );
     console.log(JSON.stringify({ ok: true, screenshots, externalRequests: 0 }));
   } catch (error) {
-    fs.writeFileSync(
-      path.join(directory, 'failure.png'),
-      (await window.webContents.capturePage()).toPNG(),
-    );
+    const screenshot = (await window.webContents.capturePage()).toPNG();
+    fs.writeFileSync(path.join(directory, 'failure.png'), screenshot);
+    const reports = path.resolve(__dirname, '../../../dist/ci-reports');
+    if (fs.existsSync(reports))
+      fs.writeFileSync(path.join(reports, 'kicad-failure.png'), screenshot);
     console.error('KiCad selftest project:', directory);
     throw error;
   } finally {
