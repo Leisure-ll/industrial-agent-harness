@@ -49,7 +49,39 @@ const registry = {
 
 async function fixture(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-remote-'));
-  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const runtimes = [];
+  let remote, server;
+  t.after(async () => {
+    const errors = [];
+    if (server)
+      await new Promise(resolve => {
+        server.close(resolve);
+        server.closeAllConnections();
+      });
+    for (const runtime of runtimes) {
+      try {
+        if (runtime.executing) {
+          runtime.cancel();
+          await runtime.waitForIdle();
+        }
+        await runtime.close();
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    try {
+      await remote?.close();
+    } catch (error) {
+      errors.push(error);
+    }
+    // Windows cannot remove SQLite files until every owned Runtime is closed.
+    try {
+      fs.rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      errors.push(error);
+    }
+    if (errors.length) throw new AggregateError(errors, 'Remote fixture cleanup failed.');
+  });
   const projectDir = path.join(directory, 'local'),
     serverDir = path.join(directory, 'server');
   fs.mkdirSync(projectDir);
@@ -66,7 +98,7 @@ async function fixture(t) {
     posts = 0,
     cancel = false,
     corrupt = false;
-  const remote = new IndustrialRuntime(serverDir, domain, {
+  remote = new IndustrialRuntime(serverDir, domain, {
     directory: path.join(directory, 'server-store'),
     stateProvider: () => ({ stage: snapshotId ? 'test-stage' : null, inputHashes: hashes }),
     tools: [
@@ -91,8 +123,7 @@ async function fixture(t) {
       }),
     },
   });
-  t.after(() => remote.close());
-  const server = http.createServer(async (req, res) => {
+  server = http.createServer(async (req, res) => {
     try {
       assert.equal(req.headers.authorization, 'Bearer private-fixture-token');
       const chunks = [];
@@ -191,13 +222,6 @@ async function fixture(t) {
     }
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  t.after(
-    () =>
-      new Promise(resolve => {
-        server.close(resolve);
-        server.closeAllConnections();
-      }),
-  );
   const environment = {
     INDUSTRIAL_REMOTE_SERVICE_URL: 'http://127.0.0.1:' + server.address().port,
     INDUSTRIAL_REMOTE_CREDENTIAL_ENV: 'FIXTURE_TOKEN',
@@ -210,6 +234,7 @@ async function fixture(t) {
     serverId,
     directory,
     remote,
+    runtimes,
     environment,
     posts: () => posts,
     corrupt: () => {
@@ -275,7 +300,7 @@ test('shared factory skips the local pack and executes approved actions with can
     remoteSettings: f.settings,
     directory: path.join(f.directory, 'local-store'),
   });
-  t.after(() => bundle.runtime.close());
+  f.runtimes.push(bundle.runtime);
   const state = await bundle.runtime.inspect();
   const capabilities = runtimeCapabilities(registry, bundle);
   const broker = resolveProjectTask(
@@ -350,7 +375,7 @@ test('remote cancellation targets the active job and waits for its terminal stat
     registry,
     remoteSettings: f.settings,
   });
-  t.after(() => bundle.runtime.close());
+  f.runtimes.push(bundle.runtime);
   const state = await bundle.runtime.inspect(),
     scope = { projectId: state.projectId, domain, stateId: state.id, tools: [toolId] };
   const pending = bundle.runtime.execute(
@@ -402,7 +427,7 @@ test('artifact corruption cannot import acceptance and uncertain submissions are
     registry,
     remoteSettings: f.settings,
   });
-  t.after(() => bundle.runtime.close());
+  f.runtimes.push(bundle.runtime);
   const state = await bundle.runtime.inspect(),
     scope = { projectId: state.projectId, domain, stateId: state.id, tools: [toolId] };
   f.corrupt();
