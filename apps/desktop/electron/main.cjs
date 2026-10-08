@@ -1460,7 +1460,7 @@ async function createWindow() {
       );
       const initial = planned.slice(0, 2);
       let installed = 0;
-      async function install(items) {
+      async function install(items, firstRun = false) {
         await click(
           `for (const name of ${JSON.stringify(items.map(item => item.label))}) Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes(name)).querySelector('input').click()`,
         );
@@ -1470,16 +1470,22 @@ async function createWindow() {
         await click(`document.querySelector('.ia-domains-primary').click()`);
         installed += items.length;
         await waitFor(
-          `window.viewerHost.domainStatus().then(status => status.installed.length === ${installed} && !document.querySelector('.ia-domains-modal'))`,
+          `window.viewerHost.domainStatus().then(status => status.installed.length === ${installed} && ${firstRun ? "!document.querySelector('.ia-domains-modal')" : "Boolean(document.querySelector('.ia-domains-modal'))"})`,
         );
       }
-      await install(initial);
+      await install(initial, true);
       for (const item of planned.slice(initial.length)) {
-        await click(`document.querySelector('.ia-settings-button').click()`);
-        await waitFor(`Boolean(document.querySelector('.ia-settings-row'))`);
-        await click(
-          `Array.from(document.querySelectorAll('.ia-settings-row')).find(row => row.textContent.includes('Domains')).querySelector('button').click()`,
-        );
+        if (
+          !(await window.webContents.executeJavaScript(
+            `Boolean(document.querySelector('.ia-domains-modal'))`,
+          ))
+        ) {
+          await click(`document.querySelector('.ia-settings-button').click()`);
+          await waitFor(`Boolean(document.querySelector('.ia-settings-row'))`);
+          await click(
+            `Array.from(document.querySelectorAll('.ia-settings-row')).find(row => row.textContent.includes('Domains')).querySelector('button').click()`,
+          );
+        }
         await waitFor(
           `Array.from(document.querySelectorAll('.ia-domain-install-row')).some(row => row.textContent.includes(${JSON.stringify(item.label)}))`,
         );
