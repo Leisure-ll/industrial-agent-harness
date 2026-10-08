@@ -3972,7 +3972,7 @@ body {
   -webkit-app-region: no-drag;
 }
 [data-platform='darwin'] .ia-sidebar-brand {
-  padding-left: 78px;
+  padding-left: 92px;
 }
 .ia-window-controls {
   display: flex;
@@ -4011,7 +4011,7 @@ body {
   -webkit-app-region: no-drag;
 }
 .ia-workbench-tabbar.ia-lights-gap {
-  padding-inline-start: 78px;
+  padding-inline-start: 92px;
 }
 
 /* Quick-jump message rail: per-turn ticks overlay the transcript gutter.
