@@ -51,6 +51,7 @@ import { BrokerCall } from './components/BrokerCall';
 import { TodoList } from './components/TodoList';
 import { DomainManager } from './components/DomainManager';
 import { CapabilityCenter, type CapabilitySection } from './components/CapabilityCenter';
+import { MessageRail } from './components/MessageRail';
 import { WindowControls } from './components/WindowControls';
 import { CoreUpdatePanel } from './components/CoreUpdatePanel';
 import { ComputerUseSettings } from './components/ComputerUseSettings';
@@ -1360,80 +1361,88 @@ export function App() {
                 />
               ) : (
                 <>
-                  <div
-                    className="ia-chat-scroll"
-                    ref={chatScroll}
-                    onScroll={event => {
-                      const element = event.currentTarget;
-                      if (!element.getClientRects().length) return;
-                      followMessages.current =
-                        element.scrollHeight - element.scrollTop - element.clientHeight < 80;
-                    }}
-                  >
-                    {hasEarlier && (
-                      <button
-                        className="ia-history-more"
-                        disabled={historyLoading}
-                        onClick={() => void loadEarlier()}
-                      >
-                        {historyLoading ? t('Loading…') : t('Load earlier messages')}
-                      </button>
-                    )}
-                    {!turns.length && (
-                      <div className="ia-chat-welcome">
-                        <h1>
-                          {activeProject
-                            ? t('What are you working on?')
-                            : t('Start with your project.')}
-                        </h1>
-                        <p>
-                          {activeProject
-                            ? t(
-                                'Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.',
-                              )
-                            : t(
-                                'Choose a local folder and a domain, then describe what you want to work on.',
-                              )}
-                        </p>
-                      </div>
-                    )}
-                    {turns.map((turn, index) => (
-                      <div className="ia-chat-turn" key={turn.id} data-turn-id={turn.id}>
-                        <div className="ia-user-entry ia-message">
-                          <div className="ia-user-message">
-                            {turn.task}
-                            {turn.events.map(event =>
-                              event.type === 'user-images' || event.type === 'input-images' ? (
-                                <ImageThumbnails key="input-images" images={event.images} />
-                              ) : null,
-                            )}
-                          </div>
-                          <MessageActions text={turn.task} recordedAt={turn.createdAt} />
+                  <div className="ia-chat-scroll-area">
+                    <MessageRail turns={turns} />
+                    <div
+                      className="ia-chat-scroll"
+                      ref={chatScroll}
+                      onScroll={event => {
+                        const element = event.currentTarget;
+                        if (!element.getClientRects().length) return;
+                        followMessages.current =
+                          element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+                      }}
+                    >
+                      {hasEarlier && (
+                        <button
+                          className="ia-history-more"
+                          disabled={historyLoading}
+                          onClick={() => void loadEarlier()}
+                        >
+                          {historyLoading ? t('Loading…') : t('Load earlier messages')}
+                        </button>
+                      )}
+                      {!turns.length && (
+                        <div className="ia-chat-welcome">
+                          <h1>
+                            {activeProject
+                              ? t('What are you working on?')
+                              : t('Start with your project.')}
+                          </h1>
+                          <p>
+                            {activeProject
+                              ? t(
+                                  'Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.',
+                                )
+                              : t(
+                                  'Choose a local folder and a domain, then describe what you want to work on.',
+                                )}
+                          </p>
                         </div>
-                        {turn.broker && (
-                          <BrokerCall
-                            broker={turn.broker}
-                            detail={index === turns.length - 1 ? capabilityDetail : undefined}
-                            debug={debug}
-                            selectedDomain={selectedDomain}
-                            readOnly={index !== turns.length - 1 || agentBusy}
-                            onContext={context => void resolveTask(context, turn.task)}
-                            onDetail={id => void showDetail(id)}
-                          />
-                        )}
-                        {turn.events.length > 0 && (
-                          <AgentFlow
-                            onLog={showAgentLog}
-                            events={turn.events}
-                            running={agentOwned && agentBusy && index === turns.length - 1}
-                            debug={debug}
-                            approve={approveAgent}
-                            answer={answerAgent}
-                          />
-                        )}
-                      </div>
-                    ))}
-                    {brokerError && <div className="ia-flow-error">{t(brokerError)}</div>}
+                      )}
+                      {turns.map((turn, index) => (
+                        <div
+                          className="ia-chat-turn"
+                          key={turn.id}
+                          data-turn-id={turn.id}
+                          data-turn-index={index}
+                        >
+                          <div className="ia-user-entry ia-message">
+                            <div className="ia-user-message">
+                              {turn.task}
+                              {turn.events.map(event =>
+                                event.type === 'user-images' || event.type === 'input-images' ? (
+                                  <ImageThumbnails key="input-images" images={event.images} />
+                                ) : null,
+                              )}
+                            </div>
+                            <MessageActions text={turn.task} recordedAt={turn.createdAt} />
+                          </div>
+                          {turn.broker && (
+                            <BrokerCall
+                              broker={turn.broker}
+                              detail={index === turns.length - 1 ? capabilityDetail : undefined}
+                              debug={debug}
+                              selectedDomain={selectedDomain}
+                              readOnly={index !== turns.length - 1 || agentBusy}
+                              onContext={context => void resolveTask(context, turn.task)}
+                              onDetail={id => void showDetail(id)}
+                            />
+                          )}
+                          {turn.events.length > 0 && (
+                            <AgentFlow
+                              onLog={showAgentLog}
+                              events={turn.events}
+                              running={agentOwned && agentBusy && index === turns.length - 1}
+                              debug={debug}
+                              approve={approveAgent}
+                              answer={answerAgent}
+                            />
+                          )}
+                        </div>
+                      ))}
+                      {brokerError && <div className="ia-flow-error">{t(brokerError)}</div>}
+                    </div>
                   </div>
                   {setupNotice && agentStatus && !agentStatus.configured && (
                     <div className="ia-setup-banner" role="status">

@@ -2991,6 +2991,22 @@
     "Industrial boundary: {0} external resources are excluded from this turn. Project tools stay available.": {
       "en": "Industrial boundary: {0} external resources are excluded from this turn. Project tools stay available.",
       "zh-CN": "工业执行边界：本轮 {0} 项外部资源未接入，项目内工具不受影响。悬停可查看明细。"
+    },
+    "Jump to message {0}": {
+      "en": "Jump to message {0}",
+      "zh-CN": "跳转到消息 {0}"
+    },
+    "Assistant replied": {
+      "en": "Assistant replied",
+      "zh-CN": "已有助手回复"
+    },
+    "No assistant reply yet": {
+      "en": "No assistant reply yet",
+      "zh-CN": "暂无助手正文"
+    },
+    "Empty message": {
+      "en": "Empty message",
+      "zh-CN": "空消息"
     }
   }
 }
