@@ -65,12 +65,13 @@ async function run(window) {
       await evaluate(`document.querySelector('.ia-file-list button[title="${file}"]').click()`);
       await waitFor(() =>
         evaluate(
-          `document.querySelector('.rp-kicad-toolbar strong')?.innerText === '${file}' && document.querySelector('.ia-viewer-footer')?.innerText.includes('KICAD · Ready')`,
+          `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-kicad-toolbar strong')?.innerText === '${file}' && document.querySelector('.ia-viewer-footer')?.innerText.includes('KICAD · Ready')`,
         ),
       );
-      const frame = window.webContents.mainFrame.frames.find(frame =>
-        frame.url.startsWith('app://kicad/'),
+      const currentUrl = await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden]) iframe').src`,
       );
+      const frame = window.webContents.mainFrame.frames.find(frame => frame.url === currentUrl);
       assert.ok(frame, 'KiCad iframe exists');
       const inspect = `(() => {
         function find(root, tag) {for (const node of root.querySelectorAll('*')) {if (node.localName === tag) return node; if (node.shadowRoot) {const found = find(node.shadowRoot, tag); if (found) return found;}}}
@@ -90,26 +91,29 @@ async function run(window) {
       // zoom alone therefore does not mean the initial layout is ready to Fit.
       // Wait for fonts and matching, settled canvas/viewport dimensions first.
       await frame.executeJavaScript('document.fonts.ready.then(() => true)');
-      let previousSize,
-        stableSize = 0;
-      await waitFor(async () => {
-        const size = await frame.executeJavaScript(`(() => {
+      async function settledCanvas() {
+        let previousSize,
+          stableSize = 0;
+        await waitFor(async () => {
+          const size = await frame.executeJavaScript(`(() => {
           const element = ${native}, camera = element.viewer.viewport.camera;
           return [element.canvas.clientWidth, element.canvas.clientHeight,
             camera.viewport_size.x, camera.viewport_size.y];
         })()`);
-        const signature = JSON.stringify(size);
-        stableSize =
-          size[0] > 100 &&
-          size[1] > 100 &&
-          size[0] === size[2] &&
-          size[1] === size[3] &&
-          signature === previousSize
-            ? stableSize + 1
-            : 0;
-        previousSize = signature;
-        return stableSize >= 7;
-      });
+          const signature = JSON.stringify(size);
+          stableSize =
+            size[0] > 100 &&
+            size[1] > 100 &&
+            size[0] === size[2] &&
+            size[1] === size[3] &&
+            signature === previousSize
+              ? stableSize + 1
+              : 0;
+          previousSize = signature;
+          return stableSize >= 7;
+        });
+      }
+      await settledCanvas();
       let lastView;
       const measure = async () => {
         const view = await frame.executeJavaScript(`(() => {
@@ -130,7 +134,41 @@ async function run(window) {
       } catch (error) {
         throw Error(`${file}: ${error.message}`, { cause: error });
       }
-      const fitted = await measure();
+      let fitted = await measure();
+      if (file === 'pads.kicad_pcb') {
+        const retainedFrameId = frame.frameTreeNodeId;
+        await evaluate(`document.querySelector('.ia-layout-toggle').click()`);
+        await settledCanvas();
+        const tabbedZoom = await measure();
+        await frame.executeJavaScript(
+          `window.retainedKiCadCamera = (${native}).viewer.viewport.camera`,
+        );
+        await evaluate(`document.getElementById('tab-chat').click()`);
+        await waitFor(() => evaluate(`document.querySelector('.ia-workspace').hidden`));
+        await evaluate(
+          `Array.from(document.querySelectorAll('.ia-workbench-tabbar [role="tab"]')).find(tab => tab.textContent === 'pads.kicad_pcb').click()`,
+        );
+        await waitFor(() => evaluate(`!document.querySelector('.ia-workspace').hidden`));
+        assert.equal(
+          window.webContents.mainFrame.frames.find(item => item.url === currentUrl)
+            ?.frameTreeNodeId,
+          retainedFrameId,
+          'Tabbed KiCad must retain its browsing context',
+        );
+        await settledCanvas();
+        assert.equal(
+          await frame.executeJavaScript(
+            `window.retainedKiCadCamera === (${native}).viewer.viewport.camera`,
+          ),
+          true,
+          'Tabbed KiCad must retain the same native camera object',
+        );
+        assert.equal(await measure(), tabbedZoom, 'Hidden KiCad tab must retain its camera scale');
+        await evaluate(`document.querySelector('.ia-layout-toggle').click()`);
+        await settledCanvas();
+        await evaluate(`document.querySelector('button[aria-label="Fit viewer"]').click()`);
+        fitted = await measure();
+      }
       // Both ordinary wheel and trackpad pinch zoom around the pointer.
       for (const ctrlKey of [false, true]) {
         const anchor = await frame.executeJavaScript(`(() => {
@@ -149,7 +187,9 @@ async function run(window) {
       await evaluate(`document.querySelector('button[aria-label="Fit viewer"]').click()`);
       await waitFor(async () => Math.abs((await measure()) / fitted - 1) < 0.01);
       if (file === 'led.kicad_sch') {
-        await evaluate(`document.querySelector('.rp-kicad-toolbar button').click()`);
+        await evaluate(
+          `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-kicad-toolbar button').click()`,
+        );
         await waitFor(async () => (await measure()) < fitted * 0.6);
         await evaluate(`document.querySelector('button[aria-label="Fit viewer"]').click()`);
         await waitFor(async () => Math.abs((await measure()) / fitted - 1) < 0.01);

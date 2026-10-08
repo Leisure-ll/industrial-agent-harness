@@ -57,6 +57,8 @@ jobs:
           export INDUSTRIAL_UI_SCREENSHOTS="$GITHUB_WORKSPACE/dist/ci-reports/ui"
           pnpm --filter @industrial-agent-harness/desktop test:ui 2>&1 | tee dist/ci-reports/desktop-ui.log
           pnpm --filter @industrial-agent-harness/desktop test:language 2>&1 | tee dist/ci-reports/desktop-language.log
+          pnpm --filter @industrial-agent-harness/desktop test:parallel 2>&1 | tee dist/ci-reports/desktop-parallel.log
+          pnpm --filter @industrial-agent-harness/desktop test:gui-settings 2>&1 | tee dist/ci-reports/desktop-gui-settings.log
       - name: Retain installed application evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -64,6 +66,7 @@ jobs:
           name: desktop-${{ matrix.platform }}
           path: |
             dist/ci-reports/*.log
+            dist/ci-reports/ui/
             dist/ci-reports/cad-install/*.log
             dist/ci-reports/cad-install/*.json
             dist/ci-reports/cad-install/*.png

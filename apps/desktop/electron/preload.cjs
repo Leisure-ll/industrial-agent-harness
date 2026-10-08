@@ -42,6 +42,8 @@ const api = {
   diagnosticRecord: request => ipcRenderer.invoke('agent:log-record', request),
   agentStatus: () => ipcRenderer.invoke('agent:status'),
   guiState: () => ipcRenderer.invoke('settings:gui-state'),
+  openGuiPermissionSettings: permission =>
+    ipcRenderer.invoke('settings:gui-permission-settings', permission),
   setGuiPlugin: enabled => ipcRenderer.invoke('settings:set-gui', { enabled }),
   approvalMode: () => ipcRenderer.invoke('settings:approval-mode'),
   setApprovalMode: mode => ipcRenderer.invoke('settings:set-approval-mode', mode),

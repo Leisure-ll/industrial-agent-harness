@@ -6,6 +6,7 @@ const path = require('node:path');
 const {
   defaults,
   validateProfile,
+  thinkingEffort,
   configToml,
   sessionEnv,
   saveProfile,
@@ -111,4 +112,61 @@ test('HARNESS_TRUSTED_PLAINTEXT_HOSTS allows explicit self-hosted plaintext endp
     /HTTPS/,
   );
   assert.throws(() => validateProfile({ ...defaults, endpoint: 'http://example.com/v1' }), /HTTPS/);
+});
+
+test('official MiniMax Chat Completions repairs a saved Moonshot protocol without changing its destination or key', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-model-protocol-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  for (const host of ['api.minimaxi.com', 'api.minimax.io', 'api.minimax.cn']) {
+    const profile = { ...defaults, endpoint: `https://${host}/v1/`, model: 'MiniMax-M3' };
+    fs.writeFileSync(path.join(dir, 'model-profile.json'), JSON.stringify(profile));
+    const resolved = readProfile(dir);
+    assert.equal(resolved.provider, 'openai_legacy');
+    assert.equal(resolved.endpoint, `https://${host}/v1`);
+    assert.equal(resolved.model, profile.model);
+    assert.equal(resolved.thinking, true);
+    assert.equal(resolved.imageInput, true);
+    assert.equal(sessionEnv(resolved, 'test-secret').OPENAI_API_KEY, 'test-secret');
+    assert.equal(sessionEnv(resolved, 'test-secret').KIMI_API_KEY, undefined);
+    const config = fs.readFileSync(path.join(writeCliConfig(dir, resolved), 'config.toml'), 'utf8');
+    assert.match(config, /type = "openai"/);
+    assert.match(config, /effort = "on"/);
+    assert.doesNotMatch(config, /test-secret/);
+    assert.equal(
+      JSON.parse(fs.readFileSync(path.join(dir, 'model-profile.json'), 'utf8')).provider,
+      'kimi',
+      'reading an old profile does not rewrite user settings',
+    );
+    assert.equal(saveProfile(dir, profile).provider, 'openai_legacy');
+  }
+  for (const endpoint of [
+    'https://api.minimaxi.com/anthropic',
+    'https://api.minimaxi.com:8443/v1',
+    'https://api.minimaxi.com.example/v1',
+    'https://custom.example/v1',
+  ])
+    assert.equal(
+      validateProfile({ ...defaults, endpoint, model: 'MiniMax-M3' }).provider,
+      'kimi',
+      'other protocols and gateways retain the explicit selection',
+    );
+  assert.equal(
+    validateProfile({ ...defaults, endpoint: 'https://api.minimaxi.com/v1', model: 'custom-model' })
+      .provider,
+    'kimi',
+  );
+});
+
+test('thinking defaults follow the selected API instead of forcing high on every vendor', () => {
+  assert.equal(thinkingEffort(defaults), 'high');
+  assert.equal(thinkingEffort({ ...defaults, thinking: false }), 'off');
+  const compatible = validateProfile({
+    ...defaults,
+    provider: 'openai_legacy',
+    endpoint: 'https://custom.example/v1',
+    model: 'custom-thinking',
+  });
+  assert.equal(thinkingEffort(compatible), 'on');
+  assert.match(configToml(compatible), /effort = "on"/);
+  assert.match(configToml({ ...compatible, thinking: false }), /effort = "off"/);
 });

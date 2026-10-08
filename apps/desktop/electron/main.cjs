@@ -7,12 +7,15 @@ const {
   safeStorage,
   nativeImage,
   shell,
+  screen,
+  systemPreferences,
 } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const languageConfig = require('../i18n.config.json');
+const { guiPermissions, guiPermissionSettingsUrl } = require('./gui-permissions.cjs');
 const {
   PackManager,
   defaultPackDirectory,
@@ -140,6 +143,7 @@ if (
     '--documents-selftest',
     '--language-selftest',
     '--ui-selftest',
+    '--gui-settings-selftest',
     '--engineering-selftest',
     '--cad-selftest',
     '--cad-resize-selftest',
@@ -444,39 +448,39 @@ function guiPlugin() {
   }
   return guiBridge;
 }
+let guiInstallPromise;
+let guiInstallError = '';
 function guiBridgeState() {
-  // A user-supplied GUI_BRIDGE_BIN never lands in the managed directory, so
-  // disk state alone would report 'missing' forever; it is ready by definition.
-  if (process.env.GUI_BRIDGE_BIN)
-    return { enabled: appSettings.guiPluginEnabled, install: 'ready', version: null };
-  const installed = guiBridgeStatus(guiBridgeDir());
+  const installed = process.env.GUI_BRIDGE_BIN
+    ? { state: 'ready' }
+    : guiBridgeStatus(guiBridgeDir());
   return {
     enabled: appSettings.guiPluginEnabled,
-    install: installed.state,
+    install: guiInstallPromise ? 'installing' : guiInstallError ? 'error' : installed.state,
     version: installed.version?.tag || null,
+    permissions: guiPermissions(systemPreferences),
+    ...(guiInstallError ? { error: guiInstallError } : {}),
   };
 }
 function guiInstallProgress(phase, detail) {
-  mainWindow?.webContents.send('settings:gui-progress', {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
+  mainWindow.webContents.send('settings:gui-progress', {
     phase,
     ...(detail && typeof detail === 'object' ? { detail: Object.keys(detail) } : {}),
   });
 }
 function startGuiInstall() {
-  return ensureInstalled(guiBridgeDir(), process.env, guiInstallProgress)
-    .then(result =>
-      mainWindow?.webContents.send('settings:gui-progress', {
-        phase: 'ready',
-        tag: result.tag,
-        cached: Boolean(result.cached),
-      }),
-    )
-    .catch(error =>
-      mainWindow?.webContents.send('settings:gui-progress', {
-        phase: 'error',
-        error: String(error),
-      }),
-    );
+  if (guiInstallPromise) return guiInstallPromise;
+  guiInstallError = '';
+  guiInstallPromise = ensureInstalled(guiBridgeDir(), process.env, guiInstallProgress)
+    .catch(error => {
+      guiInstallError = String(error);
+    })
+    .finally(() => {
+      guiInstallPromise = undefined;
+      guiInstallProgress(guiInstallError ? 'error' : 'ready');
+    });
+  return guiInstallPromise;
 }
 function runtimeConfig(project = activeProject(), externalServers = externalRegistry.records()) {
   const profile = readProfile(configDir());
@@ -871,7 +875,21 @@ function registerHandlers() {
     saveSettings(configDir(), appSettings);
     return mode;
   });
-  ipcMain.handle('settings:set-gui', (_event, { enabled }) => {
+  ipcMain.handle('settings:gui-permission-settings', async (event, permission) => {
+    if (
+      event.sender !== mainWindow?.webContents ||
+      event.senderFrame !== mainWindow.webContents.mainFrame
+    )
+      throw Error('Settings require the main app window.');
+    await shell.openExternal(guiPermissionSettingsUrl(permission));
+  });
+  ipcMain.handle('settings:set-gui', (event, { enabled }) => {
+    if (
+      event.sender !== mainWindow?.webContents ||
+      event.senderFrame !== mainWindow.webContents.mainFrame
+    )
+      throw Error('Settings require the main app window.');
+    if (typeof enabled !== 'boolean') throw Error('Invalid desktop control setting.');
     appSettings = { ...appSettings, guiPluginEnabled: Boolean(enabled) };
     saveSettings(configDir(), appSettings);
     // Enabling is the authorization. No live session is torn down here:
@@ -1377,6 +1395,8 @@ function registerHandlers() {
 }
 
 async function createWindow() {
+  if (process.argv.includes('--gui-settings-selftest'))
+    require('./gui-settings-selftest.cjs').prepare();
   if (process.argv.includes('--ui-selftest'))
     require('./ui-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--subagent-selftest'))
@@ -1435,10 +1455,8 @@ async function createWindow() {
   });
   registerHandlers();
   const window = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    minWidth: 1000,
-    minHeight: 650,
+    show: !process.argv.includes('--gui-settings-selftest'),
+    ...require('./window-bounds.cjs').windowBounds(screen.getPrimaryDisplay().workArea),
     backgroundColor: '#0c1218',
     title: 'Industrial Agent Harness',
     webPreferences: {
@@ -1456,6 +1474,23 @@ async function createWindow() {
       fs.writeSync(2, 'CAD renderer: ' + event.message + '\n'),
     );
   mainWindow = window;
+  const fitDisplay = () => {
+    const bounds = require('./window-bounds.cjs').windowBounds(
+      screen.getDisplayMatching(window.getBounds()).workArea,
+      window.getBounds(),
+    );
+    window.setMinimumSize(bounds.minWidth, bounds.minHeight);
+    if (!window.isFullScreen() && !window.isMaximized()) {
+      const { minWidth, minHeight, ...frame } = bounds;
+      window.setBounds(frame);
+    }
+  };
+  screen.on('display-metrics-changed', fitDisplay);
+  screen.on('display-removed', fitDisplay);
+  window.on('closed', () => {
+    screen.removeListener('display-metrics-changed', fitDisplay);
+    screen.removeListener('display-removed', fitDisplay);
+  });
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
   if (process.argv.includes('--cad-install-selftest')) {
@@ -1569,6 +1604,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--language-selftest')) {
     await require('./language-selftest.cjs').run(window, dialog);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--gui-settings-selftest')) {
+    await require('./gui-settings-selftest.cjs').run(window, systemPreferences, shell);
     app.quit();
     return;
   }

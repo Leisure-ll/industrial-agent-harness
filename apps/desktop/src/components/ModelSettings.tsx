@@ -84,7 +84,7 @@ export function ModelSettings({
         </header>
         <div className="ia-model-fields">
           <label>
-            {t('Provider')}{' '}
+            {t('API format')}{' '}
             <select
               value={profile.provider}
               onChange={event =>
@@ -94,7 +94,7 @@ export function ModelSettings({
                 })
               }
             >
-              <option value="kimi">Kimi API</option>
+              <option value="kimi">{t('Kimi (Moonshot) API')}</option>
               <option value="openai_legacy">{t('OpenAI-compatible')}</option>
             </select>
           </label>

@@ -30,10 +30,11 @@ function prepare(config) {
   const projects = ['parallel-a', 'parallel-b'].map(id => {
     const folder = path.join(config, id);
     fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(path.join(folder, 'project.v'), 'module project; endmodule\n');
     return {
       id,
       name: id === 'parallel-a' ? 'Parallel project A' : 'Parallel project B',
-      path: folder,
+      path: fs.realpathSync(folder),
       domain: 'chip',
     };
   });
@@ -169,6 +170,26 @@ async function run(window) {
     await wait(`document.querySelector('.ia-chat-header b')?.innerText==='Parallel project A'`);
     await submit('SESSION_ALPHA');
     const alphaId = await evaluate(`window.viewerHost.chats().then(list=>list.activeId)`);
+    await evaluate(`document.querySelector('.ia-layout-toggle').click()`);
+    await wait(`Boolean(document.querySelector('.layout-tabs'))`);
+    await evaluate(`document.querySelector('.ia-tab-add').click()`);
+    await wait(`Boolean(document.querySelector('.ia-file-list button[title="project.v"]'))`);
+    await evaluate(`document.querySelector('.ia-file-list button[title="project.v"]').click()`);
+    await wait(`Boolean(document.querySelector('.ia-source-panel pre'))`);
+    await wait(
+      `document.querySelector('#tab-chat [role="status"]')?.getAttribute('aria-label') === 'Awaiting approval'`,
+    );
+    assert.equal(await evaluate(`document.querySelector('.ia-chat').hidden`), true);
+    assert.equal(
+      turns.get('SESSION_ALPHA').approved,
+      false,
+      'Viewing a file must not approve or interrupt a task',
+    );
+    await evaluate(`document.getElementById('tab-chat').click()`);
+    await wait(
+      `!document.querySelector('.ia-chat').hidden && document.querySelector('.ia-approval')?.innerText.includes('SESSION_ALPHA')`,
+    );
+
     assert.equal(await evaluate(`document.querySelector('.ia-new-chat').disabled`), false);
     await newChat();
     await submit('SESSION_BETA');
@@ -216,6 +237,15 @@ async function run(window) {
       `Array.from(document.querySelectorAll('.ia-project-row')).find(button=>button.innerText.includes('Parallel project B')).click()`,
     );
     await wait(`document.querySelector('.ia-project-page h1')?.innerText==='Parallel project B'`);
+    assert.equal(
+      await evaluate(`document.querySelectorAll('.ia-file-view').length`),
+      0,
+      'Project navigation must release all previous file sessions',
+    );
+    assert.equal(
+      await evaluate(`document.querySelectorAll('.ia-workbench-tabbar [role="tab"]').length`),
+      1,
+    );
     await evaluate(`document.querySelector('.ia-project-start').click()`);
     await wait(`Boolean(document.querySelector('.ia-composer textarea'))`);
     await submit('SESSION_GAMMA');

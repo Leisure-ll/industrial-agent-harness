@@ -127,20 +127,30 @@ async function run(window) {
       `document.querySelector('.ia-file-list button[title=${JSON.stringify(name)}]').click()`,
     );
     await wait(
-      `document.querySelector('.rp-cad strong')?.textContent===${JSON.stringify(name)} && Number(document.querySelector('.rp-cad canvas')?.dataset.renderedTriangles)>20 && document.querySelector('.ia-viewer-footer')?.innerText.includes('CAD · Ready')`,
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad strong')?.textContent===${JSON.stringify(name)} && Number(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas')?.dataset.renderedTriangles)>20 && document.querySelector('.ia-viewer-footer')?.innerText.includes('CAD · Ready')`,
     );
   }
   await open('model.FCStd');
-  assert.equal(await evaluate(`document.querySelector('.rp-cad canvas').dataset.geometry`), 'brep');
+  assert.equal(
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas').dataset.geometry`,
+    ),
+    'brep',
+  );
   assert.match(
-    await evaluate(`document.querySelector('.rp-cad canvas').dataset.engine`),
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas').dataset.engine`,
+    ),
     /OCCT.*AIS\/V3d/,
   );
-  const measure = () => evaluate(`Number(document.querySelector('.rp-cad').dataset.zoom)`);
+  const measure = () =>
+    evaluate(
+      `Number(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.zoom)`,
+    );
   await verifyNavigation(window, measure);
   await verifyWheel(window, measure, (delta, ctrl) =>
     evaluate(
-      `(()=>{const event=new WheelEvent('wheel',{deltaY:${delta},ctrlKey:${ctrl},cancelable:true});document.querySelector('.rp-cad-viewport').dispatchEvent(event);return event.defaultPrevented;})()`,
+      `(()=>{const event=new WheelEvent('wheel',{deltaY:${delta},ctrlKey:${ctrl},cancelable:true});document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad-viewport').dispatchEvent(event);return event.defaultPrevented;})()`,
     ),
   );
   // React publishes the camera attributes before its effect schedules the
@@ -150,16 +160,20 @@ async function run(window) {
     `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
   );
   const canvasRect = await evaluate(`(() => {
-    const r = document.querySelector('.rp-cad canvas').getBoundingClientRect();
+    const r = document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas').getBoundingClientRect();
     return { x: Math.ceil(r.x), y: Math.ceil(r.y), width: Math.floor(r.width), height: Math.floor(r.height) };
   })()`);
   const captureCanvas = async () => (await window.webContents.capturePage(canvasRect)).toPNG();
   const beforeRotation = await captureCanvas();
-  const yaw = await evaluate(`document.querySelector('.rp-cad').dataset.yaw`);
-  await evaluate(
-    `(()=>{const node=document.querySelector('.rp-cad-viewport');node.dispatchEvent(new PointerEvent('pointerdown',{pointerId:1,clientX:100,clientY:100,bubbles:true}));node.dispatchEvent(new PointerEvent('pointermove',{pointerId:1,clientX:145,clientY:120,bubbles:true}));node.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,bubbles:true}));})()`,
+  const yaw = await evaluate(
+    `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.yaw`,
   );
-  await wait(`document.querySelector('.rp-cad').dataset.yaw!==${JSON.stringify(yaw)}`);
+  await evaluate(
+    `(()=>{const node=document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad-viewport');node.dispatchEvent(new PointerEvent('pointerdown',{pointerId:1,clientX:100,clientY:100,bubbles:true}));node.dispatchEvent(new PointerEvent('pointermove',{pointerId:1,clientX:145,clientY:120,bubbles:true}));node.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,bubbles:true}));})()`,
+  );
+  await wait(
+    `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.yaw!==${JSON.stringify(yaw)}`,
+  );
   const redrawDeadline = Date.now() + 15000;
   let afterRotation = await captureCanvas();
   while (afterRotation.equals(beforeRotation) && Date.now() < redrawDeadline) {
@@ -171,22 +185,34 @@ async function run(window) {
     beforeRotation,
     'OCCT must redraw pixels after camera rotation',
   );
-  const rotated = await evaluate(`document.querySelector('.rp-cad').dataset.yaw`);
+  const rotated = await evaluate(
+    `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.yaw`,
+  );
   await evaluate(
-    `(()=>{const node=document.querySelector('.rp-cad-viewport');node.dispatchEvent(new PointerEvent('pointerdown',{pointerId:1,clientX:100,clientY:100,shiftKey:true,bubbles:true}));node.dispatchEvent(new PointerEvent('pointermove',{pointerId:1,clientX:125,clientY:115,shiftKey:true,bubbles:true}));node.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,bubbles:true}));})()`,
+    `(()=>{const node=document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad-viewport');node.dispatchEvent(new PointerEvent('pointerdown',{pointerId:1,clientX:100,clientY:100,shiftKey:true,bubbles:true}));node.dispatchEvent(new PointerEvent('pointermove',{pointerId:1,clientX:125,clientY:115,shiftKey:true,bubbles:true}));node.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,bubbles:true}));})()`,
   );
   await wait(
-    `Number(document.querySelector('.rp-cad').dataset.panX)===25 && Number(document.querySelector('.rp-cad').dataset.panY)===15`,
+    `Number(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.panX)===25 && Number(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.panY)===15`,
   );
   await transitionFullscreen(window, true, () =>
     evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`),
   );
-  assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.yaw`), rotated);
+  assert.equal(
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.yaw`,
+    ),
+    rotated,
+  );
   await transitionFullscreen(window, false, () => {
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
   });
-  assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.yaw`), rotated);
+  assert.equal(
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.yaw`,
+    ),
+    rotated,
+  );
   fs.writeFileSync(
     path.join(project, 'cad-viewer.png'),
     (await window.webContents.capturePage()).toPNG(),
@@ -199,11 +225,15 @@ async function run(window) {
   await open('model.step');
   await open('model.stl');
   assert.equal(
-    await evaluate(`document.querySelector('button[aria-label="Measurement"]').disabled`),
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])').querySelector('button[aria-label="Measurement"]').disabled`,
+    ),
     true,
   );
   assert.match(
-    await evaluate(`document.querySelector('.rp-cad-note').textContent`),
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad-note').textContent`,
+    ),
     /Mesh-only preview/,
   );
   // A real completed Runtime action must publish new files without reopening

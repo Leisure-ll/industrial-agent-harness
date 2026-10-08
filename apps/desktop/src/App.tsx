@@ -12,6 +12,9 @@ import {
   Folder,
   FolderOpen,
   Maximize,
+  PanelsTopLeft,
+  Pin,
+  Columns2,
   Minimize,
   Moon,
   PanelLeftClose,
@@ -26,7 +29,6 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { ViewerCanvas, type ViewNavigation } from '@industrial-agent-harness/viewer-builtin/canvas';
 import type {
   AgentEvent,
   ChatHistory,
@@ -36,10 +38,8 @@ import type {
   BrokerResult,
   CapabilityDetail,
   DomainOption,
-  OpenedViewer,
   ProjectBinding,
   PromptImage,
-  ViewerArtifact,
 } from '@industrial-agent-harness/viewer-builtin/api';
 import {
   useImageAttachments,
@@ -53,10 +53,18 @@ import { TodoList } from './components/TodoList';
 import { GlobalResourceSettings } from './components/ResourceSettings';
 import { DomainManager } from './components/DomainManager';
 import { CoreUpdatePanel } from './components/CoreUpdatePanel';
+import { ComputerUseSettings } from './components/ComputerUseSettings';
 import { ModelSettings } from './components/ModelSettings';
 import { ProjectDetails } from './components/ProjectDetails';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { WorkspaceDivider } from './components/WorkspaceDivider';
+import { WorkspaceTabs } from './components/WorkspaceTabs';
+import { openWorkspaceFile } from './workspace-files';
+import {
+  WorkspaceFileView,
+  type WorkspaceFile,
+  type WorkspaceViewState,
+} from './components/WorkspaceFileView';
 import { DomainPill } from './components/DomainPill';
 import { appendDisplayEvents, latestEvent } from './agent-events';
 import { mergeHistoryEvents } from './chat-history';
@@ -66,18 +74,9 @@ import { languageOptions, normalizePreference } from './i18n/core';
 type Theme = 'light' | 'dark';
 type ProjectFile = { path: string; name: string; depth: number; directory: boolean };
 
-type SourceFile = {
-  path: string;
-  name: string;
-  sizeBytes: number;
-  content: string | null;
-  truncated: boolean;
-};
-
 export function App() {
   const { t, locale } = useDisplayText();
   const { preference, setPreference } = useLanguage();
-  const [artifacts, setArtifacts] = useState<ViewerArtifact[]>([]);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(() => new Set());
   const [projects, setProjects] = useState<ProjectBinding[]>([]);
@@ -94,14 +93,38 @@ export function App() {
     domain: string;
   } | null>(null);
   const [projectError, setProjectError] = useState('');
-  const [selectedArtifactId, setSelectedArtifactId] = useState('');
-  const [selectedProjectFile, setSelectedProjectFile] = useState('');
-  const [sourceFile, setSourceFile] = useState<SourceFile>();
-  const [openedViewer, setOpenedViewer] = useState<OpenedViewer>();
-  const [loading, setLoading] = useState(false);
+  const [openFiles, setOpenFiles] = useState<WorkspaceFile[]>([]);
+  const openFilesRef = useRef(openFiles);
+  openFilesRef.current = openFiles;
+  const [activeFileId, setActiveFileId] = useState('');
+  const [viewState, setViewState] = useState<WorkspaceViewState>();
+  const fileOpenRevision = useRef(0);
+  const [layout, setLayout] = useState<'split' | 'tabs'>(() => {
+    try {
+      return localStorage.getItem('ia-layout-v1') === 'tabs' ? 'tabs' : 'split';
+    } catch {
+      return 'split';
+    }
+  });
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
+  const [workbenchFocus, setWorkbenchFocus] = useState<'chat' | 'workspace'>('chat');
+  const tabbed = layout === 'tabs' || windowWidth < 900;
+  useEffect(() => {
+    const resize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem('ia-layout-v1', layout);
+    } catch {
+      /* Layout remains usable when storage is unavailable. */
+    }
+  }, [layout]);
   const [error, setError] = useState('');
-  const [isViewerReady, setViewerReady] = useState(false);
   const [leftOpen, setLeftOpen] = useState(true);
+  const [compactSidebarOpen, setCompactSidebarOpen] = useState(false);
+  const sidebarVisible = leftOpen && (windowWidth >= 760 || compactSidebarOpen);
   const [rightOpen, setRightOpen] = useState(false);
   const [fileTreeOpen, setFileTreeOpen] = useState(false);
   const workspace = useRef<HTMLElement>(null);
@@ -123,7 +146,6 @@ export function App() {
   }, [workspaceWidth]);
   const [viewerFullscreen, setViewerFullscreen] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
-  const [viewNavigation, setViewNavigation] = useState<ViewNavigation | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
   const [resourceSettingsOpen, setResourceSettingsOpen] = useState(false);
@@ -141,7 +163,6 @@ export function App() {
     setLogTrace(traceId);
     setLogOpen(true);
   }, []);
-  const viewerReady = useCallback(() => setViewerReady(true), []);
   const [task, setTask] = useState('');
   const [submittedTask, setSubmittedTask] = useState('');
   const [broker, setBroker] = useState<BrokerResult>();
@@ -158,7 +179,6 @@ export function App() {
   const [agentBusy, setAgentBusy] = useState(false);
   const [approvalMode, setApprovalMode] = useState<'ask' | 'auto'>('ask');
   const [approvalModeBusy, setApprovalModeBusy] = useState(false);
-  const [guiInstall, setGuiInstall] = useState('');
   const [agentOwned, setAgentOwned] = useState(false);
   const [chatList, setChatList] = useState<ChatSummary[]>([]);
   const [runningSessions, setRunningSessions] = useState<SessionStatus[]>([]);
@@ -189,7 +209,7 @@ export function App() {
       element.scrollTop += element.scrollHeight - prependHeight.current;
       prependHeight.current = null;
     } else if (followMessages.current) element.scrollTop = element.scrollHeight;
-  }, [turns, page]);
+  }, [turns, page, tabbed, workbenchFocus]);
   function beginNavigation() {
     if (navigationPending.current || submitting.current || startingAgent.current) return false;
     navigationPending.current = true;
@@ -297,7 +317,7 @@ export function App() {
       const history = await readHistory(() => window.viewerHost!.selectChat(id));
       setTask('');
       applyHistory(history);
-      setPage('chat');
+      showPage('chat');
       setBrokerError('');
     } catch (reason) {
       setError(String(reason));
@@ -421,7 +441,7 @@ export function App() {
         setActiveProjectId(bindings.activeId);
         projectIdRef.current = bindings.activeId;
         if (bindings.projects.find(item => item.id === bindings.activeId && !item.domain))
-          setPage('project');
+          showPage('project');
         if (status.projectDir)
           void window
             .viewerHost!.projectFiles()
@@ -530,62 +550,19 @@ export function App() {
       removeUpdated();
     };
   }, []);
-  useEffect(() => {
-    setViewNavigation(null);
-    if (!selectedArtifactId) {
-      setOpenedViewer(undefined);
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setViewerReady(false);
-    setError('');
-    setOpenedViewer(undefined);
-    window
-      .viewerHost!.open({ artifactId: selectedArtifactId })
-      .then(view => {
-        if (!cancelled) {
-          setOpenedViewer(view);
-          setLoading(false);
-        }
-      })
-      .catch(reason => {
-        if (!cancelled) {
-          setError(String(reason));
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedArtifactId]);
-
-  useEffect(() => {
-    if (!window.viewerHost) return;
-    return window.viewerHost!.onGuiProgress(event => {
-      if (event.phase === 'downloading' || event.phase === 'verified') setGuiInstall(event.phase);
-      else if (event.phase === 'ready') {
-        setGuiInstall('');
-        void window
-          .viewerHost!.guiState()
-          .then(() => window.viewerHost!.agentStatus().then(setAgentStatus));
-      } else if (event.phase === 'error') {
-        setGuiInstall(`install failed · ${event.error}`);
-        void window.viewerHost!.agentStatus().then(setAgentStatus);
-      }
-    });
-  }, []);
-  const selectedArtifact = artifacts.find(item => item.id === selectedArtifactId);
-  // Effects clear the previous Viewer after rendering. Bind display readiness
-  // immediately so a file switch cannot remount an old Viewer under a new ID.
-  const activeViewer = openedViewer?.artifact.id === selectedArtifactId ? openedViewer : undefined;
+  const activeFile = openFiles.find(file => file.id === activeFileId);
+  const selectedArtifact = activeFile?.artifact;
+  const selectedProjectFile = activeFile?.path || '';
+  const activeViewState = viewState?.id === activeFileId ? viewState : undefined;
+  const activeViewer = activeViewState?.opened;
+  const isViewerReady = Boolean(activeViewState?.ready);
+  const viewNavigation = activeViewState?.navigation;
   const activeProject = projects.find(item => item.id === activeProjectId);
   const projectName = activeProject?.name || t('No project selected');
   const fixedDomain = activeProject?.domain || null;
   const selectedDomain = fixedDomain;
   const domainFor = (id?: string | null) => domains.find(item => item.id === id);
-  const activeFileName = sourceFile?.name || selectedArtifact?.name;
+  const activeFileName = activeFile?.name;
   const todo = latestEvent(agentEvents, 'todo');
   const visibleProjectFiles = useMemo(() => {
     const hidden = [...collapsedDirs];
@@ -610,10 +587,51 @@ export function App() {
     });
   }
 
-  function selectArtifact(id: string) {
-    setSourceFile(undefined);
-    setSelectedArtifactId(id);
+  function resetWorkspace() {
+    fileOpenRevision.current++;
+    setOpenFiles([]);
+    setActiveFileId('');
+    setViewState(undefined);
+    setWorkbenchFocus('chat');
+  }
+  function showPage(next: 'chat' | 'project') {
+    setPage(next);
+    setWorkbenchFocus('chat');
+    setCompactSidebarOpen(false);
+  }
+  function browseFiles() {
     setRightOpen(true);
+    setFileTreeOpen(true);
+    setWorkbenchFocus('workspace');
+  }
+  function closeFile(id: string) {
+    fileOpenRevision.current++;
+    const remaining = openFiles.filter(file => file.id !== id);
+    setOpenFiles(remaining);
+    if (id === activeFileId) {
+      const index = openFiles.findIndex(file => file.id === id);
+      setActiveFileId(remaining[Math.min(index, remaining.length - 1)]?.id || '');
+      if (!remaining.length) {
+        if (document.fullscreenElement === workspace.current) void toggleViewerFullscreen();
+        setWorkbenchFocus('chat');
+      }
+    }
+  }
+  function pinFile(id: string) {
+    setOpenFiles(current =>
+      current.map(file => (file.id === id ? { ...file, preview: false } : file)),
+    );
+  }
+  function selectTab(id: string) {
+    if (id === 'chat') setWorkbenchFocus('chat');
+    else {
+      if (id !== 'workspace') setActiveFileId(id);
+      setRightOpen(true);
+      setWorkbenchFocus('workspace');
+    }
+  }
+  function toggleLayout() {
+    setLayout(tabbed ? 'split' : 'tabs');
   }
   function chooseProject() {
     setProjectError('');
@@ -646,6 +664,7 @@ export function App() {
   async function createProject(request: { directory: string; name: string; domain: string }) {
     if (!beginNavigation()) return;
     try {
+      fileOpenRevision.current++;
       const bindings = await window.viewerHost!.createProject(request);
       setProjects(bindings.projects);
       setActiveProjectId(bindings.activeId);
@@ -655,11 +674,7 @@ export function App() {
       );
       setProjectFiles(await window.viewerHost!.projectFiles());
       setCollapsedDirs(new Set());
-      setArtifacts([]);
-      setSourceFile(undefined);
-      setSelectedArtifactId('');
-      setSelectedProjectFile('');
-      setOpenedViewer(undefined);
+      resetWorkspace();
       setRightOpen(false);
       setFileTreeOpen(false);
       setSubmittedTask('');
@@ -668,7 +683,7 @@ export function App() {
       setAgentEvents([]);
       await refreshChats(true);
       setProjectDraft(null);
-      setPage('project');
+      showPage('project');
     } catch (reason) {
       setProjectError(String(reason));
     } finally {
@@ -678,12 +693,13 @@ export function App() {
   async function selectProject(id: string) {
     if (!beginNavigation()) return;
     if (id === activeProjectId) {
-      setPage('project');
+      showPage('project');
       endNavigation();
       return;
     }
     setError('');
     try {
+      fileOpenRevision.current++;
       const bindings = await window.viewerHost!.selectProject(id);
       setProjects(bindings.projects);
       setActiveProjectId(bindings.activeId);
@@ -693,11 +709,7 @@ export function App() {
       );
       setProjectFiles(await window.viewerHost!.projectFiles());
       setCollapsedDirs(new Set());
-      setArtifacts([]);
-      setSourceFile(undefined);
-      setSelectedArtifactId('');
-      setSelectedProjectFile('');
-      setOpenedViewer(undefined);
+      resetWorkspace();
       setRightOpen(false);
       setFileTreeOpen(false);
       setSubmittedTask('');
@@ -705,37 +717,47 @@ export function App() {
       setCapabilityDetail(undefined);
       setAgentEvents([]);
       await refreshChats(true);
-      setPage('project');
+      showPage('project');
     } catch (reason) {
       setError(String(reason));
     } finally {
       endNavigation();
     }
   }
-  async function selectProjectFile(relative: string) {
+  async function selectProjectFile(relative: string, pin = false) {
+    const project = projectIdRef.current;
+    const revision = ++fileOpenRevision.current;
     setError('');
     setRightOpen(true);
+    setWorkbenchFocus('workspace');
     try {
       const file = await window.viewerHost!.readProjectFile(relative);
-      setSelectedProjectFile(relative);
-      if (file.viewer) {
-        const item = await window.viewerHost!.openProjectFile(relative);
-        setArtifacts(current => [...current, item]);
-        selectArtifact(item.id);
-      } else {
-        setSelectedArtifactId('');
-        setOpenedViewer(undefined);
-        setSourceFile(file);
-      }
+      if (project !== projectIdRef.current || revision !== fileOpenRevision.current) return;
+      const artifact = file.viewer ? await window.viewerHost!.openProjectFile(relative) : undefined;
+      if (project !== projectIdRef.current || revision !== fileOpenRevision.current) return;
+      const next: WorkspaceFile = {
+        id: artifact ? artifact.id : `source-${relative}`,
+        path: relative,
+        name: file.name,
+        artifact,
+        source: artifact ? undefined : file,
+      };
+      const failed =
+        viewState?.error &&
+        openFilesRef.current.find(file => file.path === relative)?.id === viewState.id;
+      const opened = openWorkspaceFile(openFilesRef.current, next, pin, Boolean(failed));
+      setOpenFiles(opened.files);
+      setActiveFileId(opened.selected.id);
     } catch (reason) {
-      setError(String(reason));
+      if (project === projectIdRef.current && revision === fileOpenRevision.current)
+        setError(String(reason));
     }
   }
   async function newChat() {
     if (!beginNavigation()) return;
     try {
       if (activeProject && !activeProject.domain) {
-        setPage('project');
+        showPage('project');
         return;
       }
       const history = await readHistory(() => window.viewerHost!.newChat());
@@ -749,7 +771,7 @@ export function App() {
         setAgentEvents([]);
       }
       await refreshChats();
-      setPage('chat');
+      showPage('chat');
     } catch (reason) {
       setBrokerError(String(reason));
     } finally {
@@ -812,6 +834,7 @@ export function App() {
   async function setProjectDomain(id: string, domain: string) {
     try {
       const bindings = await window.viewerHost!.setProjectDomain(id, domain);
+      if (activeProject?.domain !== domain) resetWorkspace();
       setProjects(bindings.projects);
       setTask('');
       setSubmittedTask('');
@@ -868,16 +891,12 @@ export function App() {
   }
 
   const diagnostic = latestEvent(agentEvents, 'diagnostic-log');
-  // Failed installs/toggles record 'install failed · …' / 'toggle failed · …';
-  // both must keep the toggle usable so the user can retry or disable.
-  const guiFailed =
-    guiInstall.startsWith('install failed') || guiInstall.startsWith('toggle failed');
   return (
     <div
-      className={`rp-shell ia-app theme-${theme} ${leftOpen ? '' : 'left-collapsed'} ${rightOpen ? '' : 'right-collapsed'}`}
+      className={`rp-shell ia-app theme-${theme} ${sidebarVisible ? '' : 'left-collapsed'} ${rightOpen ? '' : 'right-collapsed'} ${tabbed ? 'layout-tabs' : 'layout-split'}`}
     >
       <div className="ia-columns">
-        {leftOpen && (
+        {sidebarVisible && (
           <aside className="ia-tree ia-sidebar" aria-label={t('Project navigation')}>
             <div className="ia-sidebar-brand">
               <span className="ia-product-mark">
@@ -886,7 +905,10 @@ export function App() {
               <b>Industrial Harness</b>
               <button
                 className="ia-icon"
-                onClick={() => setLeftOpen(false)}
+                onClick={() => {
+                  setLeftOpen(false);
+                  setCompactSidebarOpen(false);
+                }}
                 title={t('Hide sidebar')}
                 aria-label={t('Hide sidebar')}
               >
@@ -1061,55 +1083,7 @@ export function App() {
                     <Bug size={14} /> {debug ? t('On') : t('Off')}
                   </button>
                 </div>
-                <div className="ia-settings-row">
-                  <span>{t('Computer Use')}</span>
-                  <button
-                    disabled={Boolean(guiInstall) && !guiFailed}
-                    onClick={() => {
-                      const next = !agentStatus?.gui?.enabled;
-                      setGuiInstall('installing');
-                      void window
-                        .viewerHost!.setGuiPlugin(next)
-                        .then(state => {
-                          setAgentStatus(current =>
-                            current ? { ...current, gui: state } : current,
-                          );
-                          if (!state.enabled) setGuiInstall('');
-                        })
-                        .catch(reason => {
-                          setGuiInstall(`toggle failed · ${String(reason)}`);
-                        });
-                    }}
-                    title={
-                      agentStatus?.gui?.enabled
-                        ? t('Kimi can operate your desktop apps for this session')
-                        : t('Install and enable desktop GUI control')
-                    }
-                  >
-                    {agentStatus?.gui?.enabled ? t('On') : t('Off')}
-                  </button>
-                </div>
-                {agentStatus?.gui?.enabled && (
-                  <p className="ia-settings-note">
-                    {guiFailed
-                      ? guiInstall
-                      : guiInstall
-                        ? t('Installing computer use · {0}…', { '0': guiInstall })
-                        : agentStatus.gui.install !== 'ready'
-                          ? t('Installing…')
-                          : t(
-                              'Ready · v{0} · macOS: grant Screen Recording & Accessibility in System Settings → Privacy & Security.',
-                              { '0': agentStatus.gui.version || 'unknown' },
-                            )}
-                  </p>
-                )}
-                {!agentStatus?.gui?.enabled && (
-                  <p className="ia-settings-note">
-                    {t(
-                      'Enabling installs the computer-use engine and lets Kimi drive desktop apps. It can be disabled at any time.',
-                    )}
-                  </p>
-                )}
+                <ComputerUseSettings />
                 <div className="ia-settings-row">
                   <span>{t('Approval mode')}</span>
                   <select
@@ -1192,524 +1166,635 @@ export function App() {
             )}
           </aside>
         )}
-        <main className="ia-chat">
-          <header className="ia-chat-header">
-            <div>
-              {!leftOpen && (
+        {sidebarVisible && windowWidth < 760 && (
+          <button
+            className="ia-sidebar-backdrop"
+            aria-label={t('Hide sidebar')}
+            onClick={() => setCompactSidebarOpen(false)}
+          />
+        )}
+        <div className="ia-workbench">
+          {tabbed && (
+            <div className="ia-workbench-tabbar">
+              {!sidebarVisible && (
                 <button
                   className="ia-icon"
-                  onClick={() => setLeftOpen(true)}
                   title={t('Show sidebar')}
                   aria-label={t('Show sidebar')}
+                  onClick={() => {
+                    setLeftOpen(true);
+                    setCompactSidebarOpen(true);
+                  }}
                 >
                   <PanelLeftOpen size={16} />
                 </button>
               )}
+              <WorkspaceTabs
+                tabs={[
+                  {
+                    id: 'chat',
+                    chat: true,
+                    title:
+                      page === 'project'
+                        ? projectName
+                        : chatList.find(chat => chat.id === activeChatId)?.title || t('Chat'),
+                    status: chatList.find(chat => chat.id === activeChatId)?.awaitingQuestion
+                      ? t('Awaiting answer')
+                      : chatList.find(chat => chat.id === activeChatId)?.awaitingApproval
+                        ? t('Awaiting approval')
+                        : agentBusy
+                          ? t('Running')
+                          : undefined,
+                  },
+                  ...openFiles.map(file => ({
+                    id: file.id,
+                    title: file.name,
+                    preview: file.preview,
+                  })),
+                  ...(rightOpen && !openFiles.length
+                    ? [{ id: 'workspace', title: t('Workspace') }]
+                    : []),
+                ]}
+                selected={workbenchFocus === 'chat' ? 'chat' : activeFileId || 'workspace'}
+                onSelect={selectTab}
+                onClose={closeFile}
+                onPin={pinFile}
+                onAdd={browseFiles}
+              />
               <button
-                className="ia-header-project"
-                onClick={() => setPage('project')}
-                disabled={!activeProject}
-                title={activeProject?.path}
-                aria-label={t('Project details: {0}', { '0': projectName })}
+                className="ia-layout-toggle ia-icon"
+                aria-label={t('Use split layout')}
+                title={
+                  windowWidth < 900
+                    ? t('Split layout is available in a wider window')
+                    : t('Use split layout')
+                }
+                disabled={windowWidth < 900}
+                onClick={toggleLayout}
               >
-                <Folder size={16} />
-                <b>{projectName}</b>
-                {activeProject && <ChevronDown size={13} />}
+                <Columns2 size={17} />
               </button>
             </div>
-            <div className="ia-chat-actions">
-              <button
-                className="ia-log-button"
-                aria-label={t('View agent logs')}
-                title={t('View detailed agent logs')}
-                disabled={!activeProjectId}
-                onClick={() => showAgentLog()}
-              >
-                {t('Logs')}
-              </button>
-              <button
-                className={debug ? 'active' : ''}
-                onClick={() => setDebug(value => !value)}
-                title={t('Toggle debug logs')}
-                aria-label={t('Toggle debug logs')}
-                aria-pressed={debug}
-              >
-                <Bug size={15} />
-              </button>
-              <button
-                onClick={() => setRightOpen(value => !value)}
-                title={rightOpen ? t('Hide workspace') : t('Show workspace')}
-                aria-label={rightOpen ? t('Hide workspace') : t('Show workspace')}
-                aria-pressed={rightOpen}
-              >
-                {rightOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
-              </button>
-            </div>
-          </header>
-          {page === 'project' && activeProject ? (
-            <ProjectDetails
-              key={activeProject.id}
-              project={activeProject}
-              domains={domains}
-              busy={runningSessions.some(
-                session => session.projectId === activeProjectId && session.running,
-              )}
-              onDomainChange={setProjectDomain}
-              resourceRevision={resourceRevision}
-              onResourcesChanged={resourcesChanged}
-              onNewChat={newChat}
-            />
-          ) : (
-            <>
-              <div
-                className="ia-chat-scroll"
-                ref={chatScroll}
-                onScroll={event => {
-                  const element = event.currentTarget;
-                  followMessages.current =
-                    element.scrollHeight - element.scrollTop - element.clientHeight < 80;
-                }}
-              >
-                {hasEarlier && (
-                  <button
-                    className="ia-history-more"
-                    disabled={historyLoading}
-                    onClick={() => void loadEarlier()}
-                  >
-                    {historyLoading ? t('Loading…') : t('Load earlier messages')}
-                  </button>
-                )}
-                {!turns.length && (
-                  <div className="ia-chat-welcome">
-                    <h1>
-                      {activeProject
-                        ? t('What are you working on?')
-                        : t('Start with your project.')}
-                    </h1>
-                    <p>
-                      {activeProject
-                        ? t(
-                            'Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.',
-                          )
-                        : t(
-                            'Choose a local folder and a domain, then describe what you want to work on.',
-                          )}
-                    </p>
-                    <div className="ia-welcome-actions">
-                      {activeProject ? (
-                        <>
-                          <button onClick={() => setPage('project')}>
-                            <Settings2 size={15} />
-                            {t('Project details')}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setRightOpen(true);
-                              setFileTreeOpen(true);
-                            }}
-                          >
-                            <FolderOpen size={15} />
-                            {t('Browse project files')}
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          className="ia-welcome-create"
-                          onClick={chooseProject}
-                          disabled={navigating || submitting.current}
-                        >
-                          <Plus size={16} />
-                          {t('New project')}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {turns.map((turn, index) => (
-                  <div className="ia-chat-turn" key={turn.id} data-turn-id={turn.id}>
-                    <div className="ia-user-message">
-                      {turn.task}
-                      {turn.events.map(event =>
-                        event.type === 'user-images' || event.type === 'input-images' ? (
-                          <ImageThumbnails key="input-images" images={event.images} />
-                        ) : null,
-                      )}
-                    </div>
-                    {turn.broker && (
-                      <BrokerCall
-                        broker={turn.broker}
-                        detail={index === turns.length - 1 ? capabilityDetail : undefined}
-                        debug={debug}
-                        selectedDomain={selectedDomain}
-                        readOnly={index !== turns.length - 1 || agentBusy}
-                        onContext={context => void resolveTask(context, turn.task)}
-                        onDetail={id => void showDetail(id)}
-                      />
-                    )}
-                    {turn.events.length > 0 && (
-                      <AgentFlow
-                        onLog={showAgentLog}
-                        events={turn.events}
-                        running={agentOwned && agentBusy && index === turns.length - 1}
-                        debug={debug}
-                        approve={approveAgent}
-                        answer={answerAgent}
-                      />
-                    )}
-                  </div>
-                ))}
-                {brokerError && <div className="ia-flow-error">{t(brokerError)}</div>}
-              </div>
-              {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy} />}
-              {agentBusy && !agentOwned && (
-                <p role="status" className="ia-composer-hint">
-                  {t(
-                    'This chat is running in another window. Open a new chat to work in parallel.',
-                  )}
-                </p>
-              )}
-              <div className="ia-composer-wrap">
-                <div
-                  className="ia-composer"
-                  onDragOver={event => {
-                    if (event.dataTransfer.types.includes('Files')) event.preventDefault();
-                  }}
-                  onDrop={event => {
-                    if (!event.dataTransfer.files.length) return;
-                    event.preventDefault();
-                    if (!agentBusy) void attachments.addFiles(Array.from(event.dataTransfer.files));
-                  }}
-                  onPaste={event => {
-                    const files = Array.from(event.clipboardData.items)
-                      .filter(item => item.kind === 'file')
-                      .map(item => item.getAsFile())
-                      .filter((file): file is File => Boolean(file));
-                    if (files.length) {
-                      event.preventDefault();
-                      if (!agentBusy) void attachments.addFiles(files);
-                    }
-                  }}
-                >
-                  <ImageThumbnails
-                    images={attachments.images}
-                    onRemove={attachments.remove}
-                    disabled={agentBusy || attachments.loading}
-                  />
-                  {attachments.error && (
-                    <p role="alert" className="ia-flow-error">
-                      {t(attachments.error)}
-                    </p>
-                  )}
-                  {attachments.loading && <p role="status">{t('Preparing images…')}</p>}
-                  {attachments.images.length > 0 && !modelImageInput && (
-                    <p className="ia-image-model-hint">
-                      {t('This model is configured for text only.')}{' '}
-                      <button onClick={() => setModelSettingsOpen(true)}>
-                        {t('Configure image input')}
-                      </button>
-                    </p>
-                  )}
-                  <textarea
-                    aria-label={t('Engineering task')}
-                    aria-describedby="ia-composer-help"
-                    placeholder={
-                      activeProject
-                        ? t('Ask about your project…')
-                        : t('Create or choose a project to start…')
-                    }
-                    value={task}
-                    disabled={agentBusy || navigating || !fixedDomain}
-                    onChange={event => setTask(event.target.value)}
-                    onKeyDown={event => {
-                      if (
-                        event.key === 'Enter' &&
-                        !event.shiftKey &&
-                        !event.nativeEvent.isComposing
-                      ) {
-                        event.preventDefault();
-                        void resolveTask();
-                      }
-                    }}
-                  />
-                  <div className="ia-composer-footer">
-                    <DomainPill
-                      domain={fixedDomain}
-                      domains={domains}
-                      label={t('Session domain')}
-                    />
-                    <div className="ia-send-actions">
-                      <ImageAttachButton
-                        attachments={attachments}
-                        disabled={agentBusy || attachments.loading || !activeProjectId}
-                      />
-                      {agentOwned && agentBusy && (
-                        <button
-                          disabled={navigating}
-                          onClick={() => {
-                            if (navigationPending.current) return;
-                            void window
-                              .viewerHost!.interruptAgent(activeChatId || undefined)
-                              .catch(reason => setBrokerError(String(reason)));
-                          }}
-                          title={t('Stop agent')}
-                          aria-label={t('Stop agent')}
-                        >
-                          <Square size={14} />
-                        </button>
-                      )}
-                      {Boolean(
-                        broker &&
-                          agentStatus?.available &&
-                          agentStatus.configured &&
-                          agentStatus.projectDir,
-                      ) && (
-                        <button
-                          onClick={() => void runAgent()}
-                          disabled={
-                            navigating ||
-                            agentBusy ||
-                            submitting.current ||
-                            turns.at(-1)?.status !== 'scoped'
-                          }
-                          title={t('Run with Kimi')}
-                          aria-label={t('Run with Kimi')}
-                        >
-                          <Play size={14} />
-                        </button>
-                      )}
-                      <button
-                        className="ia-send"
-                        onClick={() => void resolveTask()}
-                        disabled={
-                          navigating ||
-                          agentBusy ||
-                          !fixedDomain ||
-                          attachments.loading ||
-                          (!task.trim() && !attachments.images.length) ||
-                          (attachments.images.length > 0 && !modelImageInput)
-                        }
-                        title={t('Send task')}
-                        aria-label={t('Send task')}
-                      >
-                        <ArrowUp size={18} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <p id="ia-composer-help" className="ia-sr-only">
-                  {t('Press Enter to send. Press Shift+Enter for a new line.')}
-                </p>
-                <div className="ia-composer-hint">
-                  <span role="status">
-                    {!activeProject
-                      ? t('Choose a project to run Kimi')
-                      : !agentStatus?.available
-                        ? t('Kimi CLI is required to run Agent tasks')
-                        : !agentStatus.configured
-                          ? t('Configure the Model API in Settings to run Kimi')
-                          : !agentStatus.projectDir
-                            ? t('Choose a project to run Kimi')
-                            : t('Kimi ready')}
-                  </span>
-                  <span className="ia-composer-shortcuts" aria-hidden="true">
-                    <kbd>Enter</kbd> {t('Send')}
-                    <span>·</span>
-                    <kbd>Shift Enter</kbd> {t('New line')}
-                  </span>
-                </div>
-              </div>
-            </>
           )}
-        </main>
-        {rightOpen && (
-          <WorkspaceDivider
-            workspace={workspace}
-            width={workspaceWidth}
-            onChange={setWorkspaceWidth}
-            fullscreen={viewerFullscreen}
-          />
-        )}
-        {rightOpen && (
-          <section
-            ref={workspace}
-            className="ia-viewer ia-workspace"
-            style={workspaceWidth === null ? undefined : { flexBasis: workspaceWidth }}
-          >
-            <header className="ia-viewer-header">
-              <div>
-                <File size={14} />
-                <b>{activeFileName || t('Workspace')}</b>
-                {activeFileName && (
+          <div className="ia-workbench-content">
+            <main
+              id="ia-chat-panel"
+              className="ia-chat"
+              hidden={tabbed && workbenchFocus !== 'chat'}
+              role={tabbed ? 'tabpanel' : undefined}
+              aria-labelledby={tabbed ? 'tab-chat' : undefined}
+            >
+              <header className="ia-chat-header">
+                <div>
+                  {!sidebarVisible && (
+                    <button
+                      className="ia-icon"
+                      onClick={() => {
+                        setLeftOpen(true);
+                        setCompactSidebarOpen(true);
+                      }}
+                      title={t('Show sidebar')}
+                      aria-label={t('Show sidebar')}
+                    >
+                      <PanelLeftOpen size={16} />
+                    </button>
+                  )}
                   <button
-                    className="ia-icon"
-                    onClick={() => {
-                      setSourceFile(undefined);
-                      setSelectedArtifactId('');
-                      setSelectedProjectFile('');
-                    }}
-                    title={t('Close file')}
-                    aria-label={t('Close file')}
+                    className="ia-header-project"
+                    onClick={() => setPage('project')}
+                    disabled={!activeProject}
+                    title={activeProject?.path}
+                    aria-label={t('Project details: {0}', { '0': projectName })}
                   >
-                    <X size={13} />
+                    <Folder size={16} />
+                    <b>{projectName}</b>
+                    {activeProject && <ChevronDown size={13} />}
                   </button>
-                )}
-              </div>
-              <div className="ia-workspace-actions">
-                {fullscreenError && <span role="status">{t(fullscreenError)}</span>}
-                {activeViewer && (
-                  <div className="ia-view-navigation" aria-label={t('Viewer zoom controls')}>
-                    <button
-                      aria-label={t('Zoom out')}
-                      title={t('Zoom out')}
-                      disabled={!isViewerReady || !viewNavigation?.ready}
-                      onClick={() => viewNavigation?.zoomOut()}
-                    >
-                      −
-                    </button>
-                    <output aria-label={t('Viewer zoom')}>
-                      {viewNavigation?.percent == null
-                        ? t(viewNavigation?.description || 'Zoom')
-                        : `${viewNavigation.percent}%`}
-                    </output>
-                    <button
-                      aria-label={t('Zoom in')}
-                      title={t('Zoom in')}
-                      disabled={!isViewerReady || !viewNavigation?.ready}
-                      onClick={() => viewNavigation?.zoomIn()}
-                    >
-                      +
-                    </button>
-                    <button
-                      aria-label={t('Fit viewer')}
-                      title={t('Fit content to the view')}
-                      disabled={!isViewerReady || !viewNavigation?.ready}
-                      onClick={() => viewNavigation?.fit()}
-                    >
-                      {t('Fit')}
-                    </button>
-                  </div>
-                )}
-                <button
-                  onClick={() => void toggleViewerFullscreen()}
-                  title={viewerFullscreen ? t('Exit viewer fullscreen') : t('Fullscreen viewer')}
-                  aria-label={
-                    viewerFullscreen ? t('Exit viewer fullscreen') : t('Fullscreen viewer')
-                  }
-                  aria-pressed={viewerFullscreen}
-                >
-                  {viewerFullscreen ? <Minimize size={15} /> : <Maximize size={15} />}
-                </button>
-                <button
-                  className="ia-file-tree-toggle"
-                  onClick={() => setFileTreeOpen(value => !value)}
-                  title={fileTreeOpen ? t('Hide file tree') : t('Show file tree')}
-                  aria-label={fileTreeOpen ? t('Hide file tree') : t('Show file tree')}
-                  aria-pressed={fileTreeOpen}
-                >
-                  {fileTreeOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
-                </button>
-                <button
-                  onClick={() => setRightOpen(false)}
-                  title={t('Hide workspace')}
-                  aria-label={t('Hide workspace')}
-                >
-                  <X size={15} />
-                </button>
-              </div>
-            </header>
-            <div className="ia-workspace-body">
-              <div className="ia-workspace-content">
-                <div className="ia-workspace-breadcrumb">
-                  {sourceFile?.path || selectedProjectFile || projectName}
                 </div>
-                {sourceFile ? (
-                  <div className="ia-source-panel">
-                    {sourceFile.content == null ? (
-                      <p>{t('Binary file · no text preview available.')}</p>
-                    ) : (
-                      <pre>{sourceFile.content}</pre>
+                <div className="ia-chat-actions">
+                  {!tabbed && (
+                    <button
+                      className="ia-layout-toggle"
+                      onClick={toggleLayout}
+                      title={t('Use tab layout')}
+                      aria-label={t('Use tab layout')}
+                    >
+                      <PanelsTopLeft size={16} />
+                    </button>
+                  )}
+                  <button
+                    className="ia-log-button"
+                    aria-label={t('View agent logs')}
+                    title={t('View detailed agent logs')}
+                    disabled={!activeProjectId}
+                    onClick={() => showAgentLog()}
+                  >
+                    {t('Logs')}
+                  </button>
+                  <button
+                    className={debug ? 'active' : ''}
+                    onClick={() => setDebug(value => !value)}
+                    title={t('Toggle debug logs')}
+                    aria-label={t('Toggle debug logs')}
+                    aria-pressed={debug}
+                  >
+                    <Bug size={15} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRightOpen(value => !value);
+                      setWorkbenchFocus('workspace');
+                    }}
+                    title={rightOpen ? t('Hide workspace') : t('Show workspace')}
+                    aria-label={rightOpen ? t('Hide workspace') : t('Show workspace')}
+                    aria-pressed={rightOpen}
+                  >
+                    {rightOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+                  </button>
+                </div>
+              </header>
+              {page === 'project' && activeProject ? (
+                <ProjectDetails
+                  key={activeProject.id}
+                  project={activeProject}
+                  domains={domains}
+                  busy={runningSessions.some(
+                    session => session.projectId === activeProjectId && session.running,
+                  )}
+                  onDomainChange={setProjectDomain}
+                  resourceRevision={resourceRevision}
+                  onResourcesChanged={resourcesChanged}
+                  onNewChat={newChat}
+                />
+              ) : (
+                <>
+                  <div
+                    className="ia-chat-scroll"
+                    ref={chatScroll}
+                    onScroll={event => {
+                      const element = event.currentTarget;
+                      if (!element.getClientRects().length) return;
+                      followMessages.current =
+                        element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+                    }}
+                  >
+                    {hasEarlier && (
+                      <button
+                        className="ia-history-more"
+                        disabled={historyLoading}
+                        onClick={() => void loadEarlier()}
+                      >
+                        {historyLoading ? t('Loading…') : t('Load earlier messages')}
+                      </button>
                     )}
-                    {sourceFile.truncated && (
-                      <small>{t('Preview limited to the first 2 MB.')}</small>
-                    )}
-                  </div>
-                ) : selectedArtifact ? (
-                  <div className="rp-stage ia-viewer-stage">
-                    {activeViewer ? (
-                      <ViewerCanvas
-                        key={selectedArtifactId}
-                        onNavigation={setViewNavigation}
-                        opened={activeViewer}
-                        onReady={viewerReady}
-                        onError={setError}
-                      />
-                    ) : (
-                      <div className="ia-workspace-empty">
-                        {t(error) || (loading ? t('Opening viewer…') : t('Preparing viewer…'))}
+                    {!turns.length && (
+                      <div className="ia-chat-welcome">
+                        <h1>
+                          {activeProject
+                            ? t('What are you working on?')
+                            : t('Start with your project.')}
+                        </h1>
+                        <p>
+                          {activeProject
+                            ? t(
+                                'Describe a task in your project. Relevant capabilities and tools will appear as the work progresses.',
+                              )
+                            : t(
+                                'Choose a local folder and a domain, then describe what you want to work on.',
+                              )}
+                        </p>
+                        <div className="ia-welcome-actions">
+                          {activeProject ? (
+                            <>
+                              <button onClick={() => setPage('project')}>
+                                <Settings2 size={15} />
+                                {t('Project details')}
+                              </button>
+                              <button onClick={browseFiles}>
+                                <FolderOpen size={15} />
+                                {t('Browse project files')}
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              className="ia-welcome-create"
+                              onClick={chooseProject}
+                              disabled={navigating || submitting.current}
+                            >
+                              <Plus size={16} />
+                              {t('New project')}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
-                  </div>
-                ) : (
-                  <div className="ia-workspace-empty">
-                    {t(error) || t('Open the file tree to browse this project.')}
-                  </div>
-                )}
-                {selectedArtifact && (
-                  <footer className="ia-viewer-footer">
-                    {selectedArtifact.kind.toUpperCase()} ·{' '}
-                    {activeViewer && isViewerReady
-                      ? t('Ready')
-                      : loading
-                        ? t('Loading')
-                        : error
-                          ? t('Error')
-                          : t('Preparing')}{' '}
-                    · SHA-256 {selectedArtifact.sha256.slice(0, 16)}…
-                  </footer>
-                )}
-              </div>
-              {fileTreeOpen && (
-                <aside className="ia-workspace-tree">
-                  <div className="ia-file-search">{t('FILES')}</div>
-                  <button className="ia-file-root" onClick={() => setPage('project')}>
-                    <ChevronDown size={13} />
-                    <FolderOpen size={14} />
-                    <span>{projectName}</span>
-                  </button>
-                  <div className="ia-file-list">
-                    {visibleProjectFiles.map(item => (
-                      <button
-                        key={item.path}
-                        className={selectedProjectFile === item.path ? 'selected' : ''}
-                        style={{ paddingLeft: 11 + item.depth * 13 }}
-                        onClick={() =>
-                          item.directory
-                            ? toggleDirectory(item.path)
-                            : void selectProjectFile(item.path)
-                        }
-                        title={item.path}
-                      >
-                        {item.directory ? (
-                          collapsedDirs.has(item.path.replaceAll('\\', '/')) ? (
-                            <ChevronRight size={12} />
-                          ) : (
-                            <ChevronDown size={12} />
-                          )
-                        ) : (
-                          <File size={13} />
+                    {turns.map((turn, index) => (
+                      <div className="ia-chat-turn" key={turn.id} data-turn-id={turn.id}>
+                        <div className="ia-user-message">
+                          {turn.task}
+                          {turn.events.map(event =>
+                            event.type === 'user-images' || event.type === 'input-images' ? (
+                              <ImageThumbnails key="input-images" images={event.images} />
+                            ) : null,
+                          )}
+                        </div>
+                        {turn.broker && (
+                          <BrokerCall
+                            broker={turn.broker}
+                            detail={index === turns.length - 1 ? capabilityDetail : undefined}
+                            debug={debug}
+                            selectedDomain={selectedDomain}
+                            readOnly={index !== turns.length - 1 || agentBusy}
+                            onContext={context => void resolveTask(context, turn.task)}
+                            onDetail={id => void showDetail(id)}
+                          />
                         )}
-                        <span>{item.name}</span>
-                      </button>
+                        {turn.events.length > 0 && (
+                          <AgentFlow
+                            onLog={showAgentLog}
+                            events={turn.events}
+                            running={agentOwned && agentBusy && index === turns.length - 1}
+                            debug={debug}
+                            approve={approveAgent}
+                            answer={answerAgent}
+                          />
+                        )}
+                      </div>
                     ))}
-                    {!projectFiles.length && (
-                      <p className="ia-file-hint">{t('Choose a project to browse its files.')}</p>
+                    {brokerError && <div className="ia-flow-error">{t(brokerError)}</div>}
+                  </div>
+                  {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy} />}
+                  {agentBusy && !agentOwned && (
+                    <p role="status" className="ia-composer-hint">
+                      {t(
+                        'This chat is running in another window. Open a new chat to work in parallel.',
+                      )}
+                    </p>
+                  )}
+                  <div className="ia-composer-wrap">
+                    <div
+                      className="ia-composer"
+                      onDragOver={event => {
+                        if (event.dataTransfer.types.includes('Files')) event.preventDefault();
+                      }}
+                      onDrop={event => {
+                        if (!event.dataTransfer.files.length) return;
+                        event.preventDefault();
+                        if (!agentBusy)
+                          void attachments.addFiles(Array.from(event.dataTransfer.files));
+                      }}
+                      onPaste={event => {
+                        const files = Array.from(event.clipboardData.items)
+                          .filter(item => item.kind === 'file')
+                          .map(item => item.getAsFile())
+                          .filter((file): file is File => Boolean(file));
+                        if (files.length) {
+                          event.preventDefault();
+                          if (!agentBusy) void attachments.addFiles(files);
+                        }
+                      }}
+                    >
+                      <ImageThumbnails
+                        images={attachments.images}
+                        onRemove={attachments.remove}
+                        disabled={agentBusy || attachments.loading}
+                      />
+                      {attachments.error && (
+                        <p role="alert" className="ia-flow-error">
+                          {t(attachments.error)}
+                        </p>
+                      )}
+                      {attachments.loading && <p role="status">{t('Preparing images…')}</p>}
+                      {attachments.images.length > 0 && !modelImageInput && (
+                        <p className="ia-image-model-hint">
+                          {t('This model is configured for text only.')}{' '}
+                          <button onClick={() => setModelSettingsOpen(true)}>
+                            {t('Configure image input')}
+                          </button>
+                        </p>
+                      )}
+                      <textarea
+                        aria-label={t('Engineering task')}
+                        aria-describedby="ia-composer-help"
+                        placeholder={
+                          activeProject
+                            ? t('Ask about your project…')
+                            : t('Create or choose a project to start…')
+                        }
+                        value={task}
+                        disabled={agentBusy || navigating || !fixedDomain}
+                        onChange={event => setTask(event.target.value)}
+                        onKeyDown={event => {
+                          if (
+                            event.key === 'Enter' &&
+                            !event.shiftKey &&
+                            !event.nativeEvent.isComposing
+                          ) {
+                            event.preventDefault();
+                            void resolveTask();
+                          }
+                        }}
+                      />
+                      <div className="ia-composer-footer">
+                        <DomainPill
+                          domain={fixedDomain}
+                          domains={domains}
+                          label={t('Session domain')}
+                        />
+                        <div className="ia-send-actions">
+                          <ImageAttachButton
+                            attachments={attachments}
+                            disabled={agentBusy || attachments.loading || !activeProjectId}
+                          />
+                          {agentOwned && agentBusy && (
+                            <button
+                              disabled={navigating}
+                              onClick={() => {
+                                if (navigationPending.current) return;
+                                void window
+                                  .viewerHost!.interruptAgent(activeChatId || undefined)
+                                  .catch(reason => setBrokerError(String(reason)));
+                              }}
+                              title={t('Stop agent')}
+                              aria-label={t('Stop agent')}
+                            >
+                              <Square size={14} />
+                            </button>
+                          )}
+                          {Boolean(
+                            broker &&
+                              agentStatus?.available &&
+                              agentStatus.configured &&
+                              agentStatus.projectDir,
+                          ) && (
+                            <button
+                              onClick={() => void runAgent()}
+                              disabled={
+                                navigating ||
+                                agentBusy ||
+                                submitting.current ||
+                                turns.at(-1)?.status !== 'scoped'
+                              }
+                              title={t('Run with Kimi')}
+                              aria-label={t('Run with Kimi')}
+                            >
+                              <Play size={14} />
+                            </button>
+                          )}
+                          <button
+                            className="ia-send"
+                            onClick={() => void resolveTask()}
+                            disabled={
+                              navigating ||
+                              agentBusy ||
+                              !fixedDomain ||
+                              attachments.loading ||
+                              (!task.trim() && !attachments.images.length) ||
+                              (attachments.images.length > 0 && !modelImageInput)
+                            }
+                            title={t('Send task')}
+                            aria-label={t('Send task')}
+                          >
+                            <ArrowUp size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <p id="ia-composer-help" className="ia-sr-only">
+                      {t('Press Enter to send. Press Shift+Enter for a new line.')}
+                    </p>
+                    <div className="ia-composer-hint">
+                      <span role="status">
+                        {!activeProject
+                          ? t('Choose a project to run Kimi')
+                          : !agentStatus?.available
+                            ? t('Kimi CLI is required to run Agent tasks')
+                            : !agentStatus.configured
+                              ? t('Configure the Model API in Settings to run Kimi')
+                              : !agentStatus.projectDir
+                                ? t('Choose a project to run Kimi')
+                                : t('Kimi ready')}
+                      </span>
+                      <span className="ia-composer-shortcuts" aria-hidden="true">
+                        <kbd>Enter</kbd> {t('Send')}
+                        <span>·</span>
+                        <kbd>Shift Enter</kbd> {t('New line')}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </main>
+            {rightOpen && !tabbed && (
+              <WorkspaceDivider
+                workspace={workspace}
+                width={workspaceWidth}
+                onChange={setWorkspaceWidth}
+                fullscreen={viewerFullscreen}
+              />
+            )}
+            {(rightOpen || openFiles.length > 0) && (
+              <section
+                id="ia-workspace-panel"
+                role={tabbed ? 'tabpanel' : undefined}
+                aria-labelledby={tabbed ? `tab-${activeFileId || 'workspace'}` : undefined}
+                hidden={!viewerFullscreen && (tabbed ? workbenchFocus !== 'workspace' : !rightOpen)}
+                ref={workspace}
+                className="ia-viewer ia-workspace"
+                style={
+                  tabbed || workspaceWidth === null ? undefined : { flexBasis: workspaceWidth }
+                }
+              >
+                <header className="ia-viewer-header">
+                  <div>
+                    <File size={14} />
+                    <b onDoubleClick={() => pinFile(activeFileId)}>
+                      {activeFileName || t('Workspace')}
+                    </b>
+                    {!tabbed && activeFile?.preview && (
+                      <button
+                        className="ia-icon"
+                        onClick={() => pinFile(activeFileId)}
+                        title={t('Keep tab')}
+                        aria-label={t('Keep tab')}
+                      >
+                        <Pin size={13} />
+                      </button>
+                    )}
+                    {activeFileName && (
+                      <button
+                        className="ia-icon"
+                        onClick={() => closeFile(activeFileId)}
+                        title={t('Close file')}
+                        aria-label={t('Close file')}
+                      >
+                        <X size={13} />
+                      </button>
                     )}
                   </div>
-                </aside>
-              )}
-            </div>
-          </section>
-        )}
+                  <div className="ia-workspace-actions">
+                    {fullscreenError && <span role="status">{t(fullscreenError)}</span>}
+                    {activeViewer && (
+                      <div className="ia-view-navigation" aria-label={t('Viewer zoom controls')}>
+                        <button
+                          aria-label={t('Zoom out')}
+                          title={t('Zoom out')}
+                          disabled={!isViewerReady || !viewNavigation?.ready}
+                          onClick={() => viewNavigation?.zoomOut()}
+                        >
+                          −
+                        </button>
+                        <output aria-label={t('Viewer zoom')}>
+                          {viewNavigation?.percent == null
+                            ? t(viewNavigation?.description || 'Zoom')
+                            : `${viewNavigation.percent}%`}
+                        </output>
+                        <button
+                          aria-label={t('Zoom in')}
+                          title={t('Zoom in')}
+                          disabled={!isViewerReady || !viewNavigation?.ready}
+                          onClick={() => viewNavigation?.zoomIn()}
+                        >
+                          +
+                        </button>
+                        <button
+                          aria-label={t('Fit viewer')}
+                          title={t('Fit content to the view')}
+                          disabled={!isViewerReady || !viewNavigation?.ready}
+                          onClick={() => viewNavigation?.fit()}
+                        >
+                          {t('Fit')}
+                        </button>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => void toggleViewerFullscreen()}
+                      title={
+                        viewerFullscreen ? t('Exit viewer fullscreen') : t('Fullscreen viewer')
+                      }
+                      aria-label={
+                        viewerFullscreen ? t('Exit viewer fullscreen') : t('Fullscreen viewer')
+                      }
+                      aria-pressed={viewerFullscreen}
+                    >
+                      {viewerFullscreen ? <Minimize size={15} /> : <Maximize size={15} />}
+                    </button>
+                    <button
+                      className="ia-file-tree-toggle"
+                      onClick={() => setFileTreeOpen(value => !value)}
+                      title={fileTreeOpen ? t('Hide file tree') : t('Show file tree')}
+                      aria-label={fileTreeOpen ? t('Hide file tree') : t('Show file tree')}
+                      aria-pressed={fileTreeOpen}
+                    >
+                      {fileTreeOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (document.fullscreenElement === workspace.current)
+                          void toggleViewerFullscreen();
+                        setRightOpen(false);
+                        setWorkbenchFocus('chat');
+                      }}
+                      title={t('Hide workspace')}
+                      aria-label={t('Hide workspace')}
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </header>
+                {!tabbed && openFiles.length > 1 && (
+                  <WorkspaceTabs
+                    tabs={openFiles.map(file => ({
+                      id: file.id,
+                      title: file.name,
+                      preview: file.preview,
+                    }))}
+                    selected={activeFileId}
+                    onSelect={selectTab}
+                    onClose={closeFile}
+                    onPin={pinFile}
+                    onAdd={browseFiles}
+                  />
+                )}
+                <div className="ia-workspace-body">
+                  <div className="ia-workspace-content">
+                    <div className="ia-workspace-breadcrumb">
+                      {selectedProjectFile || projectName}
+                    </div>
+                    {openFiles.map(file => (
+                      <WorkspaceFileView
+                        key={file.id}
+                        file={file}
+                        active={file.id === activeFileId}
+                        onState={setViewState}
+                      />
+                    ))}
+                    {!activeFile && (
+                      <div className="ia-workspace-empty">
+                        {t(error) || t('Open the file tree to browse this project.')}
+                      </div>
+                    )}
+                    {selectedArtifact && (
+                      <footer className="ia-viewer-footer">
+                        {selectedArtifact.kind.toUpperCase()} ·{' '}
+                        {activeViewer && isViewerReady
+                          ? t('Ready')
+                          : activeViewState?.error
+                            ? t('Error')
+                            : t('Loading')}{' '}
+                        · SHA-256 {selectedArtifact.sha256.slice(0, 16)}…
+                      </footer>
+                    )}
+                  </div>
+                  {fileTreeOpen && (
+                    <aside className="ia-workspace-tree">
+                      <div className="ia-file-search">{t('FILES')}</div>
+                      <button className="ia-file-root" onClick={() => setPage('project')}>
+                        <ChevronDown size={13} />
+                        <FolderOpen size={14} />
+                        <span>{projectName}</span>
+                      </button>
+                      <div className="ia-file-list">
+                        {visibleProjectFiles.map(item => (
+                          <button
+                            key={item.path}
+                            className={selectedProjectFile === item.path ? 'selected' : ''}
+                            style={{ paddingLeft: 11 + item.depth * 13 }}
+                            onClick={() =>
+                              item.directory
+                                ? toggleDirectory(item.path)
+                                : void selectProjectFile(item.path)
+                            }
+                            onDoubleClick={() => {
+                              if (!item.directory) void selectProjectFile(item.path, true);
+                            }}
+                            title={item.path}
+                          >
+                            {item.directory ? (
+                              collapsedDirs.has(item.path.replaceAll('\\', '/')) ? (
+                                <ChevronRight size={12} />
+                              ) : (
+                                <ChevronDown size={12} />
+                              )
+                            ) : (
+                              <File size={13} />
+                            )}
+                            <span>{item.name}</span>
+                          </button>
+                        ))}
+                        {!projectFiles.length && (
+                          <p className="ia-file-hint">
+                            {t('Choose a project to browse its files.')}
+                          </p>
+                        )}
+                      </div>
+                    </aside>
+                  )}
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
       </div>
       {projectDraft && (
         <CreateProjectModal
