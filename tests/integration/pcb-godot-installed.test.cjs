@@ -122,6 +122,7 @@ async function install(t, root) {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
   const key = path.join(root, 'qualification.pem');
   fs.writeFileSync(key, privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
+  t.after(() => fs.rmSync(key, { force: true }));
   const release = path.join(root, 'release');
   await execute(
     process.execPath,

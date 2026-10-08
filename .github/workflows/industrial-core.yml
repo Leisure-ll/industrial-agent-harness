@@ -72,7 +72,8 @@ jobs:
           export HARNESS_PROFESSIONAL_TEST_CLI="$GITHUB_WORKSPACE/dist/professional-cli/industrial-harness.cjs"
           export HARNESS_PROFESSIONAL_DESKTOP_ENTRY="$GITHUB_WORKSPACE/dist/professional-desktop/electron/main.cjs"
           export HARNESS_FREECAD_TEST_CLI="$GITHUB_WORKSPACE/dist/freecad-cli/industrial-harness.cjs"
-          mkdir -p dist/ci-reports
+          export HARNESS_PROFESSIONAL_EVIDENCE="$GITHUB_WORKSPACE/dist/ci-reports/professional"
+          mkdir -p "$HARNESS_PROFESSIONAL_EVIDENCE"
           pnpm run test:ci -- native 2>&1 | tee dist/ci-reports/native.log
       - name: Verify packaged headless Agent through its production process boundary
         shell: bash

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@zhiman-bj/industrial-domain-packs':
-        specifier: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/ac07191ec5e78f18ebe924ac69d22182807bfb99
-        version: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/ac07191ec5e78f18ebe924ac69d22182807bfb99(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)
+        specifier: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/a113e59481678ee0f6f6feb83284d3366defd8fc
+        version: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/a113e59481678ee0f6f6feb83284d3366defd8fc(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)
     devDependencies:
       prettier:
         specifier: 3.6.2
@@ -43,8 +43,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/pack-manager
       '@zhiman-bj/industrial-domain-packs':
-        specifier: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/ac07191ec5e78f18ebe924ac69d22182807bfb99
-        version: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/ac07191ec5e78f18ebe924ac69d22182807bfb99(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)
+        specifier: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/a113e59481678ee0f6f6feb83284d3366defd8fc
+        version: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/a113e59481678ee0f6f6feb83284d3366defd8fc(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)
 
   apps/desktop:
     dependencies:
@@ -79,8 +79,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/viewer-core
       '@zhiman-bj/industrial-domain-packs':
-        specifier: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/ac07191ec5e78f18ebe924ac69d22182807bfb99
-        version: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/ac07191ec5e78f18ebe924ac69d22182807bfb99(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)
+        specifier: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/a113e59481678ee0f6f6feb83284d3366defd8fc
+        version: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/a113e59481678ee0f6f6feb83284d3366defd8fc(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)
       electron-updater:
         specifier: 6.8.9
         version: 6.8.9
@@ -737,8 +737,8 @@ packages:
     resolution: {integrity: sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==}
     engines: {node: '>=10.0.0'}
 
-  '@zhiman-bj/industrial-domain-packs@https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/ac07191ec5e78f18ebe924ac69d22182807bfb99':
-    resolution: {gitHosted: true, integrity: sha512-MW5ljHz8YgfkFGj0UPzdvbg37lOqnw9QTGPM/Phk2zTeH2kXtFn+tQ9yY94UByK8nzrohhNhkXHW9AI7+huQKQ==, tarball: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/ac07191ec5e78f18ebe924ac69d22182807bfb99}
+  '@zhiman-bj/industrial-domain-packs@https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/a113e59481678ee0f6f6feb83284d3366defd8fc':
+    resolution: {gitHosted: true, integrity: sha512-oPj5BwNpmwYDRfX77d/Z6ViOy+pFu+xdGaq3SASYOT2mpYnmDb+SNBQoO+GmEBP1m8vEykTkNvE8i6yHXlYigQ==, tarball: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/a113e59481678ee0f6f6feb83284d3366defd8fc}
     version: 0.4.0
     engines: {node: '>=24'}
     peerDependencies:
@@ -3057,7 +3057,7 @@ snapshots:
 
   '@xmldom/xmldom@0.8.15': {}
 
-  '@zhiman-bj/industrial-domain-packs@https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/ac07191ec5e78f18ebe924ac69d22182807bfb99(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)':
+  '@zhiman-bj/industrial-domain-packs@https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/a113e59481678ee0f6f6feb83284d3366defd8fc(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)':
     dependencies:
       '@modelcontextprotocol/sdk': 1.30.1(zod@4.6.5)
       ajv: 8.17.1

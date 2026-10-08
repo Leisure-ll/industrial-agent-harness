@@ -17,7 +17,7 @@
     "@industrial-agent-harness/pack-manager": "workspace:*",
     "@industrial-agent-harness/harness-core": "workspace:*",
     "@industrial-agent-harness/harness-application": "workspace:*",
-    "@zhiman-bj/industrial-domain-packs": "https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/ac07191ec5e78f18ebe924ac69d22182807bfb99"
+    "@zhiman-bj/industrial-domain-packs": "https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/a113e59481678ee0f6f6feb83284d3366defd8fc"
   },
   "license": "MIT",
   "engines": {

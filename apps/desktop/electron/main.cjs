@@ -1452,39 +1452,43 @@ async function createWindow() {
       `Boolean(document.querySelector('.ia-domains-modal')) && window.viewerHost.domainStatus().then(status => status.managed && status.installed.length === 0)`,
     );
     if (process.env.HARNESS_PACKAGED_SMOKE_FEED_DIR) {
-      await waitFor(`document.querySelectorAll('.ia-domain-install-row').length >= 3`);
-      await click(
-        `for (const name of ['Chip', 'PCB']) Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes(name)).querySelector('input').click()`,
-      );
+      const planned = JSON.parse(process.env.HARNESS_PACKAGED_SMOKE_DOMAINS || '[]');
+      if (!planned.length || planned.some(item => !item.id || !item.label))
+        throw Error('Packaged smoke requires an explicit platform-qualified install plan.');
       await waitFor(
-        `document.querySelector('.ia-domains-primary')?.textContent.includes('2') && !document.querySelector('.ia-domains-primary').disabled`,
+        `document.querySelectorAll('.ia-domain-install-row').length >= ${planned.length}`,
       );
-      await click(`document.querySelector('.ia-domains-primary').click()`);
-      await waitFor(
-        `window.viewerHost.domainStatus().then(status => status.installed.length === 2 && !document.querySelector('.ia-domains-modal'))`,
-      );
-      await click(`document.querySelector('.ia-settings-button').click()`);
-      await waitFor(`Boolean(document.querySelector('.ia-settings-row'))`);
-      await click(
-        `Array.from(document.querySelectorAll('.ia-settings-row')).find(row => row.textContent.includes('Domains')).querySelector('button').click()`,
-      );
-      await waitFor(
-        `Array.from(document.querySelectorAll('.ia-domain-install-row')).some(row => row.textContent.includes('Godot'))`,
-      );
-      await click(
-        `Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes('Godot')).querySelector('input').click()`,
-      );
-      await waitFor(
-        `document.querySelector('.ia-domains-primary')?.textContent.includes('1') && !document.querySelector('.ia-domains-primary').disabled`,
-      );
-      await click(`document.querySelector('.ia-domains-primary').click()`);
-      await waitFor(
-        `window.viewerHost.domainStatus().then(status => status.installed.length === 3)`,
-      );
+      const initial = planned.slice(0, 2);
+      let installed = 0;
+      async function install(items) {
+        await click(
+          `for (const name of ${JSON.stringify(items.map(item => item.label))}) Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes(name)).querySelector('input').click()`,
+        );
+        await waitFor(
+          `document.querySelector('.ia-domains-primary')?.textContent.includes('${items.length}') && !document.querySelector('.ia-domains-primary').disabled`,
+        );
+        await click(`document.querySelector('.ia-domains-primary').click()`);
+        installed += items.length;
+        await waitFor(
+          `window.viewerHost.domainStatus().then(status => status.installed.length === ${installed} && !document.querySelector('.ia-domains-modal'))`,
+        );
+      }
+      await install(initial);
+      for (const item of planned.slice(initial.length)) {
+        await click(`document.querySelector('.ia-settings-button').click()`);
+        await waitFor(`Boolean(document.querySelector('.ia-settings-row'))`);
+        await click(
+          `Array.from(document.querySelectorAll('.ia-settings-row')).find(row => row.textContent.includes('Domains')).querySelector('button').click()`,
+        );
+        await waitFor(
+          `Array.from(document.querySelectorAll('.ia-domain-install-row')).some(row => row.textContent.includes(${JSON.stringify(item.label)}))`,
+        );
+        await install([item]);
+      }
       const domains = await window.webContents.executeJavaScript(
         `window.viewerHost.domains().then(items => items.map(item => item.id).sort())`,
       );
-      if (JSON.stringify(domains) !== JSON.stringify(['chip', 'godot', 'pcb']))
+      if (JSON.stringify(domains) !== JSON.stringify(planned.map(item => item.id).sort()))
         throw Error('Installed Domains did not reach the registry.');
     }
     const screenshot = process.env.HARNESS_PACKAGED_SMOKE_SCREENSHOT;

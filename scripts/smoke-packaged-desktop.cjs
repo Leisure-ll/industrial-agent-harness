@@ -67,6 +67,22 @@ if (process.argv.includes('--domains')) {
     },
   );
   if (built.status !== 0) throw Error(built.stderr || 'Could not build signed Domain smoke feed.');
+  const platform = `${process.platform}-${process.arch}`;
+  const declarations = require('@zhiman-bj/industrial-domain-packs').consumerMetadata().domains;
+  const expected = declarations.filter(
+    item => !item.qualifiedBundlePlatforms || item.qualifiedBundlePlatforms.includes(platform),
+  );
+  const catalog = JSON.parse(fs.readFileSync(path.join(feed, 'catalog.json'), 'utf8')).payload;
+  require('node:assert/strict').deepEqual(
+    catalog.packs.map(item => item.domain).sort(),
+    expected.map(item => item.id).sort(),
+    'Signed feed must exactly match owner-qualified platform declarations.',
+  );
+  environment.HARNESS_PACKAGED_SMOKE_DOMAINS = JSON.stringify(
+    expected
+      .filter(item => ['chip', 'pcb', 'godot'].includes(item.id))
+      .map(({ id, label }) => ({ id, label })),
+  );
   const config = path.join(fixture, 'pack-feed.json');
   fs.writeFileSync(
     config,
@@ -96,5 +112,5 @@ if (
   throw result.error || Error(`Packaged Desktop first-run smoke failed: ${result.status}`);
 }
 process.stdout.write(
-  `${process.argv.includes('--domains') ? 'Chip + PCB first install and Godot add-on passed' : 'First-run Domain selection passed'}: ${screenshot}\n`,
+  `${process.argv.includes('--domains') ? 'Platform-qualified Domain installation passed' : 'First-run Domain selection passed'}: ${screenshot}\n`,
 );
