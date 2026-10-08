@@ -109,7 +109,7 @@ async function run(window) {
       `document.querySelector('.ia-file-list button[title=${JSON.stringify(file)}]').click()`,
     );
     await wait(
-      `document.querySelector('.rp-engineering-toolbar strong')?.textContent === ${JSON.stringify(path.basename(file))} && document.querySelector('.rp-engineering')?.dataset.engineeringFormat === ${JSON.stringify(format)} && document.querySelector('.ia-viewer-footer')?.innerText.includes('ENGINEERING · Ready')`,
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-toolbar strong')?.textContent === ${JSON.stringify(path.basename(file))} && document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering')?.dataset.engineeringFormat === ${JSON.stringify(format)} && document.querySelector('.ia-viewer-footer')?.innerText.includes('ENGINEERING · Ready')`,
     );
   }
   const requests = [];
@@ -127,23 +127,39 @@ async function run(window) {
       path.join(godot, 'scene-preview.png'),
       (await window.webContents.capturePage()).toPNG(),
     );
-    assert.ok(await evaluate(`document.querySelectorAll('.rp-engineering-row').length >= 6`));
+    assert.ok(
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-engineering-row').length >= 6`,
+      ),
+    );
     const measure = () =>
       evaluate(
-        `document.querySelector('.rp-engineering-properties h3').getBoundingClientRect().height`,
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-properties h3').getBoundingClientRect().height`,
       );
     await verifyNavigation(window, measure);
     await verifyWheel(window, measure, (delta, ctrl) =>
       evaluate(
-        `(() => {const element=document.querySelector('.rp-engineering-viewport'); const event=new WheelEvent('wheel',{deltaY:${delta},ctrlKey:${ctrl},cancelable:true});element.dispatchEvent(event);return event.defaultPrevented;})()`,
+        `(() => {const element=document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-viewport'); const event=new WheelEvent('wheel',{deltaY:${delta},ctrlKey:${ctrl},cancelable:true});element.dispatchEvent(event);return event.defaultPrevented;})()`,
       ),
     );
-    await evaluate(`document.querySelector('.rp-engineering-tabs button:last-child').click()`);
-    await wait(`Boolean(document.querySelector('.rp-assets'))`);
-    await evaluate(`document.querySelector('.rp-engineering-tabs button:first-child').click()`);
-    await wait(`Boolean(document.querySelector('.rp-engineering-properties'))`);
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-tabs button:last-child').click()`,
+    );
+    await wait(
+      `Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-assets'))`,
+    );
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-tabs button:first-child').click()`,
+    );
+    await wait(
+      `Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-properties'))`,
+    );
     await open('playground.gd', 'GDScript');
-    assert.ok(await evaluate(`Boolean(document.querySelector('.rp-engineering-keyword'))`));
+    assert.ok(
+      await evaluate(
+        `Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-keyword'))`,
+      ),
+    );
     for (const [name, format] of [
       ['project.godot', 'Godot project'],
       ['theme.tres', 'Godot resource'],
@@ -154,7 +170,11 @@ async function run(window) {
       ['model.glb', 'Godot GLB model'],
     ])
       await open(name, format);
-    assert.ok(await evaluate(`Boolean(document.querySelector('.rp-engineering-properties'))`));
+    assert.ok(
+      await evaluate(
+        `Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-properties'))`,
+      ),
+    );
     await evaluate(
       `Array.from(document.querySelectorAll('button.ia-project-row')).find(button=>button.textContent.includes('Engineering PCB')).click()`,
     );
@@ -179,26 +199,28 @@ async function run(window) {
     await open('Device.kicad_sym', 'KiCad symbol library');
     assert.equal(
       await evaluate(
-        `document.querySelectorAll('.rp-engineering-outline input[type="checkbox"]:checked').length`,
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-engineering-outline input[type="checkbox"]:checked').length`,
       ),
       1,
     );
-    await evaluate(`document.querySelectorAll('.rp-engineering-row button')[1].click()`);
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-engineering-row button')[1].click()`,
+    );
     assert.equal(
       await evaluate(
-        `document.querySelectorAll('.rp-engineering-outline input[type="checkbox"]:checked').length`,
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-engineering-outline input[type="checkbox"]:checked').length`,
       ),
       1,
     );
     assert.ok(
       await evaluate(
-        `document.querySelectorAll('.rp-engineering-outline input[type="checkbox"]')[1].checked`,
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-engineering-outline input[type="checkbox"]')[1].checked`,
       ),
     );
     await open('body.wrl', 'VRML 3D model');
     assert.ok(
       await evaluate(
-        `Boolean(document.querySelector('.rp-engineering-toolbar button')?.textContent.includes('Open in app'))`,
+        `Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-toolbar button')?.textContent.includes('Open in app'))`,
       ),
     );
     assert.equal(
@@ -213,24 +235,32 @@ async function run(window) {
       (await window.webContents.capturePage()).toPNG(),
     );
     assert.equal(
-      await evaluate(`document.querySelectorAll('.rp-engineering-geometry svg line').length`),
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-engineering-geometry svg line').length`,
+      ),
       2,
     );
     assert.equal(
       await evaluate(
-        `document.querySelectorAll('.rp-engineering-outline input[type="checkbox"]').length`,
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-engineering-outline input[type="checkbox"]').length`,
       ),
       3,
     );
     await evaluate(
-      `document.querySelector('.rp-engineering-outline input[type="checkbox"]').click()`,
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-outline input[type="checkbox"]').click()`,
     );
     assert.equal(
-      await evaluate(`document.querySelectorAll('.rp-engineering-geometry svg line').length`),
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-engineering-geometry svg line').length`,
+      ),
       1,
     );
     await open('Resistor.pretty/R_0603.kicad_mod', 'KiCad footprint');
-    assert.ok(await evaluate(`document.querySelector('.rp-engineering-geometry svg rect')`));
+    assert.ok(
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-geometry svg rect')`,
+      ),
+    );
     await evaluate(`document.querySelector('.ia-file-list button[title="bad.gbr"]').click()`);
     await wait(`document.body.innerText.includes('recognizable Gerber')`);
     assert.ok(

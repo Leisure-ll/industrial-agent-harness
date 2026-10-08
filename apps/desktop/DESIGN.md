@@ -58,8 +58,12 @@ state. The composer uses a focus-within outline, an upward Send icon, and a
 localized keyboard hint: Enter sends; Shift+Enter adds a line. It is disabled
 until a project domain is selected. Readiness text follows actual agent status.
 
-The native minimum remains 1000 × 650. At 1250 px and 1050 px the sidebar and
-file tree become narrower. Workspace controls may wrap rather than clip. The
+The native window fits the display work area, with a 640 × 480 minimum clamped
+to smaller displays. The default split layout remains available; a remembered
+layout toggle adds a shared chat/file/Viewer tab strip. Below 900 px of content
+width the workbench uses tabs; below 760 px the sidebar becomes a drawer. See
+[responsive layouts](../../doc/desktop-layouts.md) for state and regression scope.
+At 1250 px and 1050 px the sidebar and file tree become narrower. Workspace controls may wrap rather than clip. The
 composer hides its visual keyboard hint below 560 px of available column width,
 while its accessible description remains present. The settings popover scrolls
 within the window. Reduced-motion preferences disable the composer transition.

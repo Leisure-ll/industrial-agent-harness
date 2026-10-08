@@ -5,7 +5,7 @@ async function viewportRect(window) {
   return window.webContents.executeJavaScript(
     `
     (() => {
-      const r = document.querySelector('.rp-cad-viewport').getBoundingClientRect();
+      const r = document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad-viewport').getBoundingClientRect();
       return { x: Math.round(r.x), y: Math.round(r.y), width: Math.floor(r.width), height: Math.floor(r.height) };
     })()
   `,

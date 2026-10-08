@@ -190,7 +190,7 @@ async function run(window, { manager, runtime }) {
     `document.querySelector('.ia-file-list button[title=${JSON.stringify(relative)}]').click()`,
   );
   await wait(
-    `Number(document.querySelector('.rp-cad canvas')?.dataset.renderedTriangles)>20 && document.querySelector('.rp-cad canvas')?.dataset.geometry==='brep'`,
+    `Number(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas')?.dataset.renderedTriangles)>20 && document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas')?.dataset.geometry==='brep'`,
   );
   fs.writeFileSync(
     path.join(reportDir, 'cad-viewer.png'),

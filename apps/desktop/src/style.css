@@ -15,7 +15,7 @@ body,
   margin: 0;
   width: 100%;
   height: 100%;
-  min-width: 880px;
+  min-width: 0;
 }
 .ia-app {
   --ia-bg: #fbfcfd;
@@ -3070,6 +3070,212 @@ body,
 }
 .ia-chat-actions {
   flex-shrink: 0;
+}
+
+/* Both layouts share mounted conversation and Viewer surfaces. */
+.ia-workbench {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.ia-workbench-content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.ia-workbench [hidden] {
+  display: none !important;
+}
+.ia-file-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.ia-workbench-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  min-height: 52px;
+  background: var(--ia-panel);
+  border-bottom: 1px solid var(--ia-border);
+}
+.ia-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.ia-workbench-tabbar > .ia-tabs {
+  flex: 1;
+}
+.ia-tab-list {
+  display: flex;
+  min-width: 0;
+  overflow: auto;
+  gap: 4px;
+  scrollbar-width: thin;
+}
+.ia-tab-item {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  max-width: 280px;
+  border-radius: 9px;
+}
+.ia-tab-item:has([aria-selected='true']) {
+  background: var(--ia-raised);
+  box-shadow: 0 1px 3px #122b3c12;
+}
+.ia-tab-item [role='tab'] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 12px;
+  text-align: left;
+  color: var(--ia-muted);
+  white-space: nowrap;
+}
+.ia-tab-item [aria-selected='true'] {
+  color: var(--ia-text);
+  font-weight: 500;
+}
+.ia-tab-item [role='tab'] span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ia-tab-item svg {
+  flex-shrink: 0;
+}
+.ia-tab-item .ia-tab-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  height: 28px;
+  margin-right: 5px;
+  color: var(--ia-muted);
+}
+.ia-tab-status {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ia-warning);
+}
+.ia-tab-add,
+.ia-layout-toggle {
+  flex-shrink: 0;
+}
+.ia-workspace > .ia-tabs {
+  border-bottom: 1px solid var(--ia-border);
+  padding: 4px 8px;
+  background: var(--ia-panel);
+}
+.layout-tabs .ia-chat,
+.layout-tabs .ia-workspace {
+  flex: 1;
+  min-width: 0;
+}
+.layout-tabs .ia-workspace {
+  border-left: 0;
+}
+@media (max-width: 759px) {
+  .ia-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 248px;
+    z-index: 26;
+    box-shadow: 4px 0 24px #122b3c30;
+  }
+  .ia-sidebar-backdrop {
+    position: absolute;
+    inset: 0;
+    border-radius: 0 !important;
+    background: #122b3c30 !important;
+    z-index: 25;
+  }
+  .ia-chat-header {
+    padding: 6px 10px;
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+  }
+  .ia-chat-actions {
+    margin-left: auto;
+  }
+  .ia-chat-scroll {
+    padding: 20px 16px;
+  }
+  .ia-composer-wrap {
+    padding: 8px 12px 12px;
+  }
+  .ia-chat-welcome {
+    margin-top: 24px;
+  }
+  .ia-workbench-tabbar {
+    padding-inline: 6px;
+  }
+  .ia-tab-item {
+    max-width: 220px;
+  }
+  .ia-workspace .ia-viewer-header b {
+    max-width: 180px;
+  }
+}
+
+.ia-gui-status {
+  padding: 0 3px 8px;
+  color: var(--ia-muted);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.ia-gui-status > span,
+.ia-gui-permissions,
+.ia-gui-status button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ia-gui-status button {
+  color: var(--ia-accent);
+  font-size: inherit;
+  padding: 2px 0;
+}
+.ia-gui-status button:hover {
+  text-decoration: underline;
+}
+.ia-gui-authorized {
+  color: var(--ia-success);
+}
+.ia-gui-error {
+  padding: 0 3px 8px;
+  color: var(--ia-muted);
+  font-size: 10px;
+}
+.ia-gui-error p {
+  overflow-wrap: anywhere;
+}
+
+.ia-tab-preview [role='tab'] > span {
+  font-style: italic;
+}
+.ia-tab-pin {
+  color: var(--ia-muted);
+  min-width: 28px;
+  padding: 0 6px;
+}
+.ia-tab-pin:hover {
+  color: var(--ia-text);
+  background: var(--ia-hover);
 }
 
 /* Built-in remote execution: one project choice, bounded consent, compact task state. */
