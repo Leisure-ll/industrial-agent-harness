@@ -275,6 +275,11 @@ async function run(window) {
     await require('./resource-selftest.cjs').run(window, evidence);
     await evaluate(`document.querySelector('button[aria-label="View agent logs"]').click()`);
     await wait(`document.querySelector('.ia-log-run-info')?.innerText.includes('84%')`);
+    // Run metadata arrives before the independently loaded timeline page.
+    // Wait for rendered records, then assert the exact pairing below.
+    await wait(
+      `document.querySelector('.ia-log-records')?.getAttribute('aria-busy')==='false' && document.querySelectorAll('.ia-log-records button').length>0`,
+    );
     assert.equal(
       await evaluate(`document.querySelectorAll('.ia-log-runs>button').length`),
       1,
