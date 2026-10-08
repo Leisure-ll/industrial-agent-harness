@@ -312,6 +312,7 @@ async function run(window) {
     await wait(
       `window.viewerHost.chats().then(list=>!list.sessions.some(session=>session.running))`,
     );
+    await wait(`Boolean(document.querySelector('.ia-chat-approval-mode:not(:disabled)'))`);
     await evaluate(
       `(() => {const select=document.querySelector('.ia-chat-approval-mode');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'auto');select.dispatchEvent(new Event('change',{bubbles:true}));})()`,
     );

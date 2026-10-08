@@ -1027,7 +1027,7 @@ function registerHandlers() {
     changingResources = true;
     try {
       await sessions.reset(project.id);
-      projectRuntimes.reset(project);
+      await projectRuntimes.reset(project);
       const result = await operation(project);
       notifySessions();
       return result;
