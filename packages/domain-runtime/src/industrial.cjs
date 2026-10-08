@@ -20,6 +20,7 @@ const now = () => new Date().toISOString();
 const sameInputs = (a, b) =>
   JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 const activeStores = new Set();
+const { displayInputs, boundedPreview } = require('./approval-preview.cjs');
 const schemas = {
   project: ProjectRefSchema,
   state: DomainStateSchema,
@@ -41,6 +42,8 @@ class IndustrialRuntime {
       stateProvider,
       tools = [],
       verifiers = {},
+      dispose = () => {},
+      releaseOwner = () => {},
     } = {},
   ) {
     this.projectDir = fs.realpathSync(projectDir);
@@ -57,6 +60,8 @@ class IndustrialRuntime {
       domain,
     });
     this.stateProvider = stateProvider;
+    this.dispose = dispose;
+    this.releaseOwner = releaseOwner;
     this.tools = new Map();
     for (const tool of tools) {
       const descriptor = ToolDescriptorSchema.parse(tool.descriptor);
@@ -263,6 +268,35 @@ class IndustrialRuntime {
       guide: tool.guide || { inputs: {}, description: 'This tool accepts an empty inputs object.' },
     };
   }
+  approvalPreview(request) {
+    const tool = this.tools.get(request.toolId);
+    let title = request.toolId,
+      text;
+    try {
+      const preview = tool?.preview?.({ projectDir: this.projectDir, inputs: request.inputs });
+      title = preview?.title || title;
+      text = preview?.text || JSON.stringify(displayInputs(request.inputs), null, 2);
+    } catch (error) {
+      text =
+        'Preview unavailable: ' +
+        error.message +
+        '\n' +
+        JSON.stringify(displayInputs(request.inputs), null, 2);
+    }
+    return {
+      title,
+      ...boundedPreview(text),
+      stateId: request.expectedStateId,
+      requestSha256: digest(
+        JSON.stringify({
+          toolId: request.toolId,
+          version: tool?.descriptor.version,
+          stateId: request.expectedStateId,
+          inputs: request.inputs,
+        }),
+      ),
+    };
+  }
   assertProjectBound() {
     const current = fs.statSync(this.projectDir);
     if (
@@ -312,23 +346,27 @@ class IndustrialRuntime {
     }
     return artifacts;
   }
-  async execute(request, { scope, approval = false } = {}) {
+  async execute(request, { scope, approval = false, ownerId = 'project' } = {}) {
     if (this.executing) throw Error('A project action is already running.');
     this.executing = true;
+    this.activeOwnerId = ownerId;
     this.abortController = new AbortController();
-    this.activeExecution = this.executeOne(request, { scope, approval });
+    this.activeExecution = this.executeOne(request, { scope, approval, ownerId });
     try {
       return await this.activeExecution;
     } finally {
       this.executing = false;
       this.abortController = null;
       this.activeExecution = null;
+      this.activeOwnerId = null;
     }
   }
-  cancel() {
+  cancel(ownerId) {
+    if (ownerId !== undefined && ownerId !== this.activeOwnerId) return;
     this.abortController?.abort();
   }
-  async waitForIdle() {
+  async waitForIdle(ownerId) {
+    if (ownerId !== undefined && ownerId !== this.activeOwnerId) return;
     if (this.activeExecution) await this.activeExecution;
   }
   async executeOne(request, policy) {
@@ -400,6 +438,7 @@ class IndustrialRuntime {
         action,
         inputs: parsed.inputs,
         signal: this.abortController.signal,
+        ownerId: policy.ownerId,
       });
       if (typeof result.toolVersion === 'string' && result.toolVersion)
         action.toolVersion = result.toolVersion;
@@ -534,6 +573,7 @@ class IndustrialRuntime {
     this.db?.close();
     this.db = null;
     activeStores.delete(this.file);
+    return (this.disposing ??= Promise.resolve().then(() => this.dispose()));
   }
 }
 

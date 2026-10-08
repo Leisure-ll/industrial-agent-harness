@@ -130,10 +130,27 @@ async function connectExternal(server, projectDir, environment = process.env) {
             reconnectionOptions: { maxRetries: 0 },
           });
   }
-  client.onerror = () => {};
+  let closed = false;
+  client.onerror = () => {
+    // Legacy EventSource reconnects itself, potentially creating new service
+    // state. Stop it on the first transport/protocol error; only a fresh owner
+    // may initialize another session, and mutations are never replayed.
+    closed = true;
+    void client.close().catch(() => {});
+  };
+  client.onclose = () => {
+    closed = true;
+  };
   try {
     await client.connect(transport, { timeout: 10000 });
-    return { client, close: () => client.close(), redact };
+    return {
+      client,
+      close: () => client.close(),
+      redact,
+      get closed() {
+        return closed;
+      },
+    };
   } catch {
     await client.close().catch(() => {});
     throw Error(

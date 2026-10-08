@@ -18,7 +18,11 @@ const {
 } = require('@industrial-agent-harness/harness-core');
 const { loadRegistry, distributionDomain } = require('@industrial-agent-harness/domain-skills');
 const { discloseDetail } = require('@industrial-agent-harness/capability-broker');
-const { KimiSession } = require('@industrial-agent-harness/agent-kimi');
+const {
+  KimiSession,
+  bundledExecutable,
+  KIMI_CODE_VERSION,
+} = require('@industrial-agent-harness/agent-kimi');
 const {
   createGuiPlugin,
   ensureInstalled,
@@ -39,6 +43,7 @@ const {
 
 const usage = `industrial-harness run --project-dir DIR --domain DOMAIN (--task TEXT | --task-file FILE) [options]
 industrial-harness chats --project-dir DIR --domain DOMAIN [--chat-dir DIR]
+industrial-harness doctor --project-dir DIR --domain DOMAIN
 industrial-harness inspect-log --file FILE
 industrial-harness mcp --help
 industrial-harness domains list|available|install|update|remove [options]
@@ -80,7 +85,7 @@ async function run(
 ) {
   let bundle;
   const store =
-    options.scopeOnly && options.command !== 'chats'
+    (options.scopeOnly && options.command !== 'chats') || options.command === 'doctor'
       ? null
       : new ChatStore(options.chatDir || defaultChatDirectory(environment));
   try {
@@ -95,10 +100,40 @@ async function run(
         environment,
         registry,
       });
+    if (options.command === 'doctor') {
+      const state = await bundle.runtime.inspect(),
+        toolId = 'project.environment.inspect';
+      const result = await bundle.runtime.execute(
+        { toolId, inputs: {}, expectedStateId: state.id },
+        {
+          scope: {
+            domain: options.domain,
+            projectId: state.projectId,
+            stateId: state.id,
+            tools: [toolId],
+          },
+        },
+      );
+      if (result.action.status !== 'completed') throw Error(result.action.diagnostics.join('\n'));
+      const report = JSON.parse(bundle.runtime.readArtifact(result.artifacts[0].id).content);
+      emit(output, {
+        type: 'doctor',
+        ...report,
+        agent: {
+          expectedVersion: KIMI_CODE_VERSION,
+          bundledRuntimeAvailable: fs.existsSync(bundledExecutable()),
+        },
+        externalMcp: new ExternalMcpRegistry(defaultResourceDirectory(environment))
+          .list()
+          .map(server => ({ id: server.id, status: 'registered-not-connected' })),
+        actionId: result.action.id,
+      });
+      return report.ready ? 0 : 2;
+    }
     return await runWithStore(options, output, environment, Session, store, registry, bundle);
   } finally {
     try {
-      bundle?.runtime.close();
+      await bundle?.runtime.close();
     } finally {
       store?.close();
     }

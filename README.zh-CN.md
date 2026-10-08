@@ -90,6 +90,8 @@ Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v
 
 需要下载包时，请查看 [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases)，并按对应版本说明安装。[无界面安装](apps/cli/README.md#github-release-安装)和[领域 CLI 分包](doc/domain-cli-downloads.md)提供校验与外部依赖说明。历史归档不会自动获得当前源码的新功能。
 
+Apple Silicon 桌面构建包含可选 CAD Pack。首次选择 CAD 会自动准备固定官方 FreeCAD；设置 → 领域显示就绪状态并提供修复。Core 内置 Kimi Code 2.1.1，用户填写模型 API 配置即可，不需要开发工具或命令路径配置。详见[构建、安装验收与发行边界](doc/macos-cad-distribution.md)及[本轮发布整改](doc/release-readiness-20261007.md)。
+
 ## 领域扩展
 
 | 领域                                  | 预览版已提供                                                              | 依赖与限制                                                                                                   |
@@ -97,9 +99,9 @@ Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v
 | [Chip](domain-packs/chip/README.md)   | EDA 知识与工具注册、持久化的声明式 RTL 验证路径，以及波形、网表、版图查看 | Core 路径需要 Python 与 Verilator；其他 EDA 流程另需工具、镜像或 PDK，完整执行仍需接入 Runtime。             |
 | [PCB](doc/pcb-mcp-integration.md)     | KiCad 查看、受范围约束的工具注册和外部设计 Skill 加载                     | 完整工具和 Skill 需要授权的固定 PCB-bench checkout 与匹配 KiCad 环境；私有 actor 资源不包含在公开发行包内。  |
 | [Godot](domain-packs/godot/README.md) | 源码与素材检查、Web Export 查看和原生场景工具注册                         | 原生工具需要 Godot 4；Web Export 需要匹配导出模板与 Viewer Bridge，原生写工具仍需接入受保护的 Runtime 路径。 |
-| [CAD · FreeCAD](doc/freecad-domain-pack.md) | 参数化草图、拉伸、打孔、布尔建模和版本化参数/轮廓修改；FCStd/STEP/STL 导出、独立回读验证与 OCCT 查看 | 原生执行需 FreeCAD 1.1.4 macOS arm64；只支持受限原生特征，不验收机械强度或可制造性。 |
+| [CAD · FreeCAD](doc/freecad-domain-pack.md) | 参数化草图、拉伸、打孔、布尔建模和版本化参数/轮廓修改；FCStd/STEP/STL 导出、独立回读验证与 OCCT 查看 | 打包桌面版自动准备 FreeCAD 1.1.4 macOS arm64；只支持受限原生特征，不验收机械强度或可制造性。 |
 
-按 [Pack 作者教程](doc/pack-authoring.md)独立开发扩展。领域代码留在 Pack 内，共享 Core 与 Broker 不依赖具体领域。已注册、能够显示或原生烟测成功，均不代表完整工业工作流已经验收。
+按 [Pack 作者教程](doc/pack-authoring.md)独立开发扩展。领域代码留在 Pack 内，共享 Core 与 Broker 不依赖具体领域。已注册、能够显示或原生烟测成功，均不代表完整工业工作流已经验收。PCB/Godot 仍缺共享 Domain Runtime 插件与独立任务验收（[#50](https://github.com/Zhiman-BJ/industrial-agent-harness/issues/50)）；各 Scope 的实际覆盖见[发布整改记录](doc/release-readiness-20261007.md)。
 
 ## 已接入的 Viewer
 
@@ -117,7 +119,7 @@ Harness 自有 Viewer 控件跟随 **设置 → 语言**（简体中文 / Englis
 | [图片与图集](doc/godot-assets-viewers.md)   | PNG/JPEG/WebP、`.sprite.json` 与配套图片                                       | 平移、采样模式、图集选帧与裁剪预览，无需 Godot 运行时。                  |
 | [动画](doc/godot-assets-viewers.md)         | 受支持的 `.tres`/`.tscn` 与图集动画                                            | 有限 SpriteFrames/Sprite2D 格式的播放与逐帧，不运行 Godot 引擎。         |
 | [工程文件](doc/engineering-file-viewers.md) | Godot 场景/资源/脚本、KiCad 库/规则、Gerber/钻孔、STEP/VRML 和部分 3D/音频格式 | 结构、制造层与媒体预览，几何和语义范围有限，不提供编辑或制造验收。       |
-| [CAD · OCCT](doc/freecad-domain-pack.md) | STL；Pack 生成的 FCStd/STEP 与经哈希检查的配套 BREP/STL、可选原生草图数据 | 官方 OCCT 7.9.2 AIS/V3d WebGL2：曲面、轮廓、X/Y/Z 封口剖切、明确的“测量”按钮，分开单对象尺寸与两对象最短距离，点击面/边直接在模型上标注 BREP 边长/直径/面积/最短距离，不弹出测量侧栏；草图几何、尺寸和约束高亮。共享导航与全屏；本地 WASM，需 WebGL2。只读，测量名义几何，不含公差或工程验收。macOS arm64 Electron 实测。 |
+| [CAD · OCCT](doc/freecad-domain-pack.md) | STL；Pack 生成的 FCStd/STEP 与经哈希检查的配套 BREP/STL、可选原生草图数据 | 官方 OCCT 7.9.2 AIS/V3d WebGL2：曲面、轮廓、X/Y/Z 封口剖切、明确的“测量”按钮，分开单对象尺寸与两对象最短距离，点击面/边直接在模型上标注 BREP 边长/直径/面积/最短距离，不弹出测量侧栏；草图几何、尺寸和约束高亮。共享导航与全屏，窗口缩放保持模型比例；工作区分隔线可拖动或键盘调整、双击复位；本地 WASM，需 WebGL2。只读，测量名义几何，不含公差或工程验收。macOS arm64 Electron 实测。 |
 | [通用文档](doc/document-viewers.md)         | CSV/TSV、JSON、JSONL/NDJSON、Markdown、TXT/LOG                                 | 表格、结构、记录与文本搜索；只读受限 UTF-8 输入，不执行公式或嵌入 HTML。 |
 
 完整格式清单、文件上限与渲染依赖见各 Viewer 文档。新增接入需同时更新中英文 README，并遵守 [Viewer 接入契约](AGENTS.md#viewer-integration-contract)。
@@ -165,3 +167,5 @@ pnpm run format:check
 内置渲染器、字体、依赖和单独安装的专业工具保留各自许可证，完整发行物并非全部采用 MIT。请查阅 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 和相关来源记录。本仓许可证不授予外部私有 PCB 资源的公众复用权。
 
 所有领域共用的初始化、编辑、本地/Docker 任务和外部 MCP 见[共享工程底座](doc/shared-workspace.md)。打包消费者 CI 验证空工程创建、失败和修复；专业工具、模型及签核由 Pack/工程负责。
+
+工程审批展示文件差异、声明命令和外部参数。`doctor` 无需模型即可检查执行前提；工作区筛选与显式本地依赖目录见[共享工程底座](doc/shared-workspace.md)。外部 MCP 在当前聊天进程内保留连接状态，状态丢失时明确失败。

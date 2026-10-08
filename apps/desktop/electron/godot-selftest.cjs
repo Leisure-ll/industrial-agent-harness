@@ -1,7 +1,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { verifyNavigation, verifyWheel } = require('./navigation-selftest.cjs');
+const {
+  verifyNavigation,
+  verifyWheel,
+  transitionFullscreen,
+} = require('./navigation-selftest.cjs');
 const { saveBindings } = require('./project-bindings.cjs');
 let configDirectory;
 function prepare(config) {
@@ -104,10 +108,12 @@ async function run(window) {
     await evaluate(
       `(() => {const camera = document.querySelector('select[aria-label="Camera"]'); camera.value = Array.from(camera.options).find(option => option.text === 'MainCamera').value; camera.dispatchEvent(new Event('change', {bubbles:true}));})()`,
     );
-    await evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`);
-    await waitFor(`Boolean(document.fullscreenElement?.classList.contains('ia-workspace'))`);
-    await evaluate(`document.querySelector('button[aria-label="Exit viewer fullscreen"]').click()`);
-    await waitFor(`!document.fullscreenElement`);
+    await transitionFullscreen(window, true, () =>
+      evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`),
+    );
+    await transitionFullscreen(window, false, () =>
+      evaluate(`document.querySelector('button[aria-label="Exit viewer fullscreen"]').click()`),
+    );
     fs.writeFileSync(
       path.join(configDirectory, 'godot-runtime.png'),
       (await window.webContents.capturePage()).toPNG(),

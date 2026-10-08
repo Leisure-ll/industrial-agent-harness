@@ -39,3 +39,17 @@ test('Core update waits for a ready download and an idle task before restart', a
   updater.install();
   assert.equal(restarts, 1);
 });
+
+test('local installed builds without an update feed never contact a placeholder endpoint', async () => {
+  const updater = new CoreUpdater({
+    updater: null,
+    packaged: true,
+    configured: false,
+    onChange: () => assert.fail('No update operation should start.'),
+    canInstall: () => assert.fail('No restart should be attempted.'),
+  });
+  assert.equal(updater.snapshot().status, 'unconfigured');
+  assert.equal((await updater.check()).status, 'unconfigured');
+  assert.equal(updater.snapshot().error, null);
+  assert.throws(() => updater.install(), /not ready/);
+});

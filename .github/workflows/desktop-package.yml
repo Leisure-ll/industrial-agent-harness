@@ -14,7 +14,7 @@ jobs:
           - runner: windows-2025
             platform: windows
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,7 +34,7 @@ jobs:
         if: matrix.platform == 'mac'
         shell: bash
         run: |
-          ./apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-ci --config "$GITHUB_WORKSPACE/electron-builder.config.cjs" --mac dir --arm64 --publish never
+          ./apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-ci --config "$GITHUB_WORKSPACE/electron-builder.config.cjs" --mac dmg --arm64 --publish never
       - name: Package Windows application
         if: matrix.platform == 'windows'
         shell: pwsh
@@ -46,11 +46,27 @@ jobs:
           mkdir -p dist/ci-reports
           node scripts/smoke-packaged-desktop.cjs 2>&1 | tee dist/ci-reports/desktop-first-run.log
           node scripts/smoke-packaged-desktop.cjs --domains 2>&1 | tee dist/ci-reports/desktop-domains.log
+      - name: Verify clean Apple Silicon CAD installation and real native tasks
+        if: matrix.platform == 'mac'
+        shell: bash
+        run: node scripts/smoke-packaged-cad.cjs dist/ci-reports/cad-install --dmg
+
+      - name: Verify workbench UI and language switching
+        shell: bash
+        run: |
+          export INDUSTRIAL_UI_SCREENSHOTS="$GITHUB_WORKSPACE/dist/ci-reports/ui"
+          pnpm --filter @industrial-agent-harness/desktop test:ui 2>&1 | tee dist/ci-reports/desktop-ui.log
+          pnpm --filter @industrial-agent-harness/desktop test:language 2>&1 | tee dist/ci-reports/desktop-language.log
       - name: Retain installed application evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.platform }}
-          path: dist/ci-reports/
+          path: |
+            dist/ci-reports/*.log
+            dist/ci-reports/cad-install/*.log
+            dist/ci-reports/cad-install/*.json
+            dist/ci-reports/cad-install/*.png
+            dist/ci-reports/cad-install/project/
           if-no-files-found: warn
           retention-days: 14

@@ -5,6 +5,7 @@ const fs = require('node:fs'),
   path = require('node:path');
 const { IndustrialRuntime, createWorkspacePlugin } = require('../src/index.cjs');
 const { hash } = require('../src/workspace-files.cjs');
+const { createInputIndexer } = require('../src/workspace-files.cjs');
 function open(t, domain = 'example') {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-workspace-'));
   const project = path.join(directory, 'project');
@@ -38,6 +39,164 @@ function open(t, domain = 'example') {
   };
   return { project, runtime, execute };
 }
+
+test('unrelated large assets and symlinks do not prevent inspection or repair; selected task inputs remain checked', async t => {
+  const { project, runtime, execute } = open(t);
+  fs.writeFileSync(path.join(project, 'runner.cjs'), 'process.exit(0)');
+  const fd = fs.openSync(path.join(project, 'unused.bin'), 'w');
+  fs.ftruncateSync(fd, 65 * 1024 * 1024);
+  fs.closeSync(fd);
+  if (process.platform !== 'win32') fs.symlinkSync('runner.cjs', path.join(project, 'unused-link'));
+  const state = await runtime.inspect();
+  assert.equal(state.inputHashes['runner.cjs'], hash(Buffer.from('process.exit(0)')));
+  assert.equal(state.inputHashes['unused.bin'], undefined);
+  const listed = await execute('project.files.read', {});
+  const report = JSON.parse(runtime.readArtifact(listed.artifacts[0].id).content);
+  assert.ok(report.diagnostics.some(d => d.includes('unused.bin')));
+  assert.equal(
+    (
+      await execute('project.files.apply', {
+        changes: [{ path: 'new.txt', content: 'repair', expectedSha256: null }],
+      })
+    ).action.status,
+    'completed',
+  );
+  fs.writeFileSync(
+    path.join(project, 'harness.tasks.json'),
+    JSON.stringify({
+      schemaVersion: '1',
+      tasks: {
+        bad: { command: ['node', '{input}/runner.cjs'], inputs: ['unused.bin'] },
+      },
+    }),
+  );
+  const failed = await execute('project.task.run', { task: 'bad' });
+  assert.equal(failed.action.status, 'failed');
+  assert.notEqual(failed.verification.status, 'passed');
+  assert.match(failed.action.diagnostics.join(), /bounded read/);
+});
+
+test('workspace input/ignore policy stays deterministic and never hides declared task inputs or control files', async t => {
+  const { project, runtime } = open(t);
+  for (const name of ['src/main', 'tests/check', 'assets/ignored']) {
+    fs.mkdirSync(path.dirname(path.join(project, name)), { recursive: true });
+    fs.writeFileSync(path.join(project, name), name);
+  }
+  fs.writeFileSync(
+    path.join(project, 'harness.tasks.json'),
+    JSON.stringify({
+      schemaVersion: '1',
+      workspace: { inputs: ['src'], ignore: ['tests', 'assets', 'harness.tasks.json'] },
+      tasks: { test: { command: ['node'], inputs: ['tests/check'] } },
+    }),
+  );
+  const before = await runtime.inspect();
+  assert.deepEqual(Object.keys(before.inputHashes).sort(), [
+    'harness.tasks.json',
+    'src/main',
+    'tests/check',
+  ]);
+  fs.writeFileSync(path.join(project, 'assets/ignored'), 'changed');
+  assert.equal((await runtime.inspect()).id, before.id);
+  fs.writeFileSync(path.join(project, 'tests/check'), 'changed');
+  assert.notEqual((await runtime.inspect()).id, before.id);
+});
+
+test('incremental hashing catches same-size edits even when mtime is restored, removals and additions', async t => {
+  const { project } = open(t),
+    indexer = createInputIndexer(),
+    file = path.join(project, 'source');
+  fs.writeFileSync(file, 'before');
+  const before = await indexer.index(project),
+    stat = fs.statSync(file);
+  assert.deepEqual(await indexer.index(project), before);
+  fs.writeFileSync(file, 'after!');
+  fs.utimesSync(file, stat.atime, stat.mtime);
+  assert.equal((await indexer.index(project)).source, hash(Buffer.from('after!')));
+  fs.unlinkSync(file);
+  fs.writeFileSync(path.join(project, 'new'), 'new');
+  assert.deepEqual(await indexer.index(project), { new: hash(Buffer.from('new')) });
+});
+
+test('invalid input policy remains inspectable and repairable', async t => {
+  const { project, execute, runtime } = open(t);
+  const content = JSON.stringify({
+    schemaVersion: '1',
+    workspace: { ignore: ['../outside'] },
+    tasks: {},
+  });
+  fs.writeFileSync(path.join(project, 'harness.tasks.json'), content);
+  const inspection = await execute('project.tasks.inspect', {});
+  assert.match(
+    JSON.parse(runtime.readArtifact(inspection.artifacts[0].id).content).error,
+    /project-relative/,
+  );
+  assert.equal(
+    (
+      await execute('project.files.apply', {
+        changes: [
+          {
+            path: 'harness.tasks.json',
+            content: '{"schemaVersion":"1","tasks":{}}',
+            expectedSha256: hash(Buffer.from(content)),
+          },
+        ],
+      })
+    ).action.status,
+    'completed',
+  );
+});
+
+test('approval previews show real file differences and declared task commands, without mutating files', async t => {
+  const { project, runtime } = open(t);
+  fs.writeFileSync(path.join(project, 'main.cjs'), 'old\nunchanged\n');
+  const state = await runtime.inspect(),
+    request = {
+      toolId: 'project.files.apply',
+      expectedStateId: state.id,
+      inputs: {
+        changes: [
+          {
+            path: 'main.cjs',
+            content: 'new\nunchanged\n',
+            expectedSha256: state.inputHashes['main.cjs'],
+          },
+          { path: 'new.cjs', content: 'new', expectedSha256: null },
+        ],
+      },
+    };
+  const preview = runtime.approvalPreview(request);
+  assert.match(preview.text, /Modify main.cjs/);
+  assert.match(preview.text, /Create new.cjs/);
+  assert.match(preview.text, /-old\n\+new/);
+  assert.match(preview.requestSha256, /^[a-f0-9]{64}$/);
+  assert.notEqual(
+    runtime.approvalPreview({
+      ...request,
+      inputs: { ...request.inputs, changes: [request.inputs.changes[0]] },
+    }).requestSha256,
+    preview.requestSha256,
+  );
+  assert.equal(fs.readFileSync(path.join(project, 'main.cjs'), 'utf8'), 'old\nunchanged\n');
+  assert.equal(fs.existsSync(path.join(project, 'new.cjs')), false);
+  fs.writeFileSync(
+    path.join(project, 'harness.tasks.json'),
+    JSON.stringify({
+      schemaVersion: '1',
+      tasks: {
+        test: { command: ['python3', '{input}/check.py'], inputs: ['check.py'] },
+      },
+    }),
+  );
+  assert.match(
+    runtime.approvalPreview({
+      toolId: 'project.task.run',
+      expectedStateId: state.id,
+      inputs: { task: 'test' },
+    }).text,
+    /python3/,
+  );
+});
 test('same initialization and file lifecycle works in unrelated domains and retains immutable history', async t => {
   for (const domain of ['example', 'another']) {
     const { project, runtime, execute } = open(t, domain);

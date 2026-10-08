@@ -12,9 +12,9 @@
   "occtModifications": [],
   "files": {
     "harness-occt.js": "00211605c273fca3e024a1fba312c82d2da338c893754da980fbac9200bf8ade",
-    "harness-occt.wasm": "35b34f88c9fde1c70e1b807ad54bcbf8602a593d172c24946b8bd159332c752a",
+    "harness-occt.wasm": "2b7458d4462054dc8bad18250efe0a77b39aa09863d95770bba9e43c6e8feaba",
     "source/OCCT-7.9.2.tar.gz": "60dd3fa095024402c3b150ae8ba4efd3c08c43305e91dba5eab94bfee43986a1",
-    "native/Viewer.cpp": "e2eea0bc0f2255bd0c2ec823f9db798a7464fa6e49296f22b854c8075c6202b3",
+    "native/Viewer.cpp": "0778edb893cf50001dfc1c80d56f1452099b4558504812e8f14e9dd785e397f8",
     "native/CMakeLists.txt": "51e6173fc5d5343bfbcfbc82c6cde4bc4316a5815c2b0ed0fb2c69d8d4102302"
   }
 }

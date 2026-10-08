@@ -34,22 +34,24 @@ export function CoreUpdatePanel({ busy, onClose }: { busy: boolean; onClose: () 
   const description =
     state?.status === 'development'
       ? 'Application updates are available in installed builds.'
-      : state?.status === 'idle'
-        ? 'Check for an application update.'
-        : state?.status === 'checking'
-          ? 'Checking for updates…'
-          : state?.status === 'current'
-            ? 'The application is up to date.'
-            : state?.status === 'available'
-              ? t('Version {0} is available. Downloading…', { 0: state.version ?? '—' })
-              : state?.status === 'downloading'
-                ? t('Downloading version {0} · {1}%', {
-                    0: state.version ?? '—',
-                    1: state.progress ?? 0,
-                  })
-                : state?.status === 'ready'
-                  ? t('Version {0} is ready. Restart to install.', { 0: state.version ?? '—' })
-                  : 'Unable to check for updates.';
+      : state?.status === 'unconfigured'
+        ? 'Application updates are not configured for this local build.'
+        : state?.status === 'idle'
+          ? 'Check for an application update.'
+          : state?.status === 'checking'
+            ? 'Checking for updates…'
+            : state?.status === 'current'
+              ? 'The application is up to date.'
+              : state?.status === 'available'
+                ? t('Version {0} is available. Downloading…', { 0: state.version ?? '—' })
+                : state?.status === 'downloading'
+                  ? t('Downloading version {0} · {1}%', {
+                      0: state.version ?? '—',
+                      1: state.progress ?? 0,
+                    })
+                  : state?.status === 'ready'
+                    ? t('Version {0} is ready. Restart to install.', { 0: state.version ?? '—' })
+                    : 'Unable to check for updates.';
   return (
     <dialog
       ref={dialog}
@@ -84,6 +86,7 @@ export function CoreUpdatePanel({ busy, onClose }: { busy: boolean; onClose: () 
             onClick={() => void check()}
             disabled={
               state?.status === 'development' ||
+              state?.status === 'unconfigured' ||
               state?.status === 'checking' ||
               state?.status === 'downloading'
             }

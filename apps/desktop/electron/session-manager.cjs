@@ -37,6 +37,7 @@ class SessionManager {
         (entry.removing ||
           entry.resolving ||
           entry.release ||
+          entry.agent?.backgroundTasks ||
           entry.agent?.running ||
           entry.agent?.turn),
     );
@@ -90,6 +91,7 @@ class SessionManager {
       chatId: entry.id,
       projectId: entry.project.id,
       running: this.busy(entry),
+      backgroundTasks: Boolean(entry.agent?.backgroundTasks),
       awaitingApproval: Boolean(entry.agent?.pendingApprovals?.size),
       awaitingQuestion: Boolean(entry.agent?.pendingQuestions?.size),
     }));
@@ -132,17 +134,25 @@ function finishTurn(entry, finish, notify) {
   try {
     finish();
   } finally {
-    const release = entry.release;
-    const releasePack = entry.releasePack;
-    entry.release = undefined;
-    entry.releasePack = undefined;
-    try {
-      release?.();
-    } finally {
+    if (entry.agent?.backgroundTasks) {
+      entry.backgroundRelease = () => {
+        entry.backgroundRelease = undefined;
+        finishTurn(entry, () => {}, notify);
+      };
+      notify();
+    } else {
+      const release = entry.release;
+      const releasePack = entry.releasePack;
+      entry.release = undefined;
+      entry.releasePack = undefined;
       try {
-        releasePack?.();
+        release?.();
       } finally {
-        notify();
+        try {
+          releasePack?.();
+        } finally {
+          notify();
+        }
       }
     }
   }

@@ -93,7 +93,7 @@ export function ResourceSettings({
                 const mode = override === undefined ? 'inherit' : override ? 'enabled' : 'disabled';
                 const enabled = !snapshot.effective[key].includes(item.id);
                 return (
-                  <label key={item.id}>
+                  <label key={item.id} data-resource-id={item.id}>
                     <span>
                       <b>{item.title}</b>
                       <small>

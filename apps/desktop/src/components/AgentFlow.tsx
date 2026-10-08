@@ -1,5 +1,7 @@
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import type { AgentEvent } from '@industrial-agent-harness/viewer-builtin/api';
+import { SubagentCard } from './SubagentCard';
+import { AnswerMarkdown } from './AnswerMarkdown';
 import { ThinkingPreview } from './ThinkingPreview';
 import { memo, useRef, useState } from 'react';
 
@@ -44,14 +46,27 @@ function ApprovalCard({
           · {event.action}
         </summary>
         <p>{event.description}</p>
+        {event.preview && <pre className="ia-approval-preview">{event.preview.text}</pre>}
       </details>
     );
   return (
-    <div className="ia-approval">
+    <div className="ia-approval" data-approval-id={event.id}>
       <b>
         {t('Approval requested ·')} {event.action}
       </b>
+      {event.agentId && (
+        <small className="ia-approval-source">
+          {t('Subtask')} · {event.agentId}
+        </small>
+      )}
       <p>{event.description}</p>
+      {event.agentId && event.agentId !== 'main' && <p>{event.agentId}</p>}
+      {event.preview && (
+        <div className="ia-approval-operation">
+          <b>{event.preview.title}</b>
+          <pre className="ia-approval-preview">{event.preview.text}</pre>
+        </div>
+      )}
       <button disabled={busy} onClick={() => void respond('approve')}>
         {busy ? t('Submitting…') : t('Approve')}
       </button>
@@ -131,7 +146,10 @@ function QuestionCard({
         void submit();
       }}
     >
-      <b>{t('Agent asks you')}</b>
+      <b>
+        {t('Agent asks you')}
+        {event.agentId ? ` · ${t('Subtask')} ${event.agentId}` : ''}
+      </b>
       {event.questions.map((item, index) => (
         <fieldset key={index}>
           <legend>
@@ -244,6 +262,8 @@ export const AgentFlow = memo(function AgentFlow({
 }) {
   const { t, locale } = useDisplayText();
   const results = new Map<string, ToolResult>();
+  const children = new Map<string, Extract<AgentEvent, { type: 'subagent-state' }>>();
+  const firstChildIndex = new Map<string, number>();
   const toolIds = new Set<string>();
   const decisions = new Map<string, string>();
   const answered = new Map<string, Extract<AgentEvent, { type: 'question-resolved' }>>();
@@ -253,6 +273,10 @@ export const AgentFlow = memo(function AgentFlow({
   // per id so the Input shows the complete arguments without duplication.
   const lastToolIndex = new Map<string, number>();
   for (const [index, event] of events.entries()) {
+    if (event.type === 'subagent-state') {
+      children.set(event.id, event);
+      if (!firstChildIndex.has(event.id)) firstChildIndex.set(event.id, index);
+    }
     if (event.type === 'tool') {
       toolIds.add(event.id);
       lastToolIndex.set(event.id, index);
@@ -276,6 +300,10 @@ export const AgentFlow = memo(function AgentFlow({
   return (
     <section className="ia-agent-flow">
       {events.map((event, index) => {
+        if (event.type === 'subagent-state')
+          return firstChildIndex.get(event.id) === index ? (
+            <SubagentCard key={event.id} state={children.get(event.id)!} />
+          ) : null;
         if (event.type === 'industrial-result') {
           const verified =
             event.verification.status === 'passed' && event.state.status === 'verified';
@@ -320,7 +348,7 @@ export const AgentFlow = memo(function AgentFlow({
         if (event.type === 'text')
           return (
             <article className="ia-agent-text" key={index}>
-              <p>{event.text}</p>
+              <AnswerMarkdown text={event.text} active={running && index === lastActivity} />
             </article>
           );
         if (event.type === 'thinking')
@@ -336,7 +364,9 @@ export const AgentFlow = memo(function AgentFlow({
             <ApprovalCard
               key={index}
               event={event}
-              decision={decisions.get(event.id) || (!running ? 'expired' : undefined)}
+              decision={
+                decisions.get(event.id) || (!running && !event.background ? 'expired' : undefined)
+              }
               approve={approve}
             />
           );
@@ -347,7 +377,7 @@ export const AgentFlow = memo(function AgentFlow({
               event={event}
               resolved={
                 answered.get(event.id) ||
-                (!running
+                (!running && !event.background
                   ? { type: 'question-resolved', id: event.id, decision: 'expired' }
                   : undefined)
               }

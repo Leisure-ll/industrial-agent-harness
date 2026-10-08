@@ -41,7 +41,7 @@ test('JSON input transport preserves nested engineering types without coercion o
   await action.handler(request);
   assert.deepEqual(received[0], {
     request: { toolId: request.toolId, expectedStateId: request.expectedStateId, inputs },
-    policy: { scope, approval: true },
+    policy: { scope, approval: true, ownerId: 'project' },
   });
   assert.deepEqual(approvalInputs[0], inputs);
   await action.handler({ ...request, inputsJson: JSON.stringify({ value: '30' }) });
@@ -58,4 +58,35 @@ test('JSON input transport preserves nested engineering types without coercion o
       /inputs|JSON|Supply/,
     );
   assert.equal(received.length, 2);
+});
+
+test('approval reviews a separate snapshot; changes while awaiting approval cannot change the executed request', async () => {
+  let received;
+  const runtime = {
+    descriptors: () => [{ id: 'example.edit', risk: 'mutating' }],
+    execute: async request => {
+      received = request;
+      return {
+        run: { id: randomUUID() },
+        action: { id: randomUUID(), status: 'completed', diagnostics: [] },
+        artifacts: [],
+        verification: {},
+        state: {},
+        checkpoint: {},
+      };
+    },
+  };
+  const input = { value: 'approved' },
+    request = { toolId: 'example.edit', expectedStateId: randomUUID(), inputs: input };
+  const tool = runtimeTools(
+    runtime,
+    () => ({ tools: ['example.edit'] }),
+    async (_, preview) => {
+      input.value = 'changed by caller';
+      preview.inputs.value = 'changed by callback';
+      return true;
+    },
+  ).find(tool => tool.name === 'industrial_action_call');
+  await tool.handler(request);
+  assert.deepEqual(received.inputs, { value: 'approved' });
 });

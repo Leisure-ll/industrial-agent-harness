@@ -11,6 +11,7 @@ Core 不内置综合、SPICE、特定 ISA、SRAM/MPW 生成器或供应商签核
 | project.files.apply | 创建、修改、删除与最多 32 个文件的批次；修改/删除必须匹配原 SHA-256，创建必须仍不存在 |
 | project.tasks.inspect | 读取声明任务，格式错误也可查看并修复 |
 | project.task.run | 按名称执行 harness.tasks.json 中的任务，不接受临时命令替换；保留日志、执行身份与检查证据 |
+| project.environment.inspect | 检查声明任务、受保护本地执行、宿主 Docker 与离线镜像；保存只读环境报告 |
 
 模型通过共享 project.work Skill 执行“创建→测试→读失败→修改→重跑”。所有调用走同一
 industrial_action_call，带当前 State ID；Action 后更新 Scope，已创建的专业配置可进入
@@ -18,6 +19,12 @@ industrial_action_call，带当前 State ID；Action 后更新 Scope，已创建
 industrial_artifact_read 分页读取，单页最多 64 KiB。
 
 ## 任务落地
+
+先运行 `industrial-harness-chip doctor --project-dir /absolute/project`；通用分包使用
+`node industrial-harness.cjs doctor --project-dir /absolute/project --domain <domain>`。
+不需要模型密钥。JSON 输出包含必需检查和 Action ID；环境未就绪退出 2，通过退出 0。
+它会实际启动受保护的本地探针，检查已声明命令、依赖目录和本地 Docker 镜像，不下载依赖，
+不连接已注册外部 MCP。环境通过不表示工程测试通过。模型也可调用 project.environment.inspect。
 
 在工程中创建 harness.tasks.json：
 
@@ -39,7 +46,10 @@ industrial_artifact_read 分页读取，单页最多 64 KiB。
 
 command 是参数数组，未经 Shell 拼接；inputs 是精确文件名。输入复制到只读快照，
 任务 cwd 是全新输出目录；{input}/{output} 参数及 HARNESS_INPUT_DIR/HARNESS_OUTPUT_DIR
-给出两者路径。项目相对导入从输入快照读取，依赖需要事先安装或列为输入文件。
+给出两者路径。项目相对导入从输入快照读取，依赖需要事先安装。系统软件及所执行工具的安装目录可读；其他依赖目录需在
+local runtime 显式声明 `readOnlyDirs`（绝对目录，最多 32 个），例如
+`{"kind":"local","readOnlyDirs":["/opt/company/models"]}`。该声明也是审批内容。
+原工程、用户主目录与无关宿主文件不自动开放；虚拟环境入口保留其安装路径。
 生成的文件保留在 `.harness-runs/<action-id>/work/`，日志和回执进入 Runtime CAS。
 不同 Action 不复用输出，不能复用上次的检查报告。
 
@@ -61,7 +71,12 @@ command 是参数数组，未经 Shell 拼接；inputs 是精确文件名。输�
 过去的状态、报告、产物和 Checkpoint 保留。
 
 工作区输入扫描最多 10,000 项、32 层、单文件 64 MiB、总计 256 MiB，排除 Runtime
-产物和依赖目录。命令只能写该 Action 的输出目录；原工程、输入快照和 Runtime
+产物和依赖目录。无关链接、超大或不可读文件会被略过，并在清单/任务检查中报告；
+声明任务使用的文件仍须通过路径、大小和内容哈希检查，缺失或被略过时不能执行。
+可在 manifest 顶层设置 `workspace: {"inputs":["src","tests"],"ignore":["build","vendor"]}`：
+这些是目录前缀或精确文件名，非 glob；控制文件和任务 inputs 始终优先检查，ignore 不能隐藏它们。
+文件未变化时复用内容哈希，大小/时间/文件身份变化后重新流式读取；执行前独立重查快照。
+命令只能写该 Action 的输出目录；原工程、输入快照和 Runtime
 证据只读。模型的 native Shell/WriteFile 仍受原有隔离限制。未匹配或读取失败的领域
 StateProvider 不建立可信阶段，共享编辑入口仍可用于修复配置。
 
@@ -86,3 +101,7 @@ Portable CI 覆盖契约、文件前提/越界/历史和三个真实 MCP transpo
 独立分包和 Linux 安装消费者重复该真实链路，外部 MCP 测审批拒绝/批准、图片、
 禁用、快照变化及脱敏；Linux Docker gate 另用实际镜像跑共享任务。受控模型用来
 稳定触发真实工具链，不作为模型设计能力或任意领域工程签核的证据。
+
+审批卡显示文件新增/删除/修改的差异、实际声明任务和 MCP 参数；长预览明确截断。
+审批前固定请求输入，审批中的修改不能替换待执行请求；执行仍重查 State、文件哈希和 Scope。
+关闭或取消聊天只停止该聊天的在途操作，项目 Runtime 关闭时等待宿主服务清理。

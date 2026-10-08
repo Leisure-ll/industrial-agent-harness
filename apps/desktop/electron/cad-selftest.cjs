@@ -2,7 +2,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { saveBindings } = require('./project-bindings.cjs');
-const { verifyNavigation, verifyWheel } = require('./navigation-selftest.cjs');
+const {
+  verifyNavigation,
+  verifyWheel,
+  transitionFullscreen,
+} = require('./navigation-selftest.cjs');
 const { createProjectRuntime } = require('@industrial-agent-harness/harness-core');
 let project;
 async function prepare(config) {
@@ -174,12 +178,14 @@ async function run(window) {
   await wait(
     `Number(document.querySelector('.rp-cad').dataset.panX)===25 && Number(document.querySelector('.rp-cad').dataset.panY)===15`,
   );
-  await evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`);
-  await wait(`Boolean(document.fullscreenElement)`);
+  await transitionFullscreen(window, true, () =>
+    evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`),
+  );
   assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.yaw`), rotated);
-  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
-  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
-  await wait(`!document.fullscreenElement`);
+  await transitionFullscreen(window, false, () => {
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  });
   assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.yaw`), rotated);
   fs.writeFileSync(
     path.join(project, 'cad-viewer.png'),
@@ -188,6 +194,8 @@ async function run(window) {
   if (process.env.HARNESS_CAD_SELFTEST_OUTPUT)
     fs.copyFileSync(path.join(project, 'cad-viewer.png'), process.env.HARNESS_CAD_SELFTEST_OUTPUT);
   await require('./cad-inspection-selftest.cjs').verifyInspection(window, project);
+  if (process.argv.includes('--cad-resize-selftest'))
+    await require('./cad-resize-selftest.cjs').verifyResize(window, project);
   await open('model.step');
   await open('model.stl');
   assert.equal(

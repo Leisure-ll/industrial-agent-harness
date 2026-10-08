@@ -13,6 +13,9 @@ read-only SVG dimension annotations. These are nominal geometry measurements,
 not tolerance, assembly or engineering acceptance. STL has no precise topology
 picking. The host owns CSS and device-pixel canvas sizing; Wasm_Window automatic
 CSS scaling is disabled so resizing, inspectors and fullscreen stay aligned.
+Applying a fitted camera retains the current viewport aspect ratio instead of
+copying the original fit aspect; Fit restores the initial display view.
+`test:cad-resize` checks rendered proportions across panel and fullscreen changes.
 
 Memory is bounded to 512 MiB; input to 16 MiB, 100000 triangles and 5000 BREP
 faces. A model is temporary read-only display data. A GPU/parse failure is

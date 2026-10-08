@@ -8,6 +8,11 @@ have a separate sandbox and cannot write the actual project or contact host Dock
 Keep specialist recipes, device models, reference data and acceptance criteria in
 the project or its selected domain Skill; they are not supplied by this Skill.
 
+Before expensive execution, use project.environment.inspect with {} (CLI users can
+run doctor). It probes protected execution, declared tools and offline images without
+a model request. Resolve missing dependencies before running tasks; readiness is not
+engineering acceptance.
+
 1. Use industrial_tool_describe before invoking an unfamiliar canonical Tool.
    Use industrial_action_call with the current expectedStateId and inputsJson.
    After every Action use its returned stateId. The returned allowedTools reflects
@@ -39,6 +44,12 @@ the project or its selected domain Skill; they are not supplied by this Skill.
    The task sees a read-only input snapshot and a fresh writable output directory.
    Use {input}/{output} arguments or HARNESS_INPUT_DIR/HARNESS_OUTPUT_DIR.
    Dependencies must already be installed or included among exact input files.
+   Local tasks read system/tool installation directories and the input snapshot.
+   Declare other dependency directories in local runtime.readOnlyDirs using absolute
+   paths; do not add a whole home/project to work around an undeclared dependency.
+   Optional workspace.inputs/ignore in the manifest narrow inventory by directory
+   prefix or exact file; task inputs and control files remain included. Inspect
+   omission diagnostics: unsupported declared inputs cannot run or verify.
    Local execution is offline and protected on qualified macOS/Linux hosts.
    Docker execution uses runtime {"kind":"docker","image":"installed-image:tag"};
    it is offline, runs with dropped capabilities, limits CPU/memory/processes and

@@ -107,6 +107,50 @@ test('real task cannot write source, runtime evidence, input snapshots or contac
   assert.equal(result.verification.status, 'passed', JSON.stringify(result));
   assert.equal(fs.readFileSync(path.join(project, 'src/probe.cjs'), 'utf8'), script);
 });
+
+test('real local task reads only its snapshot, runtime libraries and explicitly granted dependency directories', async t => {
+  const { directory, project, bundle, run } = workspace(t);
+  const dependencies = path.join(directory, 'dependencies'),
+    outside = path.join(directory, 'private.txt');
+  fs.mkdirSync(dependencies);
+  fs.writeFileSync(path.join(dependencies, 'reference.txt'), 'DECLARED_REFERENCE');
+  fs.writeFileSync(outside, 'UNDECLARED_PRIVATE');
+  fs.writeFileSync(path.join(project, 'unselected.txt'), 'UNSELECTED_SOURCE');
+  for (const granted of [false, true]) {
+    fs.writeFileSync(
+      path.join(project, 'probe.cjs'),
+      `const fs=require('node:fs'),path=require('node:path');
+      function readable(file){try{fs.readFileSync(file);return true}catch{return false}}
+      const checks=[{name:'outside input denied',passed:!readable(${JSON.stringify(outside)})},
+        {name:'outside input alias denied',passed:!readable(${JSON.stringify(process.platform === 'darwin' ? '/System/Volumes/Data' + outside : outside)})},
+        {name:'unselected source denied',passed:!readable(${JSON.stringify(path.join(project, 'unselected.txt'))})},
+        {name:'snapshot readable',passed:readable(__filename)},
+        {name:'explicit dependency grant',passed:readable(${JSON.stringify(path.join(dependencies, 'reference.txt'))})===${granted}}];
+      fs.writeFileSync(path.join(process.env.HARNESS_OUTPUT_DIR,'checks.json'),JSON.stringify({schemaVersion:'1',checks}));`,
+    );
+    fs.writeFileSync(
+      path.join(project, 'harness.tasks.json'),
+      JSON.stringify({
+        schemaVersion: '1',
+        tasks: {
+          test: {
+            command: [process.execPath, '{input}/probe.cjs'],
+            inputs: ['probe.cjs'],
+            runtime: { kind: 'local', ...(granted ? { readOnlyDirs: [dependencies] } : {}) },
+            verification: { kind: 'checks-json', path: 'checks.json' },
+          },
+        },
+      }),
+    );
+    const result = await run('project.task.run', { task: 'test' });
+    assert.equal(result.verification.status, 'passed', JSON.stringify(result));
+    const execution = JSON.parse(
+      bundle.runtime.readArtifact(result.artifacts.find(a => a.kind === 'report.execution').id)
+        .content,
+    );
+    assert.equal(execution.identity.readOnlyRoots.includes(fs.realpathSync(dependencies)), granted);
+  }
+});
 test('exit zero, stale reports and malformed reports do not become acceptance; timeout retains execution evidence', async t => {
   const { project, bundle, run } = workspace(t);
   fs.writeFileSync(path.join(project, 'runner.cjs'), 'process.exit(0)');
@@ -126,7 +170,7 @@ test('exit zero, stale reports and malformed reports do not become acceptance; t
           test: {
             command: [process.execPath, '{input}/runner.cjs'],
             inputs: ['runner.cjs'],
-            timeoutMs: 200,
+            timeoutMs: mode === 'timeout' ? 200 : 10000,
             ...(mode === 'no-verifier'
               ? {}
               : { verification: { kind: 'checks-json', path: 'checks.json' } }),
@@ -142,10 +186,11 @@ test('exit zero, stale reports and malformed reports do not become acceptance; t
     );
     assert.notEqual(result.state.status, 'verified');
     assert.ok(result.artifacts.some(a => a.kind === 'log.task'));
-    if (mode === 'timeout') {
-      const report = result.artifacts.find(a => a.kind === 'report.execution');
-      assert.equal(JSON.parse(bundle.runtime.readArtifact(report.id).content).status, 'TIMEOUT');
-    }
+    const report = result.artifacts.find(a => a.kind === 'report.execution');
+    assert.equal(
+      JSON.parse(bundle.runtime.readArtifact(report.id).content).status,
+      mode === 'timeout' ? 'TIMEOUT' : 'COMPLETED',
+    );
   }
 });
 test(

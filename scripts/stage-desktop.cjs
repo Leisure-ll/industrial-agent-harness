@@ -71,6 +71,39 @@ if (process.env.HARNESS_RELEASE_BUILD === '1' && (!feedUrl || !keysFile || !core
 const keys = keysFile ? JSON.parse(fs.readFileSync(keysFile, 'utf8')) : {};
 const channel = process.env.HARNESS_RELEASE_CHANNEL || 'beta';
 if (!['stable', 'beta'].includes(channel)) throw Error('Invalid release channel.');
+// A Core-owned optional Pack lets the installer work without a published feed.
+// It remains a user-selected Pack, never a pre-enabled project resource.
+const bootstrapDomains =
+  process.env.HARNESS_BOOTSTRAP_DOMAINS ??
+  (process.platform === 'darwin' && process.arch === 'arm64' ? 'cad' : '');
+const bootstrap = path.join(target, 'bootstrap-packs');
+if (bootstrapDomains) {
+  const result = spawnSync(
+    process.execPath,
+    [path.join(root, 'scripts/build-domain-packs.cjs'), bootstrap],
+    {
+      cwd: root,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        INDUSTRIAL_HARNESS_PACK_STORE: '',
+        HARNESS_PACK_DOMAINS: bootstrapDomains,
+        HARNESS_PACK_PLATFORMS: `${process.platform}-${process.arch}`,
+        HARNESS_PACK_SIGNING_KEY_FILE: '',
+      },
+    },
+  );
+  if (result.status !== 0) throw Error('Could not prepare bundled optional Packs.');
+  for (const name of fs.readdirSync(bootstrap))
+    if (fs.statSync(path.join(bootstrap, name)).isDirectory())
+      fs.rmSync(path.join(bootstrap, name), { recursive: true });
+} else {
+  fs.mkdirSync(bootstrap);
+  fs.writeFileSync(
+    path.join(bootstrap, 'catalog.unsigned.json'),
+    JSON.stringify({ schemaVersion: 1, packs: [] }),
+  );
+}
 if (process.env.HARNESS_RELEASE_BUILD === '1') {
   for (const [name, value] of [
     ['Pack catalog', feedUrl],
@@ -88,7 +121,13 @@ if (process.env.HARNESS_RELEASE_BUILD === '1') {
 fs.writeFileSync(
   path.join(target, 'pack-feed.json'),
   JSON.stringify(
-    { schemaVersion: 1, channel, catalogUrl: feedUrl || null, publicKeys: keys },
+    {
+      schemaVersion: 1,
+      channel,
+      catalogUrl: feedUrl || null,
+      publicKeys: keys,
+      coreUpdateEnabled: Boolean(coreUrl),
+    },
     null,
     2,
   ) + '\n',

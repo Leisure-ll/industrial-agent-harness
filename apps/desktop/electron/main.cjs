@@ -13,13 +13,32 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const languageConfig = require('../i18n.config.json');
-const { PackManager, defaultPackDirectory } = require('@industrial-agent-harness/pack-manager');
+const {
+  PackManager,
+  defaultPackDirectory,
+  compareVersions,
+} = require('@industrial-agent-harness/pack-manager');
 if (app.isPackaged && !process.env.INDUSTRIAL_HARNESS_PACK_STORE)
   process.env.INDUSTRIAL_HARNESS_PACK_STORE = defaultPackDirectory();
 if (process.argv.includes('--packaged-smoke'))
   process.env.INDUSTRIAL_HARNESS_PACK_STORE = fs.mkdtempSync(
     path.join(os.tmpdir(), 'industrial-harness-packs-smoke-'),
   );
+if (process.argv.includes('--cad-install-selftest')) {
+  if (
+    !app.isPackaged ||
+    process.platform !== 'darwin' ||
+    process.arch !== 'arm64' ||
+    !process.env.HARNESS_CAD_INSTALL_REPORT_DIR
+  )
+    throw Error(
+      'CAD install selftest requires a packaged Apple Silicon app and fresh evidence directory.',
+    );
+  process.env.INDUSTRIAL_HARNESS_PACK_STORE = path.join(
+    process.env.HARNESS_CAD_INSTALL_REPORT_DIR,
+    'packs',
+  );
+}
 if (process.argv.includes('--packaged-smoke') && process.env.HARNESS_PACKAGED_SMOKE_FEED_DIR) {
   const fixture = process.env.HARNESS_PACKAGED_SMOKE_FEED_DIR;
   global.fetch = async url => {
@@ -123,7 +142,9 @@ if (
     '--ui-selftest',
     '--engineering-selftest',
     '--cad-selftest',
+    '--cad-resize-selftest',
     '--mcp-selftest',
+    '--subagent-selftest',
     '--external-mcp-selftest',
     '--agent-log-selftest',
     '--chat-selftest',
@@ -133,6 +154,11 @@ if (
   ].some(flag => process.argv.includes(flag))
 )
   app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
+if (process.argv.includes('--cad-install-selftest')) {
+  const profile = path.join(process.env.HARNESS_CAD_INSTALL_REPORT_DIR, 'profile');
+  fs.mkdirSync(profile, { recursive: true });
+  app.setPath('userData', profile);
+}
 
 if (process.argv.includes('--chat-selftest') && process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA)
   app.setPath('userData', process.env.INDUSTRIAL_CHAT_SELFTEST_USER_DATA);
@@ -140,6 +166,10 @@ if (process.argv.includes('--chat-selftest') && process.env.INDUSTRIAL_CHAT_SELF
 const desktopRoot = path.resolve(__dirname, '..');
 const packManager = new PackManager();
 const managedPacks = Boolean(process.env.INDUSTRIAL_HARNESS_PACK_STORE);
+let domainMutationActive = false;
+let domainController;
+let domainProgress = null;
+let catalogWarning = '';
 function releaseConfig() {
   const file =
     process.env.INDUSTRIAL_HARNESS_PACK_FEED_FILE ||
@@ -163,19 +193,38 @@ function currentRegistry() {
 function installedDomains() {
   return currentRegistry().domains;
 }
-async function availablePacks() {
-  const feed = packFeed();
+async function availablePacks(options = {}) {
+  const config = releaseConfig();
+  const hasFeed = process.env.INDUSTRIAL_HARNESS_PACK_CATALOG_URL || config.catalogUrl;
+  const feed = hasFeed ? packFeed() : { keys: {}, channel: config.channel || 'beta' };
   const manager = new PackManager({
     directory: packManager.directory,
     keys: feed.keys,
     channel: feed.channel,
   });
-  const catalog = await manager.catalog(feed.url);
+  const bootstrap = path.join(process.resourcesPath, 'bootstrap-packs');
+  let packs = fs.existsSync(bootstrap) ? manager.bundledCatalog(bootstrap).packs : [];
+  catalogWarning = '';
+  if (hasFeed) {
+    try {
+      const remote = (await manager.catalog(feed.url, options)).packs;
+      const byDomain = new Map(packs.map(item => [item.domain, item]));
+      for (const item of remote)
+        if (
+          !byDomain.has(item.domain) ||
+          compareVersions(item.version, byDomain.get(item.domain).version) >= 0
+        )
+          byDomain.set(item.domain, item);
+      packs = [...byDomain.values()];
+    } catch (error) {
+      options.signal?.throwIfAborted();
+      if (!packs.length) throw error;
+      catalogWarning = String(error.message);
+    }
+  }
   return {
     manager,
-    packs: catalog.packs.filter(item =>
-      item.platforms.includes(`${process.platform}-${process.arch}`),
-    ),
+    packs: packs.filter(item => item.platforms.includes(`${process.platform}-${process.arch}`)),
   };
 }
 const artifacts = new Map();
@@ -193,9 +242,10 @@ let mainWindow;
 const coreUpdater = new CoreUpdater({
   updater: app.isPackaged ? require('electron-updater').autoUpdater : null,
   packaged: app.isPackaged,
+  configured: !app.isPackaged || releaseConfig().coreUpdateEnabled !== false,
   channel: app.isPackaged ? releaseConfig().channel || 'stable' : 'stable',
   onChange: state => {
-    if (mainWindow && !mainWindow.webContents.isDestroyed())
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
       mainWindow.webContents.send('update:changed', state);
   },
   canInstall: () => sessions.assertIdle(),
@@ -278,7 +328,7 @@ async function resolveSessionTask(entry, request, registry) {
   );
 }
 function notifySessions() {
-  if (mainWindow && !mainWindow.webContents.isDestroyed())
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
     mainWindow.webContents.send('chat:updated');
 }
 function diagnosticDirectory() {
@@ -355,6 +405,7 @@ function readApiKey() {
   if (
     [
       '--mcp-selftest',
+      '--subagent-selftest',
       '--external-mcp-selftest',
       '--agent-log-selftest',
       '--chat-selftest',
@@ -603,6 +654,8 @@ function registerHandlers() {
   ipcMain.handle('update:install', () => coreUpdater.install());
   ipcMain.handle('domains:status', () => ({
     managed: managedPacks,
+    catalogWarning,
+    operation: domainMutationActive ? { active: true, progress: domainProgress } : null,
     installed: managedPacks
       ? packManager.list().map(({ location, ...item }) => ({
           domain: item.domain,
@@ -611,6 +664,11 @@ function registerHandlers() {
           emoji: item.emoji,
           summary: item.summary,
           prerequisites: item.prerequisites,
+          runtimeState: item.runtimeAssets?.length
+            ? packManager.runtimeAssets.status(item.runtimeAssets).every(asset => asset.ready)
+              ? 'ready'
+              : 'needs-preparation'
+            : null,
         }))
       : installedDomains().map(item => ({
           domain: item.id,
@@ -624,7 +682,7 @@ function registerHandlers() {
     if (!managedPacks) return [];
     const { packs } = await availablePacks();
     return packs.map(
-      ({ domain, label, emoji, summary, prerequisites, version, size, platforms }) => ({
+      ({
         domain,
         label,
         emoji,
@@ -633,8 +691,23 @@ function registerHandlers() {
         version,
         size,
         platforms,
+        runtimeDownloadSize,
+      }) => ({
+        domain,
+        label,
+        emoji,
+        summary,
+        prerequisites,
+        version,
+        size,
+        runtimeDownloadSize,
+        platforms,
       }),
     );
+  });
+  ipcMain.handle('domains:cancel', () => {
+    domainController?.abort(Error('Domain preparation cancelled.'));
+    return { cancelled: Boolean(domainController) };
   });
   ipcMain.handle('domains:install', async (_event, request) => {
     if (!managedPacks) throw Error('Domain installation is available in managed builds.');
@@ -647,25 +720,90 @@ function registerHandlers() {
     )
       throw Error('Choose one or more distinct Domains.');
     sessions.assertIdle();
-    await sessions.reset();
-    projectRuntimes.close();
-    const { manager, packs } = await availablePacks();
-    const selected = request.domains.map(id => {
-      const item = packs.find(pack => pack.domain === id);
-      if (!item) throw Error(`Domain is unavailable for this platform: ${id}`);
-      return item;
-    });
-    for (const item of selected) await manager.install(item);
-    return { installed: installedDomains() };
+    if (domainMutationActive) throw Error('Domain preparation is already in progress.');
+    domainMutationActive = true;
+    domainController = new AbortController();
+    domainProgress = null;
+    try {
+      await sessions.reset();
+      await projectRuntimes.close();
+      const { manager, packs } = await availablePacks({ signal: domainController.signal });
+      const selected = request.domains.map(id => {
+        const item = packs.find(pack => pack.domain === id);
+        if (!item) throw Error(`Domain is unavailable for this platform: ${id}`);
+        return item;
+      });
+      for (const item of selected)
+        await manager.install(item, {
+          prepareRuntime: true,
+          signal: domainController.signal,
+          onProgress: progress => {
+            domainProgress = { domain: item.domain, ...progress };
+            if (!_event.sender.isDestroyed())
+              _event.sender.send('domains:progress', { domain: item.domain, ...progress });
+          },
+        });
+      return { installed: installedDomains() };
+    } finally {
+      domainMutationActive = false;
+      domainController = undefined;
+      domainProgress = null;
+      const sender = _event.sender;
+      if (!sender.isDestroyed())
+        sender.send('domains:progress', {
+          domain: '',
+          label: '',
+          phase: 'finished',
+          active: false,
+        });
+    }
+  });
+  ipcMain.handle('domains:repair', async (event, request) => {
+    if (!managedPacks || typeof request?.domain !== 'string') throw Error('Invalid Domain repair.');
+    sessions.assertIdle();
+    if (domainMutationActive) throw Error('Domain preparation is already in progress.');
+    domainMutationActive = true;
+    domainController = new AbortController();
+    domainProgress = null;
+    try {
+      await sessions.reset();
+      await projectRuntimes.close();
+      packManager.assertIdle(request.domain);
+      const bundle = packManager.list().find(item => item.domain === request.domain);
+      if (!bundle) throw Error('Domain is not installed.');
+      await packManager.runtimeAssets.ensure(bundle.runtimeAssets, {
+        recheck: true,
+        signal: domainController.signal,
+        onProgress: progress => {
+          domainProgress = { domain: request.domain, ...progress };
+          if (!event.sender.isDestroyed())
+            event.sender.send('domains:progress', { domain: request.domain, ...progress });
+        },
+      });
+      return { installed: installedDomains() };
+    } finally {
+      domainMutationActive = false;
+      domainController = undefined;
+      domainProgress = null;
+      const sender = event.sender;
+      if (!sender.isDestroyed())
+        sender.send('domains:progress', {
+          domain: '',
+          label: '',
+          phase: 'finished',
+          active: false,
+        });
+    }
   });
   ipcMain.handle('domains:remove', async (_event, request) => {
     if (!managedPacks || typeof request?.domain !== 'string')
       throw Error('Invalid Domain removal.');
     sessions.assertIdle();
+    if (domainMutationActive) throw Error('Domain preparation is already in progress.');
     if (projectBindings.projects.some(project => project.domain === request.domain))
       throw Error('A Project still uses this Domain.');
     await sessions.reset();
-    projectRuntimes.close();
+    await projectRuntimes.close();
     packManager.remove(request.domain);
     return { installed: installedDomains() };
   });
@@ -778,6 +916,7 @@ function registerHandlers() {
     if (
       [
         '--mcp-selftest',
+        '--subagent-selftest',
         '--external-mcp-selftest',
         '--agent-log-selftest',
         '--chat-selftest',
@@ -884,7 +1023,7 @@ function registerHandlers() {
     changingResources = true;
     try {
       await sessions.reset();
-      projectRuntimes.close();
+      await projectRuntimes.close();
       if (operation === 'add') return await externalRegistry.add(request?.configuration);
       if (typeof request?.id !== 'string') throw Error('Choose an external MCP service.');
       return operation === 'refresh'
@@ -1037,6 +1176,7 @@ function registerHandlers() {
   }
   ipcMain.handle('agent:validate-images', (event, request) => imageRequest(event, request));
   ipcMain.handle('agent:run', async (event, request) => {
+    if (domainMutationActive) throw Error('Finish preparing domains before starting a task.');
     chatRequest(event);
     if (changingResources) throw Error('Resource settings are being saved.');
     if (request?.chatId && request.chatId !== activeChatId)
@@ -1073,11 +1213,16 @@ function registerHandlers() {
       chats.start(turnId);
       let outcome = 'error';
       const emit = event => {
+        if (
+          ['subagent-state', 'background-state'].includes(event.type) &&
+          !entry.agent?.backgroundTasks
+        )
+          entry.backgroundRelease?.();
         chats.append(turnId, event);
         entry.eventRevision = (entry.eventRevision || 0) + 1;
         if (event.type === 'done') outcome = event.result.status;
         if (event.type === 'error') outcome = 'error';
-        if (mainWindow && !mainWindow.webContents.isDestroyed())
+        if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
           mainWindow.webContents.send('agent:event', {
             ...event,
             chatId: entry.id,
@@ -1087,6 +1232,8 @@ function registerHandlers() {
           });
         if (
           [
+            'background-state',
+            'subagent-state',
             'approval',
             'approval-resolved',
             'question',
@@ -1232,6 +1379,8 @@ function registerHandlers() {
 async function createWindow() {
   if (process.argv.includes('--ui-selftest'))
     require('./ui-selftest.cjs').prepare(projectConfigDir());
+  if (process.argv.includes('--subagent-selftest'))
+    await require('./subagent-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--mcp-selftest'))
     await require('./mcp-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--external-mcp-selftest'))
@@ -1256,7 +1405,7 @@ async function createWindow() {
     require('./language-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--engineering-selftest'))
     require('./engineering-selftest.cjs').prepare(projectConfigDir());
-  if (process.argv.includes('--cad-selftest'))
+  if (process.argv.includes('--cad-selftest') || process.argv.includes('--cad-resize-selftest'))
     await require('./cad-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--parallel-selftest'))
     require('./parallel-selftest.cjs').prepare(projectConfigDir());
@@ -1297,15 +1446,27 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // Pixel assertions must keep receiving frames when another test app or
+      // a hosted desktop temporarily covers this window.
+      backgroundThrottling: !process.argv.some(flag => flag.endsWith('-selftest')),
     },
   });
-  if (process.argv.includes('--cad-selftest'))
+  if (process.argv.includes('--cad-selftest') || process.argv.includes('--cad-resize-selftest'))
     window.webContents.on('console-message', event =>
       fs.writeSync(2, 'CAD renderer: ' + event.message + '\n'),
     );
   mainWindow = window;
   if (process.env.INDUSTRIAL_DEV_URL) await window.loadURL(process.env.INDUSTRIAL_DEV_URL);
   else await window.loadURL('app://viewer/index.html');
+  if (process.argv.includes('--cad-install-selftest')) {
+    await require('./selftest-language.cjs').setLanguage(window, 'en');
+    await require('./cad-install-selftest.cjs').run(window, {
+      manager: packManager,
+      runtime: () => projectRuntimes.get(activeProject(), currentRegistry()).runtime,
+    });
+    app.quit();
+    return;
+  }
   if (process.argv.includes('--packaged-smoke')) {
     if (!app.isPackaged) throw Error('Packaged smoke requires an installed app.');
     await require('./selftest-language.cjs').setLanguage(window, 'en');
@@ -1365,31 +1526,10 @@ async function createWindow() {
       await waitFor(
         `window.viewerHost.domainStatus().then(status => status.installed.length === 3)`,
       );
-      const cadAvailable = await window.webContents.executeJavaScript(
-        `Array.from(document.querySelectorAll('.ia-domain-install-row')).some(row => row.textContent.includes('CAD'))`,
-      );
-      if (cadAvailable) {
-        await waitFor(
-          `!Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes('CAD'))?.querySelector('input').disabled`,
-        );
-        await click(
-          `Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes('CAD')).querySelector('input').click()`,
-        );
-        await waitFor(
-          `document.querySelector('.ia-domains-primary')?.textContent.includes('1') && !document.querySelector('.ia-domains-primary').disabled`,
-        );
-        await click(`document.querySelector('.ia-domains-primary').click()`);
-        await waitFor(
-          `window.viewerHost.domainStatus().then(status => status.installed.length === 4)`,
-        );
-      }
       const domains = await window.webContents.executeJavaScript(
         `window.viewerHost.domains().then(items => items.map(item => item.id).sort())`,
       );
-      if (
-        JSON.stringify(domains) !==
-        JSON.stringify(cadAvailable ? ['cad', 'chip', 'godot', 'pcb'] : ['chip', 'godot', 'pcb'])
-      )
+      if (JSON.stringify(domains) !== JSON.stringify(['chip', 'godot', 'pcb']))
         throw Error('Installed Domains did not reach the registry.');
     }
     const screenshot = process.env.HARNESS_PACKAGED_SMOKE_SCREENSHOT;
@@ -1406,6 +1546,12 @@ async function createWindow() {
     !process.argv.includes('--language-selftest')
   )
     await require('./selftest-language.cjs').setLanguage(window, 'en');
+  if (process.argv.includes('--subagent-selftest')) {
+    await require('./selftest-language.cjs').setLanguage(window, 'en');
+    await require('./subagent-selftest.cjs').run(window);
+    app.quit();
+    return;
+  }
   if (process.argv.includes('--mcp-selftest')) {
     await require('./mcp-selftest.cjs').run(window);
     app.quit();
@@ -1436,7 +1582,7 @@ async function createWindow() {
     app.quit();
     return;
   }
-  if (process.argv.includes('--cad-selftest')) {
+  if (process.argv.includes('--cad-selftest') || process.argv.includes('--cad-resize-selftest')) {
     await require('./cad-selftest.cjs').run(window);
     app.quit();
     return;
@@ -1821,6 +1967,7 @@ let shutdownPromise;
 app.on('before-quit', event => {
   if (shutdownComplete) return;
   event.preventDefault();
+  domainController?.abort(Error('Application is shutting down.'));
   if (shutdownPromise) return;
   raster?.close();
   viewerProtocol?.close();
@@ -1831,7 +1978,7 @@ app.on('before-quit', event => {
       await sessions.close();
     } finally {
       try {
-        projectRuntimes.close();
+        await projectRuntimes.close();
       } finally {
         await Promise.allSettled([sessionResources.close(), guiBridge?.close()]);
       }

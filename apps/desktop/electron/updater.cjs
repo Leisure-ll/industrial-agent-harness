@@ -1,16 +1,17 @@
 class CoreUpdater {
-  constructor({ updater, packaged, channel = 'stable', onChange, canInstall }) {
+  constructor({ updater, packaged, configured = true, channel = 'stable', onChange, canInstall }) {
     this.updater = updater;
     this.packaged = packaged;
+    this.configured = configured;
     this.onChange = onChange;
     this.canInstall = canInstall;
     this.state = {
-      status: packaged ? 'idle' : 'development',
+      status: !packaged ? 'development' : configured ? 'idle' : 'unconfigured',
       version: null,
       progress: null,
       error: null,
     };
-    if (!packaged) return;
+    if (!packaged || !configured) return;
     if (!['stable', 'beta'].includes(channel)) throw Error('Invalid Core update channel.');
     updater.channel = channel === 'stable' ? 'latest' : channel;
     updater.allowPrerelease = channel === 'beta';
@@ -39,7 +40,7 @@ class CoreUpdater {
     return this.state;
   }
   async check() {
-    if (!this.packaged) return this.state;
+    if (!this.packaged || !this.configured) return this.state;
     if (
       this.state.status === 'checking' ||
       this.state.status === 'downloading' ||

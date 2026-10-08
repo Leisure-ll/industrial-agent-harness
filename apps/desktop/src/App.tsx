@@ -56,6 +56,7 @@ import { CoreUpdatePanel } from './components/CoreUpdatePanel';
 import { ModelSettings } from './components/ModelSettings';
 import { ProjectDetails } from './components/ProjectDetails';
 import { CreateProjectModal } from './components/CreateProjectModal';
+import { WorkspaceDivider } from './components/WorkspaceDivider';
 import { DomainPill } from './components/DomainPill';
 import { appendDisplayEvents, latestEvent } from './agent-events';
 import { mergeHistoryEvents } from './chat-history';
@@ -104,6 +105,22 @@ export function App() {
   const [rightOpen, setRightOpen] = useState(false);
   const [fileTreeOpen, setFileTreeOpen] = useState(false);
   const workspace = useRef<HTMLElement>(null);
+  const [workspaceWidth, setWorkspaceWidth] = useState<number | null>(() => {
+    try {
+      const saved = Number(localStorage.getItem('ia-workspace-width-v1'));
+      return Number.isFinite(saved) && saved >= 360 && saved <= 10000 ? saved : null;
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    try {
+      if (workspaceWidth === null) localStorage.removeItem('ia-workspace-width-v1');
+      else localStorage.setItem('ia-workspace-width-v1', String(workspaceWidth));
+    } catch {
+      /* Layout remains usable when storage is unavailable. */
+    }
+  }, [workspaceWidth]);
   const [viewerFullscreen, setViewerFullscreen] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
   const [viewNavigation, setViewNavigation] = useState<ViewNavigation | null>(null);
@@ -225,7 +242,7 @@ export function App() {
     setSubmittedTask(last?.task || '');
     setBroker(last?.broker || undefined);
     setAgentEvents(last?.events || []);
-    setAgentBusy(last?.status === 'running');
+    setAgentBusy(Boolean(history.executing) || last?.status === 'running');
     setAgentOwned(Boolean(history.executing));
     setCapabilityDetail(undefined);
     attachments.clear();
@@ -251,6 +268,10 @@ export function App() {
       return;
     setChatList(list.chats);
     setRunningSessions(list.sessions);
+    const selectedSession = list.sessions.find(session => session.chatId === chatIdRef.current);
+    const selectedChat = list.chats.find(chat => chat.id === chatIdRef.current);
+    setAgentBusy(Boolean(selectedSession?.running || selectedChat?.running));
+    setAgentOwned(Boolean(selectedSession));
     if (openSelected && list.activeId) {
       const selectedChatId = chatIdRef.current;
       const history = await readHistory(() =>
@@ -488,7 +509,9 @@ export function App() {
           .catch(reason => {
             if (chatId === chatIdRef.current) setBrokerError(String(reason));
           });
-      if (event.type === 'done' || event.type === 'error') setAgentBusy(false);
+      if (event.type === 'background-state' && event.running) setAgentBusy(true);
+      if (event.type === 'done' || event.type === 'error')
+        void refreshChats().catch(reason => setError(String(reason)));
       if (
         event.type === 'error' ||
         (event.type === 'done' && event.result.status === 'cancelled')
@@ -1499,7 +1522,19 @@ export function App() {
           )}
         </main>
         {rightOpen && (
-          <section ref={workspace} className="ia-viewer ia-workspace">
+          <WorkspaceDivider
+            workspace={workspace}
+            width={workspaceWidth}
+            onChange={setWorkspaceWidth}
+            fullscreen={viewerFullscreen}
+          />
+        )}
+        {rightOpen && (
+          <section
+            ref={workspace}
+            className="ia-viewer ia-workspace"
+            style={workspaceWidth === null ? undefined : { flexBasis: workspaceWidth }}
+          >
             <header className="ia-viewer-header">
               <div>
                 <File size={14} />

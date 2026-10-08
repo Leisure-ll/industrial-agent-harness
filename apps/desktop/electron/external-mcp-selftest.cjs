@@ -106,6 +106,7 @@ async function run(window) {
       { name: 'external_tool_call', arguments: { toolId: screenshot, arguments: {} } },
       { name: 'external_tool_describe', arguments: { toolId: click } },
       { name: 'external_tool_call', arguments: { toolId: click, arguments: { x: 40, y: 60 } } },
+      { name: 'external_tool_call', arguments: { toolId: click, arguments: { x: 13, y: 25 } } },
     );
     fs.writeFileSync(
       path.join(evidence, 'external-mcp-settings.png'),
@@ -140,6 +141,18 @@ async function run(window) {
     const approvals = calls.filter(call => call.name === 'external_tool_call').length;
     for (let index = 0; index < approvals; index++) {
       await wait(`Boolean(document.querySelector('.ia-approval button'))`);
+      const approvalId = await evaluate(
+        `document.querySelector('.ia-approval').dataset.approvalId`,
+      );
+      const preview = await evaluate(
+        `document.querySelector('.ia-approval-operation')?.textContent`,
+      );
+      assert.match(preview, /computer-use/);
+      assert.match(preview, /screenshot|click/);
+      if (preview.includes('click')) {
+        assert.match(preview, index === 1 ? /40/ : /13/);
+        assert.match(preview, index === 1 ? /60/ : /25/);
+      }
       if (index === 0) {
         const rejected = await evaluate(
           `window.viewerHost.externalMcpRemove('external.computer-use').then(()=>false,error=>String(error))`,
@@ -147,12 +160,16 @@ async function run(window) {
         assert.match(rejected, /running|active|stop|busy/i);
       }
       await evaluate(`document.querySelector('.ia-approval button').click()`);
-      await wait(`!document.querySelector('.ia-approval')`);
+      await wait(
+        `document.querySelector('.ia-approval')?.dataset.approvalId !== ${JSON.stringify(approvalId)}`,
+      );
     }
     await wait(
       `document.querySelector('.ia-agent-flow')?.innerText.includes('EXTERNAL_MCP_CONFIRMED')&&!document.querySelector('button[title="Stop agent"]')`,
     );
-    assert.deepEqual(JSON.parse(fs.readFileSync(marker)).arguments, { x: 40, y: 60 });
+    const clickEvidence = JSON.parse(fs.readFileSync(marker));
+    assert.deepEqual(clickEvidence.arguments, { x: 13, y: 25 });
+    assert.equal(clickEvidence.count, 2, 'Both desktop clicks must use the same service process.');
     assert.ok(
       fixture.requests.some(request =>
         JSON.stringify(request.messages).includes('data:image/png;base64,'),

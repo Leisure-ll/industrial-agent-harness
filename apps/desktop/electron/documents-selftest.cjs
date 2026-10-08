@@ -2,7 +2,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { saveBindings } = require('./project-bindings.cjs');
-const { verifyNavigation, verifyWheel } = require('./navigation-selftest.cjs');
+const {
+  verifyNavigation,
+  verifyWheel,
+  transitionFullscreen,
+} = require('./navigation-selftest.cjs');
 let directory;
 let originals;
 function prepare(config) {
@@ -186,10 +190,10 @@ async function run(window) {
       `Array.from(document.querySelectorAll('.rp-json-toggle')).find(button => button.querySelector('b')?.textContent === 'nested').click()`,
     );
     await wait(`document.querySelector('.rp-document-json').textContent.includes('answer')`);
-    await evaluate(
-      `document.querySelector('button[aria-label="Zoom in"]').click();document.querySelector('button[aria-label="Fullscreen viewer"]').click()`,
+    await evaluate(`document.querySelector('button[aria-label="Zoom in"]').click()`);
+    await transitionFullscreen(window, true, () =>
+      evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`),
     );
-    await wait(`Boolean(document.fullscreenElement)`);
     assert.equal(
       await evaluate(`document.querySelector('output[aria-label="Viewer zoom"]').textContent`),
       '120%',
@@ -197,9 +201,10 @@ async function run(window) {
     assert.ok(
       await evaluate(`document.querySelector('.rp-document-json').textContent.includes('answer')`),
     );
-    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
-    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
-    await wait(`!document.fullscreenElement`);
+    await transitionFullscreen(window, false, () => {
+      window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+      window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+    });
     assert.ok(
       await evaluate(`document.querySelector('.rp-document-json').textContent.includes('answer')`),
     );

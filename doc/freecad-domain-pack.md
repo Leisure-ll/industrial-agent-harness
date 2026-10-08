@@ -1,6 +1,6 @@
 # FreeCAD CAD Pack V1
 
-2026-10-04：首批面向 3D 零件建模。实际执行依赖官方 **FreeCAD 1.1.4 macOS arm64**；Windows/Linux 原生 CAD 执行尚未验收。Pack 包含 Harness 自有桥接代码与 Skill，不捆绑 FreeCAD 二进制。上游来源和许可证见 [FreeCAD 1.1.4](https://github.com/FreeCAD/FreeCAD/releases/tag/1.1.4) 与 [FreeCAD license](https://github.com/FreeCAD/FreeCAD/blob/1.1.4/LICENSE)。
+2026-10-04：首批面向 3D 零件建模。实际执行依赖官方 **FreeCAD 1.1.4 macOS arm64**；Windows/Linux 原生 CAD 执行尚未验收。Pack 包含 Harness 自有桥接代码、Skill 和固定依赖声明，不捆绑 FreeCAD 二进制。2026-10-06 起，Apple Silicon 桌面安装包内置可选 CAD Pack，选择后自动下载官方 DMG 并准备用户私有运行时；设置内可检查／修复，无需手动配置命令路径。开发源代码模式仍支持显式命令环境变量。见[分发说明](macos-cad-distribution.md)。上游来源和许可证见 [FreeCAD 1.1.4](https://github.com/FreeCAD/FreeCAD/releases/tag/1.1.4) 与 [FreeCAD license](https://github.com/FreeCAD/FreeCAD/blob/1.1.4/LICENSE)。
 
 ## 工具与执行
 
@@ -49,7 +49,7 @@ Desktop 和 CLI 均通过 `createProjectRuntime` 加载 `freecad-local` Pack。B
 
 项目文件树经 Viewer Registry 选择 CAD Viewer。直接打开二进制/ASCII STL；Pack 输出的 FCStd/STEP 使用同名 BREP/STL 与 `*.cad-preview.json`，同时校验模型、曲面和网格 SHA-256。不含配套预览的 FCStd 会明确要求先运行 inspect/export；不含配套预览的 STEP 保留现有受限 STEP 预览。
 
-只读实体显示、拖动旋转、Shift/右键拖动平移、滚轮/触控板缩放、共享缩放/Fit、全屏和 Esc；全屏保留旋转和缩放。使用官方开源 **OCCT 7.9.2 AIS/V3d/TKOpenGles**，按上游 WebGL 示例路径编译本地 WebAssembly，以 WebGL2 显示 BREP 曲面、CAD 轮廓、深度遮挡与 4x MSAA。STL 和旧产物使用 OCCT AIS_Triangulation。文件上限 16 MiB、100000 三角形、5000 BREP 面，WASM 内存上限 512 MiB；加载失败禁用导航，切换文件释放 GPU 对象，无外部网络请求。需 WebGL2；固定来源、完整源码、许可证和重编译说明见 [OCCT renderer](../packages/viewer-builtin/src/cad/occt/README.md)。Viewer 不能编辑模型、验证装配或替代 FreeCAD。实际 Desktop 路径在 macOS arm64 Electron 验证，其他 Viewer 平台尚未实测。
+只读实体显示、拖动旋转、Shift/右键拖动平移、滚轮/触控板缩放、共享缩放/Fit、全屏和 Esc；全屏保留旋转和缩放，窗口/工作区宽度与全屏变化保持模型比例；Fit 恢复初始视角。工作区分隔线可拖动或键盘调整、双击恢复默认。使用官方开源 **OCCT 7.9.2 AIS/V3d/TKOpenGles**，按上游 WebGL 示例路径编译本地 WebAssembly，以 WebGL2 显示 BREP 曲面、CAD 轮廓、深度遮挡与 4x MSAA。STL 和旧产物使用 OCCT AIS_Triangulation。文件上限 16 MiB、100000 三角形、5000 BREP 面，WASM 内存上限 512 MiB；加载失败禁用导航，切换文件释放 GPU 对象，无外部网络请求。需 WebGL2；固定来源、完整源码、许可证和重编译说明见 [OCCT renderer](../packages/viewer-builtin/src/cad/occt/README.md)。Viewer 不能编辑模型、验证装配或替代 FreeCAD。实际 Desktop 路径在 macOS arm64 Electron 验证，其他 Viewer 平台尚未实测。
 
 ## 剖切、选择、测量与草图约束
 
@@ -70,3 +70,6 @@ Desktop 和 CLI 均通过 `createProjectRuntime` 加载 `freecad-local` Pack。B
 macOS 15 与 26 arm64 native CI 通过 `scripts/setup-freecad.cjs` 下载官方 arm64 DMG，校验固定 SHA-256 `071343b4abb70492b75c973f41eaf1d2528f9b9c7ea018d22a4f46ae14d27ac0`，只读挂载并把可执行路径提供给测试。原生测试缺少依赖直接失败，不以 skip 代替成功；CI 下载二进制不会进入 Pack 发行档案。
 
 FreeCAD 的 macOS 配置路径不只依赖 `HOME`。桥接器在启动前创建 Action 内独立配置、数据与临时目录，通过上游 `FREECAD_USER_HOME`、`FREECAD_USER_DATA`、`FREECAD_USER_TEMP` 指定路径，并使用官方 `--keep-deprecated-paths`，避免 FreeCAD 1.1 在采用自定义缓存前创建 Qt 全局版本目录；系统沙箱仍只允许写入本次 Action。建模和独立回读均记录并检查 FreeCAD 实际采用的配置、数据、缓存、宏与临时路径，避免依赖用户已有的全局目录或加载其宏。初次全新 CI 环境曾在初始化阶段 SIGSEGV；崩溃栈位于初始化异常报告中的 Python 路径读取，不能据此判定操作系统不兼容。失败保留退出信号、系统诊断与未验收状态，CI 同时保留真实 Viewer 截图与日志。
+
+
+2026-10-07 增加 `test:cad-resize`：沿用原生检查，另用真实 OCCT 渲染像素验证拖动分隔线、280 px 最小聊天宽度、键盘调整、复位、小窗口和全屏前后的比例变化。发布整改与本地安装验收见[整改记录](release-readiness-20261007.md)。

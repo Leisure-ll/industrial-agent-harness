@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { transitionFullscreen } = require('./navigation-selftest.cjs');
 async function verifyInspection(window, project) {
   const fs = require('node:fs'),
     path = require('node:path'),
@@ -143,25 +144,15 @@ async function verifyInspection(window, project) {
     2,
   );
   const selected = await evaluate(`document.querySelector('.rp-cad').dataset.selected`);
-  await evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`);
-  // DOM fullscreen precedes the native macOS entrance animation. Exiting during
-  // that animation is rejected by Electron, so wait before exercising exit.
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await transitionFullscreen(window, true, () =>
+    evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`),
+  );
   assert.equal(await evaluate(`document.querySelector('.rp-cad').dataset.selected`), selected);
   // Esc is already exercised by cad-selftest; use the other shared exit path
   // here so background packaged runs do not depend on native keyboard focus.
-  await evaluate(`document.querySelector('button[aria-label="Exit viewer fullscreen"]').click()`);
-  // macOS native fullscreen finishes its window transition after the DOM exits.
-  // Capture and project dimensions only after both layouts have settled.
-  const exitDeadline = Date.now() + 25000;
-  while (await evaluate(`Boolean(document.fullscreenElement)`)) {
-    if (Date.now() > exitDeadline)
-      throw Error(
-        'Fullscreen exit did not finish: ' +
-          (await evaluate(`document.body.innerText.slice(-1000)`)),
-      );
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
+  await transitionFullscreen(window, false, () =>
+    evaluate(`document.querySelector('button[aria-label="Exit viewer fullscreen"]').click()`),
+  );
   await new Promise(resolve => setTimeout(resolve, 1000));
   assert.equal(await evaluate(`Boolean(document.fullscreenElement)`), false);
   assert.equal(
