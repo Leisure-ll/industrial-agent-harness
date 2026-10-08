@@ -118,14 +118,27 @@ function assess(summary, skipped, allowed = []) {
   return { ok, unexpectedSkips };
 }
 
-async function runFiles({ suite, files, reportDirectory, allowed = [] }) {
+async function runFiles({
+  suite,
+  files,
+  reportDirectory,
+  allowed = [],
+  timeout = suite === 'portable' ? 180000 : undefined,
+}) {
   if (files.length === 0) throw Error('CI test catalog is empty.');
   for (const file of files) {
     if (!fs.statSync(file).isFile()) throw Error(`Missing CI test: ${file}`);
   }
   const skipped = [];
   let summary;
-  const stream = run({ files, execArgv: [], concurrency: suite.startsWith('native') ? 2 : 4 });
+  // Abort a stalled portable suite, including leaked handles after tests pass.
+  // A timeout still fails the gate; it must never become a platform skip.
+  const stream = run({
+    files,
+    execArgv: [],
+    concurrency: suite.startsWith('native') ? 2 : 4,
+    ...(timeout ? { signal: AbortSignal.timeout(timeout) } : {}),
+  });
   stream.on('test:pass', data => {
     if (data.skip) skipped.push(data.name);
   });
