@@ -165,6 +165,32 @@ for (const phase of ['prepare', 'start']) {
     assert.equal(tasks.operations.size, 0);
   });
 }
+test('shutdown during input observation keeps its context database open until the pending write settles', async t => {
+  const { tasks, entry, project } = fixture(t);
+  await tasks.prepare(entry, { task: 'create a file' });
+  const file = path.join(project.path, 'input.txt');
+  fs.writeFileSync(file, 'observed input');
+  const context = tasks.context(entry);
+  const observe = context.observeArtifact.bind(context);
+  let entered, resume;
+  const observing = new Promise(resolve => (entered = resolve));
+  const gate = new Promise(resolve => (resume = resolve));
+  context.observeArtifact = async input => {
+    entered();
+    await gate;
+    return observe(input);
+  };
+  const pending = tasks.start(entry, 'create a file', {
+    artifacts: new Map([['input', { file, metadata: { kind: 'text' } }]]),
+  });
+  const rejected = assert.rejects(pending, /Task session is unavailable/);
+  await observing;
+  const closing = tasks.close();
+  resume();
+  await rejected;
+  await closing;
+  assert.equal(entry.agent, undefined, 'shutdown prevents native startup after input capture');
+});
 test('background tasks retain leases until their native completion; cancel and approval use the same session', async t => {
   class Background extends Kernel {
     async run() {

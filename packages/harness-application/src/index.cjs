@@ -411,11 +411,8 @@ class TaskService {
       for (const close of [
         async () => {
           try {
-            await this.sessions.close();
+            await this.sessions.close(() => Promise.all([...this.operations]));
           } finally {
-            // Preparation/startup may still be inspecting state or observing
-            // inputs. Drain them before closing their Runtime and chat stores.
-            await Promise.all([...this.operations]);
             const completed = await Promise.allSettled(active.map(entry => entry.completion));
             errors.push(
               ...completed

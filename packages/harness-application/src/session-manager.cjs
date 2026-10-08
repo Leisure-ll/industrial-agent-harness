@@ -96,19 +96,22 @@ class SessionManager {
       awaitingQuestion: Boolean(entry.agent?.pendingQuestions?.size),
     }));
   }
-  async close() {
+  async close(beforeRelease) {
     if (this.closePromise) return this.closePromise;
     this.closing = true;
-    this.closePromise = this.dispose();
+    this.closePromise = this.dispose(beforeRelease);
     return this.closePromise;
   }
-  async dispose() {
+  async dispose(beforeRelease) {
     try {
-      const results = await Promise.allSettled(
-        this.matching().map(async entry => {
-          try {
-            await entry.agent?.close();
-          } finally {
+      const entries = this.matching();
+      const results = await Promise.allSettled(entries.map(async entry => entry.agent?.close()));
+      results.push(
+        ...(await Promise.allSettled([Promise.resolve().then(() => beforeRelease?.())])),
+      );
+      results.push(
+        ...(await Promise.allSettled(
+          entries.map(async entry => {
             const release = entry.release,
               releasePack = entry.releasePack;
             entry.release = entry.releasePack = undefined;
@@ -121,8 +124,8 @@ class SessionManager {
                 entry.context?.close();
               }
             }
-          }
-        }),
+          }),
+        )),
       );
       throwFailures(results);
     } finally {
