@@ -17,7 +17,7 @@
     "package:chip": "node scripts/package-chip.cjs",
     "package:domains": "node scripts/build-domain-packs.cjs",
     "stage:desktop": "node scripts/stage-desktop.cjs",
-    "test:architecture": "node --test tests/architecture/*.test.cjs",
+    "test:architecture": "node scripts/check-architecture-contract.cjs && node --test tests/architecture/*.test.cjs",
     "test:industrial-core": "node --test tests/integration/industrial-core*.test.cjs",
     "test:ci": "node scripts/ci-tests.cjs",
     "smoke:ci-packages": "node scripts/ci-package-smoke.cjs",
@@ -35,7 +35,8 @@
     "test:session-chaos": "node --test tests/integration/session-chaos-kimi.test.cjs",
     "test:release": "node scripts/check-pack-release.cjs",
     "test:benchmark": "node --test tests/benchmark/*.test.cjs",
-    "benchmark:paired": "node scripts/benchmark-paired.cjs"
+    "benchmark:paired": "node scripts/benchmark-paired.cjs",
+    "test:architecture-contract": "node scripts/check-architecture-contract.cjs && node --test tests/architecture/contract-policy.test.cjs"
   },
   "devDependencies": {
     "prettier": "3.6.2"
