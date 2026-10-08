@@ -173,3 +173,7 @@ pnpm run format:check
 所有领域共用的初始化、编辑、本地/Docker 任务和外部 MCP 见[共享工程底座](doc/shared-workspace.md)。打包消费者 CI 验证空工程创建、失败和修复；专业工具、模型及签核由 Pack/工程负责。
 
 工程审批展示文件差异、声明命令和外部参数。`doctor` 无需模型即可检查执行前提；工作区筛选与显式本地依赖目录见[共享工程底座](doc/shared-workspace.md)。外部 MCP 在当前聊天进程内保留连接状态，状态丢失时明确失败。
+
+### 内置远程运行（内部体验）
+
+项目可选择本机或知满远程，首次上传展示目的地和文件清单，聊天内显示任务状态。Desktop/CLI 共用 Remote Runtime，已准入领域工具在现有有限 CPU 沙箱池执行。公网地址与登录默认配置留空；已验证 macOS Apple Silicon 客户端连接 H200 Linux 进行真实 RTL 检查，公网接入及其他远程领域仍待验收。见[内置远程运行](doc/remote-execution.md)。

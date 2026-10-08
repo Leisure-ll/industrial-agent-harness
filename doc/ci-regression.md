@@ -18,6 +18,8 @@
 
 `scripts/ci-tests.cjs` 记录执行文件、平台、Node 版本、计数与跳过项；零测试、失败、取消、TODO 或未登记跳过都失败。原生闭环和独立 RTL benchmark 不允许跳过，缺少对应门禁要求的 Kimi、Python Runtime、FreeCAD、Verilator 或 Icarus 会失败。回归 JSON 与桌面/原生/CLI 日志通过 Actions artifacts 保留 14 天；失败和取消时也尝试上传已产生的证据。更新 PR 会取消同一 PR 的旧运行。
 
+Portable 测试流设有三分钟的终止信号；测试已通过但进程仍持有未清理的句柄时，也会中止并记录失败文件，避免等待整个 job 到期。超时与取消仍导致门禁失败。原生工业套件沿用原有时限。
+
 有三类明确的覆盖缺口，保留在报告中：
 
 - 基础层允许跳过可选的 KLayout 原生渲染测试；未安装 KLayout 的机器仍执行其余 Viewer 测试。该门禁不证明 GDS 渲染可用。

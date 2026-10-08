@@ -48,6 +48,7 @@ class ChatStore {
       CREATE INDEX IF NOT EXISTS chat_turns ON turns(chat_id);
       CREATE INDEX IF NOT EXISTS running_turns ON turns(chat_id) WHERE status = 'running';
       CREATE INDEX IF NOT EXISTS chat_runtime_sessions ON runtime_sessions(chat_id);
+      CREATE TABLE IF NOT EXISTS chat_preferences (chat_id TEXT PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE, approval_mode TEXT NOT NULL CHECK(approval_mode IN ('ask', 'auto')));
       CREATE TABLE IF NOT EXISTS chat_events (turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE, sequence INTEGER NOT NULL, type TEXT NOT NULL, event_json TEXT NOT NULL, PRIMARY KEY(turn_id, sequence));`);
     if (!version) this.db.exec('PRAGMA user_version = 1');
     this.recoverInterrupted();
@@ -106,6 +107,7 @@ class ChatStore {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       archived: Boolean(row.archived),
+      approvalMode: this.approvalMode(id),
     };
   }
   list(projectDir, domain) {
@@ -120,7 +122,32 @@ class ChatStore {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         archived: false,
+        approvalMode: this.approvalMode(row.id),
       }));
+  }
+  approvalMode(chatId) {
+    return (
+      this.statement('SELECT approval_mode FROM chat_preferences WHERE chat_id = ?').get(chatId)
+        ?.approval_mode || 'ask'
+    );
+  }
+  setApprovalMode(chatId, projectDir, domain, mode) {
+    this.get(chatId, projectDir, domain);
+    if (!['ask', 'auto'].includes(mode)) throw Error('Invalid approval mode.');
+    return this.transaction(() => {
+      const lock = this.statement('SELECT owner_pid FROM execution_locks WHERE chat_id = ?').get(
+        chatId,
+      );
+      if (
+        (lock && alive(lock.owner_pid)) ||
+        this.statement("SELECT id FROM turns WHERE chat_id = ? AND status = 'running'").get(chatId)
+      )
+        throw Error('Stop this chat before changing approval mode.');
+      this.statement(
+        'INSERT INTO chat_preferences (chat_id, approval_mode) VALUES (?, ?) ON CONFLICT(chat_id) DO UPDATE SET approval_mode = excluded.approval_mode',
+      ).run(chatId, mode);
+      return mode;
+    });
   }
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE');

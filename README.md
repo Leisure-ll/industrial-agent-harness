@@ -173,3 +173,7 @@ Bundled renderers, fonts, dependencies and separately installed tools retain the
 Shared initialization, editing, declared local/Docker tasks and external MCP are documented in [Shared workspace](doc/shared-workspace.md). Packaged consumer CI exercises empty-project creation, failing checks and repair; specialized tools, models and sign-off remain Pack/project responsibilities.
 
 Workspace approvals show file diffs, declared commands and external arguments. `doctor` checks execution prerequisites without a model; workspace selection and explicit local dependency roots are described in [Shared workspace](doc/shared-workspace.md). External MCP preserves connection state within the current chat process and fails visibly if that state is lost.
+
+### Built-in remote execution (internal trial)
+
+Projects can choose this computer or Zhiman Remote, with explicit file upload review and compact job status. Desktop and CLI share the Remote Runtime; qualified domain tools execute in the existing fixed CPU sandbox pool. Public endpoint and sign-in defaults remain unset. The macOS Apple Silicon client → H200 Linux RTL path is verified; public access and other remote domains are pending. See [remote execution](doc/remote-execution.md).

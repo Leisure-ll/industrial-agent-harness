@@ -115,12 +115,14 @@ function prepareSessionFiles(scope, runtime, persistentDirectory, projectDir, pl
     );
     writeMcpConfig(
       directory,
-      selectMcpServers(
-        scope,
-        runtime.disabledMcpServers,
-        undefined,
-        runtime.hostRuntimeExternal ? [] : runtime.externalServers,
-      ),
+      runtime.hostRuntimeOnly
+        ? []
+        : selectMcpServers(
+            scope,
+            runtime.disabledMcpServers,
+            undefined,
+            runtime.hostRuntimeExternal ? [] : runtime.externalServers,
+          ),
       {
         projectDir,
         environment: runtime.environment,
@@ -316,12 +318,14 @@ class KimiSession {
     if (images.length && !runtime.profile.imageInput)
       throw Error('Enable Image input in Model API settings for a model that supports images.');
     const currentScopeKey = scopeKey(scope);
-    const mcpRuntime = selectedRuntimeKey(
-      scope,
-      runtime.disabledMcpServers,
-      runtime.environment,
-      runtime.externalServers,
-    );
+    const mcpRuntime = this.diagnostics.industrialRuntime?.hostRuntimeOnly
+      ? { hostRuntime: this.diagnostics.industrialRuntime.compatibilityKey() }
+      : selectedRuntimeKey(
+          scope,
+          runtime.disabledMcpServers,
+          runtime.environment,
+          runtime.externalServers,
+        );
     const currentMcpKey = JSON.stringify(mcpRuntime);
     const pluginKey = JSON.stringify(enabledPlugins(plugins).map(plugin => plugin.name));
     this.activePluginTools = new Set(
@@ -494,7 +498,10 @@ class KimiSession {
         }
         this.sessionConfigDir = prepareSessionFiles(
           scope,
-          runtime,
+          {
+            ...runtime,
+            hostRuntimeOnly: Boolean(this.diagnostics.industrialRuntime?.hostRuntimeOnly),
+          },
           stored?.shareDir,
           this.workDir,
           plugins,
@@ -521,6 +528,7 @@ class KimiSession {
             projectDir: this.workDir,
             protectedPaths: this.diagnostics.protectedPaths || [],
             environment: { ...process.env, ...runtime.env },
+            hostOnlyEnv: this.diagnostics.industrialRuntime?.hostOnlyEnv || [],
             kimiProjectAccess: true,
           });
           this.emitAgent({ type: 'execution-boundary', ...this.processSandbox.boundary });

@@ -86,9 +86,11 @@ const { createViewerRegistry } = require('@industrial-agent-harness/viewer-core/
 const { resolve, discloseDetail } = require('@industrial-agent-harness/capability-broker');
 const {
   resolveProjectTask,
+  runtimeCapabilities,
   effectiveCapabilities,
   resourceCatalog: baseResourceCatalog,
   ResourceSettings,
+  RemoteSettings,
   ChatStore,
   defaultChatDirectory,
   ExternalMcpRegistry,
@@ -256,7 +258,7 @@ const coreUpdater = new CoreUpdater({
 });
 let sessionApiKey = '';
 let modelRevision = 0;
-let appSettings = { guiPluginEnabled: false, approvalMode: 'ask' };
+let appSettings = { guiPluginEnabled: false };
 let guiBridge;
 const chats = new ChatStore(
   process.argv.some(flag => flag.endsWith('-selftest'))
@@ -320,12 +322,13 @@ function sessionContext(entry) {
 }
 async function resolveSessionTask(entry, request, registry) {
   entry.runtimeBundle = projectRuntimes.get(entry.project, registry);
+  if (entry.runtimeBundle?.runtime.hostRuntimeOnly) entry.externalServers = [];
   const state = entry.runtimeBundle ? await entry.runtimeBundle.runtime.inspect() : null;
   return resolveProjectTask(
     entry.project.domain,
     { ...request, ...(state ? { state } : {}) },
     entry.scope,
-    [...registry.capabilities, ...(entry.runtimeBundle?.capabilities || [])],
+    runtimeCapabilities(registry, entry.runtimeBundle),
     projectResourcePolicy(entry.project),
     entry.externalServers,
     registry.domains,
@@ -348,7 +351,9 @@ const resourceSettings = new ResourceSettings(
     : undefined,
 );
 const externalRegistry = new ExternalMcpRegistry(path.dirname(resourceSettings.file));
+const remoteSettings = new RemoteSettings({ directory: path.dirname(resourceSettings.file) });
 const projectRuntimes = new ProjectRuntimes({
+  remoteSettings,
   ...contextStoreOptions(),
   environment: {
     ...process.env,
@@ -379,7 +384,16 @@ function activeProject() {
   return projectBindings.projects.find(item => item.id === projectBindings.activeId) || null;
 }
 function projectSnapshot() {
-  return { ...projectBindings, projectDir: projectDir || null };
+  return {
+    ...projectBindings,
+    projects: projectBindings.projects.map(project => ({
+      ...project,
+      executionLocation: project.domain
+        ? remoteSettings.project(project.path, project.domain).location
+        : 'local',
+    })),
+    projectDir: projectDir || null,
+  };
 }
 function clearProjectArtifacts() {
   contextStore?.close();
@@ -482,7 +496,7 @@ function startGuiInstall() {
     });
   return guiInstallPromise;
 }
-function runtimeConfig(project = activeProject(), externalServers = externalRegistry.records()) {
+function runtimeConfig(project, externalServers, chatId) {
   const profile = readProfile(configDir());
   const apiKey = readApiKey();
   return {
@@ -494,7 +508,7 @@ function runtimeConfig(project = activeProject(), externalServers = externalRegi
     env: sessionEnv(profile, apiKey),
     disabledMcpServers: projectResourcePolicy(project).mcpServers,
     externalServers,
-    approvalMode: appSettings.approvalMode,
+    approvalMode: chats.get(chatId, project.path, project.domain).approvalMode,
   };
 }
 
@@ -843,7 +857,7 @@ function registerHandlers() {
     const detail = discloseDetail(
       entry.scope,
       effectiveCapabilities(
-        [...currentRegistry().capabilities, ...(entry.runtimeBundle?.capabilities || [])],
+        runtimeCapabilities(currentRegistry(), entry.runtimeBundle),
         projectResourcePolicy(entry.project),
       ),
       capabilityId,
@@ -863,18 +877,6 @@ function registerHandlers() {
   ipcMain.handle('broker:trace', () => selectedSession().trace);
   ipcMain.handle('model:get', () => modelStatus());
   ipcMain.handle('settings:gui-state', () => guiBridgeState());
-  ipcMain.handle('settings:approval-mode', () => appSettings.approvalMode);
-  ipcMain.handle('settings:set-approval-mode', (event, mode) => {
-    if (
-      event.sender !== mainWindow?.webContents ||
-      event.senderFrame !== mainWindow.webContents.mainFrame
-    )
-      throw Error('Settings require the main app window.');
-    if (!['ask', 'auto'].includes(mode)) throw Error('Invalid approval mode.');
-    appSettings = { ...appSettings, approvalMode: mode };
-    saveSettings(configDir(), appSettings);
-    return mode;
-  });
   ipcMain.handle('settings:gui-permission-settings', async (event, permission) => {
     if (
       event.sender !== mainWindow?.webContents ||
@@ -1007,6 +1009,75 @@ function registerHandlers() {
       throw Error('Open this project before configuring resources.');
     return request?.projectId !== undefined ? activeProject() : null;
   }
+  function executionProject(event, request) {
+    const project = resourceProject(event, request);
+    if (!project?.domain) throw Error('Choose a project with a domain.');
+    return project;
+  }
+  ipcMain.handle('remote:service', event => {
+    resourceProject(event, {});
+    return remoteSettings.view();
+  });
+  ipcMain.handle('remote:check', async event => {
+    resourceProject(event, {});
+    return remoteSettings.check();
+  });
+  ipcMain.handle('remote:project', async (event, request) => {
+    const project = executionProject(event, request);
+    const binding = remoteSettings.project(project.path, project.domain);
+    if (remoteSettings.view().status === 'unchecked') await remoteSettings.check();
+    return {
+      location: binding.location,
+      files: binding.files || [],
+      syncedAt: binding.syncedAt || null,
+      task: remoteSettings.task(project.path, project.domain),
+      service: remoteSettings.view(),
+    };
+  });
+  ipcMain.handle('remote:files', (event, request) => {
+    const project = executionProject(event, request);
+    return remoteSettings.candidates(project.path);
+  });
+  async function executionChange(event, request, operation) {
+    const project = executionProject(event, request);
+    if (changingResources) throw Error('Settings are being saved.');
+    sessions.assertIdle(project.id);
+    changingResources = true;
+    try {
+      await sessions.reset(project.id);
+      await projectRuntimes.reset(project);
+      const result = await operation(project);
+      notifySessions();
+      return result;
+    } finally {
+      changingResources = false;
+    }
+  }
+  ipcMain.handle('remote:set-location', (event, request) =>
+    executionChange(event, request, project => {
+      remoteSettings.setLocation(project.path, project.domain, request.location);
+      return projectSnapshot();
+    }),
+  );
+  ipcMain.handle('remote:review', (event, request) =>
+    executionChange(event, request, project =>
+      remoteSettings.review(project.path, project.domain, request.files),
+    ),
+  );
+  ipcMain.handle('remote:sync', (event, request) =>
+    executionChange(event, request, async project => {
+      await remoteSettings.sync(project.path, project.domain, request.reviewId);
+      return projectSnapshot();
+    }),
+  );
+  ipcMain.handle('remote:task', async (event, request) => {
+    const project = executionProject(event, request);
+    return remoteSettings.refreshTask(project.path, project.domain);
+  });
+  ipcMain.handle('remote:cancel', async (event, request) => {
+    const project = executionProject(event, request);
+    return remoteSettings.cancelTask(project.path, project.domain, request);
+  });
   ipcMain.handle('resource:get', (event, request) => {
     const project = resourceProject(event, request);
     return resourceSettings.snapshot(resourceCatalog(project?.domain), project?.path);
@@ -1131,6 +1202,17 @@ function registerHandlers() {
     const history = chatHistory(id);
     activeChatId = id;
     return history;
+  });
+  ipcMain.handle('chat:set-approval-mode', (event, request) => {
+    chatRequest(event);
+    const project = activeProject();
+    if (request?.projectId !== project.id || request?.chatId !== activeChatId)
+      throw Error('Approval mode belongs to the selected chat.');
+    if (sessions.busy(sessions.find(request.chatId)))
+      throw Error('Stop this chat before changing approval mode.');
+    const mode = chats.setApprovalMode(request.chatId, project.path, project.domain, request.mode);
+    notifySessions();
+    return mode;
   });
   ipcMain.handle('chat:delete', async (event, id) => {
     chatRequest(event);
@@ -1268,7 +1350,7 @@ function registerHandlers() {
         id => sessionContext(entry).readArtifact(id),
         id => loadDetail(id, entry),
         emit,
-        () => runtimeConfig(entry.project, entry.externalServers),
+        () => runtimeConfig(entry.project, entry.externalServers, entry.id),
         process.argv.includes('--parallel-selftest')
           ? require('./parallel-selftest.cjs').createSession
           : process.argv.includes('--image-input-selftest')
@@ -1287,7 +1369,7 @@ function registerHandlers() {
               entry.project.domain,
               { ...entry.resolvedRequest, state: result.state },
               entry.scope,
-              [...registry.capabilities, ...entry.runtimeBundle.capabilities],
+              runtimeCapabilities(registry, entry.runtimeBundle),
               projectResourcePolicy(entry.project),
               entry.externalServers,
               registry.domains,

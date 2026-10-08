@@ -268,6 +268,25 @@ export interface ViewerHostApi {
     mode: ResourceMode;
   }): Promise<ResourceSettingsSnapshot>;
   resourceCatalog(): Promise<ResourceCatalog>;
+  remoteService(): Promise<RemoteServiceState>;
+  remoteCheck(): Promise<RemoteServiceState>;
+  remoteProject(request: { projectId: string }): Promise<RemoteProjectState>;
+  remoteFiles(request: { projectId: string }): Promise<string[]>;
+  remoteSetLocation(request: {
+    projectId: string;
+    location: 'local' | 'remote';
+  }): ReturnType<ViewerHostApi['projectBindings']>;
+  remoteReview(request: { projectId: string; files: string[] }): Promise<RemoteSyncReview>;
+  remoteSync(request: {
+    projectId: string;
+    reviewId: string;
+  }): ReturnType<ViewerHostApi['projectBindings']>;
+  remoteTask(request: { projectId: string }): Promise<RemoteTaskState | null>;
+  remoteCancel(request: {
+    projectId: string;
+    requestId: string;
+    jobId: string;
+  }): Promise<RemoteTaskState | null>;
   externalMcpList(): Promise<ExternalMcpSummary[]>;
   externalMcpAdd(request: { configuration: string }): Promise<ExternalMcpSummary[]>;
   externalMcpRefresh(id: string): Promise<ExternalMcpSummary[]>;
@@ -374,8 +393,11 @@ export interface ViewerHostApi {
     chatId?: string,
   ): Promise<void>;
   answerAgentQuestion(id: string, answers: Record<string, string>, chatId?: string): Promise<void>;
-  approvalMode(): Promise<'ask' | 'auto'>;
-  setApprovalMode(mode: 'ask' | 'auto'): Promise<'ask' | 'auto'>;
+  setChatApprovalMode(request: {
+    projectId: string;
+    chatId: string;
+    mode: 'ask' | 'auto';
+  }): Promise<'ask' | 'auto'>;
   interruptAgent(chatId?: string): Promise<void>;
   onAgentEvent(callback: (event: AgentEvent) => void): () => void;
 }
@@ -385,6 +407,7 @@ export interface ProjectBinding {
   name: string;
   path: string;
   domain?: string | null;
+  executionLocation?: 'local' | 'remote';
   disabledSkills?: string[];
   disabledMcpServers?: string[];
 }
@@ -659,6 +682,7 @@ export interface SessionStatus {
 }
 export interface ChatSummary {
   id: string;
+  approvalMode: 'ask' | 'auto';
   running?: boolean;
   awaitingApproval?: boolean;
   awaitingQuestion?: boolean;
@@ -718,4 +742,28 @@ export interface DiagnosticViewPage {
   total: number;
   totalRecords: number;
   counts: Record<DiagnosticView, number>;
+}
+
+export interface RemoteServiceState {
+  status: 'not_configured' | 'credentials_missing' | 'unchecked' | 'connected' | 'unavailable';
+  domains: string[];
+}
+export interface RemoteTaskState {
+  requestId: string;
+  jobId: string | null;
+  status: string;
+  queuePosition: number | null;
+}
+export interface RemoteProjectState {
+  location: 'local' | 'remote';
+  files: string[];
+  syncedAt: string | null;
+  service: RemoteServiceState;
+  task: RemoteTaskState | null;
+}
+export interface RemoteSyncReview {
+  id: string;
+  destination: string;
+  files: Array<{ path: string; sizeBytes: number }>;
+  totalBytes: number;
 }

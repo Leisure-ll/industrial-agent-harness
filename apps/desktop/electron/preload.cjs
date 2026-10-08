@@ -29,6 +29,15 @@ const api = {
   resourceGet: request => ipcRenderer.invoke('resource:get', request),
   resourceSet: request => ipcRenderer.invoke('resource:set', request),
   resourceCatalog: () => ipcRenderer.invoke('resource:catalog'),
+  remoteService: () => ipcRenderer.invoke('remote:service'),
+  remoteCheck: () => ipcRenderer.invoke('remote:check'),
+  remoteProject: request => ipcRenderer.invoke('remote:project', request),
+  remoteFiles: request => ipcRenderer.invoke('remote:files', request),
+  remoteSetLocation: request => ipcRenderer.invoke('remote:set-location', request),
+  remoteReview: request => ipcRenderer.invoke('remote:review', request),
+  remoteSync: request => ipcRenderer.invoke('remote:sync', request),
+  remoteTask: request => ipcRenderer.invoke('remote:task', request),
+  remoteCancel: request => ipcRenderer.invoke('remote:cancel', request),
   externalMcpList: () => ipcRenderer.invoke('external-mcp:list'),
   externalMcpAdd: request => ipcRenderer.invoke('external-mcp:add', request),
   externalMcpRefresh: id => ipcRenderer.invoke('external-mcp:refresh', { id }),
@@ -45,8 +54,7 @@ const api = {
   openGuiPermissionSettings: permission =>
     ipcRenderer.invoke('settings:gui-permission-settings', permission),
   setGuiPlugin: enabled => ipcRenderer.invoke('settings:set-gui', { enabled }),
-  approvalMode: () => ipcRenderer.invoke('settings:approval-mode'),
-  setApprovalMode: mode => ipcRenderer.invoke('settings:set-approval-mode', mode),
+  setChatApprovalMode: request => ipcRenderer.invoke('chat:set-approval-mode', request),
   onGuiProgress: callback => {
     const listener = (_event, value) => callback(value);
     ipcRenderer.on('settings:gui-progress', listener);

@@ -582,6 +582,22 @@ body,
   justify-content: space-between;
   gap: 12px;
 }
+.ia-chat-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ia-chat-approval-mode {
+  max-width: 150px;
+  color: var(--ia-muted);
+  background: transparent;
+  border: 1px solid var(--ia-border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 11px;
+}
 .ia-context-select {
   display: flex;
   gap: 4px;
@@ -3260,4 +3276,96 @@ body,
 .ia-tab-pin:hover {
   color: var(--ia-text);
   background: var(--ia-hover);
+}
+
+/* Built-in remote execution: one project choice, bounded consent, compact task state. */
+.ia-remote-service,
+.ia-project-execution {
+  border: 1px solid var(--ia-border);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 20px 0;
+}
+.ia-remote-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ia-remote-heading > span {
+  margin-left: auto;
+  color: var(--ia-muted);
+  font-size: 12px;
+}
+.ia-remote-service p,
+.ia-remote-project-body p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ia-muted);
+}
+.ia-execution-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ia-execution-options button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ia-execution-options button[aria-pressed='true'] {
+  border-color: var(--ia-accent);
+  color: var(--ia-accent);
+  background: var(--ia-active);
+}
+.ia-remote-file-picker {
+  max-height: 320px;
+  overflow: auto;
+}
+.ia-remote-file-picker label {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  align-items: center;
+}
+.ia-remote-file-picker code,
+.ia-remote-sync-review code {
+  overflow-wrap: anywhere;
+}
+.ia-remote-sync-review ul {
+  list-style: none;
+  padding: 0;
+  max-height: 240px;
+  overflow: auto;
+}
+.ia-remote-sync-review li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+}
+.ia-remote-sync-review li span {
+  white-space: nowrap;
+  color: var(--ia-muted);
+}
+.ia-remote-task-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ia-muted);
+  padding: 6px 20px;
+  flex-wrap: wrap;
+}
+.ia-remote-task-status button {
+  margin-left: auto;
+  font-size: 12px;
+}
+.ia-advanced-mcp {
+  margin-top: 20px;
+}
+.ia-advanced-mcp summary {
+  cursor: pointer;
+  color: var(--ia-muted);
+  font-size: 13px;
 }

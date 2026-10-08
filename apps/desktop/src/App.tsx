@@ -55,6 +55,7 @@ import { DomainManager } from './components/DomainManager';
 import { CoreUpdatePanel } from './components/CoreUpdatePanel';
 import { ComputerUseSettings } from './components/ComputerUseSettings';
 import { ModelSettings } from './components/ModelSettings';
+import { RemoteTaskStatus } from './components/RemoteExecution';
 import { ProjectDetails } from './components/ProjectDetails';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { WorkspaceDivider } from './components/WorkspaceDivider';
@@ -177,6 +178,9 @@ export function App() {
   }>();
   const [agentEvents, setAgentEvents] = useState<AgentEvent[]>([]);
   const [agentBusy, setAgentBusy] = useState(false);
+  const [remoteExecution, setRemoteExecution] = useState<{ projectId: string; ready: boolean }>();
+  const remoteExecutionReady =
+    remoteExecution?.projectId === activeProjectId && remoteExecution.ready;
   const [approvalMode, setApprovalMode] = useState<'ask' | 'auto'>('ask');
   const [approvalModeBusy, setApprovalModeBusy] = useState(false);
   const [agentOwned, setAgentOwned] = useState(false);
@@ -255,6 +259,7 @@ export function App() {
     }
     chatIdRef.current = history.chat.id;
     setActiveChatId(history.chat.id);
+    setApprovalMode(history.chat.approvalMode);
     setTurns(history.turns);
     setHistoryBefore(history.before);
     setHasEarlier(history.hasMore);
@@ -292,6 +297,7 @@ export function App() {
     const selectedChat = list.chats.find(chat => chat.id === chatIdRef.current);
     setAgentBusy(Boolean(selectedSession?.running || selectedChat?.running));
     setAgentOwned(Boolean(selectedSession));
+    if (selectedChat) setApprovalMode(selectedChat.approvalMode);
     if (openSelected && list.activeId) {
       const selectedChatId = chatIdRef.current;
       const history = await readHistory(() =>
@@ -307,6 +313,7 @@ export function App() {
     } else if (openSelected) {
       chatIdRef.current = null;
       setActiveChatId(null);
+      setApprovalMode('ask');
       setTurns([]);
       setHasEarlier(false);
     }
@@ -412,10 +419,6 @@ export function App() {
     void window.viewerHost
       .modelGet()
       .then(profile => setModelImageInput(profile.imageInput))
-      .catch(reason => setError(String(reason)));
-    void window.viewerHost
-      .approvalMode()
-      .then(setApprovalMode)
       .catch(reason => setError(String(reason)));
     void window.viewerHost
       .domains()
@@ -778,12 +781,29 @@ export function App() {
       endNavigation();
     }
   }
+  async function changeChatApprovalMode(mode: 'ask' | 'auto') {
+    const chatId = chatIdRef.current;
+    const projectId = projectIdRef.current;
+    if (!chatId || !projectId || agentBusy || navigating || approvalModeBusy) return;
+    setApprovalModeBusy(true);
+    try {
+      const saved = await window.viewerHost!.setChatApprovalMode({ projectId, chatId, mode });
+      if (chatId === chatIdRef.current && projectId === projectIdRef.current)
+        setApprovalMode(saved);
+    } catch (reason) {
+      if (chatId === chatIdRef.current && projectId === projectIdRef.current)
+        setBrokerError(String(reason));
+    } finally {
+      setApprovalModeBusy(false);
+    }
+  }
   async function resolveTask(context?: { domain: string; stage: string }, prompt = task) {
     if (
       navigationPending.current ||
       submitting.current ||
       startingAgent.current ||
       agentBusy ||
+      (activeProject?.executionLocation === 'remote' && !remoteExecutionReady) ||
       attachments.loading ||
       (!prompt.trim() && !attachments.images.length)
     )
@@ -851,6 +871,10 @@ export function App() {
     setBroker(undefined);
     setCapabilityDetail(undefined);
     setBrokerError('');
+    void window
+      .viewerHost!.projectBindings()
+      .then(bindings => setProjects(bindings.projects))
+      .catch(reason => setError(String(reason)));
   }
   async function showDetail(id: string) {
     try {
@@ -1084,33 +1108,6 @@ export function App() {
                   </button>
                 </div>
                 <ComputerUseSettings />
-                <div className="ia-settings-row">
-                  <span>{t('Approval mode')}</span>
-                  <select
-                    aria-label={t('Approval mode')}
-                    value={approvalMode}
-                    disabled={approvalModeBusy}
-                    onChange={event => {
-                      const mode = event.target.value as 'ask' | 'auto';
-                      setApprovalModeBusy(true);
-                      void window
-                        .viewerHost!.setApprovalMode(mode)
-                        .then(setApprovalMode)
-                        .catch(reason => setError(String(reason)))
-                        .finally(() => setApprovalModeBusy(false));
-                    }}
-                  >
-                    <option value="ask">{t('Request approval')}</option>
-                    <option value="auto">{t('Auto approve')}</option>
-                  </select>
-                </div>
-                <p className="ia-settings-note">
-                  {approvalMode === 'auto'
-                    ? t(
-                        'Kimi can run tools without approval prompts, including file changes and external services. Questions still wait for your answer.',
-                      )
-                    : t('Kimi asks before actions that require approval.')}
-                </p>
                 <div className="ia-settings-row">
                   <span>{t('Model API')}</span>
                   <button
@@ -1431,6 +1428,14 @@ export function App() {
                       )}
                     </p>
                   )}
+                  {activeProject?.executionLocation === 'remote' && (
+                    <RemoteTaskStatus
+                      key={activeProject.id}
+                      projectId={activeProject.id}
+                      onReady={ready => setRemoteExecution({ projectId: activeProject.id, ready })}
+                      onConfigure={() => showPage('project')}
+                    />
+                  )}
                   <div className="ia-composer-wrap">
                     <div
                       className="ia-composer"
@@ -1482,7 +1487,12 @@ export function App() {
                             : t('Create or choose a project to start…')
                         }
                         value={task}
-                        disabled={agentBusy || navigating || !fixedDomain}
+                        disabled={
+                          agentBusy ||
+                          navigating ||
+                          !fixedDomain ||
+                          (activeProject?.executionLocation === 'remote' && !remoteExecutionReady)
+                        }
                         onChange={event => setTask(event.target.value)}
                         onKeyDown={event => {
                           if (
@@ -1496,11 +1506,34 @@ export function App() {
                         }}
                       />
                       <div className="ia-composer-footer">
-                        <DomainPill
-                          domain={fixedDomain}
-                          domains={domains}
-                          label={t('Session domain')}
-                        />
+                        <div className="ia-chat-controls">
+                          <DomainPill
+                            domain={fixedDomain}
+                            domains={domains}
+                            label={t('Session domain')}
+                          />
+                          <select
+                            className="ia-chat-approval-mode"
+                            aria-label={t('Approval mode for this chat')}
+                            title={
+                              approvalMode === 'auto'
+                                ? t(
+                                    'Tools are automatically approved in this chat only. Questions still wait for your answer.',
+                                  )
+                                : t(
+                                    'Ask before actions in this chat. New chats use this mode by default.',
+                                  )
+                            }
+                            value={approvalMode}
+                            disabled={!activeChatId || agentBusy || navigating || approvalModeBusy}
+                            onChange={event =>
+                              void changeChatApprovalMode(event.target.value as 'ask' | 'auto')
+                            }
+                          >
+                            <option value="ask">{t('Request approval')}</option>
+                            <option value="auto">{t('Auto approve')}</option>
+                          </select>
+                        </div>
                         <div className="ia-send-actions">
                           <ImageAttachButton
                             attachments={attachments}
@@ -1548,6 +1581,8 @@ export function App() {
                               navigating ||
                               agentBusy ||
                               !fixedDomain ||
+                              (activeProject?.executionLocation === 'remote' &&
+                                !remoteExecutionReady) ||
                               attachments.loading ||
                               (!task.trim() && !attachments.images.length) ||
                               (attachments.images.length > 0 && !modelImageInput)

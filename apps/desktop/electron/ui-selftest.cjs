@@ -130,6 +130,67 @@ async function run(window, dialog) {
     'New chat must be visible when arriving on project details',
   );
   await capture('project-details');
+  await wait(
+    `document.querySelector('.ia-execution-options button[aria-pressed="true"]')?.textContent.includes('This computer')`,
+  );
+  await click('.ia-execution-options button:last-child');
+  await wait(
+    `document.querySelector('.ia-remote-project-body')?.textContent.includes('Not configured') && document.querySelector('.ia-project-start').disabled`,
+  );
+  await wait(`!document.querySelector('.ia-project-resources')`);
+  assert.equal(
+    await evaluate(`document.querySelectorAll('.ia-project-execution input').length`),
+    0,
+    'Unknown deployment configuration must not ask users for a service name or URL.',
+  );
+  await capture('remote-unconfigured');
+  await setLanguage(window, 'zh-CN');
+  await capture('remote-unconfigured-zh');
+  await setLanguage(window, 'en');
+  await click('.ia-new-chat');
+  await wait(
+    `document.querySelector('.ia-remote-task-status')?.textContent.includes('Not configured')`,
+  );
+  assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').disabled`), true);
+  assert.equal(await evaluate(`document.querySelector('.ia-send').disabled`), true);
+  await evaluate(`window.__remoteStatus = document.querySelector('.ia-remote-task-status')`);
+  await click('.ia-layout-toggle');
+  await wait(`Boolean(document.querySelector('.layout-tabs'))`);
+  await click('.ia-tab-add');
+  await wait(`document.querySelector('.ia-chat').hidden`);
+  await click('#tab-chat');
+  await wait(`!document.querySelector('.ia-chat').hidden`);
+  assert.equal(
+    await evaluate(`document.querySelector('.ia-remote-task-status') === window.__remoteStatus`),
+    true,
+    'Remote task status must stay mounted when browsing another tab',
+  );
+  assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').disabled`), true);
+  assert.equal(await evaluate(`document.querySelector('.ia-send').disabled`), true);
+  await click('.ia-chat-actions button[title="Hide workspace"]');
+  await click('.ia-layout-toggle');
+  await wait(`Boolean(document.querySelector('.layout-split'))`);
+  await click('.ia-remote-task-status button');
+  await wait(`Boolean(document.querySelector('.ia-project-page'))`);
+  await click('.ia-settings-button');
+  await evaluate(
+    `Array.from(document.querySelectorAll('.ia-settings-row')).find(row => row.textContent.includes('MCP & Skills')).querySelector('button').click()`,
+  );
+  await wait(
+    `document.querySelector('.ia-remote-service')?.textContent.includes('Not configured')`,
+  );
+  assert.equal(
+    await evaluate(`document.querySelector('.ia-remote-service button').disabled`),
+    true,
+  );
+  assert.equal(await evaluate(`document.querySelector('.ia-advanced-mcp').open`), false);
+  await capture('builtin-remote-service');
+  await setLanguage(window, 'zh-CN');
+  await capture('builtin-remote-service-zh');
+  await setLanguage(window, 'en');
+  await click('.ia-resource-modal header button');
+  await click('.ia-execution-options button:first-child');
+  await wait(`!document.querySelector('.ia-project-start').disabled`);
   await click('.ia-project-start');
   await wait(`Boolean(document.querySelector('.ia-chat-welcome'))`);
   const draft = 'Inspect the RTL and explain the timing constraints.\n检查 RTL 并解释时序约束。';
@@ -337,7 +398,7 @@ async function run(window, dialog) {
   );
   assert.equal(fs.readFileSync(path.join(project, 'sobel_filter.v'), 'utf8'), source);
   console.log(
-    'UI selftest passed: onboarding, source preview, themes, contrast, languages, compact layout, tabs, layout persistence, minimum-window navigation, keyboard focus, mounted documents, and draft retention.',
+    'UI selftest passed: builtin remote configuration states, project execution location, onboarding, source preview, themes, contrast, languages, compact layout, tabs, layout persistence, minimum-window navigation, keyboard focus, mounted documents, and draft retention.',
   );
 }
 

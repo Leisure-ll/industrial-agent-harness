@@ -24,9 +24,12 @@ function createProcessSandbox({
   projectDir,
   protectedPaths = [],
   environment = process.env,
+  hostOnlyEnv = [],
   platform = process.platform,
   kimiProjectAccess = false,
 }) {
+  environment = { ...environment };
+  for (const key of hostOnlyEnv) delete environment[key];
   if (
     !['darwin', 'linux'].includes(platform) ||
     (platform === 'darwin' && !fs.existsSync('/usr/bin/sandbox-exec'))
