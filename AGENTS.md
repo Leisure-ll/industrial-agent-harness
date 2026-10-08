@@ -1,5 +1,15 @@
 # Industrial Agent Harness repository instructions
 
+## Accepted architecture contract: IH-ARCH-001 (2026-10-08)
+
+Read `doc/architecture-contract.md` before implementation. It is the accepted ownership boundary and supersedes older instructions to add maintained domain Skills, manifests or implementations inside this repository.
+
+- Domain implementations, Skills, StateProviders, Verifiers, dependency locks and image recipes are maintained in `Zhiman-BJ/industrial-domain-packs`. Harness consumes immutable releases. Existing copies here are frozen compatibility snapshots; reconcile verified fixes into the owner before consumer migration.
+- CLI and Desktop are adapters over one shared Harness task API. Keep new task/session/Broker orchestration below the adapters; never import one adapter from the other or execute industrial programs from an app.
+- Keep canonical facts and the generic Runtime in Harness, domain semantics in Packs, and process/container/sandbox lifecycle in execution backends. Kimi retains its native loop, context, compaction and subtasks.
+- Run `pnpm test:architecture-contract` and the existing architecture/integration gates. A violation is resolved in its owning layer. Do not widen or regenerate `architecture/policy.json` exceptions to pass a feature.
+- Checker/workflow/policy changes require a separate, explicitly owner-approved architecture revision with rationale, migration and positive/negative evidence. Existing exceptions may shrink through verified migration; they may not grow. Report migration as incomplete until both adapters consume the shared path.
+
 Read `doc/README.md` before changing architecture or module boundaries. The repository is a working Workbench MVP, not yet Industrial Harness Core. Documentation marked as proposed is not implemented behavior.
 
 ## Current milestone: Industrial Core Vertical Slice
