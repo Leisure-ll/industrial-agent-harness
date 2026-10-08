@@ -176,6 +176,8 @@ class CodeSession {
     this.cursors = new Set();
     this.controllers = new Set();
     this.subagents = new Map();
+    this.tasks = new Map();
+    this.taskWaits = new Set();
   }
   async request(route, { method = 'GET', body, timeout = 15000 } = {}) {
     const controller = new AbortController();
@@ -404,7 +406,7 @@ class CodeSession {
           JSON.stringify({
             type: 'subscribe',
             id: requestId,
-            payload: { session_ids: [this.nativeId], agent_filter: { [this.nativeId]: ['main'] } },
+            payload: { session_ids: [this.nativeId] },
           }),
         ),
       );
@@ -448,6 +450,9 @@ class CodeSession {
     this.active?.finish(null, error);
     this.backgroundTurn?.finish(null, error);
     if (
+      [...this.tasks.values()].some(
+        task => task.status === 'running' || task.notificationPending,
+      ) ||
       [...this.subagents.values()].some(
         child => child.background && ['running', 'awaiting_approval'].includes(child.status),
       )
@@ -487,6 +492,7 @@ class CodeSession {
     return turn;
   }
   onFrame(frame) {
+    if (this.closed) return;
     let turn = this.active && !this.active.ended ? this.active : this.backgroundTurn;
     if (frame.session_id !== this.nativeId) return;
     const p = frame.payload || {};
@@ -494,10 +500,14 @@ class CodeSession {
       this.failTurns(Error('Kimi Code event resync is required; execution was not retried.'));
       return;
     }
-    const control = /^(event\.(approval|question)\.|subagent\.)/.test(frame.type);
+    const control =
+      /^(event\.(approval|question)\.|event\.session\.work_changed$|subagent\.|(?:background\.)?task\.)/.test(
+        frame.type,
+      );
     // Native child approvals share the session control plane, even though their
     // agent and turn identities differ from the main conversation.
-    if (p.agentId && p.agentId !== 'main' && !control) return;
+    const taskDelivery = frame.type === 'tool.call.started' || frame.type === 'tool.result';
+    if (p.agentId && p.agentId !== 'main' && !control && !taskDelivery) return;
     if (!frame.volatile && Number.isSafeInteger(frame.seq)) {
       const id = `${frame.epoch}:${frame.seq}`;
       if (this.cursors.has(id)) return;
@@ -531,6 +541,78 @@ class CodeSession {
       if (turn && !turn.ended) turn.push(event);
       else this.options.onBackgroundEvent?.(event);
     };
+    // Session lifecycle must take effect at receipt time. A native follow-up
+    // can start before the consumer drains the completed foreground queue.
+    const emitState = (type, payload) => {
+      if (this.options.onBackgroundEvent) this.options.onBackgroundEvent({ type, payload });
+      else emit(type, payload);
+    };
+    const acknowledge = taskId => {
+      const key = `${p.agentId || 'main'}:${taskId}`;
+      const previous = this.tasks.get(key);
+      if (previous && previous.status !== 'running' && !previous.notified) {
+        const state = { ...previous, notified: true, notificationPending: false };
+        this.tasks.set(key, state);
+        emitState('BackgroundTaskState', state);
+      }
+    };
+    const waitKey = `${p.agentId || 'main'}:${p.toolCallId}`;
+    if (frame.type === 'tool.call.started' && p.name === 'WaitFor') this.taskWaits.add(waitKey);
+    if (frame.type === 'tool.result' && this.taskWaits.delete(waitKey)) {
+      const result = p.result || p;
+      const output = result.output;
+      if (
+        !result.isError &&
+        typeof output === 'string' &&
+        output.startsWith('wait_status: completed\n')
+      ) {
+        // WaitFor delivers completion itself and suppresses the automatic
+        // notification. Read only native metadata, never the command's output.
+        const header = output.split('\n\n', 1)[0];
+        acknowledge(/^task_id: (\S+)$/m.exec(header)?.[1]);
+        const extras =
+          /\[completed_during_wait\]\n([\s\S]*?)\nUse TaskOutput/.exec(output)?.[1] || '';
+        for (const match of extras.matchAll(/^task_id: (\S+)$/gm)) acknowledge(match[1]);
+      }
+    }
+    if (p.agentId && p.agentId !== 'main' && !control) return;
+    if (/^(?:background\.)?task\.(started|terminated)$/.test(frame.type) && p.info?.taskId) {
+      const key = `${p.agentId || 'main'}:${p.info.taskId}`;
+      const previous = this.tasks.get(key);
+      const info = p.info;
+      const state = {
+        id: `${this.nativeId}:${key}`,
+        taskId: info.taskId,
+        agentId: p.agentId || 'main',
+        kind: info.kind,
+        description: this.redact(info.description),
+        background: info.detached !== false,
+        status: info.status,
+        exitCode: info.exitCode,
+        stopReason: this.redact(info.stopReason),
+        // Kimi reads output asynchronously before notifying its agent. A
+        // terminal process alone does not mean the session is ready to close.
+        notificationPending:
+          info.status !== 'running' &&
+          info.detached !== false &&
+          !info.terminalNotificationSuppressed &&
+          !previous?.notified,
+        notified: previous?.notified || false,
+      };
+      if (JSON.stringify(previous) !== JSON.stringify(state)) {
+        this.tasks.set(key, state);
+        emitState('BackgroundTaskState', state);
+      }
+      return;
+    }
+    if (frame.type === 'task.notified' && p.sourceKind === 'background_task') {
+      acknowledge(p.sourceId);
+      return;
+    }
+    if (frame.type === 'event.session.work_changed') {
+      emitState('NativeWorkState', this.redact(p));
+      return;
+    }
     if (frame.type.startsWith('subagent.') && p.subagentId) {
       const previous = this.subagents.get(p.subagentId) || {};
       const state = {
@@ -553,7 +635,7 @@ class CodeSession {
         ...(p.error ? { summary: this.redact(String(p.error)) } : {}),
       };
       this.subagents.set(p.subagentId, state);
-      emit('SubagentState', state);
+      emitState('SubagentState', state);
       return;
     }
     if (!turn || turn.ended) {
@@ -582,7 +664,7 @@ class CodeSession {
         status: frame.type.endsWith('requested') ? 'awaiting_approval' : 'running',
       };
       this.subagents.set(p.agentId, state);
-      emit('SubagentState', state);
+      emitState('SubagentState', state);
     }
     switch (frame.type) {
       case 'assistant.delta':

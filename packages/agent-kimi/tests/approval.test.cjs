@@ -93,3 +93,28 @@ test('only identified Harness Runtime callbacks delegate transport approval; nat
   await session.approve(request.id, 'reject');
   assert.equal(await decision, false);
 });
+
+test('closing background work rejects a pending host mutation and expires its approval', async () => {
+  const { session, events } = fixture(async () => {});
+  session.backgroundTasks = true;
+  const decision = session.requestRuntimeApproval(
+    { id: 'registered.background.mutation' },
+    { expectedStateId: 'current-state' },
+  );
+  const request = events.at(-1);
+  assert.ok(session.backgroundApprovals.has(request.id));
+  session.session = { close: async () => assert.equal(await decision, false) };
+  await session.closeNative();
+  assert.equal(session.runtimeApprovals.size, 0);
+  assert.equal(session.pendingApprovals.size, 0);
+  assert.ok(
+    events.some(
+      event =>
+        event.type === 'approval-resolved' &&
+        event.id === request.id &&
+        event.decision === 'expired',
+    ),
+  );
+  assert.equal(session.backgroundTasks, false);
+  await assert.rejects(session.approve(request.id, 'approve'), /no longer pending/);
+});

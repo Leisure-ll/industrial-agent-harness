@@ -292,6 +292,7 @@ class KimiSession {
     this.pendingQuestions = new Map();
     this.backgroundTasks = false;
     this.nativeBackgroundRunning = false;
+    this.backgroundWaiters = new Set();
   }
   async run(task, attachments = []) {
     if (this.running || this.turn || this.backgroundTasks)
@@ -332,6 +333,7 @@ class KimiSession {
     });
     this.log = log;
     this.interruptRequested = false;
+    this.backgroundResult = undefined;
     this.stopPromise = undefined;
     let finishTurn;
     this.turnFinished = new Promise(resolve => {
@@ -540,7 +542,7 @@ class KimiSession {
           resumeRequired: Boolean(stored?.initialized),
           model: 'industrial',
           thinking: runtime.profile.thinking,
-          onBackgroundEvent: event => this.emitEvent(event),
+          onBackgroundEvent: event => this.handleBackgroundEvent(event),
           env: this.processSandbox?.env || runtime.env,
           yoloMode: approvalMode === 'auto',
           externalTools: [
@@ -622,9 +624,11 @@ class KimiSession {
     } finally {
       try {
         this.turn = undefined;
-        this.pendingToolArgs.clear();
-        this.toolNames.clear();
-        this.lastToolCall = null;
+        if (!this.backgroundTasks) {
+          this.pendingToolArgs.clear();
+          this.toolNames.clear();
+          this.lastToolCall = null;
+        }
         for (const id of this.pendingApprovals.keys())
           if (!this.backgroundApprovals?.has(id)) this.resolveApproval(id, 'expired');
         for (const [id, question] of this.pendingQuestions)
@@ -654,9 +658,10 @@ class KimiSession {
         });
       } finally {
         try {
-          log.close();
+          if (this.backgroundTasks) this.backgroundLog = log;
+          else log.close();
         } finally {
-          this.log = undefined;
+          if (!this.backgroundTasks) this.log = undefined;
           this.running = false;
           this.cancelTurn = undefined;
           finishTurn();
@@ -724,6 +729,33 @@ class KimiSession {
       child => child.background && ['running', 'awaiting_approval'].includes(child.status),
     );
   }
+  liveBackgroundWork() {
+    return (
+      this.nativeBackgroundRunning ||
+      this.liveBackgroundChildren() ||
+      [...(this.nativeTasks?.values() || [])].some(
+        task => task.background && (task.status === 'running' || task.notificationPending),
+      ) ||
+      (this.nativeWork?.busy && !this.nativeWork.main_turn_active)
+    );
+  }
+  async waitForBackgroundIdle() {
+    if (this.backgroundTasks) await new Promise(resolve => this.backgroundWaiters.add(resolve));
+    // Stop/needs_input can end the native follow-up before its transport and
+    // pending controls finish closing. Headless's final result comes last.
+    await this.closing;
+    return this.backgroundResult;
+  }
+  handleBackgroundEvent(event) {
+    this.log?.record(
+      event.type === 'NativeEvent' ? 'kimi-code.event' : 'sdk.event',
+      redactImagePayloads(event),
+    );
+    this.emitEvent(event);
+  }
+  updateBackgroundBusy() {
+    this.setBackgroundBusy(Boolean(this.liveBackgroundWork()));
+  }
   setBackgroundBusy(busy) {
     if (this.backgroundTasks === busy) return;
     this.backgroundTasks = busy;
@@ -732,6 +764,15 @@ class KimiSession {
       this.backgroundRelease = undefined;
     }
     this.emitAgent({ type: 'background-state', running: busy });
+    if (!busy) {
+      if (this.backgroundLog) {
+        this.backgroundLog.close();
+        if (this.log === this.backgroundLog) this.log = undefined;
+        this.backgroundLog = undefined;
+      }
+      for (const resolve of this.backgroundWaiters) resolve(this.backgroundResult);
+      this.backgroundWaiters.clear();
+    }
   }
   emitEvent(event) {
     if (event.type === 'BackgroundFailure') {
@@ -744,27 +785,24 @@ class KimiSession {
       this.setBackgroundBusy(true);
     } else if (event.type === 'BackgroundTurnEnd') {
       this.nativeBackgroundRunning = false;
-      this.setBackgroundBusy(this.liveBackgroundChildren());
-      if (event.payload.error) this.emitAgent({ type: 'error', message: event.payload.error });
+      this.backgroundResult = event.payload.result;
+      if (event.payload.error) {
+        this.emitAgent({ type: 'error', message: event.payload.error });
+        void this.closeNative().catch(error =>
+          this.emitAgent({ type: 'error', message: String(error) }),
+        );
+      } else this.updateBackgroundBusy();
+    } else if (event.type === 'BackgroundTaskState') {
+      this.nativeTasks ||= new Map();
+      this.nativeTasks.set(event.payload.id, event.payload);
+      this.updateBackgroundBusy();
+    } else if (event.type === 'NativeWorkState') {
+      this.nativeWork = event.payload;
+      this.updateBackgroundBusy();
     } else if (event.type === 'SubagentState') {
       this.nativeChildren ||= new Map();
       this.nativeChildren.set(event.payload.agentId, event.payload);
-      const busy = this.nativeBackgroundRunning || this.liveBackgroundChildren();
-      if (event.payload.background && !busy && this.backgroundTasks && !this.session?.closed) {
-        // Check the native snapshot after the completion notification. Kimi can
-        // immediately start its own follow-up; keep resource leases until idle.
-        void this.session
-          .request(`sessions/${encodeURIComponent(this.session.nativeId)}/snapshot`)
-          .then(snapshot => {
-            if (
-              !snapshot.in_flight_turn &&
-              !this.nativeBackgroundRunning &&
-              !this.liveBackgroundChildren()
-            )
-              this.setBackgroundBusy(false);
-          })
-          .catch(error => this.emitAgent({ type: 'error', message: String(error) }));
-      } else this.setBackgroundBusy(Boolean(busy));
+      this.updateBackgroundBusy();
       this.emitAgent({ type: 'subagent-state', ...event.payload });
     } else if (event.type === 'ContentPart') {
       if (event.payload.type === 'text') this.emitAgent({ type: 'text', text: event.payload.text });
@@ -973,6 +1011,10 @@ class KimiSession {
     return new Promise(resolve => {
       this.pendingApprovals.set(id, 'pending');
       this.runtimeApprovals.set(id, resolve);
+      if (this.backgroundTasks) {
+        this.backgroundApprovals ||= new Set();
+        this.backgroundApprovals.add(id);
+      }
       this.emitAgent({
         type: 'approval',
         id,
@@ -1056,6 +1098,11 @@ class KimiSession {
     return this.closing;
   }
   async disposeNative() {
+    for (const [id, resolve] of this.runtimeApprovals) {
+      resolve(false);
+      this.resolveApproval(id, 'expired');
+    }
+    this.runtimeApprovals.clear();
     await this.session?.close();
     for (const child of this.nativeChildren?.values() || [])
       if (['running', 'awaiting_approval'].includes(child.status))
@@ -1064,6 +1111,9 @@ class KimiSession {
     for (const id of this.pendingQuestions.keys()) this.resolveQuestion(id, 'expired');
     this.controlTurn = undefined;
     this.nativeBackgroundRunning = false;
+    this.nativeTasks?.clear();
+    this.nativeWork = undefined;
+    this.backgroundResult = { status: 'cancelled' };
     this.setBackgroundBusy(false);
     if (this.interruptRequested && this.turn) this.cancelTurn?.({ status: 'cancelled' });
     this.session = undefined;
