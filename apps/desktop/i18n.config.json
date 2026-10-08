@@ -4,11 +4,15 @@
   "locales": {
     "zh-CN": {
       "label": "简体中文",
-      "systemLanguages": ["zh"]
+      "systemLanguages": [
+        "zh"
+      ]
     },
     "en": {
       "label": "English",
-      "systemLanguages": ["en"]
+      "systemLanguages": [
+        "en"
+      ]
     }
   },
   "messages": {
@@ -124,41 +128,9 @@
       "en": "Off",
       "zh-CN": "关闭"
     },
-    "Kimi can operate your desktop apps for this session": {
-      "en": "Kimi can operate your desktop apps for this session",
-      "zh-CN": "Kimi 可在此会话中操作桌面应用"
-    },
-    "Install and enable desktop GUI control": {
-      "en": "Install and enable desktop GUI control",
-      "zh-CN": "安装并启用桌面应用控制"
-    },
-    "Installing computer use · {0}…": {
-      "en": "Installing computer use · {0}…",
-      "zh-CN": "正在安装桌面操作组件 · {0}…"
-    },
     "Installing…": {
       "en": "Installing…",
       "zh-CN": "正在安装…"
-    },
-    "Desktop control is installed. On macOS, enable Screen Recording and Accessibility permissions in System Settings.": {
-      "en": "Desktop control is installed. On macOS, enable Screen Recording and Accessibility permissions in System Settings.",
-      "zh-CN": "桌面操作组件已安装。macOS 上需在系统设置中开启屏幕录制和辅助功能权限。"
-    },
-    "Enabling installs the computer-use engine and lets Kimi drive desktop apps. It can be disabled at any time.": {
-      "en": "Enabling installs the computer-use engine and lets Kimi drive desktop apps. It can be disabled at any time.",
-      "zh-CN": "开启后将安装桌面操作引擎，让 Kimi 操作桌面应用。可随时关闭。"
-    },
-    "Approval mode for this chat": {
-      "en": "Approval mode for this chat",
-      "zh-CN": "当前对话的审批模式"
-    },
-    "Tools are automatically approved in this chat only. Questions still wait for your answer.": {
-      "en": "Tools are automatically approved in this chat only. Questions still wait for your answer.",
-      "zh-CN": "仅当前对话自动批准工具操作；提问仍等待你回答。"
-    },
-    "Ask before actions in this chat. New chats use this mode by default.": {
-      "en": "Ask before actions in this chat. New chats use this mode by default.",
-      "zh-CN": "当前对话的操作先请求审批。新对话默认使用此模式。"
     },
     "Request approval": {
       "en": "Request approval",
@@ -1066,11 +1038,11 @@
     },
     "Enabled": {
       "en": "Enabled",
-      "zh-CN": "已启用"
+      "zh-CN": "已开启"
     },
     "Disabled": {
       "en": "Disabled",
-      "zh-CN": "已禁用"
+      "zh-CN": "已关闭"
     },
     "Auto recognizes verified model/API combinations. For other vision models choose Enabled; this declares support and does not add vision to a text-only model.": {
       "en": "Auto recognizes verified model/API combinations. For other vision models choose Enabled; this declares support and does not add vision to a text-only model.",
@@ -2663,6 +2635,106 @@
     "Embedded image": {
       "en": "Embedded image",
       "zh-CN": "嵌入图片"
+    },
+    "Workspace tabs": {
+      "en": "Workspace tabs",
+      "zh-CN": "工作区标签页"
+    },
+    "Chat": {
+      "en": "Chat",
+      "zh-CN": "聊天"
+    },
+    "Close tab {0}": {
+      "en": "Close tab {0}",
+      "zh-CN": "关闭标签页 {0}"
+    },
+    "Open project files": {
+      "en": "Open project files",
+      "zh-CN": "打开项目文件"
+    },
+    "Use split layout": {
+      "en": "Use split layout",
+      "zh-CN": "切换为两列布局"
+    },
+    "Use tab layout": {
+      "en": "Use tab layout",
+      "zh-CN": "切换为标签页布局"
+    },
+    "Split layout is available in a wider window": {
+      "en": "Split layout is available in a wider window",
+      "zh-CN": "放大窗口后可使用两列布局"
+    },
+    "Allow the agent to operate desktop apps.": {
+      "en": "Allow the agent to operate desktop apps.",
+      "zh-CN": "允许 Agent 操作桌面应用。"
+    },
+    "Authorized": {
+      "en": "Authorized",
+      "zh-CN": "已授权"
+    },
+    "System permission needed": {
+      "en": "System permission needed",
+      "zh-CN": "还需授权"
+    },
+    "Unable to check system permissions": {
+      "en": "Unable to check system permissions",
+      "zh-CN": "暂时无法确认权限"
+    },
+    "Screen Recording": {
+      "en": "Screen Recording",
+      "zh-CN": "屏幕录制"
+    },
+    "Accessibility": {
+      "en": "Accessibility",
+      "zh-CN": "辅助功能"
+    },
+    "Preparing desktop control…": {
+      "en": "Preparing desktop control…",
+      "zh-CN": "正在准备…"
+    },
+    "Desktop control is ready.": {
+      "en": "Desktop control is ready.",
+      "zh-CN": "可以使用"
+    },
+    "Unable to prepare desktop control": {
+      "en": "Unable to prepare desktop control",
+      "zh-CN": "桌面操作暂不可用"
+    },
+    "Double-click to keep {0}": {
+      "en": "Double-click to keep {0}",
+      "zh-CN": "双击保留 {0}"
+    },
+    "Keep tab {0}": {
+      "en": "Keep tab {0}",
+      "zh-CN": "保留标签页 {0}"
+    },
+    "Keep tab": {
+      "en": "Keep tab",
+      "zh-CN": "保留标签页"
+    },
+    "API format": {
+      "en": "API format",
+      "zh-CN": "API 格式"
+    },
+    "Kimi (Moonshot) API": {
+      "en": "Kimi (Moonshot) API",
+      "zh-CN": "Kimi（Moonshot）API"
+    },
+    "Desktop control is installed. On macOS, enable Screen Recording and Accessibility permissions in System Settings.": {
+      "en": "Desktop control is installed. On macOS, enable Screen Recording and Accessibility permissions in System Settings.",
+      "zh-CN": "桌面操作组件已安装。macOS 上需在系统设置中开启屏幕录制和辅助功能权限。"
+    },
+    "Approval mode for this chat": {
+      "en": "Approval mode for this chat",
+      "zh-CN": "当前对话的审批模式"
+    },
+    "Tools are automatically approved in this chat only. Questions still wait for your answer.": {
+      "en": "Tools are automatically approved in this chat only. Questions still wait for your answer.",
+      "zh-CN": "仅当前对话自动批准工具操作；提问仍等待你回答。"
+    },
+    "Ask before actions in this chat. New chats use this mode by default.": {
+      "en": "Ask before actions in this chat. New chats use this mode by default.",
+      "zh-CN": "当前对话的操作先请求审批。新对话默认使用此模式。"
     },
     "Zhiman Remote": {
       "en": "Zhiman Remote",

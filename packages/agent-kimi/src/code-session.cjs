@@ -484,7 +484,7 @@ class CodeSession {
           prompt_id: turn.promptId,
           content: promptContent(content),
           model: this.options.model || 'industrial',
-          thinking: this.options.thinking ? 'high' : 'off',
+          thinking: this.options.thinkingEffort ?? (this.options.thinking ? 'high' : 'off'),
           permission_mode: 'manual',
         },
       });

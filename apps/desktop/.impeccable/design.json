@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-08T08:36:29.673Z",
+  "generatedAt": "2026-10-08T09:05:51.958Z",
   "title": "Design System: Industrial Harness desktop",
   "extensions": {
     "colorMeta": {
@@ -534,6 +534,11 @@
         "name": "agent-log",
         "value": "0 20px 70px #0005",
         "purpose": "Agent log dialog."
+      },
+      {
+        "name": "navigation-drawer",
+        "value": "4px 0 24px #00000030",
+        "purpose": "Compact project/chat sidebar overlay."
       }
     ],
     "motion": [
@@ -570,6 +575,19 @@
         "kind": "viewport-max"
       },
       {
+        "name": "automatic-tabs",
+        "value": "900px",
+        "kind": "window-content-width-below",
+        "purpose": "Automatic tabs preserve the saved layout preference; split switching is disabled below this width."
+      },
+      {
+        "name": "navigation-drawer",
+        "value": "760px",
+        "kind": "window-content-width-below",
+        "cssMaxWidth": "759px",
+        "purpose": "A 248 px overlay sidebar, tighter content insets, and 220 px tab label caps."
+      },
+      {
         "name": "hide-keyboard-hint",
         "value": "560px",
         "kind": "chat-container-max"
@@ -578,6 +596,12 @@
         "name": "compact-empty-input",
         "value": "440px",
         "kind": "chat-container-max"
+      },
+      {
+        "name": "short-empty-chat",
+        "value": "600px",
+        "kind": "viewport-height-max",
+        "purpose": "Empty chat only: preserve welcome visibility, use a 22 px title, 12 px insets, a 50 px textarea, and hide the visual shortcut hint while retaining accessible help."
       }
     ],
     "focus": [
@@ -606,13 +630,52 @@
       "provenance": "Inline SVG path data copied from installed lucide-react 1.37.0 (ISC). The green Core mark remains its existing raster asset; Pack domain markers remain functional metadata."
     },
     "nativeWindow": {
-      "minWidth": "1000px",
-      "minHeight": "650px",
-      "rendererCssFloor": "880px",
-      "observedPlatform": "macOS arm64"
+      "minWidth": "640px",
+      "minHeight": "480px",
+      "units": "logical pixels",
+      "workAreaClamp": "Minimum and window bounds are clamped to the display's available work area, including displays smaller than 640 × 480.",
+      "initialMaximumWidth": "1440px",
+      "initialMaximumHeight": "900px",
+      "initialPlacement": "Centered within the primary display work area.",
+      "displayChangeBehavior": "Clamp the current window back into the matching display's visible work area.",
+      "rendererCssFloor": "0px",
+      "observedPlatform": "macOS arm64",
+      "source": "electron/window-bounds.cjs"
     },
-    "previewBinding": "Snippets inherit --ia-* variables when the host provides the active shell theme; literal fallbacks render the documented light theme standalone. Preview content demonstrates appearance and is not a task or verification record.",
-    "tonalRampProvenance": "Eight-step OKLCH ramps are synthesized display strips from the actual hex color's hue/chroma. They are not additional implemented theme tokens."
+    "previewBinding": "Snippets inherit --ia-* variables when the host provides the active shell theme; literal fallbacks render the documented light theme standalone. Preview content demonstrates appearance and is not a task or verification record. The drawer's bounded canvas demonstrates compact mode at any panel width; tab and backdrop preview buttons do not invoke product actions.",
+    "tonalRampProvenance": "Eight-step OKLCH ramps are synthesized display strips from the actual hex color's hue/chroma. They are not additional implemented theme tokens.",
+    "backdrops": [
+      {
+        "name": "navigation-drawer",
+        "value": "#00000030",
+        "purpose": "Neutral full-area dismissal backdrop beneath the compact sidebar."
+      }
+    ],
+    "layout": {
+      "preferenceStorage": "ia-layout-v1",
+      "modes": ["split", "tabs"],
+      "autoAdaptationPreservesPreference": true,
+      "tabBarMinimumHeight": "52px",
+      "tabTitleMaxWidth": "280px",
+      "compactTabTitleMaxWidth": "220px",
+      "drawerWidth": "248px",
+      "joinedChatCorner": "Only layout-split with the right workspace open uses 14px 0 0 14px corners.",
+      "fileTabLifetime": "Current window; file/Viewer tabs are not reopened automatically after restart.",
+      "sharedState": "Conversation draft and mounted Viewer state survive layout and tab switches.",
+      "shortEmptyChat": {
+        "maximumContentHeight": "600px",
+        "welcomeScrollShrink": 0,
+        "welcomeScrollTopPadding": "12px",
+        "titleSize": "22px",
+        "titleBottomMargin": "8px",
+        "composerTopPadding": "12px",
+        "composerBodyPadding": "12px",
+        "textareaHeight": "50px",
+        "actionsTopMargin": "12px",
+        "visualShortcuts": "hidden",
+        "accessibleHelp": "retained"
+      }
+    }
   },
   "components": [
     {
@@ -651,17 +714,17 @@
       "name": "Composer",
       "kind": "input",
       "refersTo": "composer",
-      "description": "The actual raised input body and project strip. This static preview illustrates appearance only.",
+      "description": "The empty-session raised input body and project strip, including the short-window inset and height adjustments. This static preview illustrates appearance only.",
       "html": "<div class=\"ds-composer\"><button type=\"button\" class=\"ds-composer-project\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/></svg><span>New project</span><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m6 9 6 6 6-6\"/></svg></button><div class=\"ds-composer-body\"><textarea aria-label=\"Engineering task\" placeholder=\"Create or choose a project to start…\"></textarea><div class=\"ds-composer-footer\"><span class=\"ds-composer-domain\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\"/><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\"/><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\"/></svg>No domain</span><select aria-label=\"Approval mode\"><option>Request approval</option></select><button class=\"ds-composer-send\" aria-label=\"Send task\" type=\"button\" disabled><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/></svg></button></div></div></div>",
-      "css": ".ds-composer { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; font-size: 13px; line-height: 1.6; max-width: 680px; border: 1px solid var(--ia-border, #dedede); border-radius: 14px; background: var(--ia-panel, #f2f2f2); color: var(--ia-text, #252525); transition: border-color 160ms cubic-bezier(.16,1,.3,1); } .ds-composer:focus-within { border-color: var(--ia-accent, #343434); outline: 1px solid var(--ia-accent, #343434); outline-offset: 3px; } .ds-composer-project { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; padding: 8px 16px; border: 0; border-radius: 13px 13px 0 0; background: transparent; color: var(--ia-muted, #686868); font: 400 12px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; cursor: pointer; } .ds-composer-project:hover { background: var(--ia-hover, #e8e8e8); } .ds-composer-project:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } .ds-composer-body { padding: 14px; background: var(--ia-raised, #ffffff); border-top: 1px solid var(--ia-border, #dedede); border-radius: 13px; } .ds-composer textarea { width: 100%; height: 64px; min-height: 50px; max-height: 160px; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--ia-text, #252525); padding: 0 2px; font: 400 13px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; caret-color: var(--ia-accent, #343434); } .ds-composer textarea::placeholder { color: var(--ia-muted, #686868); } .ds-composer-footer { display: flex; align-items: center; gap: 8px; } .ds-composer-domain { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--ia-border, #dedede); border-radius: 999px; background: var(--ia-raised, #ffffff); color: var(--ia-text, #252525); font-size: 11px; line-height: 16px; } .ds-composer select { max-width: 150px; padding: 4px 6px; border: 1px solid var(--ia-border, #dedede); border-radius: 6px; background: var(--ia-panel, #f2f2f2); color: var(--ia-muted, #686868); font: 400 11px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; } .ds-composer select:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } .ds-composer-send { display: grid; place-items: center; margin-left: auto; width: 34px; height: 34px; padding: 7px; border: 0; border-radius: 9px; background: var(--ia-accent, #343434); color: var(--ia-bg, #fafafa); } .ds-composer-send:disabled { opacity: .42; cursor: default; } .ds-composer-send:hover:not(:disabled) { opacity: .82; } .ds-composer-send:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-composer { transition: none; } }"
+      "css": ".ds-composer { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; font-size: 13px; line-height: 1.6; max-width: 680px; border: 1px solid var(--ia-border, #dedede); border-radius: 14px; background: var(--ia-panel, #f2f2f2); color: var(--ia-text, #252525); transition: border-color 160ms cubic-bezier(.16,1,.3,1); } .ds-composer:focus-within { border-color: var(--ia-accent, #343434); outline: 1px solid var(--ia-accent, #343434); outline-offset: 3px; } .ds-composer-project { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; padding: 8px 16px; border: 0; border-radius: 13px 13px 0 0; background: transparent; color: var(--ia-muted, #686868); font: 400 12px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; cursor: pointer; } .ds-composer-project:hover { background: var(--ia-hover, #e8e8e8); } .ds-composer-project:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } .ds-composer-body { padding: 14px; background: var(--ia-raised, #ffffff); border-top: 1px solid var(--ia-border, #dedede); border-radius: 13px; } .ds-composer textarea { width: 100%; height: 64px; min-height: 50px; max-height: 160px; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--ia-text, #252525); padding: 0 2px; font: 400 13px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; caret-color: var(--ia-accent, #343434); } .ds-composer textarea::placeholder { color: var(--ia-muted, #686868); } .ds-composer-footer { display: flex; align-items: center; gap: 8px; } .ds-composer-domain { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--ia-border, #dedede); border-radius: 999px; background: var(--ia-raised, #ffffff); color: var(--ia-text, #252525); font-size: 11px; line-height: 16px; } .ds-composer select { max-width: 150px; padding: 4px 6px; border: 1px solid var(--ia-border, #dedede); border-radius: 6px; background: var(--ia-panel, #f2f2f2); color: var(--ia-muted, #686868); font: 400 11px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; } .ds-composer select:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } .ds-composer-send { display: grid; place-items: center; margin-left: auto; width: 34px; height: 34px; padding: 7px; border: 0; border-radius: 9px; background: var(--ia-accent, #343434); color: var(--ia-bg, #fafafa); } .ds-composer-send:disabled { opacity: .42; cursor: default; } .ds-composer-send:hover:not(:disabled) { opacity: .82; } .ds-composer-send:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-composer { transition: none; } } @media (max-height:600px) { .ds-composer-body { padding:12px; } .ds-composer textarea { height:50px; } }"
     },
     {
-      "name": "Project and chat navigation",
+      "name": "Compact navigation drawer",
       "kind": "nav",
       "refersTo": "navigation-chat-active",
-      "description": "Project name above domain metadata, with a quiet nested chat and gray current-chat selection.",
-      "html": "<nav class=\"ds-nav\" aria-label=\"Project navigation\"><button class=\"ds-nav-project\" type=\"button\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/></svg><span>Project folder</span><small>Domain</small></button><div class=\"ds-nav-chats\"><button type=\"button\" class=\"ds-nav-chat\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg><span>Previous chat</span></button><button type=\"button\" class=\"ds-nav-chat\" aria-current=\"page\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg><span>Current chat</span></button></div></nav>",
-      "css": ".ds-nav { width: 236px; padding: 10px; background: var(--ia-sidebar, #eeeeee); color: var(--ia-text, #252525); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; } .ds-nav button { width: 100%; border: 0; border-radius: 6px; font: 400 12px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; cursor: pointer; color: var(--ia-muted, #686868); } .ds-nav-project { display: grid; grid-template-columns: 16px minmax(0,1fr); gap: 2px 8px; text-align: left; padding: 8px 10px; background: var(--ia-sidebar-hover, #e3e3e3); } .ds-nav-project span { color: var(--ia-text, #252525); font-weight: 500; } .ds-nav-project small { grid-column: 2; font-size: 11px; font-weight: 400; } .ds-nav-chats { margin: 3px 9px 10px 21px; padding-left: 7px; border-left: 1px solid var(--ia-border, #dedede); } .ds-nav-chat { display: flex; align-items: center; gap: 9px; margin: 2px 3px; padding: 7px 10px; background: transparent; text-align: left; } .ds-nav-chat[aria-current=\"page\"] { background: var(--ia-sidebar-active, #dedede); color: var(--ia-text, #252525); } .ds-nav-chat:hover { background: var(--ia-hover, #e8e8e8); } .ds-nav button:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; }"
+      "description": "Static compact drawer over a bounded preview canvas. It reuses project/chat navigation; the application owns backdrop dismissal.",
+      "html": "<div class=\"ds-drawer-stage\"><button type=\"button\" class=\"ds-drawer-backdrop\" aria-label=\"Hide sidebar\"></button><nav class=\"ds-nav\" aria-label=\"Project navigation\"><button class=\"ds-nav-project\" type=\"button\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/></svg><span>Project folder</span><small>Domain</small></button><div class=\"ds-nav-chats\"><button type=\"button\" class=\"ds-nav-chat\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg><span>Previous chat</span></button><button type=\"button\" class=\"ds-nav-chat\" aria-current=\"page\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg><span>Current chat</span></button></div></nav></div>",
+      "css": ".ds-nav { width: 236px; padding: 10px; background: var(--ia-sidebar, #eeeeee); color: var(--ia-text, #252525); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; } .ds-nav button { width: 100%; border: 0; border-radius: 6px; font: 400 12px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; cursor: pointer; color: var(--ia-muted, #686868); } .ds-nav-project { display: grid; grid-template-columns: 16px minmax(0,1fr); gap: 2px 8px; text-align: left; padding: 8px 10px; background: var(--ia-sidebar-hover, #e3e3e3); } .ds-nav-project span { color: var(--ia-text, #252525); font-weight: 500; } .ds-nav-project small { grid-column: 2; font-size: 11px; font-weight: 400; } .ds-nav-chats { margin: 3px 9px 10px 21px; padding-left: 7px; border-left: 1px solid var(--ia-border, #dedede); } .ds-nav-chat { display: flex; align-items: center; gap: 9px; margin: 2px 3px; padding: 7px 10px; background: transparent; text-align: left; } .ds-nav-chat[aria-current=\"page\"] { background: var(--ia-sidebar-active, #dedede); color: var(--ia-text, #252525); } .ds-nav-chat:hover { background: var(--ia-hover, #e8e8e8); } .ds-nav button:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } .ds-drawer-stage { position: relative; min-height: 248px; max-width: 440px; background: var(--ia-bg, #fafafa); } .ds-drawer-backdrop { position: absolute; inset: 0; border: 0; border-radius: 0; background: #00000030; cursor: pointer; z-index: 25; } .ds-drawer-stage .ds-nav { position: absolute; inset: 0 auto 0 0; width: 248px; z-index: 26; box-shadow: 4px 0 24px #00000030; } .ds-drawer-backdrop:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: -2px; }"
     },
     {
       "name": "Read-only domain pill",
@@ -680,12 +743,12 @@
       "css": ".ds-approval { border: 1px solid var(--ia-border, #dedede); border-radius: 7px; padding: 12px; background: transparent; color: var(--ia-text, #252525); font: 400 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; } .ds-approval-preview { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 400 12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; } .ds-approval button { margin-right: 6px; padding: 6px 9px; border: 1px solid var(--ia-border, #dedede); border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; } .ds-approval button:hover:not(:disabled) { background: var(--ia-hover, #e8e8e8); } .ds-approval button:disabled { opacity: .42; cursor: default; } .ds-approval button:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; }"
     },
     {
-      "name": "User message",
-      "kind": "custom",
-      "refersTo": "user-message",
-      "description": "Right-aligned neutral bubble with compact conversation type.",
-      "html": "<div class=\"ds-user-entry\"><div class=\"ds-user-message\">Inspect the project files.</div></div>",
-      "css": ".ds-user-entry { margin: 6px 0 8px auto; max-width: 85%; width: max-content; min-width: 88px; } .ds-user-message { padding: 10px 14px; border: 0; border-radius: 14px; background: var(--ia-active, #e9e9e9); color: var(--ia-text, #252525); font: 400 13px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; }"
+      "name": "Workspace tabs",
+      "kind": "nav",
+      "refersTo": "workspace-tab-active",
+      "description": "The shared tab strip: persistent chat, selected file, and italic transient preview. Buttons illustrate appearance; app handlers own navigation.",
+      "html": "<div class=\"ds-tabbar\"><div class=\"ds-tabs\"><div class=\"ds-tab-list\" role=\"tablist\" aria-label=\"Workspace tabs\"><div class=\"ds-tab-item\"><button type=\"button\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719\"/></svg><span>Chat</span></button></div><div class=\"ds-tab-item\"><button type=\"button\" role=\"tab\" aria-selected=\"true\" tabindex=\"0\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\"/><path d=\"M14 2v5a1 1 0 0 0 1 1h5\"/></svg><span>project.md</span></button><button type=\"button\" class=\"ds-tab-close\" aria-label=\"Close tab project.md\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></svg></button></div><div class=\"ds-tab-item ds-tab-preview\"><button type=\"button\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\"/><path d=\"M14 2v5a1 1 0 0 0 1 1h5\"/></svg><span>notes.txt</span></button><button type=\"button\" class=\"ds-tab-pin\" aria-label=\"Keep tab notes.txt\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 17v5\"/><path d=\"M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z\"/></svg></button><button type=\"button\" class=\"ds-tab-close\" aria-label=\"Close tab notes.txt\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></svg></button></div></div><button type=\"button\" class=\"ds-tab-add\" aria-label=\"Open project files\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg></button></div></div>",
+      "css": ".ds-tabbar { display: flex; align-items: center; gap: 4px; padding: 6px 10px; min-height: 52px; background: var(--ia-panel, #f2f2f2); border-bottom: 1px solid var(--ia-border, #dedede); font: 400 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; } .ds-tabs { display: flex; flex: 1; align-items: center; gap: 4px; min-width: 0; } .ds-tab-list { display: flex; min-width: 0; overflow: auto; gap: 4px; scrollbar-width: thin; } .ds-tab-item { display: flex; align-items: center; flex: 0 0 auto; max-width: 280px; border-radius: 9px; } .ds-tab-item:has([aria-selected=\"true\"]) { background: var(--ia-raised, #ffffff); box-shadow: none; } .ds-tab-item button,.ds-tab-add { border: 0; border-radius: 6px; background: transparent; color: var(--ia-muted, #686868); font: inherit; cursor: pointer; transition: none; } .ds-tab-item [role=\"tab\"] { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 9px 12px; text-align: left; white-space: nowrap; } .ds-tab-item [aria-selected=\"true\"] { color: var(--ia-text, #252525); font-weight: 500; } .ds-tab-item [role=\"tab\"] span { overflow: hidden; text-overflow: ellipsis; } .ds-tab-item svg { flex-shrink: 0; } .ds-tab-preview [role=\"tab\"] span { font-style: italic; } .ds-tab-item .ds-tab-close { display: grid; place-items: center; flex: 0 0 28px; height: 28px; margin-right: 5px; } .ds-tab-pin { min-width: 28px; padding: 0 6px; } .ds-tab-add { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; padding: 7px; } .ds-tabs button:hover:not(:disabled) { background: var(--ia-hover, #e8e8e8); } .ds-tabs button:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } .ds-tabs button:disabled { opacity: .42; cursor: default; } @media (max-width:759px) { .ds-tabbar { padding-inline:6px; } .ds-tab-item { max-width:220px; } }"
     },
     {
       "name": "Message hover actions",

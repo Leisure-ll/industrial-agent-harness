@@ -62,8 +62,9 @@ workspace, not a completed engineering run.
 
 ## Message actions and product mark (2026-10-08)
 
-The initial message-action change was based on main `62c1714`; the final PR was
-rebased onto `2482114` for the neutral redesign below. Messages provide their time and a Copy button
+The initial message-action change was based on main `62c1714`; the redesign
+incorporates `2482114` and subsequently merged current main `91cd252`. Messages
+provide their time and a Copy button
 on hover, without clicking to reveal them. The row also appears on keyboard
 focus, and remains visible on devices without hover. User controls align below
 the right edge of the bubble; assistant controls align with the reply. Reserved
@@ -132,8 +133,8 @@ run. Native clipboard tests never copy data from an existing user project.
 The user requested a substantial overall restyle following their supplied
 desktop screenshot, with lighter type and tighter leading, and explicitly
 asked to preserve the existing theme preference. The branch incorporates main
-`2482114`, including IH-ARCH-001, project execution location, and per-chat
-approvals. This work changes the desktop presentation and reuses existing
+`91cd252`, including IH-ARCH-001, project execution location, per-chat approvals,
+and the responsive tab workbench. This work changes the desktop presentation and reuses existing
 actions; it adds no orchestration and changes no frozen Domain implementation.
 
 Both themes now use neutral surfaces and fine separators. The dark conversation
@@ -149,8 +150,12 @@ context opens existing project details or project creation, and existing
 welcome actions sit below it. After submission, the composer stays at the
 bottom as before. The three work areas, collapsible panels, settings location,
 green core identity, hover-only message actions, and stored theme preference
-remain available. No unrelated reference-app branding, models, or tasks were
-added.
+remain available. Main's file/chat tabs, saved layout preference, <900 px tab
+fallback, and <760 px sidebar drawer also remain. The native minimum is now
+640 × 480, clamped to smaller work areas. Empty-chat spacing tightens below
+600 px of content height so the welcome title and input stay visible; the
+accessible keyboard description remains when the visual hint is hidden.
+No unrelated reference-app branding, models, or tasks were added.
 
 The Impeccable source guidance at the revision above was applied with the user
 reference as the pinned direction. Confirmed product context is in `PRODUCT.md`;
@@ -163,8 +168,10 @@ review remain separate evidence.
 
 Verified locally on macOS arm64 after the restyle:
 
-- Build/typecheck; 34 desktop and 23 architecture tests, including the
+- Build/typecheck; 42 desktop and 23 architecture tests, including the
   architecture-contract checker and its 11 negative policy regressions.
+- Harness core 29, SDK 12, CLI 17 and Kimi adapter 70 tests passed on the final
+  merged branch; 2 platform-dependent Kimi tests were skipped.
 - All 9 existing native industrial-core integration tests passed, including
   the signed installed Chip Pack, real Verilator, cancellation/failure and
   pinned Kimi CLI path. This checkout has no local EDA virtual environment;
@@ -174,9 +181,14 @@ Verified locally on macOS arm64 after the restyle:
   Chinese/English, both themes, contrast, centered empty chat, project/file
   navigation, input focus and draft retention, body-to-button mouse hover,
   exact clipboard contents, copy/retry, timestamps, history and reload.
+- Main's tab navigation/layout persistence, retained document DOM, and
+  800 × 600 / 640 × 480 matrix passed, including a direct assertion that the
+  empty-chat heading stays visible at the native minimum.
 - Native `test:language`, `test:parallel`, and `test:images`, preserving IME,
   concurrent chat/approval/question/stop isolation, and image selection,
   paste/drop, model capability, draft isolation, and error retry.
+- Native `test:gui-settings` passed the main branch's desktop-operation switch,
+  permission-status, unknown/error and bounded settings-link checks.
 - An unsigned macOS arm64 application directory built from the final renderer
   passed its packaged `--messages-selftest` through `app://viewer`. The native
   pointer helper waits for scrolling/layout before targeting the message, then

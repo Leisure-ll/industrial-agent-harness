@@ -24,7 +24,13 @@ function prepare(config) {
 }
 
 async function run(window, dialog) {
-  const evaluate = script => window.webContents.executeJavaScript(script, true);
+  const evaluate = async script => {
+    try {
+      return await window.webContents.executeJavaScript(script, true);
+    } catch (error) {
+      throw Error(`Language selftest failed: ${script}`, { cause: error });
+    }
+  };
   async function wait(script) {
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
@@ -111,15 +117,23 @@ async function run(window, dialog) {
   await evaluate(`document.querySelector('button[title="展开文件树"]').click()`);
   await wait(`Boolean(document.querySelector('.ia-file-list button[title="data.csv"]'))`);
   await evaluate(`document.querySelector('.ia-file-list button[title="data.csv"]').click()`);
-  await wait(`Boolean(document.querySelector('.rp-document-table tbody tr'))`);
+  await wait(
+    `Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-table tbody tr'))`,
+  );
   await input('input[aria-label="在文档中搜索"]', '用户原文');
-  await wait(`document.querySelectorAll('.rp-document-table tbody tr').length===1`);
+  await wait(
+    `document.querySelector('.ia-file-view:not([hidden])')?.querySelectorAll('.rp-document-table tbody tr').length===1`,
+  );
   await evaluate(`document.querySelector('button[aria-label="放大"]').click()`);
   await wait(`document.querySelector('output[aria-label="查看器缩放"]').textContent==='120%'`);
-  await evaluate(`document.querySelector('.rp-document').dataset.languageIdentity='retained'`);
+  await evaluate(
+    `document.querySelector('.ia-file-view:not([hidden])').querySelector('.rp-document').dataset.languageIdentity='retained'`,
+  );
   await language('en');
   assert.equal(
-    await evaluate(`document.querySelector('.rp-document').dataset.languageIdentity`),
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document').dataset.languageIdentity`,
+    ),
     'retained',
   );
   assert.equal(
@@ -127,15 +141,21 @@ async function run(window, dialog) {
     '120%',
   );
   assert.equal(
-    await evaluate(`document.querySelector('input[aria-label="Find in document"]').value`),
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])').querySelector('input[aria-label="Find in document"]').value`,
+    ),
     '用户原文',
   );
   assert.equal(
-    await evaluate(`document.querySelectorAll('.rp-document-table tbody tr').length`),
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelectorAll('.rp-document-table tbody tr').length`,
+    ),
     1,
   );
   assert.match(
-    await evaluate(`document.querySelector('.rp-document-table tbody').textContent`),
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-table tbody').textContent`,
+    ),
     /用户原文.*000123/,
   );
   assert.equal(

@@ -38,6 +38,15 @@ function validateProfile(value) {
   const model = String(value.model || '').trim();
   if (!model || model.length > 128 || /[\r\n]/.test(model))
     throw Error('Enter a valid model name.');
+  // MiniMax's documented /v1 endpoint uses Chat Completions, not Moonshot's
+  // Kimi extension. Repair existing profiles as well as new settings saves.
+  // Custom gateways keep their explicitly selected protocol.
+  const minimaxChatCompletions =
+    ['api.minimaxi.com', 'api.minimax.io', 'api.minimax.cn'].includes(host) &&
+    !endpoint.port &&
+    /^\/v1\/?$/.test(endpoint.pathname) &&
+    /^minimax-/i.test(model);
+  const provider = minimaxChatCompletions ? 'openai_legacy' : value.provider;
   const contextSize = Number(value.contextSize);
   if (!Number.isInteger(contextSize) || contextSize < 8192 || contextSize > 2000000)
     throw Error('Context size must be between 8192 and 2000000.');
@@ -51,14 +60,14 @@ function validateProfile(value) {
   // Existing official MiniMax M3 profiles predate the image-input field.
   // https://platform.minimax.cn/docs/api-reference/text-openai-api
   const knownImageModel =
-    value.provider === 'openai_legacy' &&
+    provider === 'openai_legacy' &&
     ['api.minimaxi.com', 'api.minimax.io', 'api.minimax.cn'].includes(endpoint.hostname) &&
     /^minimax-m3(?:\.1-flash-preview)?$/i.test(model);
   const imageInputMode =
     value.imageInputMode ??
     (value.imageInput === undefined ? 'auto' : value.imageInput ? 'enabled' : 'disabled');
   return {
-    provider: value.provider,
+    provider,
     endpoint: endpoint.toString().replace(/\/$/, ''),
     model,
     contextSize,
@@ -71,6 +80,14 @@ function validateProfile(value) {
 // Keep requested output comfortably inside the configured context window.
 const MODEL_MAX_COMPLETION_TOKENS = 65536;
 
+function thinkingEffort(profile) {
+  if (!profile.thinking) return 'off';
+  // Upstream encodes Moonshot's own thinking extension for Kimi. Generic
+  // Chat Completions must use the model default rather than assuming every
+  // vendor supports the same high reasoning_effort tier.
+  return profile.provider === 'kimi' ? 'high' : 'on';
+}
+
 function configToml(profile) {
   const value = validateProfile(profile);
   const quote = JSON.stringify;
@@ -78,7 +95,7 @@ function configToml(profile) {
     ...(value.thinking ? ['thinking'] : []),
     ...(value.imageInput ? ['image_in'] : []),
   ];
-  return `default_model = "industrial"\ndefault_permission_mode = "manual"\ntelemetry = false\nauto_session_title = false\n\n[thinking]\nenabled = ${value.thinking}\n\n[watch]\nenabled = false\n\n[providers.industrial]\ntype = ${quote(value.provider === 'openai_legacy' ? 'openai' : value.provider)}\nbase_url = ${quote(value.endpoint)}\napi_key_env = "HARNESS_MODEL_API_KEY"\n\n[models.industrial]\nprovider = "industrial"\nmodel = ${quote(value.model)}\nmax_context_size = ${value.contextSize}\nmax_output_size = ${Math.min(MODEL_MAX_COMPLETION_TOKENS, Math.floor(value.contextSize / 4))}\ncapabilities = ${JSON.stringify(modelCapabilities)}\n`;
+  return `default_model = "industrial"\ndefault_permission_mode = "manual"\ntelemetry = false\nauto_session_title = false\n\n[thinking]\nenabled = ${value.thinking}\neffort = ${quote(thinkingEffort(value))}\n\n[watch]\nenabled = false\n\n[providers.industrial]\ntype = ${quote(value.provider === 'openai_legacy' ? 'openai' : value.provider)}\nbase_url = ${quote(value.endpoint)}\napi_key_env = "HARNESS_MODEL_API_KEY"\n\n[models.industrial]\nprovider = "industrial"\nmodel = ${quote(value.model)}\nmax_context_size = ${value.contextSize}\nmax_output_size = ${Math.min(MODEL_MAX_COMPLETION_TOKENS, Math.floor(value.contextSize / 4))}\ncapabilities = ${JSON.stringify(modelCapabilities)}\n`;
 }
 
 function sessionEnv(profile, apiKey) {
@@ -129,6 +146,7 @@ function writeCliConfig(directory, profile) {
 module.exports = {
   defaults,
   validateProfile,
+  thinkingEffort,
   configToml,
   sessionEnv,
   saveProfile,

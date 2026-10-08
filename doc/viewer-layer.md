@@ -69,3 +69,7 @@ Viewer 描述至少说明：稳定 ID、可处理的产物类型、所需配套�
 ## 自有控件的展示语言
 
 Desktop 使用 `viewer-builtin/canvas` 打开 Registry 已选择的 Viewer，并通过通用的 `viewer-builtin/text` Context 传入展示翻译与语言。`text` API 仅依赖 React，不选择 Viewer、不导入 Desktop/Kimi/工业状态/Runtime，也不改变输入和命令。Desktop 的 `i18n.config.json` 集中声明语言及 Desktop/Viewer 的自有译文，语言偏好属于 Desktop，Viewer 仅消费回调；边界门禁允许这两个通用展示入口，继续禁止直接导入具体 Viewer 做分派。切换语言更新已挂载的自有控件，保留缩放、选择和运行时状态。范围、配置维护及生产路径验证见[桌面语言切换](desktop-languages.md)。
+
+## 桌面标签页布局
+
+DesktopViewerHost 支持可切换的两列与标签页布局，多个文件使用同一 ViewerCanvas 和注册入口。已访问的 Viewer 在隐藏标签或更换布局时保留挂载；关闭文件或项目切换执行正常清理。只有当前文件绑定共享导航工具栏，布局和显示器变化不写入工程事实。窗口响应规则与验收见[自适应窗口与标签页](desktop-layouts.md)。

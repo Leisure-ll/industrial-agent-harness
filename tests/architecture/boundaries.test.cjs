@@ -111,11 +111,14 @@ test('Desktop and CLI cannot directly spawn industrial executables', () => {
 });
 
 test('Viewer dispatch uses a registry and static Capability IDs cannot expand', () => {
-  const app = read('apps/desktop/src/App.tsx');
-  const imported = [...app.matchAll(/from '@industrial-agent-harness\/viewer-builtin\/(\w+)'/g)]
-    .map(match => match[1])
-    .filter(name => name !== 'api')
-    .sort();
+  const app = sourceFiles('apps/desktop/src').map(read).join('\n');
+  const imported = [
+    ...new Set(
+      [...app.matchAll(/from '@industrial-agent-harness\/viewer-builtin\/(\w+)'/g)]
+        .map(match => match[1])
+        .filter(name => name !== 'api'),
+    ),
+  ].sort();
   // Both exports are domain-neutral presentation APIs; concrete Viewer dispatch stays in Registry.
   assert.deepEqual(imported, ['canvas', 'text']);
   assert.doesNotMatch(

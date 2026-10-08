@@ -9,7 +9,7 @@
 - **不进 `domain-mcp` 注册表**:那条路径是领域 EDA 工具的;GUI 工具通过 Kimi 会话 `externalTools`
   声明式注册,handler 在 Harness 手里(执行边界)。
 - **enable 即授权**:插件开关开启后,"用不用、何时用"由 Kimi 决定,adapter 自动批准 GUI 工具审批,
-  不再逐次询问用户。唯一系统级动作是 macOS 截屏/Accessibility 权限(由宿主应用一次性获得)。
+  不再逐次询问用户。macOS 截屏/Accessibility 权限另由宿主应用获得。Desktop 设置将“已开启”和“已授权”分开显示，只读检查系统权限并提供缺失项入口，详见[桌面设置](../../doc/desktop-layouts.md#桌面操作设置)。
 - **横切桌面与 CLI 两条 adapter**:两边共享本包,不重复实现。
 
 ## 工具面(18 个 canonical,冻结)

@@ -90,6 +90,7 @@ rounded:
   approval: "7px"
   secondary: "8px"
   send: "9px"
+  tab: "9px"
   popover: "12px"
   composer-body: "13px"
   surface: "14px"
@@ -152,6 +153,11 @@ components:
     rounded: "{rounded.control}"
     typography: "{typography.label}"
     padding: "7px 10px"
+  workspace-tab-active:
+    backgroundColor: "{colors.light-raised}"
+    textColor: "{colors.light-text}"
+    rounded: "{rounded.tab}"
+    padding: "9px 12px"
   domain-pill:
     backgroundColor: "{colors.light-raised}"
     textColor: "{colors.light-text}"
@@ -218,7 +224,7 @@ Conversation background, panel, raised surface, and sidebar form the ground. Tex
 
 ### Hierarchy
 
-- **Welcome:** the recorded welcome role; below a 440 px chat container its size becomes 22 px.
+- **Welcome:** the recorded welcome role; below a 440 px chat container its size becomes 22 px. Empty sessions also use 22 px when content height is 600 px or less.
 - **Project / dialog titles:** the separate recorded roles, used on project details and model dialogs.
 - **Conversation:** user messages, assistant prose, and composer input use the conversation role.
 - **Labels / metadata:** navigation and message time use label; status hints use metadata and domain pills use domain-status. Compact settings and diagnostics retain smaller 10 px text.
@@ -229,19 +235,25 @@ Conversation background, panel, raised surface, and sidebar form the ground. Tex
 
 ## Layout
 
-The shell retains project/chat navigation, conversation, and an optional file workspace. Settings stays at the lower left. Workspace and file tree start closed; both outer panels remain collapsible. The chat surface has a thin border and rounded outer edge inside a 6 px shell inset. Opening the workspace squares the chat's adjoining right edge.
+The shell retains project/chat navigation, conversation, and an optional file workspace in either split or tab layout. Settings stays at the lower left. Workspace and file tree start closed; both outer panels remain collapsible. The chat surface has a thin border and rounded outer edge inside a 6 px shell inset. Only split layout with an open workspace squares the chat's adjoining right edge.
 
-The sidebar is 256 px wide, becoming 220 px at 1250 px viewport width and 204 px at 1050 px. Shared headers are 48 px. Conversation and composer use a 680 px target measure with at least 24 px horizontal padding; compact viewports use 20 px. The empty title, introduction, and composer form a centered group, with existing project/file actions below. After a turn exists, the scrolling conversation grows and the composer sits at the bottom.
+The sidebar is 256 px wide, becoming 220 px at 1250 px viewport width and 204 px at 1050 px. Below 760 px content width, it becomes a 248 px overlay drawer opened from the sidebar control; its backdrop dismisses it. Shared headers are 48 px, while the workbench tab bar has a 52 px minimum. Conversation and composer use a 680 px target measure with at least 24 px horizontal padding; compact viewports use 20 px, and below 760 px conversation padding becomes 16 px while the composer wrap uses 12 px. The empty title, introduction, and composer form a centered group, with existing project/file actions below. After a turn exists, the scrolling conversation grows and the composer sits at the bottom.
 
-The workspace defaults to 48% of available width, with a 360 px minimum; at 1250 px its minimum is 340 px, and at 1050 px its default basis is 45%. Its file tree steps from 176 to 148 to 136 px. User-resized workspace width is retained. Workspace controls can wrap, and project paths truncate or wrap in their established contexts.
+In split layout the workspace defaults to 48% of available width, with a 360 px minimum; at 1250 px its minimum is 340 px, and at 1050 px its default basis is 45%. Its file tree steps from 176 to 148 to 136 px. User-resized workspace width is retained. Workspace controls can wrap, and project paths truncate or wrap in their established contexts.
 
-Below a 560 px chat container, hide the visual keyboard hint while retaining the accessible input description. Below 440 px, reduce the composer body inset to 12 px and the empty-state action margin above to 12 px. The native window minimum remains 1000 × 650; the renderer's 880 px CSS floor is not a supported native window size.
+Below 900 px content width, the shell automatically uses chat/file tabs and disables the switch to split layout. At wider widths, it restores the user's saved layout choice. Automatic adaptation does not overwrite that preference. The selected chat or file occupies the full workbench width; hidden chat and Viewer surfaces stay mounted. File tabs also remain available inside the split workspace. Tabs and Viewer sessions last for the current window, while layout preference is saved locally.
 
-Current native captures and local visual coverage are macOS arm64 in both themes, Chinese/English, and empty/chat/workspace states. These UI fixtures do not establish engineering acceptance. See [UI verification](../../doc/desktop-ui-refinement.md), [CI coverage](../../doc/ci-regression.md), and [Desktop preview limits](README.md) for broader platform and packaged-runtime scope.
+Below a 560 px chat container, hide the visual keyboard hint while retaining the accessible input description. Below 440 px, reduce the composer body inset to 12 px and the empty-state action margin above to 12 px. The renderer has no fixed minimum-width floor.
+
+At content heights of 600 px or less, empty chat uses a compact vertical arrangement: the welcome scroll region does not shrink and has 12 px top padding; the title becomes 22 px with an 8 px bottom margin; composer top padding and body inset become 12 px; textarea height becomes 50 px; and the welcome actions use 12 px top margin. Hide the visual keyboard shortcut hint in this state while preserving the accessible help. This adapts the existing centered arrival group to short windows.
+
+Native window sizing uses logical pixels and the display's available work area. The minimum is 640 × 480, clamped to that area on smaller displays. First launch centers a window no larger than 1440 × 900; later display changes keep it within visible bounds. The former 1000 × 650 minimum is now a verification size, not the native minimum. The implementation is recorded in [window-bounds.cjs](electron/window-bounds.cjs).
+
+Current inspected native captures are macOS arm64 in both themes, Chinese/English, and empty/chat/workspace states, including file tabs, Markdown, and compact tabs. Captures establish visual observations; they do not assert that the in-progress native regression matrix has passed or establish engineering acceptance. See [responsive layout behavior and verification scope](../../doc/desktop-layouts.md), [UI verification](../../doc/desktop-ui-refinement.md), [CI coverage](../../doc/ci-regression.md), and [Desktop preview limits](README.md) for broader platform and packaged-runtime limits.
 
 ## Elevation & Depth
 
-The resting shell and composer are flat. Tone, thin rules, and selected fills provide separation. Overlays alone use diffuse shadows: Settings (`0 12px 32px #00000026`), model dialogs (`0 16px 56px #00000033`), and agent logs (`0 20px 70px #0005`). The sidecar records these extensions.
+The resting shell, composer, and selected workspace tabs are flat. Tone, thin rules, and selected fills provide separation. Overlays use diffuse shadows: Settings (`0 12px 32px #00000026`), model dialogs (`0 16px 56px #00000033`), agent logs (`0 20px 70px #0005`), and the compact navigation drawer (`4px 0 24px #00000030`). Its full-area backdrop uses the same neutral translucent black (`#00000030`). The sidecar records these extensions.
 
 **The Flat Shell Rule.** Keep ordinary navigation, messages, and the composer free of added shadows; use the existing overlay shadows for floating surfaces.
 
@@ -261,13 +273,19 @@ Keyboard focus uses a 2 px accent outline; inputs and summaries offset it by 3 p
 
 ### Inputs / Fields
 
-The composer uses panel tone around a raised body, with a thin border. Empty sessions include a project strip above that body. Input starts at 64 px high, resizes between 50 and 160 px, and uses the conversation role. Focus-within adds an accent border and 1 px outline offset by 3 px. Border motion is 160 ms with `cubic-bezier(0.16, 1, 0.3, 1)`; reduced motion disables it.
+The composer uses panel tone around a raised body, with a thin border. Empty sessions include a project strip above that body. Input starts at 64 px high, or 50 px in short empty sessions, resizes between 50 and 160 px, and uses the conversation role. Focus-within adds an accent border and 1 px outline offset by 3 px. Border motion is 160 ms with `cubic-bezier(0.16, 1, 0.3, 1)`; reduced motion disables it.
 
 Preserve Enter to send, Shift+Enter for a line, IME composition handling, and the accessible help text. Availability follows actual project/domain, task, image-input, and remote readiness. The approval selector stays explicit.
 
 ### Navigation
 
 Project names sit above read-only domain metadata. The active project uses sidebar-hover tone; the current chat uses sidebar-active tone. Other chat rows remain quiet at regular weight. Nested chats retain a fine vertical rule. Deletion controls appear on row hover or keyboard focus. Names truncate without pushing out controls, and the sidebar brand may wrap at compact widths.
+
+### Workspace tabs
+
+The workbench keeps one chat tab beside file tabs; split layout uses the same file tabs in its workspace. Tab groups use panel tone, a thin bottom rule, and 4 px gaps. The selected tab uses raised tone, medium weight (500), and no shadow. Tab corners are 9 px; labels use 9 px by 12 px padding and truncate within a 280 px cap, reduced to 220 px below 760 px. Overflow scrolls horizontally.
+
+A single-click file preview uses an italic title. Double-click or the Pin control keeps it; the Plus control opens current-project files. Close controls affect the file view only. Preserve tab roles, selected state, keyboard arrows/Home/End/Delete, and focus restoration. Chat status represents actual running, approval, or question state. Layout changes retain the mounted conversation, draft, and Viewer state; they do not change task or permission behavior.
 
 ### Chips / Containers
 

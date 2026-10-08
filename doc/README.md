@@ -52,6 +52,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [早期开发计划](development-plan.md) | 两份原始 Plan 的阶段性整理；里程碑顺序以新的实施路线图为准 |
 | [产品决策记录](product-decisions.md) | 已确认的用户交互与项目模型决定，包括 Project、目录、Domain 和 Session 的关系 |
 | [桌面 UI 优化](desktop-ui-refinement.md) | Impeccable 产品模式、设计系统、首次使用与项目导航、主题与窗口验收 |
+| [自适应窗口与标签页](desktop-layouts.md) | 两列／多标签切换、窄窗口、显示器边界、查看状态与回归 |
 | [桌面语言切换](desktop-languages.md) | 中英文与跟随系统、偏好保存、自有控件范围、状态保留与验证 |
 | [架构决策记录](decisions.md) | 已确定的决定、提案间的差异和需要验证的接口 |
 | [27B / 256k 上下文适配计划](27b-256k-context-plan.md) | Kimi 接入的输出边界、会话复用、观测与后续评测门禁 |
@@ -63,6 +64,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [Apple Silicon CAD 分发](macos-cad-distribution.md) | 首次选择、官方 FreeCAD 自动准备、修复、真实任务与发行边界 |
 | [安装、补装与 OTA 规划](installation-and-ota-plan.md) | macOS/Windows 桌面安装、多选 Domain、后续补装与 Core/Pack 更新的 P3 提案 |
 | [CLI 与 Bench 入口](../apps/cli/README.md) | 无界面单任务命令、JSON Lines 事件、模型与工件输入 |
+| [模型 API 与思考参数](model-api-compatibility.md) | MiniMax 协议修复、OpenCode 研究与不同模型的参数接入边界 |
 | [Computer Use 桥接包](../packages/computer-use-bridge/README.md) | GUI 横切插件：固定二进制安装、18 工具面、MCP 进程模型与已知缺口 |
 | [Agent 聊天 UI 来源](agent-ui-provenance.md) | EDA Harness demo 的思考、Todo、工具呈现如何接入实时 SDK 事件 |
 | [并行 Session](parallel-sessions.md) | 同项目与跨项目聊天并行、后台审批、停止与配置影响范围 |

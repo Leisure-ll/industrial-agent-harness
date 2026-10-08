@@ -45,7 +45,7 @@ async function run(window) {
       `document.querySelector('.ia-file-list button[title="build/playground.html"]').click()`,
     );
     await waitFor(
-      `document.querySelector('.rp-godot-toolbar strong')?.innerText.includes('ViewerPlayground') && !document.querySelector('button[aria-label="Pause"]')?.disabled`,
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-godot-toolbar strong')?.innerText.includes('ViewerPlayground') && !document.querySelector('button[aria-label="Pause"]')?.disabled`,
     );
     const frame = window.webContents.mainFrame.frames.find(item =>
       item.url.startsWith('app://godot/'),
@@ -56,18 +56,40 @@ async function run(window) {
     );
     await evaluate(`document.querySelector('button[aria-label="Pause"]').click()`);
     await waitFor(`document.querySelector('button[aria-label="Step frame"]')?.disabled === false`);
-    const inspectRobot = `Array.from(document.querySelectorAll('.rp-godot-node')).find(node => node.innerText.startsWith('Robot')).click()`;
+    const inspectRobot = `Array.from(document.querySelector('.ia-file-view:not([hidden])')?.querySelectorAll('.rp-godot-node')).find(node => node.innerText.startsWith('Robot')).click()`;
     await evaluate(inspectRobot);
-    await waitFor(`document.querySelector('.rp-godot-inspect')?.innerText.includes('position')`);
-    const position = `Array.from(document.querySelectorAll('.rp-godot-inspect dl > div')).find(node => node.querySelector('dt')?.innerText === 'position')?.querySelector('dd')?.innerText`;
+    await waitFor(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-godot-inspect')?.innerText.includes('position')`,
+    );
+    const position = `Array.from(document.querySelector('.ia-file-view:not([hidden])')?.querySelectorAll('.rp-godot-inspect dl > div')).find(node => node.querySelector('dt')?.innerText === 'position')?.querySelector('dd')?.innerText`;
     const paused = await evaluate(position);
     await new Promise(resolve => setTimeout(resolve, 300));
     await evaluate(inspectRobot);
     assert.equal(await evaluate(position), paused, 'pause freezes real scene node');
+    const retainedFrameId = frame.frameTreeNodeId;
+    await evaluate(`document.querySelector('.ia-layout-toggle').click()`);
+    await evaluate(`document.getElementById('tab-chat').click()`);
+    await waitFor(`document.querySelector('.ia-workspace').hidden`);
+    await evaluate(
+      `Array.from(document.querySelectorAll('.ia-workbench-tabbar [role="tab"]')).find(tab => tab.textContent === 'playground.html').click()`,
+    );
+    await waitFor(`!document.querySelector('.ia-workspace').hidden`);
+    assert.equal(
+      window.webContents.mainFrame.frames.find(item => item.url.startsWith('app://godot/'))
+        ?.frameTreeNodeId,
+      retainedFrameId,
+      'Tabbed Godot must retain its browsing context',
+    );
+    await evaluate(inspectRobot);
+    assert.equal(await evaluate(position), paused, 'Tabbed Godot must retain the paused scene');
+    await evaluate(`document.querySelector('.ia-layout-toggle').click()`);
+
     await verifyWheel(
       window,
       () =>
-        evaluate(`document.querySelector('.rp-godot-canvas iframe').getBoundingClientRect().width`),
+        evaluate(
+          `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-godot-canvas iframe').getBoundingClientRect().width`,
+        ),
       (deltaY, ctrlKey) =>
         frame.executeJavaScript(
           `(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('canvas').dispatchEvent(e);return e.defaultPrevented;})()`,
@@ -75,14 +97,18 @@ async function run(window) {
     );
     const runtimeIdentity = frame.routingId;
     const runtimeWidth = await evaluate(
-      `document.querySelector('.rp-godot-canvas iframe').clientWidth`,
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-godot-canvas iframe').clientWidth`,
     );
     await verifyNavigation(window, () =>
-      evaluate(`document.querySelector('.rp-godot-canvas iframe').getBoundingClientRect().width`),
+      evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-godot-canvas iframe').getBoundingClientRect().width`,
+      ),
     );
     assert.ok(
       Math.abs(
-        (await evaluate(`document.querySelector('.rp-godot-canvas iframe').clientWidth`)) /
+        (await evaluate(
+          `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-godot-canvas iframe').clientWidth`,
+        )) /
           runtimeWidth -
           1,
       ) < 0.03,
@@ -120,7 +146,7 @@ async function run(window) {
     );
     await evaluate(`document.querySelector('button[aria-label="Stop"]').click()`);
     await waitFor(
-      `Array.from(document.querySelectorAll('.rp-godot-node')).some(node => node.innerText.startsWith('Robot') && !node.disabled) && !document.querySelector('.rp-godot-inspect')`,
+      `Array.from(document.querySelector('.ia-file-view:not([hidden])')?.querySelectorAll('.rp-godot-node')).some(node => node.innerText.startsWith('Robot') && !node.disabled) && !document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-godot-inspect')`,
     );
     await evaluate(inspectRobot);
     await waitFor(
@@ -145,16 +171,20 @@ async function run(window) {
       if (kind === 'ENGINEERING') {
         assert.ok(
           await evaluate(
-            `document.querySelector('.rp-engineering')?.dataset.engineeringFormat === 'Godot scene'`,
+            `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering')?.dataset.engineeringFormat === 'Godot scene'`,
           ),
         );
-        await evaluate(`document.querySelector('.rp-engineering-tabs button:last-child').click()`);
-        await waitFor(`Boolean(document.querySelector('.rp-asset-canvas canvas'))`);
+        await evaluate(
+          `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-engineering-tabs button:last-child').click()`,
+        );
+        await waitFor(
+          `Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-asset-canvas canvas'))`,
+        );
       }
       // Measure rendered opaque robot pixels, rather than trusting the zoom label.
       const measureAsset = () =>
         evaluate(`(() => {
-        const canvas = document.querySelector('.rp-asset-canvas canvas');
+        const canvas = document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-asset-canvas canvas');
         const pixels = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
         let top=canvas.height,bottom=0;
         for(let y=0;y<canvas.height;y++) for(let x=0;x<canvas.width;x++) {
@@ -166,7 +196,7 @@ async function run(window) {
       await verifyNavigation(window, measureAsset);
       await verifyWheel(window, measureAsset, (deltaY, ctrlKey) =>
         evaluate(
-          `(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('.rp-asset-canvas canvas').dispatchEvent(e);return e.defaultPrevented;})()`,
+          `(() => {const e=new WheelEvent('wheel',{deltaY:${deltaY},ctrlKey:${ctrlKey},cancelable:true});document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-asset-canvas canvas').dispatchEvent(e);return e.defaultPrevented;})()`,
         ),
       );
       if (kind !== 'IMAGE')

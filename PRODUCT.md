@@ -22,7 +22,9 @@ truth and ownership follow AGENTS.md and IH-ARCH-001, not this design record.
 - Pinned Kimi kernel owns conversation context and execution lifecycle.
 - Runtime, permissions, remote execution, and engineering verification keep
   their existing boundaries. UI presentation does not establish engineering facts.
-- English and Chinese, light and dark themes, and native minimum 1000 × 650.
+- English and Chinese, light and dark themes. Current main fits the native
+  window to the display with a 640 × 480 minimum, uses file/chat tabs below
+  900 px, and a navigation drawer below 760 px; saved layout preference remains.
 
 ## Brand Commitments
 
