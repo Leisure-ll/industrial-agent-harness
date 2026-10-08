@@ -14,7 +14,10 @@ const kimi =
   require('../../packages/agent-kimi/src/code-session.cjs').bundledExecutable();
 const python =
   process.env.INDUSTRIAL_HARNESS_EDA_PYTHON ||
-  path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
+  path.join(
+    require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+    'eda-harness/.venv/bin/python',
+  );
 
 test(
   'real CLI + pinned Kimi refuses legacy project mutation even after approval; empty engineering state does not disclose legacy tools',

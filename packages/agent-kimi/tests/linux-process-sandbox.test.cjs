@@ -43,7 +43,10 @@ test(
     assert.equal(connected, false);
     // Exercise the installed helper body under the actual inherited seccomp/
     // no_new_privs boundary. Docker remains forbidden, without invoking sg/audit.
-    const bootstrap = path.resolve(__dirname, '../../../domain-packs/chip/linux-bootstrap.sh');
+    const bootstrap = path.join(
+      require('../../domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+      'linux-bootstrap.sh',
+    );
     const helperBody = fs
       .readFileSync(bootstrap, 'utf8')
       .split("cat <<'WRAPPER'\n")[1]

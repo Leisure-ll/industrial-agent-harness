@@ -1,12 +1,16 @@
 lockfileVersion: '9.0'
 
 settings:
-  autoInstallPeers: true
+  autoInstallPeers: false
   excludeLinksFromLockfile: false
 
 importers:
 
   .:
+    dependencies:
+      '@zhiman-bj/industrial-domain-packs':
+        specifier: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/acf572b6c4c135e87c613bed5760c473eaf7c298
+        version: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/acf572b6c4c135e87c613bed5760c473eaf7c298(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)
     devDependencies:
       prettier:
         specifier: 3.6.2
@@ -29,12 +33,18 @@ importers:
       '@industrial-agent-harness/domain-skills':
         specifier: workspace:*
         version: link:../../packages/domain-skills
+      '@industrial-agent-harness/harness-application':
+        specifier: workspace:*
+        version: link:../../packages/harness-application
       '@industrial-agent-harness/harness-core':
         specifier: workspace:*
         version: link:../../packages/harness-core
       '@industrial-agent-harness/pack-manager':
         specifier: workspace:*
         version: link:../../packages/pack-manager
+      '@zhiman-bj/industrial-domain-packs':
+        specifier: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/acf572b6c4c135e87c613bed5760c473eaf7c298
+        version: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/acf572b6c4c135e87c613bed5760c473eaf7c298(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)
 
   apps/desktop:
     dependencies:
@@ -53,6 +63,9 @@ importers:
       '@industrial-agent-harness/domain-skills':
         specifier: workspace:*
         version: link:../../packages/domain-skills
+      '@industrial-agent-harness/harness-application':
+        specifier: workspace:*
+        version: link:../../packages/harness-application
       '@industrial-agent-harness/harness-core':
         specifier: workspace:*
         version: link:../../packages/harness-core
@@ -65,6 +78,9 @@ importers:
       '@industrial-agent-harness/viewer-core':
         specifier: workspace:*
         version: link:../../packages/viewer-core
+      '@zhiman-bj/industrial-domain-packs':
+        specifier: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/acf572b6c4c135e87c613bed5760c473eaf7c298
+        version: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/acf572b6c4c135e87c613bed5760c473eaf7c298(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)
       electron-updater:
         specifier: 6.8.9
         version: 6.8.9
@@ -99,6 +115,9 @@ importers:
       electron-builder:
         specifier: 26.15.3
         version: 26.15.3(electron-builder-squirrel-windows@26.15.3)
+      electron-builder-squirrel-windows:
+        specifier: 26.15.3
+        version: 26.15.3(dmg-builder@26.15.3)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -165,6 +184,27 @@ importers:
 
   packages/domain-skills:
     dependencies:
+      '@industrial-agent-harness/pack-manager':
+        specifier: workspace:*
+        version: link:../pack-manager
+
+  packages/harness-application:
+    dependencies:
+      '@industrial-agent-harness/agent-kimi':
+        specifier: workspace:*
+        version: link:../agent-kimi
+      '@industrial-agent-harness/capability-broker':
+        specifier: workspace:*
+        version: link:../capability-broker
+      '@industrial-agent-harness/domain-runtime':
+        specifier: workspace:*
+        version: link:../domain-runtime
+      '@industrial-agent-harness/domain-skills':
+        specifier: workspace:*
+        version: link:../domain-skills
+      '@industrial-agent-harness/harness-core':
+        specifier: workspace:*
+        version: link:../harness-core
       '@industrial-agent-harness/pack-manager':
         specifier: workspace:*
         version: link:../pack-manager
@@ -697,6 +737,16 @@ packages:
     resolution: {integrity: sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==}
     engines: {node: '>=10.0.0'}
 
+  '@zhiman-bj/industrial-domain-packs@https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/acf572b6c4c135e87c613bed5760c473eaf7c298':
+    resolution: {gitHosted: true, integrity: sha512-tLIQPcU0dH96a9RqtF4j2zSu0gkXd5BIzv3sfOdmDZX8402i1+QNBBXFjz6uga/F/K/k94/K2Z4KoznwZqj2CQ==, tarball: https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/acf572b6c4c135e87c613bed5760c473eaf7c298}
+    version: 0.3.1
+    engines: {node: '>=24'}
+    peerDependencies:
+      '@industrial-agent-harness/domain-runtime': '*'
+    peerDependenciesMeta:
+      '@industrial-agent-harness/domain-runtime':
+        optional: true
+
   abbrev@4.0.0:
     resolution: {integrity: sha512-a1wflyaL0tHtJSmLSOVybYhy22vRih4eduhhrkcjgrWGnRfrZtovJ2FRjxuTtkkj47O/baf0R86QU5OuYpz8fA==}
     engines: {node: ^20.17.0 || >=22.9.0}
@@ -716,11 +766,6 @@ packages:
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
-    peerDependencies:
-      ajv: ^8.0.0
-    peerDependenciesMeta:
-      ajv:
-        optional: true
 
   ajv@6.15.0:
     resolution: {integrity: sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw==}
@@ -2770,7 +2815,7 @@ snapshots:
     dependencies:
       '@hono/node-server': 2.1.1(hono@4.13.9)
       ajv: 8.17.1
-      ajv-formats: 3.0.1(ajv@8.17.1)
+      ajv-formats: 3.0.1
       content-type: 1.0.5
       cors: 2.8.6
       cross-spawn: 7.0.6
@@ -3012,6 +3057,17 @@ snapshots:
 
   '@xmldom/xmldom@0.8.15': {}
 
+  '@zhiman-bj/industrial-domain-packs@https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/acf572b6c4c135e87c613bed5760c473eaf7c298(@industrial-agent-harness/domain-runtime@packages+domain-runtime)(zod@4.6.5)':
+    dependencies:
+      '@modelcontextprotocol/sdk': 1.30.1(zod@4.6.5)
+      ajv: 8.17.1
+    optionalDependencies:
+      '@industrial-agent-harness/domain-runtime': link:packages/domain-runtime
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - supports-color
+      - zod
+
   abbrev@4.0.0: {}
 
   accepts@2.0.0:
@@ -3025,8 +3081,8 @@ snapshots:
     dependencies:
       ajv: 6.15.0
 
-  ajv-formats@3.0.1(ajv@8.17.1):
-    optionalDependencies:
+  ajv-formats@3.0.1:
+    dependencies:
       ajv: 8.17.1
 
   ajv@6.15.0:

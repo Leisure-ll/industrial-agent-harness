@@ -2,10 +2,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { PackManager } = require('@industrial-agent-harness/pack-manager');
 const { distributionDomain } = require('./distribution.cjs');
-const staticCapabilities = require('./capabilities.cjs');
+const staticCapabilities = require('@zhiman-bj/industrial-domain-packs').consumerMetadata()
+  .capabilities;
 const { loadDomainPacks } = require('./packs.cjs');
-const { loadSkillOnlyPacks } = require('./skill-only-packs.cjs');
-const staticSkills = require('./registry.cjs');
+const staticSkills = require('./consumer.cjs');
 const { listDomains } = require('./domains.cjs');
 
 function builtInPackDirectory(provider) {
@@ -19,8 +19,14 @@ function builtInPackDirectory(provider) {
       fs.existsSync(path.join(directory, 'HARNESS-PACKAGE.json')) ||
       path.dirname(directory) === directory
     )
-      throw Error(`Missing bundled Domain Pack: ${provider.packDirectory}`);
+      break;
   }
+  return require('@zhiman-bj/industrial-domain-packs').sourceDirectory(
+    provider.packId ||
+      require('@zhiman-bj/industrial-domain-packs')
+        .hostPacks()
+        .find(item => item.provider.packDirectory === provider.packDirectory)?.id,
+  );
 }
 
 function loadRegistry() {
@@ -28,7 +34,6 @@ function loadRegistry() {
     const providerPacks = loadDomainPacks();
     const capabilities = [
       ...staticCapabilities,
-      ...loadSkillOnlyPacks().flatMap(pack => pack.capabilities),
       ...providerPacks.flatMap(pack => pack.capabilities),
     ].filter(item => !distributionDomain || item.domain === distributionDomain);
     return {
@@ -46,6 +51,7 @@ function loadRegistry() {
           version: pack.version,
           runtime: pack.runtime,
           directory: builtInPackDirectory(pack.provider),
+          runtimeProtectedPaths: [require('@zhiman-bj/industrial-domain-packs').root],
         })),
     };
   }
@@ -141,4 +147,9 @@ function materializeInstalledSkills(scope, directory, environment = process.env)
   );
 }
 
-module.exports = { loadRegistry, installedSkills, materializeInstalledSkills };
+module.exports = {
+  builtInPackDirectory,
+  loadRegistry,
+  installedSkills,
+  materializeInstalledSkills,
+};

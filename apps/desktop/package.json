@@ -43,7 +43,9 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-markdown": "10.1.0",
-    "remark-gfm": "4.0.1"
+    "remark-gfm": "4.0.1",
+    "@industrial-agent-harness/harness-application": "workspace:*",
+    "@zhiman-bj/industrial-domain-packs": "https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/acf572b6c4c135e87c613bed5760c473eaf7c298"
   },
   "devDependencies": {
     "@types/react": "19.2.18",
@@ -52,7 +54,8 @@
     "electron": "44.0.0",
     "electron-builder": "26.15.3",
     "typescript": "7.0.2",
-    "vite": "8.2.2"
+    "vite": "8.2.2",
+    "electron-builder-squirrel-windows": "26.15.3"
   },
   "type": "module",
   "license": "MIT"

@@ -83,18 +83,13 @@ const {
   isKiCadFile,
 } = require('@industrial-agent-harness/viewer-builtin/runtime/kicad');
 const { createViewerRegistry } = require('@industrial-agent-harness/viewer-core/registry');
-const { resolve, discloseDetail } = require('@industrial-agent-harness/capability-broker');
+const { resolve } = require('@industrial-agent-harness/capability-broker');
 const {
-  resolveProjectTask,
-  runtimeCapabilities,
-  effectiveCapabilities,
   resourceCatalog: baseResourceCatalog,
   ResourceSettings,
   RemoteSettings,
-  ChatStore,
   defaultChatDirectory,
   ExternalMcpRegistry,
-  SessionResourceManager,
 } = require('@industrial-agent-harness/harness-core');
 const { loadRegistry } = require('@industrial-agent-harness/domain-skills');
 const {
@@ -106,14 +101,9 @@ const {
 const {
   defaultLogDirectory,
 } = require('@industrial-agent-harness/agent-kimi/src/diagnostic-log.cjs');
-const { SessionManager, finishTurn } = require('./session-manager.cjs');
-const { ProjectRuntimes } = require('./project-runtimes.cjs');
+const { TaskService } = require('@industrial-agent-harness/harness-application');
 const { CoreUpdater } = require('./updater.cjs');
-const {
-  KimiSession,
-  bundledExecutable,
-  KIMI_CODE_VERSION,
-} = require('@industrial-agent-harness/agent-kimi');
+const { bundledExecutable, KIMI_CODE_VERSION } = require('@industrial-agent-harness/agent-kimi');
 const { ObservedContextStore } = require('@industrial-agent-harness/domain-runtime');
 const {
   createGuiPlugin,
@@ -241,7 +231,45 @@ let raster;
 let viewerProtocol;
 const godotRuntime = new GodotRuntimeManager();
 const kicadRuntime = new KiCadRuntimeManager();
-const sessions = new SessionManager();
+const tasks = new TaskService({
+  chatDirectory: process.argv.some(flag => flag.endsWith('-selftest'))
+    ? path.join(app.getPath('userData'), 'chats')
+    : defaultChatDirectory(),
+  resourceDirectory: process.argv.some(flag => flag.endsWith('-selftest'))
+    ? path.join(app.getPath('userData'), 'resources')
+    : undefined,
+  contextOptions: contextStoreOptions(),
+  runtimeOptions: {
+    ...contextStoreOptions(),
+    environment: {
+      ...process.env,
+      INDUSTRIAL_HARNESS_CONFIG_DIR: process.argv.some(flag => flag.endsWith('-selftest'))
+        ? path.join(app.getPath('userData'), 'resources')
+        : process.env.INDUSTRIAL_HARNESS_CONFIG_DIR,
+    },
+  },
+  packManager: managedPacks ? packManager : null,
+  getRegistry: currentRegistry,
+  resourcePolicy: project => projectResourcePolicy(project),
+  getConfig: entry => runtimeConfig(entry.project, entry.externalServers, entry.id),
+  logDirectory: diagnosticDirectory(),
+  plugins: () => [guiPlugin()],
+  createSession: process.argv.includes('--parallel-selftest')
+    ? require('./parallel-selftest.cjs').createSession
+    : process.argv.includes('--image-input-selftest')
+      ? require('./image-input-selftest.cjs').createSession
+      : process.argv.includes('--agent-log-selftest')
+        ? require('./agent-log-selftest.cjs').createSession
+        : process.argv.includes('--chat-selftest')
+          ? require('./chat-selftest.cjs').createSession
+          : undefined,
+  onChanged: notifySessions,
+  onEvent: (event, metadata) => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
+      mainWindow.webContents.send('agent:event', { ...event, ...metadata });
+  },
+});
+const sessions = tasks.sessions;
 let contextStore;
 let projectDir;
 let projectBindings = { projects: [], activeId: null };
@@ -261,13 +289,10 @@ let sessionApiKey = '';
 let modelRevision = 0;
 let appSettings = { guiPluginEnabled: false };
 let guiBridge;
-const chats = new ChatStore(
-  process.argv.some(flag => flag.endsWith('-selftest'))
-    ? path.join(app.getPath('userData'), 'chats')
-    : defaultChatDirectory(),
-);
+const chats = tasks.chats;
 let activeChatId;
 function chatList() {
+  if (tasks.closing) return { chats: [], activeId: null, sessions: [] };
   return {
     chats: activeProject()?.domain
       ? chats.list(projectDir, activeProject().domain).map(chat => {
@@ -290,19 +315,12 @@ function ensureChat() {
   return activeChatId;
 }
 function chatHistory(id, before = null) {
-  const history = chats.history(id, projectDir, activeProject().domain, before);
-  const entry = sessions.find(id);
-  return { ...history, executing: sessions.busy(entry), eventRevision: entry?.eventRevision || 0 };
+  return tasks.history(activeProject(), id, before);
 }
 function selectedSession() {
-  const entry = sessions.get(activeProject(), ensureChat());
-  if (!entry.scope && !sessions.busy(entry)) {
-    const last = chats.history(entry.id, entry.project.path, entry.project.domain).turns.at(-1);
-    entry.scope = last?.broker?.scope;
-    entry.resolvedRequest = last?.broker?.request || (last ? { task: last.task } : undefined);
-  }
-  return entry;
+  return tasks.resume(activeProject(), ensureChat());
 }
+
 function restoreChatSelection() {
   activeChatId = activeProject()?.domain
     ? chats.list(projectDir, activeProject().domain)[0]?.id
@@ -313,29 +331,9 @@ function contextStoreOptions() {
     ? { directory: path.join(app.getPath('userData'), 'state') }
     : {};
 }
-function sessionContext(entry) {
-  entry.context ||= new ObservedContextStore(
-    entry.project.path,
-    entry.project.domain,
-    contextStoreOptions(),
-  );
-  return entry.context;
-}
-async function resolveSessionTask(entry, request, registry) {
-  entry.runtimeBundle = projectRuntimes.get(entry.project, registry);
-  if (entry.runtimeBundle?.runtime.hostRuntimeOnly) entry.externalServers = [];
-  const state = entry.runtimeBundle ? await entry.runtimeBundle.runtime.inspect() : null;
-  return resolveProjectTask(
-    entry.project.domain,
-    { ...request, ...(state ? { state } : {}) },
-    entry.scope,
-    runtimeCapabilities(registry, entry.runtimeBundle),
-    projectResourcePolicy(entry.project),
-    entry.externalServers,
-    registry.domains,
-  );
-}
+
 function notifySessions() {
+  if (tasks.closing) return;
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
     mainWindow.webContents.send('chat:updated');
 }
@@ -353,17 +351,7 @@ const resourceSettings = new ResourceSettings(
 );
 const externalRegistry = new ExternalMcpRegistry(path.dirname(resourceSettings.file));
 const remoteSettings = new RemoteSettings({ directory: path.dirname(resourceSettings.file) });
-const projectRuntimes = new ProjectRuntimes({
-  remoteSettings,
-  ...contextStoreOptions(),
-  environment: {
-    ...process.env,
-    INDUSTRIAL_HARNESS_CONFIG_DIR: path.dirname(resourceSettings.file),
-  },
-});
-const sessionResources = new SessionResourceManager({
-  directory: path.dirname(resourceSettings.file),
-});
+const projectRuntimes = tasks.projects;
 function resourceCatalog(domain) {
   return baseResourceCatalog(domain, externalRegistry.records());
 }
@@ -833,46 +821,10 @@ function registerHandlers() {
     if (request?.chatId && request.chatId !== activeChatId)
       throw Error('Selected chat changed; retry the task.');
     const entry = selectedSession();
-    if (sessions.busy(entry)) throw Error('This chat is already running.');
-    entry.resolving = true;
-    try {
-      entry.externalServers = externalRegistry.records();
-      const registry = currentRegistry();
-      const result = await resolveSessionTask(entry, request, registry);
-      entry.resolvedRequest = { ...request };
-      result.request = entry.resolvedRequest;
-      entry.scope = result.scope;
-      entry.trace = result.trace;
-      entry.preparedTurn = {
-        id: chats.beginTurn(entry.id, request.task, result, false),
-        task: request.task,
-        broker: result,
-      };
-      notifySessions();
-      return { ...result, chatId: entry.id, turnId: entry.preparedTurn.id };
-    } finally {
-      entry.resolving = false;
-    }
+    return tasks.prepare(entry, request);
   });
   function loadDetail(capabilityId, entry = selectedSession()) {
-    const detail = discloseDetail(
-      entry.scope,
-      effectiveCapabilities(
-        runtimeCapabilities(currentRegistry(), entry.runtimeBundle),
-        projectResourcePolicy(entry.project),
-      ),
-      capabilityId,
-    );
-    entry.trace.push({
-      level: 'L3',
-      event: 'detail.load',
-      detail: {
-        capabilityId,
-        skills: detail.skills.map(item => item.id),
-        tools: detail.tools.map(item => item.id),
-      },
-    });
-    return detail;
+    return tasks.detail(entry, capabilityId);
   }
   ipcMain.handle('broker:detail', (_event, capabilityId) => loadDetail(capabilityId));
   ipcMain.handle('broker:trace', () => selectedSession().trace);
@@ -1295,149 +1247,29 @@ function registerHandlers() {
     if (!entry.scope || entry.resolvedRequest?.task !== task)
       throw Error('Resolve this task in the current chat first.');
     if (sessions.busy(entry)) throw Error('This chat is already running.');
-    entry.releasePack = managedPacks ? packManager.acquireUse(entry.project.domain) : null;
-    try {
-      entry.release = chats.acquire(entry.id);
-      chats.recoverInterrupted();
-      entry.externalServers = externalRegistry.records();
-      const registry = currentRegistry();
-      const current = await resolveSessionTask(entry, { ...entry.resolvedRequest, task }, registry);
-      current.request = entry.resolvedRequest;
-      entry.scope = current.scope;
-      entry.trace = current.trace;
-      const turnId =
-        entry.preparedTurn?.task === task
-          ? entry.preparedTurn.id
-          : chats.beginTurn(entry.id, task, current, false);
-      chats.updateBroker(turnId, current);
-      entry.preparedTurn = undefined;
-      chats.start(turnId);
-      let outcome = 'error';
-      const emit = event => {
-        if (
-          ['subagent-state', 'background-state'].includes(event.type) &&
-          !entry.agent?.backgroundTasks
-        )
-          entry.backgroundRelease?.();
-        const recorded = chats.append(turnId, event);
-        entry.eventRevision = (entry.eventRevision || 0) + 1;
-        if (event.type === 'done') outcome = event.result.status;
-        if (event.type === 'error') outcome = 'error';
-        if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
-          mainWindow.webContents.send('agent:event', {
-            ...recorded,
-            chatId: entry.id,
-            projectId: entry.project.id,
-            turnId,
-            eventRevision: entry.eventRevision,
-          });
-        if (
-          [
-            'background-state',
-            'subagent-state',
-            'approval',
-            'approval-resolved',
-            'question',
-            'question-resolved',
-            'done',
-            'error',
-          ].includes(event.type)
-        )
-          notifySessions();
-      };
-      entry.agent ||= new KimiSession(
-        entry.project.path,
-        () => entry.scope,
-        id => sessionContext(entry).readArtifact(id),
-        id => loadDetail(id, entry),
-        emit,
-        () => runtimeConfig(entry.project, entry.externalServers, entry.id),
-        process.argv.includes('--parallel-selftest')
-          ? require('./parallel-selftest.cjs').createSession
-          : process.argv.includes('--image-input-selftest')
-            ? require('./image-input-selftest.cjs').createSession
-            : process.argv.includes('--agent-log-selftest')
-              ? require('./agent-log-selftest.cjs').createSession
-              : process.argv.includes('--chat-selftest')
-                ? require('./chat-selftest.cjs').createSession
-                : undefined,
-        {
-          industrialRuntime: entry.runtimeBundle?.runtime,
-          protectedPaths: entry.runtimeBundle?.protectedPaths,
-          onIndustrialResult: async result => {
-            const registry = currentRegistry();
-            const refreshed = resolveProjectTask(
-              entry.project.domain,
-              { ...entry.resolvedRequest, state: result.state },
-              entry.scope,
-              runtimeCapabilities(registry, entry.runtimeBundle),
-              projectResourcePolicy(entry.project),
-              entry.externalServers,
-              registry.domains,
-            );
-            Object.assign(entry.scope, refreshed.scope);
-            entry.trace.push(...refreshed.trace);
-            entry.agent.emit({ type: 'industrial-result', ...result });
-          },
-          resources: sessionResources,
-          onIdleRelease: () => {
-            entry.context?.close();
-            entry.context = undefined;
-          },
-          directory: diagnosticDirectory(),
-          getBrokerTrace: () => entry.trace,
-          pluginLog: (canonicalId, risk, args, info) => {
-            entry.trace.push({
-              level: 'L2',
-              event: 'plugin.tool-call',
-              detail: { plugin: 'computer-use', tool: canonicalId, risk, args, ...info },
-            });
-            if (entry.trace.length > 500) entry.trace.splice(0, entry.trace.length - 500);
-          },
-          getContextAnchor: () => sessionContext(entry).anchor(),
-          readContextPage: (checkpointId, offset, limit) =>
-            sessionContext(entry).readPage(checkpointId, offset, limit),
-          resolveSession: key => chats.runtimeSession(entry.id, key),
-          sessionInitialized: id => chats.initialized(id),
-        },
-        [guiPlugin()],
-      );
-      entry.agent.emit = emit;
-      if (images.length) emit({ type: 'user-images', images });
-      void entry.agent
-        .run(task, images)
-        .catch(error => emit({ type: 'error', message: String(error) }))
-        .finally(() => finishTurn(entry, () => chats.finish(turnId, outcome), notifySessions))
-        .catch(error => console.error('Chat finalization failed:', error.message));
-      notifySessions();
-      return { started: true, chatId: entry.id, turnId };
-    } catch (error) {
-      entry.release?.();
-      entry.release = undefined;
-      entry.releasePack?.();
-      entry.releasePack = undefined;
-      throw error;
-    }
+    const { completion, ...started } = await tasks.start(entry, task, { images });
+    void completion.catch(error => console.error('Chat finalization failed:', error.message));
+    return started;
   });
   ipcMain.handle('agent:approve', (event, { id, response, chatId }) => {
     chatRequest(event);
     if (chatId && chatId !== activeChatId) throw Error('Open the chat that requested approval.');
     const entry = selectedSession();
     if (!entry.agent) throw Error('No active approval.');
-    return entry.agent.approve(id, response);
+    return tasks.approve(entry, id, response);
   });
   ipcMain.handle('agent:answer-question', (event, { id, answers, chatId }) => {
     chatRequest(event);
     if (chatId && chatId !== activeChatId) throw Error('Open the chat that asked this question.');
     const entry = selectedSession();
     if (!entry.agent) throw Error('No active question.');
-    return entry.agent.answerQuestion(id, answers);
+    return tasks.answer(entry, id, answers);
   });
   ipcMain.handle('agent:interrupt', (event, request) => {
     chatRequest(event);
     if (request?.chatId && request.chatId !== activeChatId)
       throw Error('Open the chat to stop it.');
-    return selectedSession().agent?.interrupt();
+    return tasks.cancel(selectedSession());
   });
   ipcMain.handle('viewer:open', async (_event, { artifactId }) => {
     const { artifact, file } = await checked(artifactId);
@@ -2108,13 +1940,9 @@ app.on('before-quit', event => {
   kicadRuntime.close();
   shutdownPromise = (async () => {
     try {
-      await sessions.close();
+      await tasks.close();
     } finally {
-      try {
-        await projectRuntimes.close();
-      } finally {
-        await Promise.allSettled([sessionResources.close(), guiBridge?.close()]);
-      }
+      await guiBridge?.close();
     }
   })()
     .catch(error => console.error('Session shutdown failed:', error.message))

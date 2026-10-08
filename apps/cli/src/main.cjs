@@ -4,21 +4,8 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 const { parseArgs } = require('./args.cjs');
-const {
-  resolveProjectTask,
-  runtimeCapabilities,
-  createProjectRuntime,
-  effectiveCapabilities,
-  resourceCatalog,
-  ResourceSettings,
-  defaultResourceDirectory,
-  ChatStore,
-  defaultChatDirectory,
-  ExternalMcpRegistry,
-  SessionResourceManager,
-} = require('@industrial-agent-harness/harness-core');
-const { loadRegistry, distributionDomain } = require('@industrial-agent-harness/domain-skills');
-const { discloseDetail } = require('@industrial-agent-harness/capability-broker');
+const { TaskService } = require('@industrial-agent-harness/harness-application');
+const { distributionDomain } = require('@industrial-agent-harness/domain-skills');
 const {
   KimiSession,
   bundledExecutable,
@@ -28,14 +15,12 @@ const {
   createGuiPlugin,
   ensureInstalled,
 } = require('@industrial-agent-harness/computer-use-bridge');
-const { ObservedContextStore } = require('@industrial-agent-harness/domain-runtime');
 const { runBench } = require('./bench.cjs');
 const { loadArtifacts } = require('./lib/artifact-manifest.cjs');
 const { runMcp } = require('./mcp.cjs');
 const { main: inspectDiagnosticLog } = require('./inspect-log.cjs');
 const { runRemote } = require('./remote.cjs');
 const { runDomains } = require('./domains.cjs');
-const { PackManager } = require('@industrial-agent-harness/pack-manager');
 const {
   defaults,
   validateProfile,
@@ -86,180 +71,98 @@ async function run(
   environment = process.env,
   Session = KimiSession,
 ) {
-  let bundle;
-  const store =
-    (options.scopeOnly && options.command !== 'chats') || options.command === 'doctor'
-      ? null
-      : new ChatStore(options.chatDir || defaultChatDirectory(environment));
+  const projectDir = fs.realpathSync(path.resolve(options.projectDir));
+  if (!fs.statSync(projectDir).isDirectory()) throw Error('Project path must be a directory.');
+  const project = { id: projectDir, path: projectDir, domain: options.domain };
+  const tasks = new TaskService({
+    environment,
+    Session,
+    chatDirectory: options.chatDir,
+    runtimeOptions: { directory: options.stateDir || environment.INDUSTRIAL_HARNESS_STATE_DIR },
+    contextOptions: { directory: options.stateDir || environment.INDUSTRIAL_HARNESS_STATE_DIR },
+  });
+  const runId = crypto.randomUUID();
+  const send = event => emit(output, { runId, ...event });
+  let configDir, guiBridge, timeout;
+  let entry;
+  const interrupt = (reason, event) => {
+    send(event);
+    Promise.resolve(tasks.cancel(entry, reason)).catch(error =>
+      send({ type: 'interrupt_error', message: String(error) }),
+    );
+  };
+  const onSigint = () => interrupt('interrupted', { type: 'interrupted', signal: 'SIGINT' });
+  const onSigterm = () => interrupt('interrupted', { type: 'interrupted', signal: 'SIGTERM' });
   try {
-    const registry = loadRegistry(environment);
-    if (!registry.domains.some(item => item.id === options.domain))
+    if (!tasks.registry().domains.some(item => item.id === options.domain))
       throw Error('Choose a valid project domain.');
-    if (options.command !== 'chats' && !options.scopeOnly)
-      bundle = createProjectRuntime({
-        projectDir: fs.realpathSync(path.resolve(options.projectDir)),
-        domain: options.domain,
-        directory: options.stateDir || environment.INDUSTRIAL_HARNESS_STATE_DIR,
-        environment,
-        registry,
-      });
+    if (options.command === 'chats') {
+      send({ type: 'chats', chats: tasks.chats.list(projectDir, options.domain) });
+      return 0;
+    }
     if (options.command === 'doctor') {
-      const state = await bundle.runtime.inspect(),
-        toolId = 'project.environment.inspect';
-      const result = await bundle.runtime.execute(
-        { toolId, inputs: {}, expectedStateId: state.id },
-        {
-          scope: {
-            domain: options.domain,
-            projectId: state.projectId,
-            stateId: state.id,
-            tools: [toolId],
-          },
-        },
-      );
-      if (result.action.status !== 'completed') throw Error(result.action.diagnostics.join('\n'));
-      const report = JSON.parse(bundle.runtime.readArtifact(result.artifacts[0].id).content);
-      emit(output, {
+      const { report, actionId } = await tasks.diagnose(project);
+      send({
         type: 'doctor',
         ...report,
         agent: {
           expectedVersion: KIMI_CODE_VERSION,
           bundledRuntimeAvailable: fs.existsSync(bundledExecutable()),
         },
-        externalMcp: new ExternalMcpRegistry(defaultResourceDirectory(environment))
+        externalMcp: tasks.external
           .list()
           .map(server => ({ id: server.id, status: 'registered-not-connected' })),
-        actionId: result.action.id,
+        actionId,
       });
       return report.ready ? 0 : 2;
     }
-    return await runWithStore(options, output, environment, Session, store, registry, bundle);
-  } finally {
-    try {
-      await bundle?.runtime.close();
-    } finally {
-      store?.close();
-    }
-  }
-}
-
-async function runWithStore(options, output, environment, Session, chats, registry, bundle) {
-  const initialState = bundle ? await bundle.runtime.inspect() : null;
-  const capabilities = runtimeCapabilities(registry, bundle);
-  const projectDir = fs.realpathSync(path.resolve(options.projectDir));
-  if (!fs.statSync(projectDir).isDirectory()) throw Error('Project path must be a directory.');
-  const runId = crypto.randomUUID();
-  const send = event => emit(output, { runId, ...event });
-  if (!registry.domains.some(item => item.id === options.domain))
-    throw Error('Choose a valid project domain.');
-  if (options.command === 'chats') {
-    send({ type: 'chats', chats: chats.list(projectDir, options.domain) });
-    return 0;
-  }
-  const previous =
-    options.chatId && chats
-      ? chats.history(options.chatId, projectDir, options.domain).turns.at(-1)?.broker?.scope
-      : undefined;
-  const externalServers = bundle?.runtime.hostRuntimeOnly
-    ? []
-    : new ExternalMcpRegistry(defaultResourceDirectory(environment)).records();
-  const catalog = resourceCatalog(options.domain, externalServers);
-  const saved = new ResourceSettings(defaultResourceDirectory(environment)).snapshot(
-    catalog,
-    projectDir,
-  ).effective;
-  const disabled = {
-    skills: [...new Set([...saved.skills, ...(options.disabledSkills || [])])],
-    mcpServers: [...new Set([...saved.mcpServers, ...(options.disabledMcpServers || [])])],
-  };
-  for (const id of disabled.skills)
-    if (!catalog.skills.some(item => item.id === id)) throw Error(`Unknown project skill: ${id}`);
-  for (const id of disabled.mcpServers)
-    if (!catalog.mcpServers.some(item => item.id === id)) throw Error(`Unknown project MCP: ${id}`);
-  const broker = resolveProjectTask(
-    options.domain,
-    { task: options.task, ...(initialState ? { state: initialState } : {}) },
-    previous,
-    capabilities,
-    disabled,
-    externalServers,
-    registry.domains,
-  );
-  const scope = broker.scope;
-  send({
-    type: 'scope',
-    projectDir,
-    scope,
-    matches: broker.matches,
-    trace: broker.trace,
-    ...(options.scopeOnly ? { preview: true, executionAuthorized: false } : {}),
-  });
-  if (options.scopeOnly) {
-    send({ type: 'result', status: 'scoped' });
-    return 0;
-  }
-
-  const provider = options.provider || 'kimi';
-  if (provider === 'openai_legacy' && !options.endpoint && !environment.OPENAI_BASE_URL)
-    throw Error('Set --endpoint or OPENAI_BASE_URL for the OpenAI-compatible provider.');
-  const profile = validateProfile({
-    ...defaults,
-    provider,
-    endpoint:
-      options.endpoint ||
-      (provider === 'kimi' ? environment.KIMI_BASE_URL : environment.OPENAI_BASE_URL) ||
-      defaults.endpoint,
-    model: options.model || environment.KIMI_MODEL_NAME || defaults.model,
-    contextSize: options.contextSize || defaults.contextSize,
-    thinking: options.thinking,
-    imageInput: Boolean(options.imageInput),
-    imageInputMode: options.imageInput ? 'enabled' : defaults.imageInputMode,
-  });
-  const keyName = options.apiKeyEnv || (provider === 'kimi' ? 'KIMI_API_KEY' : 'OPENAI_API_KEY');
-  const apiKey = environment[keyName];
-  if (!apiKey) throw Error(`Set ${keyName} in the environment before running Kimi.`);
-  const artifacts = await loadArtifacts(options.artifactManifest, projectDir);
-  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-cli-'));
-  fs.chmodSync(configDir, 0o700);
-  let session;
-  let contextStore;
-  let timeout;
-  let timedOut = false;
-  let interrupted = false;
-  let outcome;
-  let pendingQuestion;
-  let completedStatus;
-  let turnId;
-  let release;
-  let guiBridge;
-  let sessionResources;
-  const chat = options.chatId
-    ? chats.get(options.chatId, projectDir, options.domain)
-    : chats.create(projectDir, options.domain);
-  let releasePack;
-  const onInterrupt = signal => {
-    interrupted = true;
-    send({ type: 'interrupted', signal });
-    Promise.resolve(session?.interrupt()).catch(error =>
-      send({ type: 'interrupt_error', message: String(error) }),
+    entry = options.scopeOnly
+      ? tasks.sessions.get(project, options.chatId || runId)
+      : tasks.resume(project, options.chatId || tasks.chats.create(projectDir, options.domain).id);
+    const broker = await tasks.prepare(
+      entry,
+      { task: options.task },
+      {
+        preview: Boolean(options.scopeOnly),
+        persist: !options.scopeOnly,
+        overrides: { skills: options.disabledSkills, mcpServers: options.disabledMcpServers },
+      },
     );
-  };
-  const onSigint = () => onInterrupt('SIGINT');
-  const onSigterm = () => onInterrupt('SIGTERM');
-  try {
-    sessionResources = new SessionResourceManager({ environment });
-    releasePack = process.env.INDUSTRIAL_HARNESS_PACK_STORE
-      ? new PackManager().acquireUse(options.domain)
-      : null;
-    release = chats.acquire(chat.id);
-    chats.recoverInterrupted();
-    turnId = chats.beginTurn(chat.id, options.task, broker);
-    send({ type: 'chat', chatId: chat.id });
-    contextStore = new ObservedContextStore(projectDir, options.domain, {
-      directory: options.stateDir || environment.INDUSTRIAL_HARNESS_STATE_DIR,
+    send({
+      type: 'scope',
+      projectDir,
+      scope: broker.scope,
+      matches: broker.matches,
+      trace: broker.trace,
+      ...(options.scopeOnly ? { preview: true, executionAuthorized: false } : {}),
     });
-    for (const [id, item] of artifacts)
-      await contextStore.observeArtifact({ id, kind: item.metadata.kind, file: item.file });
+    if (options.scopeOnly) {
+      send({ type: 'result', status: 'scoped' });
+      return 0;
+    }
+    const provider = options.provider || 'kimi';
+    if (provider === 'openai_legacy' && !options.endpoint && !environment.OPENAI_BASE_URL)
+      throw Error('Set --endpoint or OPENAI_BASE_URL for the OpenAI-compatible provider.');
+    const profile = validateProfile({
+      ...defaults,
+      provider,
+      endpoint:
+        options.endpoint ||
+        (provider === 'kimi' ? environment.KIMI_BASE_URL : environment.OPENAI_BASE_URL) ||
+        defaults.endpoint,
+      model: options.model || environment.KIMI_MODEL_NAME || defaults.model,
+      contextSize: options.contextSize || defaults.contextSize,
+      thinking: options.thinking,
+      imageInput: Boolean(options.imageInput),
+      imageInputMode: options.imageInput ? 'enabled' : defaults.imageInputMode,
+    });
+    const keyName = options.apiKeyEnv || (provider === 'kimi' ? 'KIMI_API_KEY' : 'OPENAI_API_KEY');
+    const apiKey = environment[keyName];
+    if (!apiKey) throw Error(`Set ${keyName} in the environment before running Kimi.`);
+    const artifacts = await loadArtifacts(options.artifactManifest, projectDir);
+    configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-cli-'));
+    fs.chmodSync(configDir, 0o700);
+    const bundle = entry.runtimeBundle;
     const runtime = {
       profile,
       apiKey,
@@ -267,9 +170,9 @@ async function runWithStore(options, output, environment, Session, chats, regist
       executable: options.kimiExecutable || environment.KIMI_EXECUTABLE || 'kimi',
       shareDir: writeCliConfig(configDir, profile),
       env: sessionEnv(profile, apiKey),
-      disabledMcpServers: disabled.mcpServers,
+      disabledMcpServers: entry.disabled.mcpServers,
       environment,
-      externalServers,
+      externalServers: entry.externalServers,
       approvalMode: options.approval === 'auto' ? 'auto' : 'ask',
     };
     if (options.enableGui && bundle)
@@ -304,139 +207,71 @@ async function runWithStore(options, output, environment, Session, chats, regist
         enabled: true,
         installedDir: guiDir,
         log: (canonicalId, risk, args, info) =>
-          broker.trace.push({
+          entry.trace.push({
             level: 'L2',
             event: 'plugin.tool-call',
             detail: { plugin: 'computer-use', tool: canonicalId, risk, args, ...info },
           }),
       });
     }
-    const plugins = guiBridge ? [guiBridge] : [];
-    session = new Session(
-      projectDir,
-      () => scope,
-      async id => {
-        return contextStore.readArtifact(id);
-      },
-      id => {
-        const detail = discloseDetail(scope, effectiveCapabilities(capabilities, disabled), id);
+    send({ type: 'chat', chatId: entry.id });
+    const started = await tasks.start(entry, options.task, {
+      getConfig: () => runtime,
+      artifacts,
+      plugins: guiBridge ? [guiBridge] : [],
+      waitForBackground: true,
+      logDirectory: options.logDir || environment.INDUSTRIAL_HARNESS_LOG_DIR,
+      onDisclosure: (id, detail) =>
         send({
           type: 'disclosure',
           level: 'L3',
           capabilityId: id,
           skills: detail.skills.map(item => item.id),
           tools: detail.tools.map(item => item.id),
-        });
-        return detail;
-      },
-      event => {
-        chats.append(turnId, event);
+        }),
+      onEvent: event => {
+        if (event.type === 'industrial-result') {
+          send({ ...event, type: 'industrial_result' });
+          return;
+        }
         send({ type: 'agent_event', event });
-        if (event.type === 'done' || event.type === 'error') outcome = event;
         if (event.type === 'approval') {
           const decision = options.approval || 'reject';
           send({ type: 'approval_decision', id: event.id, decision });
-          queueMicrotask(() => {
+          queueMicrotask(() =>
             Promise.resolve()
-              .then(() => session.approve(event.id, decision))
+              .then(() => tasks.approve(entry, event.id, decision))
               .catch(error =>
                 send({ type: 'approval_error', id: event.id, message: String(error) }),
-              );
-          });
+              ),
+          );
         }
         if (event.type === 'question') {
-          // No human input channel exists in this JSONL process. Preserve the
-          // request and stop; an empty answer can be mistaken for permission.
-          pendingQuestion = event;
           send({ type: 'needs_input', id: event.id, questions: event.questions });
-          queueMicrotask(() => {
+          queueMicrotask(() =>
             Promise.resolve()
-              .then(() => session.interrupt())
-              .catch(error => send({ type: 'interrupt_error', message: String(error) }));
-          });
+              .then(() => tasks.cancel(entry, 'needs_input'))
+              .catch(error => send({ type: 'interrupt_error', message: String(error) })),
+          );
         }
       },
-      () => runtime,
-      undefined,
-      {
-        industrialRuntime: bundle?.runtime,
-        protectedPaths: bundle?.protectedPaths,
-        onIndustrialResult: result => {
-          const refreshed = resolveProjectTask(
-            options.domain,
-            { task: options.task, state: result.state },
-            scope,
-            [...registry.capabilities, ...bundle.capabilities],
-            disabled,
-            externalServers,
-            registry.domains,
-          );
-          Object.assign(scope, refreshed.scope);
-          broker.trace.push(...refreshed.trace);
-          const event = { type: 'industrial_result', ...result };
-          chats.append(turnId, event);
-          send(event);
-        },
-        resources: sessionResources,
-        directory: options.logDir || environment.INDUSTRIAL_HARNESS_LOG_DIR,
-        getBrokerTrace: () => broker.trace,
-        getContextAnchor: () => contextStore.anchor(),
-        readContextPage: (checkpointId, offset, limit) =>
-          contextStore.readPage(checkpointId, offset, limit),
-        resolveSession: key => chats.runtimeSession(chat.id, key),
-        sessionInitialized: id => chats.initialized(id),
-      },
-      plugins,
-    );
+    });
     process.once('SIGINT', onSigint);
     process.once('SIGTERM', onSigterm);
     if (options.timeoutMs)
-      timeout = setTimeout(() => {
-        timedOut = true;
-        send({ type: 'timeout', timeoutMs: Number(options.timeoutMs) });
-        Promise.resolve(session.interrupt()).catch(error =>
-          send({ type: 'interrupt_error', message: String(error) }),
-        );
-      }, Number(options.timeoutMs));
-    await session.run(options.task);
-    const backgroundResult = await session.waitForBackgroundIdle?.();
-    if (backgroundResult && outcome?.type !== 'error')
-      outcome = { type: 'done', result: backgroundResult };
-    const status = timedOut
-      ? 'timeout'
-      : pendingQuestion
-        ? 'needs_input'
-        : interrupted
-          ? 'interrupted'
-          : outcome?.type === 'error'
-            ? 'error'
-            : outcome?.type === 'done'
-              ? outcome.result.status
-              : 'incomplete';
-    chats.finish(turnId, status);
-    completedStatus = status;
-    const state = bundle ? await bundle.runtime.inspect() : null;
-    send({
-      type: 'result',
-      status,
-      chatId: chat.id,
-      ...(state
-        ? {
-            engineering: {
-              stateId: state.id,
-              status: state.status,
-              checkpointId: bundle.runtime.latestCheckpoint()?.id,
-            },
-          }
-        : {}),
-    });
-    return status === 'timeout'
+      timeout = setTimeout(
+        () => interrupt('timeout', { type: 'timeout', timeoutMs: Number(options.timeoutMs) }),
+        Number(options.timeoutMs),
+      );
+    const result = await started.completion;
+    send({ type: 'result', ...result });
+    return result.status === 'timeout'
       ? 124
-      : status === 'needs_input'
+      : result.status === 'needs_input'
         ? 2
-        : status === 'interrupted'
+        : result.status === 'interrupted'
           ? 130
-          : status === 'error' || status === 'incomplete'
+          : ['error', 'incomplete'].includes(result.status)
             ? 1
             : 0;
   } finally {
@@ -444,19 +279,10 @@ async function runWithStore(options, output, environment, Session, chats, regist
     process.removeListener('SIGINT', onSigint);
     process.removeListener('SIGTERM', onSigterm);
     try {
-      await session?.close();
+      await tasks.close();
     } finally {
-      if (turnId && !completedStatus)
-        chats.finish(turnId, timedOut ? 'timeout' : interrupted ? 'interrupted' : 'error');
-      release?.();
-      releasePack?.();
-      contextStore?.close();
       await guiBridge?.close?.().catch(() => {});
-      try {
-        await sessionResources?.close();
-      } finally {
-        fs.rmSync(configDir, { recursive: true, force: true });
-      }
+      if (configDir) fs.rmSync(configDir, { recursive: true, force: true });
     }
   }
 }

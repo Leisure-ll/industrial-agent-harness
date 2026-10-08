@@ -1,9 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  validateRecipe,
-  validateInputs,
-} = require('../../../domain-packs/freecad/runtime/recipe.cjs');
+const { validateRecipe, validateInputs } = require(
+  require('./index.cjs').packSourceDirectory('freecad-pack') + '/runtime/recipe.cjs',
+);
 const { loadRegistry } = require('./installed.cjs');
 const { resolve } = require('../../capability-broker/src/index.cjs');
 test('FreeCAD recipe bounds dimensions, code injection, references and operation count', () => {
@@ -32,17 +31,19 @@ test('CAD disclosure selects real native tools and registers a host Runtime with
   assert.ok(resolution.scope.tools.includes('cad.freecad.build'));
   assert.ok(registry.runtimePacks.some(pack => pack.domain === 'cad'));
   assert.equal(
-    registry.providerPacks.find(pack => pack.id === 'freecad-local').provider.transport,
+    registry.providerPacks.find(pack => pack.id === 'freecad-pack').provider.transport,
     'runtime',
   );
-  const pack = registry.providerPacks.find(pack => pack.id === 'freecad-local');
+  const pack = registry.providerPacks.find(pack => pack.id === 'freecad-pack');
   require('./pack-resources.cjs').validateResources(
-    require('node:path').resolve(__dirname, '../../../domain-packs/freecad'),
+    require('./index.cjs').packSourceDirectory('freecad-pack'),
     pack.provider,
   );
 });
 test('CAD edit validates real feature/parameter changes and discloses the exact user prompt', () => {
-  const { applyChanges } = require('../../../domain-packs/freecad/runtime/recipe.cjs');
+  const { applyChanges } = require(
+    require('./index.cjs').packSourceDirectory('freecad-pack') + '/runtime/recipe.cjs',
+  );
   const recipe = {
     parameters: { W: 20 },
     features: [

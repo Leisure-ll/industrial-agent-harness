@@ -25,7 +25,7 @@ jobs:
       - name: Build signed Domain Pack catalog
         env:
           HARNESS_PACK_PLATFORMS: darwin-arm64,win32-x64
-        run: node scripts/build-domain-packs.cjs dist/domain-packs
+        run: node scripts/build-pack-distribution.cjs dist/domain-packs
       - name: Upload signed Pack files
         uses: actions/upload-artifact@v4
         with:

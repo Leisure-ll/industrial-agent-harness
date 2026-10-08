@@ -229,16 +229,20 @@ test(
     const key = path.join(directory, 'key.pem');
     fs.writeFileSync(key, privateKey.export({ type: 'pkcs8', format: 'pem' }));
     const output = path.join(directory, 'release');
-    await execute(process.execPath, [path.join(repo, 'scripts/build-domain-packs.cjs'), output], {
-      cwd: repo,
-      env: {
-        ...process.env,
-        HARNESS_PACK_DOMAINS: 'cad',
-        HARNESS_PACK_SIGNING_KEY_FILE: key,
-        HARNESS_PACK_SIGNING_KEY_ID: 'qualification',
-        HARNESS_PACK_CHANNEL: 'beta',
+    await execute(
+      process.execPath,
+      [path.join(repo, 'scripts/build-pack-distribution.cjs'), output],
+      {
+        cwd: repo,
+        env: {
+          ...process.env,
+          HARNESS_PACK_DOMAINS: 'cad',
+          HARNESS_PACK_SIGNING_KEY_FILE: key,
+          HARNESS_PACK_SIGNING_KEY_ID: 'qualification',
+          HARNESS_PACK_CHANNEL: 'beta',
+        },
       },
-    });
+    );
     const manager = new PackManager({
       directory: path.join(directory, 'installed'),
       keys: { qualification: publicKey.export({ type: 'spki', format: 'pem' }) },
@@ -253,8 +257,9 @@ test(
       global.fetch = fetch;
     }
     if (process.env.HARNESS_FREECAD_ARCHIVE) {
-      const asset = require('../../packages/domain-skills/packs/freecad-local.json')
-        .runtimeAssets[0];
+      const asset = require('../../packages/domain-skills/src/packs.cjs')
+        .loadDomainPacks()
+        .find(pack => pack.id === 'freecad-pack').runtimeAssets[0];
       const cache = path.join(manager.runtimeAssets.directory, 'cache');
       fs.mkdirSync(cache, { recursive: true });
       fs.copyFileSync(process.env.HARNESS_FREECAD_ARCHIVE, path.join(cache, asset.sha256 + '.dmg'));

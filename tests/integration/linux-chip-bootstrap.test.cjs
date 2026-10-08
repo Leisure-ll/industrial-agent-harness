@@ -5,7 +5,10 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const source = path.resolve(__dirname, '../../domain-packs/chip/linux-bootstrap.sh');
+const source = path.join(
+  require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+  'linux-bootstrap.sh',
+);
 const run = (args, env = process.env) =>
   spawnSync('bash', [source, ...args], { env, encoding: 'utf8' });
 

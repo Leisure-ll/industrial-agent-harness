@@ -106,7 +106,7 @@ node apps/cli/src/main.cjs domains install review-fixture \
 上面地址和公钥文件由实际发布者提供；CLI 默认消费 `stable` 渠道。公钥文件形状为
 `{"publisher-key-id":"-----BEGIN PUBLIC KEY-----..."}`。仓库自有发布可使用
 `HARNESS_PACK_CHANNEL=stable`、`HARNESS_PACK_SIGNING_KEY_FILE`、`HARNESS_PACK_SIGNING_KEY_ID`
-与 `scripts/build-domain-packs.cjs`；该命令构建内置领域，不替代外部源目录构建命令。
+与 `scripts/build-pack-distribution.cjs`；该命令构建内置领域，不替代外部源目录构建命令。
 
 升级修改 Pack 版本并重新构建、签名。`coreApi` 未支持、文件摘要损坏、必需资源缺失时，旧活动版本
 保留；使用租约期间升级或删除被拒绝。Skill Scope 更换以完整树替换；材料化失败保留先前有效 Scope。

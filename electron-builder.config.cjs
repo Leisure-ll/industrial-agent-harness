@@ -12,6 +12,12 @@ module.exports = {
     'dist/**/*',
     'electron/**/*.cjs',
     'node_modules/**/*',
+    '!node_modules/@zhiman-bj/industrial-domain-packs/**/*',
+    {
+      from: 'domain-pack-release',
+      to: 'node_modules/@zhiman-bj/industrial-domain-packs',
+      filter: ['**/*'],
+    },
     'package.json',
     'i18n.config.json',
     'LICENSE',

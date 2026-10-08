@@ -39,7 +39,9 @@ async function run(window, systemPreferences, shell) {
     };
     await setLanguage(window, 'zh-CN');
     await evaluate("document.querySelector('.ia-settings-button').click()");
-    await wait("document.querySelector('.ia-computer-use button')?.textContent === '已关闭'");
+    await wait(
+      "document.querySelector('.ia-computer-use .ia-settings-row button')?.textContent === '已关闭' && document.querySelector('.ia-computer-use .ia-settings-row button')?.disabled === false",
+    );
     await evaluate("document.querySelector('.ia-computer-use .ia-settings-row button').click()");
     await wait(
       "document.querySelector('.ia-computer-use .ia-settings-row button')?.textContent === '已开启'",

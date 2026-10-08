@@ -11,7 +11,7 @@ without receipts remain readable and receive a receipt on reinstall. The local o
 both the store and receipts; these checks detect damaged resources, not a malicious local owner.
 
 `INDUSTRIAL_HARNESS_PACK_STORE` overrides `~/.industrial-agent-harness/packs`.
-`scripts/build-domain-packs.cjs` builds the repository-owned public bundles, including license
+`scripts/build-pack-distribution.cjs` assembles unchanged resources from the pinned owner release into public distribution bundles, including license
 materials. PCB's private source and complete Skill remain external; the public bridge records
 fixed resource provenance and loads authorized local resources only when selected.
 Production catalogs require `HARNESS_PACK_SIGNING_KEY_FILE` and `HARNESS_PACK_SIGNING_KEY_ID`.

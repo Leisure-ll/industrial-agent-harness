@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install uv==0.11.6
-          cd domain-packs/chip/eda-harness
+          cd "$(node scripts/pack-source.cjs chip-pack)/eda-harness"
           uv sync --frozen --no-dev --python 3.13
           uv run --frozen python -m pytest -q
           cd ../../pcb

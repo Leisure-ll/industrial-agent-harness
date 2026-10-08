@@ -47,7 +47,13 @@ if (!execution.includes('sys.platform.startswith("linux")') || !execution.includ
 const payload = fs.readFileSync(archive);
 const digest = crypto.createHash('sha256').update(payload).digest('hex');
 const header = fs
-  .readFileSync(path.resolve(__dirname, '../domain-packs/chip/linux-installer-header.sh'), 'utf8')
+  .readFileSync(
+    path.join(
+      require('../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+      'linux-installer-header.sh',
+    ),
+    'utf8',
+  )
   .replace('@PAYLOAD_SHA256@', digest)
   .replace('@PAYLOAD_DIRECTORY@', top)
   .replaceAll('@RELEASE_TAG@', releaseTag);
@@ -60,7 +66,13 @@ fs.writeFileSync(output, file, { mode: 0o755, flag: 'wx' });
 const checksum = crypto.createHash('sha256').update(file).digest('hex');
 fs.writeFileSync(output + '.sha256', `${checksum}  ${path.basename(output)}\n`, { flag: 'wx' });
 const bootstrap = fs
-  .readFileSync(path.resolve(__dirname, '../domain-packs/chip/linux-bootstrap.sh'), 'utf8')
+  .readFileSync(
+    path.join(
+      require('../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+      'linux-bootstrap.sh',
+    ),
+    'utf8',
+  )
   .replace('@INSTALLER_SHA256@', checksum)
   .replace(
     '@INSTALLER_URL@',

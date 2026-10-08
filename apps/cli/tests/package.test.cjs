@@ -44,7 +44,7 @@ test('packaged headless entry runs outside the workspace with Broker, Skills and
     fs.existsSync(
       path.join(
         target,
-        'node_modules/@industrial-agent-harness/domain-skills/skills/chip-netlist-inspect/SKILL.md',
+        'node_modules/@zhiman-bj/industrial-domain-packs/packs/chip/skills/chip-netlist-inspect/SKILL.md',
       ),
     ),
   );

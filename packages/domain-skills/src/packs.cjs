@@ -4,13 +4,7 @@ const { distributionDomain } = require('./distribution.cjs');
 
 // Only repository-owned declarations are loaded. Project files cannot add launch commands.
 function loadDomainPacks() {
-  const directory = path.join(__dirname, '..', 'packs');
-  if (!fs.existsSync(directory) && process.env.INDUSTRIAL_HARNESS_PACK_STORE) return [];
-  const packs = fs
-    .readdirSync(directory)
-    .filter(file => file.endsWith('.json'))
-    .sort()
-    .map(file => JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8')));
+  const packs = require('@zhiman-bj/industrial-domain-packs').hostPacks();
   const ids = new Set();
   const toolIds = new Set();
   const capabilityIds = new Set();
@@ -32,7 +26,7 @@ function loadDomainPacks() {
       providerIds.has(pack.provider.id) ||
       !/^[a-z0-9][a-z0-9-]*$/.test(pack.provider.packDirectory) ||
       (pack.provider.transport !== 'runtime' &&
-        pack.provider.backend !== 'godot-local' &&
+        !pack.provider.backend &&
         (!/^[A-Z][A-Z0-9_]*$/.test(pack.provider.directoryEnv) ||
           !/^[A-Z][A-Z0-9_]*$/.test(pack.provider.pythonEnv))) ||
       !/^[a-f0-9]{64}$/.test(pack.provider.sourceSha256) ||
@@ -46,20 +40,8 @@ function loadDomainPacks() {
       );
     if (pack.provider.transport === 'runtime' && !pack.provider.sourceFiles)
       throw Error('Host runtime providers require pinned source resources.');
-    if (pack.provider.backend && !['pcb-bench', 'godot-local'].includes(pack.provider.backend))
-      throw Error('Unsupported Domain Pack backend.');
-    if (
-      pack.provider.backend === 'godot-local' &&
-      (pack.domain !== 'godot' || pack.provider.packDirectory !== 'godot')
-    )
-      throw Error('Invalid Godot Domain Pack identity.');
-    if (
-      pack.provider.backend === 'pcb-bench' &&
-      (!/^[a-f0-9]{40}$/.test(pack.provider.sourceCommit) ||
-        !/^sha256:[a-f0-9]{64}$/.test(pack.provider.imageId) ||
-        !/^[a-f0-9]{64}$/.test(pack.provider.toolSchemaSha256))
-    )
-      throw Error('Invalid pinned provider identity.');
+    if (pack.provider.transport === 'gateway')
+      require('@zhiman-bj/industrial-domain-packs').gatewayAdapter(pack.provider);
     if (pack.provider.sourceFiles) {
       const safePath = file =>
         typeof file === 'string' &&
@@ -85,8 +67,7 @@ function loadDomainPacks() {
         )
       )
         throw Error('Invalid pinned provider resource inventory.');
-    } else if (['pcb-bench', 'godot-local'].includes(pack.provider.backend))
-      throw Error('Missing pinned provider resources.');
+    }
     if (
       pack.runtime &&
       (typeof pack.runtime.entry !== 'string' ||
