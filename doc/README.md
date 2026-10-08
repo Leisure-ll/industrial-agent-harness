@@ -1,5 +1,7 @@
 # 文档目录
 
+开发前必读：[已接受的跨仓架构契约 IH-ARCH-001](architecture-contract.md)。领域源码归属、CLI/Desktop 入口、执行后端和冻结迁移例外由该契约及必跑 CI 约束。
+
 项目首页：[English](../README.md) · [简体中文](../README.zh-CN.md)。当前版本为**开发者预览版（Developer Preview）**，许可证见 [MIT License](../LICENSE) 与[第三方清单](../THIRD_PARTY_NOTICES.md)。
 
 这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi Code 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。Chip Pack、PCB Bench 与 Godot 本地 MCP 已通过共用网关接入 Desktop/CLI；完整 Core Domain Runtime、工业状态闭环及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
