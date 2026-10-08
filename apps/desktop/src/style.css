@@ -2724,3 +2724,45 @@ body,
   margin-top: 0;
   flex-shrink: 0;
 }
+.ia-result-execution {
+  font-weight: 600;
+}
+
+.ia-result-artifacts {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.ia-app .ia-result-artifact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  color: var(--ia-accent);
+  background: var(--ia-raised);
+  border: 1px solid var(--ia-border);
+  border-radius: 6px;
+}
+
+.ia-result-artifact span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ia-result-artifact small {
+  flex-shrink: 0;
+}
+
+.ia-app .ia-recovery-action {
+  display: block;
+  margin-top: 8px;
+  padding: 6px 10px;
+  color: var(--ia-accent);
+  border: 1px solid var(--ia-border);
+}

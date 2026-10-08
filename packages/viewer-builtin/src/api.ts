@@ -1,3 +1,8 @@
+import type {
+  ArtifactRef,
+  IndustrialVerificationResult,
+} from '@industrial-agent-harness/contracts';
+
 export interface LayoutMeta {
   token: string;
   cell: string;
@@ -342,6 +347,15 @@ export interface ViewerHostApi {
     truncated: boolean;
   }>;
   openProjectFile(relative: string): Promise<ViewerArtifact>;
+  openResultArtifact(request: {
+    projectId: string;
+    chatId: string;
+    actionId: string;
+    artifactId: string;
+  }): Promise<{
+    source: Awaited<ReturnType<ViewerHostApi['readProjectFile']>>;
+    artifact?: ViewerArtifact;
+  }>;
   validateImages(request: { projectId: string; images: PromptImage[] }): Promise<PromptImage[]>;
   runAgent(
     task: string | { task: string; chatId?: string; projectId?: string; images?: PromptImage[] },
@@ -495,7 +509,9 @@ export type AgentEvent = {
       verification: {
         status: 'not_run' | 'passed' | 'failed' | 'insufficient_evidence';
         reason: string;
+        evidence?: IndustrialVerificationResult['evidence'];
       };
+      artifacts?: ArtifactRef[];
       state: { id: string; status: 'unverified' | 'verified' | 'failed' | 'stale' };
       checkpoint: { id: string };
     }

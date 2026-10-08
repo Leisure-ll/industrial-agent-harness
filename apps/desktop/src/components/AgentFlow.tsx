@@ -1,6 +1,7 @@
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import type { AgentEvent } from '@industrial-agent-harness/viewer-builtin/api';
 import { ThinkingPreview } from './ThinkingPreview';
+import { IndustrialResult } from './IndustrialResult';
 import { memo, useRef, useState } from 'react';
 
 type ToolResult = Extract<AgentEvent, { type: 'tool-result' }>;
@@ -234,6 +235,7 @@ export const AgentFlow = memo(function AgentFlow({
   approve,
   answer,
   onLog,
+  onOpenArtifact,
 }: {
   events: AgentEvent[];
   running: boolean;
@@ -241,6 +243,7 @@ export const AgentFlow = memo(function AgentFlow({
   approve: (id: string, decision: 'approve' | 'reject') => Promise<void>;
   answer: (id: string, answers: Record<string, string>) => Promise<void>;
   onLog?: (traceId?: string) => void;
+  onOpenArtifact?: (actionId: string, artifactId: string) => Promise<void>;
 }) {
   const { t, locale } = useDisplayText();
   const results = new Map<string, ToolResult>();
@@ -277,29 +280,13 @@ export const AgentFlow = memo(function AgentFlow({
     <section className="ia-agent-flow">
       {events.map((event, index) => {
         if (event.type === 'industrial-result') {
-          const verified =
-            event.verification.status === 'passed' && event.state.status === 'verified';
           return (
-            <details
-              className={`ia-agent-tool ${event.verification.status === 'failed' ? 'error' : ''}`}
-              key={index}
-            >
-              <summary>
-                {verified
-                  ? t('Engineering verification passed')
-                  : event.state.status === 'stale'
-                    ? t('Engineering evidence is stale')
-                    : event.verification.status === 'failed'
-                      ? t('Engineering verification failed')
-                      : t('Engineering evidence is insufficient')}
-              </summary>
-              <p>{event.verification.reason}</p>
-              {debug && (
-                <small>
-                  {t('Action')} {event.action.id} {t('· Checkpoint')} {event.checkpoint.id}
-                </small>
-              )}
-            </details>
+            <IndustrialResult
+              key={event.action.id}
+              event={event}
+              debug={debug}
+              onOpenArtifact={onOpenArtifact}
+            />
           );
         }
         if (event.type === 'diagnostic-log')

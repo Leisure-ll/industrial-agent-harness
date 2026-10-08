@@ -148,6 +148,7 @@ export function App() {
   const [navigating, setNavigating] = useState(false);
   const navigationPending = useRef(false);
   const navigationRevision = useRef(0);
+  const fileOpenRevision = useRef(0);
   const listRevision = useRef(0);
   const historyRevision = useRef(0);
   const displayRevision = useRef(0);
@@ -690,24 +691,71 @@ export function App() {
     }
   }
   async function selectProjectFile(relative: string) {
+    const revision = ++fileOpenRevision.current;
+    const projectId = projectIdRef.current;
+    const navigation = navigationRevision.current;
+    const current = () =>
+      revision === fileOpenRevision.current &&
+      projectId === projectIdRef.current &&
+      navigation === navigationRevision.current &&
+      !navigationPending.current;
     setError('');
     setRightOpen(true);
     try {
       const file = await window.viewerHost!.readProjectFile(relative);
-      setSelectedProjectFile(relative);
+      if (!current()) return;
       if (file.viewer) {
         const item = await window.viewerHost!.openProjectFile(relative);
+        if (!current()) return;
+        setSelectedProjectFile(relative);
         setArtifacts(current => [...current, item]);
         selectArtifact(item.id);
       } else {
+        setSelectedProjectFile(relative);
         setSelectedArtifactId('');
         setOpenedViewer(undefined);
         setSourceFile(file);
       }
     } catch (reason) {
-      setError(String(reason));
+      if (current()) setError(String(reason));
     }
   }
+  const openResultArtifact = useCallback(async (actionId: string, artifactId: string) => {
+    const projectId = projectIdRef.current;
+    const chatId = chatIdRef.current;
+    if (!projectId || !chatId || navigationPending.current)
+      throw Error('Wait for the chat to open.');
+    const revision = ++fileOpenRevision.current;
+    const navigation = navigationRevision.current;
+    const result = await window.viewerHost!.openResultArtifact({
+      projectId,
+      chatId,
+      actionId,
+      artifactId,
+    });
+    if (
+      projectId !== projectIdRef.current ||
+      chatId !== chatIdRef.current ||
+      navigation !== navigationRevision.current ||
+      navigationPending.current
+    )
+      throw Error('The selected project or chat changed. Open the output again.');
+    if (revision !== fileOpenRevision.current)
+      throw Error('Another file was selected. Open the output again.');
+    setError('');
+    setRightOpen(true);
+    setSelectedProjectFile(result.source.path);
+    const artifact = result.artifact;
+    if (artifact) {
+      setArtifacts(current => [...current, artifact]);
+      setSourceFile(undefined);
+      setSelectedArtifactId(artifact.id);
+    } else {
+      setSelectedArtifactId('');
+      setOpenedViewer(undefined);
+      setSourceFile(result.source);
+    }
+  }, []);
   async function newChat() {
     if (!beginNavigation()) return;
     try {
@@ -1326,6 +1374,7 @@ export function App() {
                     {turn.events.length > 0 && (
                       <AgentFlow
                         onLog={showAgentLog}
+                        onOpenArtifact={openResultArtifact}
                         events={turn.events}
                         running={agentOwned && agentBusy && index === turns.length - 1}
                         debug={debug}
@@ -1335,7 +1384,21 @@ export function App() {
                     )}
                   </div>
                 ))}
-                {brokerError && <div className="ia-flow-error">{t(brokerError)}</div>}
+                {brokerError && (
+                  <div className="ia-flow-error" role="alert">
+                    {t(brokerError)}
+                    {agentStatus?.available &&
+                      (!agentStatus.configured ||
+                        (attachments.images.length > 0 && !modelImageInput)) && (
+                        <button
+                          className="ia-recovery-action"
+                          onClick={() => setModelSettingsOpen(true)}
+                        >
+                          {t('Open Model API settings')}
+                        </button>
+                      )}
+                  </div>
+                )}
               </div>
               {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy} />}
               {agentBusy && !agentOwned && (
@@ -1508,6 +1571,7 @@ export function App() {
                   <button
                     className="ia-icon"
                     onClick={() => {
+                      fileOpenRevision.current++;
                       setSourceFile(undefined);
                       setSelectedArtifactId('');
                       setSelectedProjectFile('');

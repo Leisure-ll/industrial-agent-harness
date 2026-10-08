@@ -18,6 +18,23 @@ creation when no project is selected; otherwise it links to project details and
 the current project's files. Project details exposes New chat above its resource
 settings.
 
+## Recorded engineering results
+
+Industrial result entries remain collapsed by default. Their summary distinguishes
+passed, failed, stale, not-run and insufficient verification. Expanded entries show
+execution status separately, the recorded verification reason, and output buttons.
+Buttons show filenames, with full project-relative paths on hover. Opening an
+output uses its persistent Action/Artifact identities and checks the bound project,
+chat and file digest before using the shared Viewer Registry or source preview.
+A changed output is rejected without replacing the current canvas. Historical
+verification describes the inputs recorded for that action, not current project
+acceptance. Older history records without output metadata remain readable.
+When file opens overlap, only the latest selection can replace the canvas;
+navigation and closing the file invalidate pending reads.
+
+A missing model configuration offers a direct Model API settings button and keeps
+the unsent draft. Display strings use the shared language configuration.
+
 ## Palette
 
 | Token | Light | Dark | Purpose |
@@ -73,3 +90,11 @@ local font loading, languages, compact panel bounds, visible controls, keyboard
 input, and draft retention. `test:language` and `test:documents` retain the
 existing language and Viewer regression coverage. Current local verification is
 macOS arm64; other platforms need their own runtime acceptance.
+
+`test:results` exercises actual durable Runtime records through Electron/preload/IPC,
+including identical filenames from different actions, failed verification, modified
+outputs, project binding, overlapping file opens, legacy records, settings recovery,
+languages and reload.
+The fixture verifies file measurements, not model capability or a professional
+toolchain. The CAD selftest additionally resolves a real FreeCAD output through the
+same result-opening IPC and Viewer Registry.

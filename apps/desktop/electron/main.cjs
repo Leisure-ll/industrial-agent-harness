@@ -106,6 +106,7 @@ const {
 } = require('./model-config.cjs');
 const { readBindings, addBinding, saveBindings } = require('./project-bindings.cjs');
 const { resolveProjectFile, listProjectFiles, readSourcePreview } = require('./project-files.cjs');
+const { resolveResultArtifact } = require('./result-artifacts.cjs');
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -121,6 +122,7 @@ if (
     '--documents-selftest',
     '--language-selftest',
     '--ui-selftest',
+    '--result-selftest',
     '--engineering-selftest',
     '--cad-selftest',
     '--mcp-selftest',
@@ -482,8 +484,18 @@ async function registerArtifact(entry) {
 async function checked(id) {
   const entry = artifacts.get(id);
   if (!entry) throw Error('Unknown artifact.');
+  if (
+    entry.projectId &&
+    (entry.projectId !== activeProject()?.id || entry.domain !== activeProject()?.domain)
+  )
+    throw Error('This output belongs to another project.');
   if ((await digest(entry.file)) !== entry.artifact.sha256)
     throw Error('Artifact content changed; reopen the file.');
+  if (
+    entry.projectId &&
+    (entry.projectId !== activeProject()?.id || entry.domain !== activeProject()?.domain)
+  )
+    throw Error('This output belongs to another project.');
   return entry;
 }
 
@@ -1006,6 +1018,52 @@ function registerHandlers() {
     } catch {}
     return readSourcePreview(file, relative, viewer);
   });
+  ipcMain.handle('project:open-result', async (event, request) => {
+    chatRequest(event);
+    const project = activeProject();
+    function assertSelection() {
+      if (
+        !request ||
+        request.projectId !== project.id ||
+        activeProject()?.id !== project.id ||
+        activeProject()?.path !== project.path ||
+        activeProject()?.domain !== project.domain ||
+        request.chatId !== activeChatId
+      )
+        throw Error('The selected project or chat changed. Open the output again.');
+    }
+    assertSelection();
+    const bundle = projectRuntimes.get(project, currentRegistry());
+    if (!bundle?.runtime) throw Error('The engineering runtime is unavailable for this project.');
+    const { artifact: recorded, file } = await resolveResultArtifact(bundle.runtime, request);
+    assertSelection();
+    if (resolveProjectFile(project.path, recorded.relativePath) !== file)
+      throw Error(
+        'This output has changed since the action. Open the current file from the project instead.',
+      );
+    let kind = null;
+    try {
+      kind = kindFor(file);
+    } catch {}
+    const source = readSourcePreview(file, recorded.relativePath, kind);
+    if ((await digest(file)) !== recorded.sha256)
+      throw Error(
+        'This output has changed since the action. Open the current file from the project instead.',
+      );
+    assertSelection();
+    if (!kind) return { source };
+    const artifact = {
+      id: crypto.randomUUID(),
+      kind,
+      name: path.basename(file),
+      design: project.name,
+      sizeBytes: recorded.sizeBytes,
+      sha256: recorded.sha256,
+      source: 'project file',
+    };
+    artifacts.set(artifact.id, { artifact, file, projectId: project.id, domain: project.domain });
+    return { source, artifact };
+  });
   function imageRequest(event, request) {
     if (
       event.sender !== mainWindow?.webContents ||
@@ -1258,6 +1316,8 @@ async function createWindow() {
     require('./engineering-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--cad-selftest'))
     await require('./cad-selftest.cjs').prepare(projectConfigDir());
+  if (process.argv.includes('--result-selftest'))
+    await require('./result-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--parallel-selftest'))
     require('./parallel-selftest.cjs').prepare(projectConfigDir());
   if (process.argv.includes('--image-input-selftest'))
@@ -1428,6 +1488,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--ui-selftest')) {
     await require('./ui-selftest.cjs').run(window, dialog);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--result-selftest')) {
+    await require('./result-selftest.cjs').run(window);
     app.quit();
     return;
   }

@@ -5,10 +5,16 @@ const { saveBindings } = require('./project-bindings.cjs');
 const { verifyNavigation, verifyWheel } = require('./navigation-selftest.cjs');
 const { createProjectRuntime } = require('@industrial-agent-harness/harness-core');
 let project;
+let stateDirectory;
 async function prepare(config) {
   project = path.join(config, 'cad-project');
+  stateDirectory = path.join(path.dirname(config), 'state');
   fs.mkdirSync(project, { recursive: true });
-  const { runtime } = createProjectRuntime({ projectDir: project, domain: 'cad' });
+  const { runtime } = createProjectRuntime({
+    projectDir: project,
+    domain: 'cad',
+    directory: stateDirectory,
+  });
   try {
     const state = await runtime.inspect();
     const out = await runtime.execute(
@@ -200,7 +206,11 @@ async function run(window) {
   );
   // A real completed Runtime action must publish new files without reopening
   // the project. Relay its actual result through the production event channel.
-  const { runtime } = createProjectRuntime({ projectDir: project, domain: 'cad' });
+  const { runtime } = createProjectRuntime({
+    projectDir: project,
+    domain: 'cad',
+    directory: stateDirectory,
+  });
   let exported;
   try {
     const state = await runtime.inspect();
@@ -229,6 +239,19 @@ async function run(window) {
   await wait(
     `Boolean(document.querySelector('.ia-file-list button[title=${JSON.stringify(created)}]'))`,
   );
+  const resultOutput = exported.artifacts.find(item => item.kind === 'model.cad.fcstd');
+  const resultViewer = await evaluate(`(async () => {
+    const history = await window.viewerHost.newChat();
+    const opened = await window.viewerHost.openResultArtifact({
+      projectId: 'cad-selftest', chatId: history.chat.id,
+      actionId: ${JSON.stringify(exported.action.id)}, artifactId: ${JSON.stringify(resultOutput.id)}
+    });
+    const view = await window.viewerHost.open({ artifactId: opened.artifact.id });
+    return { kind: view.kind, sha256: view.artifact.sha256, path: opened.source.path };
+  })()`);
+  assert.equal(resultViewer.kind, 'cad');
+  assert.equal(resultViewer.sha256, resultOutput.sha256);
+  assert.equal(resultViewer.path, created);
   await evaluate(`document.querySelector('.ia-file-list button[title="bad.stl"]').click()`);
   await wait(`document.body.innerText.includes('Unsupported STL encoding')`);
   assert.equal(

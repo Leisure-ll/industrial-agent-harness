@@ -69,6 +69,11 @@ jobs:
         run: |
           export KIMI_EXECUTABLE="$(node -p "require('./packages/agent-kimi/src/code-session.cjs').bundledExecutable()")"
           pnpm --filter @industrial-agent-harness/desktop test:external-mcp 2>&1 | tee dist/ci-reports/external-mcp-desktop.log
+      - name: Verify recorded results and configuration recovery through Desktop
+        shell: bash
+        run: |
+          export INDUSTRIAL_RESULT_SCREENSHOT="$GITHUB_WORKSPACE/dist/ci-reports/result-viewer.png"
+          pnpm --filter @industrial-agent-harness/desktop test:results 2>&1 | tee dist/ci-reports/result-viewer.log
       - name: Collect native FreeCAD startup diagnostics
         if: failure()
         run: |

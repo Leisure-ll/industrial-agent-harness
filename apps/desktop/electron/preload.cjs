@@ -65,6 +65,7 @@ const api = {
   projectFiles: () => ipcRenderer.invoke('project:list'),
   readProjectFile: relative => ipcRenderer.invoke('project:read', relative),
   openProjectFile: relative => ipcRenderer.invoke('project:open', relative),
+  openResultArtifact: request => ipcRenderer.invoke('project:open-result', request),
   validateImages: request => ipcRenderer.invoke('agent:validate-images', request),
   runAgent: (task, chatId) =>
     ipcRenderer.invoke('agent:run', typeof task === 'string' && chatId ? { task, chatId } : task),
