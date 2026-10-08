@@ -71,7 +71,7 @@ async function run(window) {
     );
     await wait(`Boolean(document.querySelector('.ia-capability'))`);
     await evaluate(
-      `Array.from(document.querySelectorAll('.ia-capability-nav button')).find(button=>button.innerText.includes('MCP')).click()`,
+      `document.querySelector('.ia-capability-nav button[title="MCP servers"]').click()`,
     );
     await evaluate(`document.querySelector('.ia-external-mcp > button').click()`);
     await wait(

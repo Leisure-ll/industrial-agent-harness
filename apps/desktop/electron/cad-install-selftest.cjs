@@ -12,7 +12,7 @@ async function run(window, { manager, runtime }) {
     while (Date.now() < end) {
       if (await evaluate(script)) return;
       const failure = await evaluate(
-        `document.querySelector('.ia-domains-modal [role="alert"]')?.textContent || ''`,
+        `document.querySelector('.ia-domains-modal [role="alert"], .ia-capability-section > .ia-project-error[role="alert"]')?.textContent || ''`,
       );
       if (failure) throw Error('CAD preparation failed: ' + failure);
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -204,13 +204,13 @@ async function run(window, { manager, runtime }) {
     `Array.from(document.querySelectorAll('.ia-settings-row')).find(row=>row.textContent.includes('Domains')).querySelector('button').click()`,
   );
   await wait(
-    `document.querySelector('.ia-domains-installed')?.textContent.includes('Needs preparation')`,
+    `document.querySelector('.ia-pack-card .ia-pack-badge')?.textContent.includes('Needs preparation')`,
   );
   await evaluate(
-    `Array.from(document.querySelectorAll('.ia-domains-installed-row button')).find(node=>node.textContent.includes('Prepare / retry')).click()`,
+    `Array.from(document.querySelectorAll('.ia-pack-actions button')).find(node=>node.textContent.includes('Prepare / retry')).click()`,
   );
   await wait(
-    `document.querySelector('.ia-domains-installed')?.textContent.includes('Ready to use') && !document.querySelector('.ia-domain-progress')`,
+    `document.querySelector('.ia-pack-card .ia-pack-badge')?.textContent.includes('Ready to use') && !document.querySelector('.ia-domain-progress')`,
     10 * 60 * 1000,
   );
   fs.writeFileSync(
