@@ -142,7 +142,12 @@ test('an industrial turn runs while excluding configured host MCP and applicatio
       .readFileSync(path.join(options.shareDir, 'mcp.json'), 'utf8')
       .includes('external.unavailable'),
   );
-  assert.ok(events.some(e => e.type === 'text' && e.text.includes('暂不可用')));
+  assert.ok(
+    events.some(
+      e => e.type === 'resources-filtered' && e.externalMcp.includes('external.unavailable'),
+    ),
+    'excluded resources surface as a structured event, not assistant text',
+  );
   assert.ok(events.some(e => e.type === 'done'));
   assert.equal(plugin.enabled(), true);
   assert.equal(external.length, 1);

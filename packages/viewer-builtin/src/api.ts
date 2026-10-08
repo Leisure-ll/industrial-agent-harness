@@ -571,6 +571,11 @@ export type AgentEvent = {
       mechanism: string;
     }
   | {
+      type: 'resources-filtered';
+      externalMcp: string[];
+      plugins: string[];
+    }
+  | {
       type: 'industrial-result';
       action: { id: string; status: string };
       verification: {
