@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { capabilities } = require('./index.cjs');
-const { listSkills, skillFile, materializeSkills } = require('./registry.cjs');
+const { listSkills, skillFile, materializeSkills } = require('./consumer.cjs');
 
 test('every capability skill has a repository file and only scoped skills reach Kimi', t => {
   const expected = new Set(capabilities.flatMap(item => item.skills.map(skill => skill.id)));

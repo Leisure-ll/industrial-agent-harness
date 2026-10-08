@@ -12,7 +12,10 @@ const execute = promisify(execFile);
 const root = path.resolve(__dirname, '../..');
 const python =
   process.env.INDUSTRIAL_HARNESS_PCB_GATEWAY_PYTHON ||
-  path.join(root, 'domain-packs/pcb/.venv/bin/python');
+  path.join(
+    require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('pcb-pack'),
+    '.venv/bin/python',
+  );
 const backend = path.join(__dirname, 'fixtures/pcb-mcp-backend.py');
 const client = path.join(__dirname, 'fixtures/pcb-mcp-client.py');
 
@@ -38,7 +41,10 @@ async function setup(t) {
     python,
     docker: fakeDocker,
     sourceDir: directory,
-    controller: path.join(root, 'packages/domain-mcp/src/pcb-controller.py'),
+    controller: path.join(
+      require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('pcb-pack'),
+      'bridge/pcb-controller.py',
+    ),
     cacheDir: path.join(directory, 'cache'),
     tools,
     allowedToolIds: tools.map(t => t.id),
@@ -52,7 +58,13 @@ async function setup(t) {
       mcpServers: {
         'pcb-bench.tools': {
           command: python,
-          args: [path.join(root, 'packages/domain-mcp/src/pcb-gateway.py'), policyFile],
+          args: [
+            path.join(
+              require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('pcb-pack'),
+              'bridge/pcb-gateway.py',
+            ),
+            policyFile,
+          ],
         },
       },
     }),

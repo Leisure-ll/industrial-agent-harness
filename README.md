@@ -80,7 +80,7 @@ After setting up Kimi above, prepare Verilator, a C++ toolchain and the Chip Pyt
 
 ```sh
 brew install verilator
-(cd domain-packs/chip/eda-harness && uv sync --frozen --no-dev --python 3.13)
+(cd "$(node scripts/pack-source.cjs chip-pack)/eda-harness" && uv sync --frozen --no-dev --python 3.13)
 HARNESS_REQUIRE_CORE_NATIVE=1 pnpm run test:industrial-core
 ```
 
@@ -96,9 +96,9 @@ Apple Silicon desktop builds include an optional CAD Pack. Select CAD on first l
 
 | Domain                                | Available in this preview                                                                                               | Dependencies and limits                                                                                                                                         |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Chip](domain-packs/chip/README.md)   | EDA knowledge and tool registration; a persistent, declared RTL verification path; waveform, netlist and layout viewers | Python and Verilator for the Core path; other EDA flows need their own tools, images or PDKs. Broader EDA execution still needs Runtime integration.            |
+| [Chip](https://github.com/Zhiman-BJ/industrial-domain-packs/tree/6fc59ccf468dae04f34dbfbc7ab2437810de779d/packs/chip/README.md)   | EDA knowledge and tool registration; a persistent, declared RTL verification path; waveform, netlist and layout viewers | Python and Verilator for the Core path; other EDA flows need their own tools, images or PDKs. Broader EDA execution still needs Runtime integration.            |
 | [PCB](doc/pcb-mcp-integration.md)     | KiCad viewers, scoped tool registration and external design Skill loading                                               | Full tools and Skills require an authorized, fixed PCB-bench checkout and matching KiCad environment. Private actor resources are excluded from public bundles. |
-| [Godot](domain-packs/godot/README.md) | Source and asset inspection, Web Export viewing and registered native scene tools                                       | Native tools require Godot 4; Web Export needs matching export templates and the Viewer Bridge. Native write tools still need the protected Runtime path.       |
+| [Godot](https://github.com/Zhiman-BJ/industrial-domain-packs/tree/6fc59ccf468dae04f34dbfbc7ab2437810de779d/packs/godot/README.md) | Source and asset inspection, Web Export viewing and registered native scene tools                                       | Native tools require Godot 4; Web Export needs matching export templates and the Viewer Bridge. Native write tools still need the protected Runtime path.       |
 | [CAD · FreeCAD](doc/freecad-domain-pack.md) | Parametric sketches, pads, holes, boolean solids and versioned parameter/outline edits; FCStd/STEP/STL export, independent geometry readback and OCCT viewing | Packaged Desktop prepares FreeCAD 1.1.4 automatically on macOS arm64. Bounded native feature types; no mechanical strength or manufacturing acceptance. |
 
 Build your own Pack with the [Pack authoring tutorial](doc/pack-authoring.md). Domain code lives in Packs; the shared Core and Broker remain independent of concrete domains. Registration, a rendered preview or a successful native smoke check does not imply a complete industrial workflow. PCB/Godot still need shared Domain Runtime plugins and independent task verification ([#50](https://github.com/Zhiman-BJ/industrial-agent-harness/issues/50)); see the [cross-scope release audit](doc/release-readiness-20261007.md).
@@ -173,3 +173,5 @@ Workspace approvals show file diffs, declared commands and external arguments. `
 ### Built-in remote execution (internal trial)
 
 Projects can choose this computer or Zhiman Remote, with explicit file upload review and compact job status. Desktop and CLI share the Remote Runtime; qualified domain tools execute in the existing fixed CPU sandbox pool. Public endpoint and sign-in defaults remain unset. The macOS Apple Silicon client → H200 Linux RTL path is verified; public access and other remote domains are pending. See [remote execution](doc/remote-execution.md).
+
+CLI and Desktop now share the Harness task application; domain metadata, Skills and implementations come from one immutable Domain Packs release. See [consumer migration and validation](doc/shared-task-and-pack-consumption.md).

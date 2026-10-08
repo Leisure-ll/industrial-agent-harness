@@ -5,7 +5,10 @@ const os = require('node:os');
 const path = require('node:path');
 const { IndustrialRuntime } = require('../../packages/domain-runtime/src/index.cjs');
 const { resolveFromState } = require('../../packages/capability-broker/src/index.cjs');
-const { createRuntimePlugin } = require('../../domain-packs/chip/runtime/index.cjs');
+const { createRuntimePlugin } = require(
+  require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack') +
+    '/runtime/index.cjs',
+);
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { startModel } = require('./fixtures/domain-mcp-model.cjs');
@@ -29,7 +32,10 @@ function simulationGate(directory, project) {
   const release = path.join(directory, 'simulation-release');
   const python =
     process.env.INDUSTRIAL_HARNESS_EDA_PYTHON ||
-    path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
+    path.join(
+      require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+      'eda-harness/.venv/bin/python',
+    );
   const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
   // Verilator 5.026 limits a literal $system command to 256 bytes. Keep the
   // native simulator command short while the script passes full paths safely.
@@ -304,7 +310,10 @@ test(
     const { directory, project } = workspace(t);
     const python =
       process.env.INDUSTRIAL_HARNESS_EDA_PYTHON ||
-      path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
+      path.join(
+        require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+        'eda-harness/.venv/bin/python',
+      );
     const wrapper = path.join(directory, 'checked-python');
     const capture = path.join(directory, 'credential-check.json');
     const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";

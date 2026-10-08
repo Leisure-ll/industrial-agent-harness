@@ -80,7 +80,7 @@ pnpm dev
 
 ```sh
 brew install verilator
-(cd domain-packs/chip/eda-harness && uv sync --frozen --no-dev --python 3.13)
+(cd "$(node scripts/pack-source.cjs chip-pack)/eda-harness" && uv sync --frozen --no-dev --python 3.13)
 HARNESS_REQUIRE_CORE_NATIVE=1 pnpm run test:industrial-core
 ```
 
@@ -96,9 +96,9 @@ Apple Silicon 桌面构建包含可选 CAD Pack。首次选择 CAD 会自动准�
 
 | 领域                                  | 预览版已提供                                                              | 依赖与限制                                                                                                   |
 | ------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [Chip](domain-packs/chip/README.md)   | EDA 知识与工具注册、持久化的声明式 RTL 验证路径，以及波形、网表、版图查看 | Core 路径需要 Python 与 Verilator；其他 EDA 流程另需工具、镜像或 PDK，完整执行仍需接入 Runtime。             |
+| [Chip](https://github.com/Zhiman-BJ/industrial-domain-packs/tree/6fc59ccf468dae04f34dbfbc7ab2437810de779d/packs/chip/README.md)   | EDA 知识与工具注册、持久化的声明式 RTL 验证路径，以及波形、网表、版图查看 | Core 路径需要 Python 与 Verilator；其他 EDA 流程另需工具、镜像或 PDK，完整执行仍需接入 Runtime。             |
 | [PCB](doc/pcb-mcp-integration.md)     | KiCad 查看、受范围约束的工具注册和外部设计 Skill 加载                     | 完整工具和 Skill 需要授权的固定 PCB-bench checkout 与匹配 KiCad 环境；私有 actor 资源不包含在公开发行包内。  |
-| [Godot](domain-packs/godot/README.md) | 源码与素材检查、Web Export 查看和原生场景工具注册                         | 原生工具需要 Godot 4；Web Export 需要匹配导出模板与 Viewer Bridge，原生写工具仍需接入受保护的 Runtime 路径。 |
+| [Godot](https://github.com/Zhiman-BJ/industrial-domain-packs/tree/6fc59ccf468dae04f34dbfbc7ab2437810de779d/packs/godot/README.md) | 源码与素材检查、Web Export 查看和原生场景工具注册                         | 原生工具需要 Godot 4；Web Export 需要匹配导出模板与 Viewer Bridge，原生写工具仍需接入受保护的 Runtime 路径。 |
 | [CAD · FreeCAD](doc/freecad-domain-pack.md) | 参数化草图、拉伸、打孔、布尔建模和版本化参数/轮廓修改；FCStd/STEP/STL 导出、独立回读验证与 OCCT 查看 | 打包桌面版自动准备 FreeCAD 1.1.4 macOS arm64；只支持受限原生特征，不验收机械强度或可制造性。 |
 
 按 [Pack 作者教程](doc/pack-authoring.md)独立开发扩展。领域代码留在 Pack 内，共享 Core 与 Broker 不依赖具体领域。已注册、能够显示或原生烟测成功，均不代表完整工业工作流已经验收。PCB/Godot 仍缺共享 Domain Runtime 插件与独立任务验收（[#50](https://github.com/Zhiman-BJ/industrial-agent-harness/issues/50)）；各 Scope 的实际覆盖见[发布整改记录](doc/release-readiness-20261007.md)。
@@ -173,3 +173,5 @@ pnpm run format:check
 ### 内置远程运行（内部体验）
 
 项目可选择本机或知满远程，首次上传展示目的地和文件清单，聊天内显示任务状态。Desktop/CLI 共用 Remote Runtime，已准入领域工具在现有有限 CPU 沙箱池执行。公网地址与登录默认配置留空；已验证 macOS Apple Silicon 客户端连接 H200 Linux 进行真实 RTL 检查，公网接入及其他远程领域仍待验收。见[内置远程运行](doc/remote-execution.md)。
+
+CLI 和 Desktop 现共用 Harness 任务服务；领域声明、Skill 和实现来自一个固定版本的 Domain Packs。见[消费迁移与验收](doc/shared-task-and-pack-consumption.md)。

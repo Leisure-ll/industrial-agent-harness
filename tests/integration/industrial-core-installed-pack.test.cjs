@@ -27,17 +27,21 @@ test(
     const keyFile = path.join(directory, 'release-key.pem');
     fs.writeFileSync(keyFile, privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
     const output = path.join(directory, 'release');
-    await execute(process.execPath, [path.join(root, 'scripts/build-domain-packs.cjs'), output], {
-      cwd: root,
-      env: {
-        ...process.env,
-        HARNESS_PACK_DOMAINS: 'chip',
-        HARNESS_PACK_SIGNING_KEY_FILE: keyFile,
-        HARNESS_PACK_SIGNING_KEY_ID: 'qualification',
-        HARNESS_PACK_CHANNEL: 'beta',
+    await execute(
+      process.execPath,
+      [path.join(root, 'scripts/build-pack-distribution.cjs'), output],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          HARNESS_PACK_DOMAINS: 'chip',
+          HARNESS_PACK_SIGNING_KEY_FILE: keyFile,
+          HARNESS_PACK_SIGNING_KEY_ID: 'qualification',
+          HARNESS_PACK_CHANNEL: 'beta',
+        },
+        timeout: 30000,
       },
-      timeout: 30000,
-    });
+    );
     const catalog = fs.readFileSync(path.join(output, 'catalog.json'));
     const manager = new PackManager({
       directory: path.join(directory, 'installed'),
@@ -71,7 +75,10 @@ test(
       ...process.env,
       INDUSTRIAL_HARNESS_EDA_PYTHON:
         process.env.INDUSTRIAL_HARNESS_EDA_PYTHON ||
-        path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python'),
+        path.join(
+          require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+          'eda-harness/.venv/bin/python',
+        ),
     };
     const open = () =>
       createProjectRuntime({

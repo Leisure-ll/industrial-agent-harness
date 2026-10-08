@@ -53,7 +53,7 @@ if (process.argv.includes('--domains')) {
   const feed = path.join(fixture, 'feed');
   const built = spawnSync(
     process.execPath,
-    [path.join(root, 'scripts', 'build-domain-packs.cjs'), feed],
+    [path.join(root, 'scripts', 'build-pack-distribution.cjs'), feed],
     {
       encoding: 'utf8',
       env: {

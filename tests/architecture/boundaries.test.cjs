@@ -132,11 +132,12 @@ test('Viewer dispatch uses a registry and static Capability IDs cannot expand', 
   assert.deepEqual(openedInMain, []);
   assert.match(main, /createViewerRegistry\(/);
   assert.match(main, /viewerRegistry\.get\(artifact\.kind\)/);
-  const capabilities = require(path.join(root, 'packages/domain-skills/src/capabilities.cjs'));
-  assert.deepEqual(
-    capabilities.map(item => item.id).sort(),
-    [...prototype('static-capability-registry').allowedCapabilityIds].sort(),
-  );
+  assert.ok(!fs.existsSync(path.join(root, 'packages/domain-skills/src/capabilities.cjs')));
+  assert.ok(!fs.existsSync(path.join(root, 'domain-packs')));
+  const release = require(path.join(root, 'package.json')).dependencies[
+    '@zhiman-bj/industrial-domain-packs'
+  ];
+  assert.match(release, /tar\.gz\/[a-f0-9]{40}$/);
 });
 
 test('prototype exceptions are explicit and core milestone cannot be claimed early', () => {
@@ -155,7 +156,7 @@ test('prototype exceptions are explicit and core milestone cannot be claimed ear
 
 test('mutating capability tools must declare verification', () => {
   const { capabilities } = require(path.join(root, 'packages/domain-skills/src/index.cjs'));
-  const known = new Set(prototype('static-capability-registry').allowedToolIds);
+  const known = new Set(prototype('kimi-domain-tool-map').allowedCanonicalToolIds);
   for (const capability of capabilities)
     for (const tool of capability.tools) {
       if (!known.has(tool.id)) assert.ok(tool.risk, `new tool ${tool.id} needs a risk declaration`);
@@ -237,4 +238,27 @@ test('the computer-use binary is only referenced by the bridge package source', 
     [],
     'only packages/computer-use-bridge may spawn or name the computer-use binary',
   );
+});
+
+test('both adapters consume TaskService and have no remaining lifecycle exceptions', () => {
+  const policy = JSON.parse(read('architecture/policy.json'));
+  assert.deepEqual(policy.adapterCalls, {});
+  assert.deepEqual(policy.frozen, {});
+  for (const file of ['apps/cli/src/main.cjs', 'apps/desktop/electron/main.cjs']) {
+    const source = read(file);
+    assert.match(source, /harness-application/);
+    assert.match(source, /tasks\.prepare\(/);
+    assert.match(source, /tasks\.start\(/);
+  }
+  const pinned = JSON.parse(read('package.json')).dependencies[
+    '@zhiman-bj/industrial-domain-packs'
+  ];
+  for (const app of ['cli', 'desktop'])
+    assert.equal(
+      JSON.parse(read(`apps/${app}/package.json`)).dependencies[
+        '@zhiman-bj/industrial-domain-packs'
+      ],
+      pinned,
+    );
+  assert.ok(read('pnpm-lock.yaml').includes(pinned));
 });

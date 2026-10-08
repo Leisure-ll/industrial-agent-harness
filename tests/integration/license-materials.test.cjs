@@ -15,15 +15,29 @@ test('public source retains original license and bundled component notices witho
     'packages/viewer-builtin/src/kicad/vendor/newstroke-NOTICES.txt',
     'packages/viewer-builtin/src/kicad/vendor/symbols-LICENSE',
     'packages/viewer-builtin/src/waveform/surfer/LICENSE-EUPL-1.2.txt',
-    'domain-packs/chip/PROVENANCE.md',
-    'domain-packs/pcb/PROVENANCE.md',
   ])
     assert.ok(fs.statSync(path.join(root, name)).size > 100, `Missing license material: ${name}`);
+  for (const id of ['chip-pack', 'pcb-pack'])
+    assert.ok(
+      fs.statSync(
+        path.join(
+          require('../../packages/domain-skills/src/index.cjs').packSourceDirectory(id),
+          'PROVENANCE.md',
+        ),
+      ).size > 100,
+    );
   const notices = fs.readFileSync(path.join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8');
   assert.match(notices, /No upstream repository license/);
   assert.match(notices, /excluded from public bundles/);
   assert.match(notices, /copyright holder explicitly granted MIT/);
-  assert.ok(fs.statSync(path.join(root, 'domain-packs/chip/eda-harness/LICENSE')).size > 100);
+  assert.ok(
+    fs.statSync(
+      path.join(
+        require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+        'eda-harness/LICENSE',
+      ),
+    ).size > 100,
+  );
 });
 
 test('desktop staging retains the bundled font license and provenance', () => {

@@ -70,7 +70,7 @@ test('a project domain constrains capability resolution without a desktop proces
 
 test('a project-disabled skill is absent from scope, detail, and the disclosure trace', () => {
   const { effectiveCapabilities } = require('../src/index.cjs');
-  const { capabilities } = require('@industrial-agent-harness/domain-skills');
+  const { capabilities } = require('../../domain-skills/src/index.cjs');
   const { discloseDetail } = require('@industrial-agent-harness/capability-broker');
   const disabled = { skills: ['chip.netlist.inspect'], mcpServers: [] };
   const result = resolveProjectTask(

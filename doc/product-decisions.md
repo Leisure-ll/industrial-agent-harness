@@ -576,3 +576,8 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 2026-10-08 · 已接受。用户确认 Harness 是共享产品底座，CLI/Desktop 是使用入口，Domain Packs 是领域扩展，本地/远程是独立执行位置。
 
 领域实现只在 industrial-domain-packs 维护；Harness 固定消费不可变发行身份。两端新的任务编排进入共享应用接口，规范工业事实保持 Harness 权威，Kimi 保留原生内核。历史源码副本和两端编排登记为冻结迁移例外，禁止新增、修改或重建基线来通过功能 PR。架构检查、负向回归及 main 必需检查执行 [IH-ARCH-001](architecture-contract.md)。完整消费迁移和行为对照仍是待完成里程碑，不以静态门禁通过宣称迁移完成。
+
+
+## PD-058：共享任务接口与领域单一维护源
+
+2026-10-08 · 已实施，原生与发行验收沿用既有 CI。用户要求落实 PD-057 中两项迁移：CLI/Desktop 的任务编排下移至同一 TaskService，Harness 的领域副本改为固定消费 Domain Packs。两端保留各自交互方式，审批、续聊、Scope 刷新、后台任务和资源清理共用服务；领域修改只在 owner 维护。历史 provider ID 保持稳定，避免资源策略丢失。实现与验收边界见[迁移记录](shared-task-and-pack-consumption.md)。

@@ -42,7 +42,7 @@ requireFromApp.resolve('../i18n.config.json');
 const skillsRoot = path.dirname(
   path.dirname(requireFromApp.resolve('@industrial-agent-harness/domain-skills')),
 );
-const { listSkills, skillFile } = require(path.join(skillsRoot, 'src/registry.cjs'));
+const { listSkills, skillFile } = require(path.join(skillsRoot, 'src/consumer.cjs'));
 const commonSkills = listSkills().filter(skill => skill.domain === '*');
 const commonDirectories = new Set(
   commonSkills.map(skill => path.basename(path.dirname(skillFile(skill.id)))),
@@ -80,7 +80,7 @@ const bootstrap = path.join(target, 'bootstrap-packs');
 if (bootstrapDomains) {
   const result = spawnSync(
     process.execPath,
-    [path.join(root, 'scripts/build-domain-packs.cjs'), bootstrap],
+    [path.join(root, 'scripts/build-pack-distribution.cjs'), bootstrap],
     {
       cwd: root,
       stdio: 'inherit',

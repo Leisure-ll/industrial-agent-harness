@@ -1,7 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { resolve, discloseDetail, assertToolAllowed } = require('../src/index.cjs');
-const registry = require('../../domain-skills/src/capabilities.cjs');
+const registry = require('../../domain-skills/src/index.cjs').capabilities.filter(
+  item => item.tools.length > 0 && !item.tools.some(tool => tool.risk),
+);
 
 test('progressive disclosure selects only matching domain and stage', () => {
   const result = resolve(

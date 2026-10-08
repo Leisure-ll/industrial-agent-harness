@@ -321,7 +321,7 @@ test('public built-in Pack releases retain owned resources and keep PCB private 
   delete environment.HARNESS_PACK_SIGNING_KEY_ID;
   const result = spawnSync(
     process.execPath,
-    [path.join(root, 'scripts/build-domain-packs.cjs'), output],
+    [path.join(root, 'scripts/build-pack-distribution.cjs'), output],
     { encoding: 'utf8', env: environment, maxBuffer: 1024 * 1024 },
   );
   assert.equal(result.status, 0, result.stderr);
@@ -337,7 +337,7 @@ test('public built-in Pack releases retain owned resources and keep PCB private 
       assert.ok(files.some(file => file.path === 'skills/cad.ezdxf.author/scripts/dxf_diff.py'));
     if (item.domain === 'pcb') {
       const skill = bundle.skills.find(skill => skill.id === 'pcb.design.e2e');
-      assert.equal(skill.external.providerPackId, 'pcb-bench');
+      assert.equal(skill.external.providerPackId, 'pcb-pack');
       assert.ok(
         !files.some(
           file =>

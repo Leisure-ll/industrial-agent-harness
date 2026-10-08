@@ -8,3 +8,6 @@ allowBuilds:
   '@moonshot-ai/kimi-code': true
   electron-winstaller: false
   node-pty: true
+
+# Immutable Pack URL is supplied explicitly by each application; never fetch an implicit npm peer.
+autoInstallPeers: false

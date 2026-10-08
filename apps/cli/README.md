@@ -117,3 +117,5 @@ Managed runtime dependencies declared by a Pack are prepared by `domains install
 ## 内置远程体验
 
 `remote status|connect|use|sync|task|cancel` 与桌面共用项目运行配置。用户无需手填服务名或 URL，首次上传需选择文件并显式传入 `--confirm-upload`。公网与登录配置留空时显示尚未配置；内部连接、原生检查验收和当前限制见[内置远程运行](../../doc/remote-execution.md)。
+
+任务生命周期已由共享 `harness-application` TaskService 负责；领域源码、声明与 Skill 来自固定 Domain Packs 消费包，原生版本和平台限制见[迁移说明](../../doc/shared-task-and-pack-consumption.md)。独立叶子工具的历史 Release 保持其原有安装路径。

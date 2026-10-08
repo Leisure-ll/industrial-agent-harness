@@ -9,5 +9,8 @@
   "scripts": {
     "test": "node --test src/*.test.cjs"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "peerDependencies": {
+    "@zhiman-bj/industrial-domain-packs": "0.3.0"
+  }
 }

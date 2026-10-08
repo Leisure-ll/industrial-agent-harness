@@ -3,7 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { providerRuntime, sourceHash, gatewayConfig } = require('./gateway.cjs');
+const { providerRuntime, gatewayConfig } = require('./gateway.cjs');
+
+const { sourceHash } = require('../../domain-skills/src/index.cjs').packGatewayAdapter({
+  packId: 'chip-pack',
+});
 
 test('provider resolution pins source and requires explicit absolute runtime overrides', t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gateway-runtime-test-'));
@@ -20,6 +24,8 @@ test('provider resolution pins source and requires explicit absolute runtime ove
   fs.writeFileSync(python, 'fixture executable never launched');
   const provider = {
     id: 'fixture',
+    packId: 'chip-pack',
+    packDirectory: 'chip',
     title: 'Fixture',
     directoryEnv: 'FIXTURE_PACK',
     pythonEnv: 'FIXTURE_PYTHON',

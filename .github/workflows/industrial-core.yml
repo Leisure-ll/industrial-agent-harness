@@ -33,7 +33,7 @@ jobs:
           python -m pip install uv==0.11.6
           brew install verilator ripgrep
           node apps/desktop/scripts/setup-kimi.cjs
-          cd domain-packs/chip/eda-harness
+          cd "$(node scripts/pack-source.cjs chip-pack)/eda-harness"
           uv sync --frozen --no-dev --python 3.13
       - name: Verify Desktop conversations, controls, documents and native subagents
         shell: bash

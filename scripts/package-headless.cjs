@@ -93,22 +93,11 @@ if (domain) {
     path.join(skillsRoot, 'distribution.json'),
     JSON.stringify({ schemaVersion: 1, domain }, null, 2) + '\n',
   );
-  const allowedSkills = new Set(listSkills(domain).map(item => item.id));
-  const { skillFile } = require('../packages/domain-skills/src/registry.cjs');
-  const directories = new Set(
-    [...allowedSkills].map(id => path.basename(path.dirname(skillFile(id)))),
-  );
-  for (const item of fs.readdirSync(path.join(skillsRoot, 'skills')))
-    if (!directories.has(item))
-      fs.rmSync(path.join(skillsRoot, 'skills', item), { recursive: true });
-  const packsDirectory = path.join(skillsRoot, 'packs');
-  for (const file of fs.readdirSync(packsDirectory)) {
-    const pack = JSON.parse(fs.readFileSync(path.join(packsDirectory, file), 'utf8'));
-    if (pack.domain !== domain) fs.unlinkSync(path.join(packsDirectory, file));
-  }
 }
 for (const pack of domainPacks.filter(pack => !domain || pack.domain === domain)) {
-  const source = path.join(root, 'domain-packs', pack.provider.packDirectory);
+  const source = require('../packages/domain-skills/src/installed.cjs').builtInPackDirectory(
+    pack.provider,
+  );
   fs.cpSync(source, path.join(target, 'domain-packs', pack.provider.packDirectory), {
     recursive: true,
     filter: file =>
@@ -133,6 +122,7 @@ fs.writeFileSync(
       builtAt: new Date().toISOString(),
       sourceCommit: revision.status === 0 ? revision.stdout.trim() : null,
       sourceDirty: dirty.status === 0 ? Boolean(dirty.stdout.trim()) : null,
+      packRelease: require('../packages/domain-skills/src/index.cjs').packReleaseIdentity,
       providers: domainPacks
         .filter(pack => !domain || pack.domain === domain)
         .map(pack => ({ id: pack.provider.id, version: pack.version })),

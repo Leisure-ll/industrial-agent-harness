@@ -14,8 +14,7 @@
     "start": "pnpm --filter @industrial-agent-harness/desktop start",
     "cli": "node apps/cli/src/main.cjs",
     "package:headless": "node scripts/package-headless.cjs",
-    "package:chip": "node scripts/package-chip.cjs",
-    "package:domains": "node scripts/build-domain-packs.cjs",
+    "package:domains": "node scripts/build-pack-distribution.cjs",
     "stage:desktop": "node scripts/stage-desktop.cjs",
     "test:architecture": "node scripts/check-architecture-contract.cjs && node --test tests/architecture/*.test.cjs",
     "test:industrial-core": "node --test tests/integration/industrial-core*.test.cjs",
@@ -40,5 +39,8 @@
   },
   "devDependencies": {
     "prettier": "3.6.2"
+  },
+  "dependencies": {
+    "@zhiman-bj/industrial-domain-packs": "https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/6fc59ccf468dae04f34dbfbc7ab2437810de779d"
   }
 }

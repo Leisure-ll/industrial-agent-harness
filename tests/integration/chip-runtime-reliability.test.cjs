@@ -8,7 +8,10 @@ const execute = promisify(execFile);
 const root = path.resolve(__dirname, '../..');
 const python =
   process.env.INDUSTRIAL_HARNESS_EDA_PYTHON ||
-  path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python');
+  path.join(
+    require('../../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+    'eda-harness/.venv/bin/python',
+  );
 
 test(
   'vendored Chip runtime owns client/probe cleanup, daemon budget and failed action evidence',

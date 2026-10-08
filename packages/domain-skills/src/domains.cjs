@@ -1,13 +1,17 @@
 const { distributionDomain } = require('./distribution.cjs');
-const labels = { cad: 'CAD', chip: 'Chip', pcb: 'PCB', godot: 'Godot' };
-const emojis = { cad: '📐', chip: '💠', pcb: '🔌', godot: '🎮' };
+const metadata = require('@zhiman-bj/industrial-domain-packs').consumerMetadata();
+const labels = Object.fromEntries(metadata.domains.map(item => [item.id, item.label]));
+const emojis = Object.fromEntries(metadata.domains.map(item => [item.id, item.emoji]));
 
 function listDomains(capabilities) {
   return [
     ...new Set(
       distributionDomain
         ? [distributionDomain]
-        : [...capabilities.map(item => item.domain).filter(Boolean), 'godot'],
+        : [
+            ...capabilities.map(item => item.domain).filter(Boolean),
+            ...metadata.domains.map(item => item.id),
+          ],
     ),
   ]
     .sort((a, b) => a.localeCompare(b))

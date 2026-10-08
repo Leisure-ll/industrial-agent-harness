@@ -4,7 +4,7 @@
 
 ## 当前实现与使用
 
-- `packages/pack-manager` 实现签名目录验证、HTTPS 下载、摘要与文件路径检查、跨进程写锁、事务安装、运行中租约、损坏隔离和重装恢复。`scripts/build-domain-packs.cjs` 从 Chip、PCB、Godot、CAD 现有资源生成独立 `.hpack`；发布时用 `HARNESS_PACK_SIGNING_KEY_FILE` 和 `HARNESS_PACK_SIGNING_KEY_ID` 生成签名目录。
+- `packages/pack-manager` 实现签名目录验证、HTTPS 下载、摘要与文件路径检查、跨进程写锁、事务安装、运行中租约、损坏隔离和重装恢复。`scripts/build-pack-distribution.cjs` 从 Chip、PCB、Godot、CAD 现有资源生成独立 `.hpack`；发布时用 `HARNESS_PACK_SIGNING_KEY_FILE` 和 `HARNESS_PACK_SIGNING_KEY_ID` 生成签名目录。
 - 打包版 Desktop 首次启动提供多选 Domain，Settings → Domains 可补装和更新。Desktop 与 CLI 从同一用户目录加载已安装包；开发模式仍使用仓库里的资源。CLI 提供 `domains list/available/install/update/remove`。在线包列表接受发行公钥验证过的目录；随 Core 提供的可选 Pack 继承应用资源的信任边界，并验证清单固定的归档 SHA-256。
 - `electron-builder.config.cjs` 配置 macOS arm64 DMG/ZIP 和 Windows NSIS；主进程通过 `electron-updater` 检查并下载 Core 更新，任务空闲时允许重启安装。`HARNESS_RELEASE_BUILD=1` 要求 Pack 下载源、公钥文件、Core 更新源并强制代码签名；macOS 同时启用公证。CI 配置 Apple Silicon 和 Windows x64 两个目标平台的打包与首次启动检查。
 - 模块化安装回归覆盖真实 Chip + PCB 首装、Godot 后补装，以及 Broker/CLI 在安装前后的 Domain 可见性。[2026-09-30 的三平台 CI 打包烟测](https://github.com/Zhiman-BJ/industrial-agent-harness/actions/runs/36691521328)是历史记录，通过签名测试目录和模拟下载完成同一路径；当前只在 Apple Silicon 和 Windows x64 用 `node scripts/smoke-packaged-desktop.cjs --domains` 复跑。该测试验证打包应用的界面和安装链，不等同于安装器、线上 HTTPS 下载源与正式发行密钥的验收。

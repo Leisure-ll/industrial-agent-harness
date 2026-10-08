@@ -167,7 +167,7 @@ test('real Chip and PCB Packs install first; Godot can be added later without lo
   const outputDir = path.join(root, 'feed');
   const built = spawnSync(
     process.execPath,
-    [path.resolve(__dirname, '../../../scripts/build-domain-packs.cjs'), outputDir],
+    [path.resolve(__dirname, '../../../scripts/build-pack-distribution.cjs'), outputDir],
     {
       encoding: 'utf8',
       env: {
@@ -270,7 +270,7 @@ test('a platform-only Pack is omitted from other platform catalogs', t => {
   const output = path.join(root, 'feed');
   const built = spawnSync(
     process.execPath,
-    [path.resolve(__dirname, '../../../scripts/build-domain-packs.cjs'), output],
+    [path.resolve(__dirname, '../../../scripts/build-pack-distribution.cjs'), output],
     {
       encoding: 'utf8',
       env: {

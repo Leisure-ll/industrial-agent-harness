@@ -1,0 +1,9 @@
+# Shared Harness task application
+
+`TaskService` is the common application layer used by Desktop IPC and the headless CLI. It owns Broker preparation and re-resolution, captured project/chat identity, native Kimi sessions, chat persistence, observed context, Pack/chat/resource leases, industrial scope refresh, native background completion and shutdown. Canonical Runtime/facts remain in Core; Kimi retains its native loop and context. This package has no Electron, renderer or concrete domain dependency.
+
+Use `resume(project, chatId)`, `prepare(entry, request)`, `start(entry, task, interactionOptions)`, `approve`, `answer`, `cancel`, `history`, `evidence`, and `close`. Start returns a completion promise separately from its IPC-safe identity. `diagnose(project)` performs the common read-only environment Action. A preview resolves metadata without starting a Runtime or writing chat turns. Start rechecks current state and policy after obtaining leases, so a prepared scope never becomes permanent execution permission.
+
+Adapters provide model/configuration settings, prompt images, event presentation and approval/question responses. CLI chooses JSONL and process-signal behavior and waits for native background work; Desktop presents live events and keeps a chat busy while background work holds its leases. Both use the same service lifecycle. Project/runtime caches and session read models are exposed for existing read-only UI and setting invalidation.
+
+Tests exercise real file Actions and verification records through both the CLI and desktop-facing task API, failed kernel cleanup, ownership checks and background lease retention. Existing native Kimi and Electron acceptance suites exercise production adapters; injected kernel tests alone do not establish native/platform qualification.

@@ -195,7 +195,10 @@ async function main(suite) {
     for (const file of [
       process.env.KIMI_EXECUTABLE,
       ...(suite === 'native' ? [process.env.INDUSTRIAL_HARNESS_FREECAD_CMD] : []),
-      path.join(root, 'domain-packs/chip/eda-harness/.venv/bin/python'),
+      path.join(
+        require('../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+        'eda-harness/.venv/bin/python',
+      ),
     ]) {
       if (!file || !fs.existsSync(file)) throw Error(`Missing required native runtime: ${file}`);
     }
