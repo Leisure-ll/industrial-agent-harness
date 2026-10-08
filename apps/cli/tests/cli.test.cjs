@@ -33,7 +33,7 @@ test('headless CLI resolves a domain task as JSON Lines without Electron or a mo
     ['scope', 'result'],
   );
   assert.equal(rows[0].scope.domain, 'pcb');
-  assert.deepEqual(rows[0].scope.capabilityIds, ['pcb.layout.inspect']);
+  assert.deepEqual(rows[0].scope.capabilityIds, ['pcb.native.task']);
   assert.equal(rows[1].status, 'scoped');
   assert.ok(!Object.keys(require.cache).some(key => key.includes('/electron/')));
   assert.ok(

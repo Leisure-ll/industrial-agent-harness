@@ -282,4 +282,7 @@ module.exports = {
   ...require('./workspace.cjs'),
   ...require('./remote-client.cjs'),
   ...require('./remote-runtime.cjs'),
+  // Trusted Pack plugins share the protected backend and bounded file boundary.
+  ...require('./task-process.cjs'),
+  runtimeFiles: require('./workspace-files.cjs'),
 };

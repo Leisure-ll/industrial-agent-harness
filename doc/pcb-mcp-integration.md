@@ -1,5 +1,8 @@
 # PCB Bench MCP：Desktop 与 CLI 共享接入
 
+Historical standalone MCP reference. Integrated PCB/Godot now consume owner-maintained typed Runtime Actions; this MCP surface is frozen and is not disclosed by the product Broker. See [current native profiles and qualification](pcb-godot-runtime.md).
+
+
 2026-09-29，已实现注册、完整 Skill 加载、范围网关和原生 controller launch adapter；
 协议、配置与固定外部源码已验证。**原生 KiCad 镜像执行尚未验证；不计作 Industrial Core Vertical Slice 或 bench 全能力超集验收完成。**
 

@@ -1,5 +1,8 @@
 # Godot game MCP and Skills
 
+Historical standalone MCP reference. Integrated PCB/Godot now consume owner-maintained typed Runtime Actions; this MCP surface is frozen and is not disclosed by the product Broker. See [current native profiles and qualification](pcb-godot-runtime.md).
+
+
 The Godot Domain Pack supplies two progressive capabilities. A scene inspection request exposes only `godot.game.project_status` and `godot.game.inspect_scene_source`, plus the `godot.game.inspect` Skill. A game development request exposes five tools and the `godot.game.develop` Skill. The Broker records `capability.resolve`, `scope.replace`, `skill.batch`, `tool.scope`, and `detail.deferred` in its trace. The MCP gateway then enforces that allowlist for both `domain_tool_describe` and `domain_tool_call`; `domain_tool_list` displays only those IDs. Global resource settings can disable the server or a Skill, and a project can override the global default.
 
 | Tool | What it establishes | Risk |

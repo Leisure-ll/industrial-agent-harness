@@ -256,8 +256,8 @@ async function executeTask(task, { directory, input, work, actionId, environment
     arg.replaceAll('{input}', inputRoot).replaceAll('{output}', outputRoot),
   );
   const env = taskEnvironment(environment, input, work);
-  fs.mkdirSync(env.HOME);
-  fs.mkdirSync(env.TMPDIR);
+  fs.mkdirSync(env.HOME, { recursive: true });
+  fs.mkdirSync(env.TMPDIR, { recursive: true });
   let command, identity, cleanup, seccomp;
   if (container) {
     if ([input, work].some(file => file.includes(',')))

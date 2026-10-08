@@ -183,6 +183,12 @@ test('real Chip and PCB Packs install first; Godot can be added later without lo
   assert.equal(built.status, 0, built.stderr);
   global.fetch = async url =>
     new Response(fs.readFileSync(path.join(outputDir, path.basename(new URL(url).pathname))));
+  if (process.platform !== 'darwin' || process.arch !== 'arm64') {
+    const catalog = JSON.parse(fs.readFileSync(path.join(outputDir, 'catalog.json'))).payload;
+    assert.ok(!catalog.packs.some(item => ['pcb', 'godot'].includes(item.domain)));
+    assert.ok(catalog.packs.some(item => item.domain === 'chip'));
+    return;
+  }
   const store = path.join(root, 'packs');
   const options = [
     '--catalog',
@@ -207,7 +213,7 @@ test('real Chip and PCB Packs install first; Godot can be added later without lo
   fs.mkdirSync(project);
   for (const [domain, task, expected] of [
     ['chip', 'Inspect netlist signals', 'chip.rtl.netlist.inspect'],
-    ['pcb', 'Inspect PCB board', 'pcb.layout.inspect'],
+    ['pcb', 'Inspect PCB board', 'pcb.native.task'],
   ]) {
     sink.text = '';
     await run({ command: 'run', projectDir: project, domain, task, scopeOnly: true }, sink);
@@ -282,6 +288,6 @@ test('a platform-only Pack is omitted from other platform catalogs', t => {
   );
   assert.equal(built.status, 0, built.stderr);
   const catalog = JSON.parse(fs.readFileSync(path.join(output, 'catalog.unsigned.json'), 'utf8'));
-  assert.deepEqual(catalog.packs.map(item => item.domain).sort(), ['chip', 'godot', 'pcb']);
+  assert.deepEqual(catalog.packs.map(item => item.domain).sort(), ['chip']);
   assert.ok(catalog.packs.every(item => item.platforms.length > 0));
 });

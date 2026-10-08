@@ -33,6 +33,19 @@ const deployed =
       );
 if (deployed.error) throw deployed.error;
 if (deployed.status !== 0) process.exit(deployed.status || 1);
+// Legacy deploy can retain the root application's self-link to its checkout.
+const selfLink = path.join(
+  target,
+  'node_modules',
+  '.pnpm',
+  'node_modules',
+  '@industrial-agent-harness',
+  'desktop',
+);
+if (fs.lstatSync(selfLink, { throwIfNoEntry: false })?.isSymbolicLink()) {
+  fs.unlinkSync(selfLink);
+  fs.symlinkSync(path.relative(path.dirname(selfLink), target), selfLink, 'dir');
+}
 copyReleaseNotices(target);
 copyDesktopNotices(target);
 for (const name of ['.venv-kimi', '.venv-klayout', 'src', 'scripts', 'viewer-host'])

@@ -6,7 +6,7 @@
 
 项目首页：[English](../README.md) · [简体中文](../README.zh-CN.md)。当前版本为**开发者预览版（Developer Preview）**，许可证见 [MIT License](../LICENSE) 与[第三方清单](../THIRD_PARTY_NOTICES.md)。
 
-这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi Code 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。Chip Pack、PCB Bench 与 Godot 本地 MCP 已通过共用网关接入 Desktop/CLI；完整 Core Domain Runtime、工业状态闭环及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
+这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi Code 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。Chip 的 MCP 与 RTL Runtime、FreeCAD Runtime、PCB／Godot 的有限公开原生 Runtime 通过共享任务接口供 Desktop/CLI 消费。PCB／Godot 原有 MCP 为历史独立诊断路径；三平台完整工业支持仍未验收。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
 
 2026-10-04 更新：[三轨整改记录](harness-quality-three-tracks.md)记录首条真实 RTL 持久化闭环、发行资源修复、SDK 和配对评测入口。受保护的 Agent 当前在 macOS Apple Silicon（arm64）验证；桌面构建与首次启动 CI 保留 Apple Silicon 与 Windows x64，Intel Mac 暂不支持，范围决定见 [PD-036](product-decisions.md#pd-036暂停-intel-mac-支持)。其他领域及平台仍需接入和验收。2026-09-23 评审文件保留为历史基线。
 
@@ -35,6 +35,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [Godot/PCB 工程文件预览](engineering-file-viewers.md) | 场景、脚本、库、制造文件与 3D 素材的只读查看、格式边界和验证 |
 | [Godot Viewer V1](godot-viewer.md) | Web Export 准备、Scene Tree 与 Viewer Bridge 的当前接入边界 |
 | [共享 Chip Pack MCP](domain-mcp-integration.md) | Desktop/CLI 注册、Scope 网关、项目绑定、审批与实测 |
+| [PCB／Godot 专业 Runtime](pcb-godot-runtime.md) | 公开首批任务、精确依赖、独立验证、安装路径与失败／恢复验收 |
 | [共享 PCB Bench MCP](pcb-mcp-integration.md) | 固定外部 PCB 工具、完整 Skill、资源覆盖、协议验证与原生执行前提 |
 | [Godot game MCP](godot-mcp-integration.md) | 任务范围披露、源场景检查、原生导入与限时运行的证据边界 |
 | [Godot 与 PCB Viewer 文件优先级](game-pcb-viewer-priorities.md) | 现有支持及值得增加的工程文件查看能力 |

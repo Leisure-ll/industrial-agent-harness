@@ -13,6 +13,8 @@ const nativeFiles = [
   'tests/integration/agent-question-kimi.test.cjs',
   'tests/integration/compaction-compat-kimi.test.cjs',
   'tests/integration/freecad-runtime.test.cjs',
+  'tests/integration/pcb-godot-runtime.test.cjs',
+  'tests/integration/pcb-godot-installed.test.cjs',
   'tests/integration/industrial-core-vertical-slice.test.cjs',
   'tests/integration/industrial-core-installed-pack.test.cjs',
   'packages/agent-kimi/tests/process-sandbox.test.cjs',

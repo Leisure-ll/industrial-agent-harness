@@ -94,8 +94,8 @@ test(
       const initial = JSON.stringify(requests[0].messages);
       assert.ok(initial.includes('project.work'));
       assert.ok(
-        !initial.includes('pcb-design-e2e'),
-        'An empty native PCB Runtime must not imply unavailable bench capabilities',
+        initial.includes('pcb-design-e2e'),
+        'The public board Runtime discloses its local Skill without private actor setup',
       );
       if (approval === 'approve') {
         assert.match(

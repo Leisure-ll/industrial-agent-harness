@@ -617,3 +617,7 @@ CSV/TSV 显示表格并提供表头开关、全文筛选与分页；普通 JSON 
 ## PD-062：共享任务接口与领域单一维护源
 
 2026-10-08 · 已实施，原生与发行验收沿用既有 CI。用户要求落实 PD-059 中两项迁移：CLI/Desktop 的任务编排下移至同一 TaskService，Harness 的领域副本改为固定消费 Domain Packs。两端保留各自交互方式，审批、续聊、Scope 刷新、后台任务和资源清理共用服务；领域修改只在 owner 维护。历史 provider ID 保持稳定，避免资源策略丢失。实现与验收边界见[迁移记录](shared-task-and-pack-consumption.md)。
+
+## PD-063：PCB／Godot 首批公开原生 Runtime
+
+2026-10-08 · 已实施，待对应 PR 审核。补齐 #50 的共享 Runtime 插件与独立任务验收：PCB 支持矩形安装板板框／已有安装孔布局及 DRC＋几何约束；Godot 支持场景变换／BoxMesh 修改及导入、独立回读、指定帧数结构约束。平台限 macOS Apple Silicon，分别固定 KiCad 10.0.6、Godot 4.7.2；原生软件独立安装。领域源码、Skills、依赖锁与验证器仅在 Domain Packs owner 维护，Harness 精确 commit＋integrity 消费。历史 provider ID 继续保持，集成产品不再披露旧 MCP 修改工具；独立历史传输诊断不作为工程验收。真实原生报告产生 Verification，修改使成功证据过期，失败、取消和重启保留 canonical 记录。安装后的 Desktop 输入／审批／聊天记录及 CLI 均使用共享 TaskService。没有完整 PCB 电气／制造签核、任意游戏 QA、其他平台或 remote 支持承诺，没有合并或发布正式安装器。见 [范围和验收](pcb-godot-runtime.md)。

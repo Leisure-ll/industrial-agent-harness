@@ -1,0 +1,47 @@
+# PCB / Godot Runtime consumption
+
+Harness consumes the exact Domain Packs commit/integrity recorded in package.json and pnpm-lock.yaml. Professional domain code, Skills, dependency pins, examples and Verifiers are maintained exclusively in [industrial-domain-packs](https://github.com/Zhiman-BJ/industrial-domain-packs). No application industrial execution or architecture exception expansion is introduced. Generic Desktop staging also repairs its deployment self-link, following the existing CLI packaging behavior, so the payload cannot link back to its checkout.
+
+The public profile is macOS Apple Silicon only, exercised with KiCad 10.0.6 and Godot 4.7.2 official stable. Windows, Linux, Intel macOS and remote execution remain unqualified. Native executables are external dependencies, not bundled Pack resources. The dependency preparation scripts verify exact official archive SHA-256 values without requiring administrator rights, Apple Developer credentials or installer publication.
+
+Harness injects its generic trusted `runtimeApi` (`executeTask`, `runtimeFiles`) into the installed plugin factory. The Pack does not resolve Core through a development checkout. Harness owns canonical Run, Action, Artifact, State, Verification and Checkpoint persistence, scoped authorization, protected execution and cancellation. The owner Pack owns source observation, typed edits, native command preparation, report interpretation and versioned Verifiers. Kimi Code stays pinned at 2.1.1 and retains its native loop, sessions, compaction and subtasks.
+
+Engineering acceptance requires explicit task expectations plus native reports; model text, preview output, mocks and exit status cannot establish it. Source edits return `not_run` and invalidate previous acceptance. Every source file and the installed runtime/Verifier bytes contribute to the StateProvider identity; input or verifier changes make historical successful evidence stale. Artifacts and their hashes remain attributable to their original action/input snapshots. Native timeout, cancellation, malformed inputs or concurrent input changes preserve canonical failures with incomplete evidence.
+
+## PCB: rectangular mounting-board layout
+
+The first public task is a real KiCad rectangular board with existing mounting footprints. `pcb.kicad.edit` changes one rectangular Edge.Cuts outline and/or moves unique existing footprint references. It uses native pcbnew on a protected snapshot, then replaces source only after the expected SHA-256 and current input set still match. Arbitrary scripts, expressions, new footprint libraries and routing are outside the typed action.
+
+`pcb.kicad.verify` runs `kicad-cli pcb drc --format json --severity-all`, then a separate native pcbnew process reloads the immutable input board. The independent `pcb.kicad.requirements.v1` checks version 10.0.6, zero DRC errors, zero unconnected items, explicit board dimensions and requested placements/rotations (0.001 mm tolerance). Optional `maxWarnings` binds an explicit warning limit. Full warnings, ignored checks, native bounds and centerline edge geometry are preserved; the latter avoids silently counting Edge.Cuts stroke width as board dimensions. No schematic parity/ERC, electrical behavior, autorouting or manufacturing signoff is claimed.
+
+The self-authored `examples/mounting-board` has two mounting holes and a 40×30 mm rectangular outline. Its unattached `Harness` footprint library produces two recorded library warnings; the task explicitly permits at most two. Co-locating the holes creates real `holes_co_located`/silk overlap warnings and fails that bound. Repair restores independent acceptance. Native reports use project rules/defaults, never ambient user KiCad preferences; denied personal-config reads stay in the log. The private PCB-bench actor and private Skills are neither used nor redistributed.
+
+## Godot: structural scene task
+
+`godot.scene.edit` performs hash-checked text-scene edits limited to node position, rotation_degrees, scale, visibility and existing BoxMesh size. Values are finite typed literals; arbitrary property expressions or script assignment are rejected. Before/after scene artifacts are retained. The `.godot` cache is excluded from source observation and protected against task writes.
+
+`godot.scene.verify` first performs native offline headless import, then runs an independent scene property readback and an exact 1..180 frame readback using the maintained native GDScript. It requires nonempty explicit node/property expectations. `godot.scene.requirements.v1` compares all supplied values against both resolved readback and initial/final frame states, including native engine version 4.7.2 official stable. This checks supplied structural properties and script import/frame execution, not unrestricted gameplay, graphics, audio or network behavior.
+
+The self-authored `examples/structural` uses a Node3D, BoxMesh and referenced GDScript. The task changes dimensions/transforms repeatedly, detects a wrong expectation and a real GDScript parse error, then repairs and verifies. Native logs remain complete. The offline macOS sandbox emits one exact Godot 4.7.2 TLS CA bootstrap diagnostic at `get_system_ca_certificates (platform/macos/os_macos.mm:1035)`; that single known unrelated diagnostic is retained but is nonfatal. Other ERROR/SCRIPT ERROR/Parse Error messages remain failures, with a regression test for the exception. The runtime uses the Dummy text driver; existing macOS font directory is permitted read-only for engine initialization. This does not qualify TLS, font rendering or graphics.
+
+## Required acceptance
+
+`tests/integration/pcb-godot-runtime.test.cjs` runs real continuous native source changes, explicit checks, real DRC/script failures and repairs, stale evidence, concurrent input changes, timeouts, cancellation, restart and unsafe/cross-scope requests. `tests/integration/pcb-godot-installed.test.cjs` builds and verifies signed local qualification archives, installs outside the repository, and exercises each domain through real Kimi Code 2.1.1 via CLI and the same TaskService used by Desktop, then reopens durable state. Controlled model responses drive transport deterministically; engineering acceptance is evaluated only by independent native reports. Qualification keys are ephemeral local test keys; these tests do not publish or sign a formal installer.
+
+Run on macOS arm64 after the owner dependency preparation scripts and existing native prerequisites:
+
+```sh
+pnpm --filter @industrial-agent-harness/desktop build
+node scripts/package-headless.cjs dist/professional-cli
+HARNESS_BOOTSTRAP_DOMAINS='' node scripts/stage-desktop.cjs dist/professional-desktop
+export HARNESS_PROFESSIONAL_TEST_CLI="$PWD/dist/professional-cli/industrial-harness.cjs"
+export HARNESS_PROFESSIONAL_DESKTOP_ENTRY="$PWD/dist/professional-desktop/electron/main.cjs"
+pnpm test:architecture
+node scripts/ci-tests.cjs portable
+node scripts/ci-tests.cjs transport
+node scripts/ci-tests.cjs native
+```
+
+Native suite tests are required, with no platform skips. Both new tests are included in the native catalog. Evidence includes canonical actions, artifact hashes, input manifests, raw native logs, native version/executable hashes, independent reports and checkpoints. Normal restart restores records; generic Runtime crash-recovery tests remain part of the required gates. Full game QA, PCB electrical/manufacturing validation, remote execution and other platforms require separate profiles and native qualification.
+
+The installed acceptance gate requires explicitly staged production payloads and checks module resolution stays within them. It cannot qualify a source adapter fallback. A signed same-version Verifier repair makes prior acceptance stale; historical Verification records remain bound to their old input/runtime identity until fresh native verification. The actual Desktop test uses its composer, approval controls and persisted chat history and saves screenshots.

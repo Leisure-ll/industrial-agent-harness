@@ -309,7 +309,7 @@ test('legacy coreApi 1 installations stay readable and receive integrity receipt
   assert.ok(fs.existsSync(path.join(location, '.hpack-integrity.json')));
 });
 
-test('public built-in Pack releases retain owned resources and keep PCB private Skill payload external', t => {
+test('public built-in Pack releases retain owned resources and keep the public PCB Runtime independent of private resources', t => {
   const { directory } = setup(t);
   const output = path.join(directory, 'built-in');
   const environment = {
@@ -337,7 +337,9 @@ test('public built-in Pack releases retain owned resources and keep PCB private 
       assert.ok(files.some(file => file.path === 'skills/cad.ezdxf.author/scripts/dxf_diff.py'));
     if (item.domain === 'pcb') {
       const skill = bundle.skills.find(skill => skill.id === 'pcb.design.e2e');
-      assert.equal(skill.external.providerPackId, 'pcb-pack');
+      assert.equal(skill.external, undefined);
+      assert.ok(files.some(file => file.path === 'domain-packs/pcb/runtime/index.cjs'));
+      assert.ok(files.some(file => file.path === 'domain-packs/pcb/runtime/verifier.cjs'));
       assert.ok(
         !files.some(
           file =>

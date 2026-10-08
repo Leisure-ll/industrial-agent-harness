@@ -45,6 +45,11 @@ jobs:
           done
       - name: Prepare pinned official FreeCAD runtime
         run: node scripts/setup-freecad.cjs
+      - name: Prepare owner-pinned public professional runtimes
+        run: |
+          for pack in pcb godot; do
+            node "$(node scripts/pack-source.cjs "$pack-pack")/runtime/setup-native.cjs" "$GITHUB_WORKSPACE/dist/$pack-runtime"
+          done
       - name: Build independent CAD CLI for native execution
         run: node scripts/package-headless.cjs dist/freecad-cli --domain cad
       - name: Verify common workspace and MCP in packaged CLIs
@@ -56,10 +61,16 @@ jobs:
             node scripts/smoke-workspace-cli.cjs "$GITHUB_WORKSPACE/dist/workspace-$domain/industrial-harness.cjs" "$domain" "dist/ci-reports/workspace-$domain.json"
           done
           INDUSTRIAL_HARNESS_TEST_CLI="$GITHUB_WORKSPACE/dist/workspace-chip/industrial-harness.cjs" node --test tests/integration/external-mcp-kimi.test.cjs
+      - name: Stage independent production payloads for professional tasks
+        run: |
+          node scripts/package-headless.cjs dist/professional-cli
+          HARNESS_BOOTSTRAP_DOMAINS='' node scripts/stage-desktop.cjs dist/professional-desktop
       - name: Verify the real state, action, verification and recovery path
         shell: bash
         run: |
           export KIMI_EXECUTABLE="$(node -p "require('./packages/agent-kimi/src/code-session.cjs').bundledExecutable()")"
+          export HARNESS_PROFESSIONAL_TEST_CLI="$GITHUB_WORKSPACE/dist/professional-cli/industrial-harness.cjs"
+          export HARNESS_PROFESSIONAL_DESKTOP_ENTRY="$GITHUB_WORKSPACE/dist/professional-desktop/electron/main.cjs"
           export HARNESS_FREECAD_TEST_CLI="$GITHUB_WORKSPACE/dist/freecad-cli/industrial-harness.cjs"
           mkdir -p dist/ci-reports
           pnpm run test:ci -- native 2>&1 | tee dist/ci-reports/native.log

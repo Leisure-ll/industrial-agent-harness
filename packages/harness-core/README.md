@@ -17,3 +17,5 @@ Shared project-domain Broker resolution and resource enablement policy for Deskt
 `resourceCatalog` 与 `resolveProjectTask` 接受显式注册的外部 MCP 快照，按同一资源策略把 canonical Tool ID 加入最终 Scope 并记录 Trace；不增加领域/工业 Capability。`ExternalMcpRegistry` facade 来自 domain-mcp，连接和 Gateway 留在下层包。外部结果不进入工业状态或验证，见 [外部 MCP](../../doc/external-mcp.md)。
 
 `RemoteSettings` 与 `runtimeCapabilities` 为 Desktop/CLI 共享服务连接、项目运行位置与确认上传的文件范围。空服务配置保持“尚未配置”；Factory 在加载本地领域 Runtime 前选择远端实现。见[内置远程运行](../../doc/remote-execution.md)。
+
+Trusted installed factories receive `runtimeApi: { executeTask, runtimeFiles }` from Core. This generic backend/file boundary supports plugins installed outside the workspace dependency graph. Domain semantics and Verifiers stay in their owner Pack; this API does not alter canonical persistence or authorization.
