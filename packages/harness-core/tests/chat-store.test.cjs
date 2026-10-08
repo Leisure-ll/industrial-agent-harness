@@ -194,6 +194,24 @@ test('history survives reopening, separates projects/domains and pages without g
     assert.equal(fs.statSync(path.join(directory, 'chats/chats.sqlite')).mode & 0o777, 0o600);
 });
 
+test('receipt times survive stream coalescing and reopening without changing source events', t => {
+  const { project, store, openStore } = fixture(t);
+  const chat = store.create(project, 'test-domain');
+  const turn = store.beginTurn(chat.id, 'Timestamp test');
+  const input = Object.freeze({ type: 'text', text: 'First' });
+  const before = Date.now();
+  const first = store.append(turn, input);
+  assert.ok(Date.parse(first.recordedAt) >= before && Date.parse(first.recordedAt) <= Date.now());
+  assert.equal(input.recordedAt, undefined);
+  store.append(turn, { type: 'status', contextUsage: 0.2 });
+  store.append(turn, { type: 'text', text: ' second' });
+  store.finish(turn, 'finished');
+  store.close();
+  const restored = openStore().history(chat.id, project, 'test-domain').turns[0];
+  assert.equal(restored.events[0].recordedAt, first.recordedAt);
+  assert.equal(restored.events[0].text, 'First second');
+});
+
 test('one chat can have several runtime sessions; returning to an old scope starts a new segment', t => {
   const { directory, project, store, openStore } = fixture(t);
   t.after(() => store.close());

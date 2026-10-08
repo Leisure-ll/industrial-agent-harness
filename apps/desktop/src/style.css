@@ -133,9 +133,15 @@ body,
   height: 28px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--ia-border);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   flex-shrink: 0;
+}
+.ia-product-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .ia-app .ia-icon {
   width: var(--ia-control-size);
@@ -407,10 +413,13 @@ body,
   border: 1px solid var(--ia-border);
   padding: 7px 10px;
 }
-.ia-user-message {
-  margin: 6px 0 24px auto;
+.ia-user-entry {
+  margin: 6px 0 8px auto;
   max-width: 85%;
   width: max-content;
+  min-width: 88px;
+}
+.ia-user-message {
   padding: 14px 18px;
   background: var(--ia-active);
   border: 0;
@@ -419,6 +428,59 @@ body,
   white-space: pre-wrap;
   font-size: var(--ia-font-body);
   overflow-wrap: anywhere;
+}
+.ia-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin-top: 2px;
+  color: var(--ia-muted);
+  font-size: var(--ia-font-sm);
+  opacity: 0;
+  pointer-events: none;
+}
+.ia-user-entry > .ia-message-actions {
+  justify-content: flex-end;
+}
+.ia-message:hover > .ia-message-actions,
+.ia-message:focus-within > .ia-message-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.ia-message-actions time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ia-app .ia-message-copy {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ia-panel);
+  color: var(--ia-muted);
+}
+.ia-app .ia-message-copy:hover,
+.ia-app .ia-message-copy:focus-visible {
+  background: var(--ia-hover);
+  color: var(--ia-text);
+}
+.ia-message-actions[data-copy-status='copied'] .ia-message-copy {
+  color: var(--ia-success);
+}
+.ia-message-copy-error {
+  color: var(--ia-danger);
+  overflow-wrap: anywhere;
+}
+@media (hover: none) {
+  .ia-message-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 .ia-message-label {
   display: flex;
@@ -588,10 +650,10 @@ body,
   flex-wrap: wrap;
   gap: 8px;
 }
-.ia-chat-approval-mode {
+.ia-app .ia-chat-approval-mode {
   max-width: 150px;
   color: var(--ia-muted);
-  background: transparent;
+  background: var(--ia-panel);
   border: 1px solid var(--ia-border);
   border-radius: 6px;
   padding: 4px 6px;
@@ -1009,7 +1071,7 @@ body,
   margin-left: auto;
 }
 .ia-sidebar .ia-product-mark {
-  background: var(--ia-bg);
+  background: transparent;
 }
 .ia-new-chat,
 .ia-sidebar-chat {

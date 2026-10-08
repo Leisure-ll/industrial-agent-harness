@@ -43,7 +43,7 @@ async function run(window, dialog) {
     );
     const failures = await evaluate(`(() => {
       const samples = ['.ia-chat-welcome p', '.ia-composer textarea', '.ia-project-row.selected',
-        '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre'];
+        '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre', '.ia-chat-approval-mode'];
       function rgba(color) { return color.match(/[\\d.]+/g).map(Number); }
       function background(node) {
         if (!node) return [255, 255, 255];
@@ -59,7 +59,7 @@ async function run(window, dialog) {
       }
       return samples.flatMap(selector => {
         const node = document.querySelector(selector);
-        if (!node || node.disabled) return [];
+        if (!node || (node.disabled && selector !== '.ia-chat-approval-mode')) return [];
         const foreground = luminance(rgba(getComputedStyle(node).color).slice(0, 3));
         const surface = luminance(background(node));
         const ratio = (Math.max(foreground, surface) + .05) / (Math.min(foreground, surface) + .05);

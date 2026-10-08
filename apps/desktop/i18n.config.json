@@ -12,6 +12,18 @@
     }
   },
   "messages": {
+    "Copy message": {
+      "en": "Copy message",
+      "zh-CN": "复制消息"
+    },
+    "Message copied": {
+      "en": "Message copied",
+      "zh-CN": "已复制消息"
+    },
+    "Copy failed. Try again.": {
+      "en": "Copy failed. Try again.",
+      "zh-CN": "复制失败，请重试。"
+    },
     "Settings": {
       "en": "Settings",
       "zh-CN": "设置"

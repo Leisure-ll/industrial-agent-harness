@@ -1,5 +1,7 @@
 # Desktop
 
+聊天消息的时间和复制按钮在鼠标悬停或键盘聚焦时显示；复制只针对对应消息的正文，助手正文保留 Markdown 源文，不混入思考与工具日志。核心产品标识使用用户提供的绿色图形，贯穿侧栏、应用和安装器。构建后用 `pnpm --filter @industrial-agent-harness/desktop test:messages` 验证实际悬停、剪贴板、时间持久化和主题交互，范围见[桌面 UI 优化](../../doc/desktop-ui-refinement.md#message-actions-and-product-mark-2026-10-08)。
+
 界面采用 Impeccable 的产品模式做局部优化：项目名称与领域分层、当前聊天单独高亮、首次使用提供创建入口，项目详情首屏可新建聊天；统一自托管字体、主题对比度、输入焦点和窄窗口布局。设计规则见 [DESIGN.md](DESIGN.md)，变更与验证范围见[桌面 UI 优化](../../doc/desktop-ui-refinement.md)。构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:ui` 可验证实际桌面交互链路。
 
 当前开发者预览版的桌面构建与首次启动 CI 目标为 **macOS Apple Silicon（arm64）和 Windows x64**。Intel Mac 暂不支持，已退出 CI 与安装包发行矩阵；恢复前需有对应测试机并完成安装、运行与升级验收。签名安装器和真实 OTA 尚待验证，Windows 的真实工业 Agent 执行也仍受[执行边界](../../SECURITY.md)限制。

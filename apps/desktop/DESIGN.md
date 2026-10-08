@@ -53,6 +53,26 @@ content instead of extra cards or decorative icon tiles.
 
 ## Interaction and window size
 
+User messages and assistant text reserve a compact metadata row below their
+content. Time and Copy remain hidden until the individual message is hovered or
+a control within it receives keyboard focus; hovering does not shift content.
+On devices without hover, controls stay visible. User times use persisted turn
+creation; new assistant messages use first host receipt, preserved across stream
+chunks and reload. Older replies without recorded times omit the time. Show
+24-hour local time and the full local date/time on the time tooltip.
+
+Copy writes only the selected message's text to the clipboard. Assistant copies
+preserve Markdown source and omit leading reasoning blocks, tool output, and
+interface labels. Successful copy briefly shows a check and announces success;
+failure shows a localized retry message. Each message owns its feedback.
+
+The core product identity uses the user-supplied green mark. A transparent
+derivative blends into the sidebar in both themes; the native application and
+installer use a rounded-square backing with balanced inner whitespace and
+transparent outer margins. Original artwork and built-in imagegen edit prompts
+are retained in [branding/README.md](branding/README.md); packaging formats are
+documented in [public/README.md](public/README.md).
+
 Buttons have explicit accessible names, and toggles expose pressed/expanded
 state. The composer uses a focus-within outline, an upward Send icon, and a
 localized keyboard hint: Enter sends; Shift+Enter adds a line. It is disabled

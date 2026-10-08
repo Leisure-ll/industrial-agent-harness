@@ -6,7 +6,6 @@ import {
   Bug,
   ChevronDown,
   ChevronRight,
-  Cpu,
   File,
   FilePlus2,
   Folder,
@@ -59,6 +58,7 @@ import { ProjectDetails } from './components/ProjectDetails';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { WorkspaceDivider } from './components/WorkspaceDivider';
 import { DomainPill } from './components/DomainPill';
+import { MessageActions } from './components/MessageActions';
 import { appendDisplayEvents, latestEvent } from './agent-events';
 import { mergeHistoryEvents } from './chat-history';
 import { useLanguage } from './i18n/I18nProvider';
@@ -905,7 +905,7 @@ export function App() {
           <aside className="ia-tree ia-sidebar" aria-label={t('Project navigation')}>
             <div className="ia-sidebar-brand">
               <span className="ia-product-mark">
-                <Cpu size={16} />
+                <img src="./product-mark.png" width={28} height={28} alt="" />
               </span>
               <b>Industrial Harness</b>
               <button
@@ -1323,13 +1323,16 @@ export function App() {
                 )}
                 {turns.map((turn, index) => (
                   <div className="ia-chat-turn" key={turn.id} data-turn-id={turn.id}>
-                    <div className="ia-user-message">
-                      {turn.task}
-                      {turn.events.map(event =>
-                        event.type === 'user-images' || event.type === 'input-images' ? (
-                          <ImageThumbnails key="input-images" images={event.images} />
-                        ) : null,
-                      )}
+                    <div className="ia-user-entry ia-message">
+                      <div className="ia-user-message">
+                        {turn.task}
+                        {turn.events.map(event =>
+                          event.type === 'user-images' || event.type === 'input-images' ? (
+                            <ImageThumbnails key="input-images" images={event.images} />
+                          ) : null,
+                        )}
+                      </div>
+                      <MessageActions text={turn.task} recordedAt={turn.createdAt} />
                     </div>
                     {turn.broker && (
                       <BrokerCall
