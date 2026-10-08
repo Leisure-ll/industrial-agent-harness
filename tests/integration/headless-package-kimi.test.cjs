@@ -13,7 +13,26 @@ const execute = promisify(execFile);
 // native platforms, separately from portable packaging and other pnpm deploys.
 test('packaged headless Agent completes a real protected Kimi Code turn outside the workspace', async t => {
   const { directory, target } = buildHeadlessPackage(t);
-  const model = await startModel({ calls: [], success: 'PACKAGED_CODE_OK' });
+  const isFollowup = body =>
+    JSON.stringify(body.messages.findLast(m => m.role === 'user')?.content).includes(
+      'background_task',
+    );
+  const model = await startModel({
+    perPrompt: true,
+    calls: body => [
+      {
+        name: 'Bash',
+        arguments: isFollowup(body)
+          ? { command: 'echo PACKAGED_FOLLOWUP_TOOL', description: 'Follow-up read-only marker' }
+          : {
+              command: 'sleep 1; echo PACKAGED_BACKGROUND_OUTPUT',
+              description: 'Packaged background marker',
+              run_in_background: true,
+            },
+      },
+    ],
+    success: body => (isFollowup(body) ? 'PACKAGED_CODE_OK' : 'PACKAGED_STARTED'),
+  });
   t.after(model.close);
   const project = path.join(directory, 'project');
   fs.mkdirSync(project);
@@ -27,7 +46,9 @@ test('packaged headless Agent completes a real protected Kimi Code turn outside 
       '--domain',
       'godot',
       '--task',
-      'Reply PACKAGED_CODE_OK without tools',
+      'Run the background marker and report its completion.',
+      '--approval',
+      'approve',
       '--provider',
       'openai_legacy',
       '--endpoint',
@@ -61,7 +82,15 @@ test('packaged headless Agent completes a real protected Kimi Code turn outside 
     ),
   );
   assert.ok(rows.some(row => row.event?.text === 'PACKAGED_CODE_OK'));
-  assert.equal(model.requests.length, 1);
+  assert.ok(rows.some(row => row.event?.text === 'PACKAGED_STARTED'));
+  assert.ok(rows.some(row => row.event?.type === 'background-state' && row.event.running));
+  assert.equal(model.requests.length, 4);
+  assert.equal(rows.filter(row => row.event?.type === 'approval').length, 2);
+  const finished = rows.findIndex(row => row.event?.text === 'PACKAGED_CODE_OK');
+  assert.ok(
+    rows.findIndex(row => row.type === 'result') > finished,
+    'final result follows native background continuation',
+  );
   assert.equal(
     JSON.parse(fs.readFileSync(path.join(target, 'HARNESS-PACKAGE.json'))).agentRuntime.version,
     '2.1.1',

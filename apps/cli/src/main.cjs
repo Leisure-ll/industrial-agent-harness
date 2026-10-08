@@ -67,7 +67,7 @@ Options:
   --log-dir DIR               Full diagnostic JSONL directory
   --disable-skill ID          Disable a repository skill for this run (repeatable)
   --disable-mcp ID            Disable a repository MCP server for this run (repeatable)
-  --timeout-ms N               Interrupt a turn after N milliseconds
+  --timeout-ms N               Interrupt the run, including background work, after N milliseconds
 
 Global/project resource defaults use ~/.industrial-agent-harness/resource-settings.json.
 Set INDUSTRIAL_HARNESS_CONFIG_DIR to use an isolated configuration directory.
@@ -393,6 +393,9 @@ async function runWithStore(options, output, environment, Session, chats, regist
         );
       }, Number(options.timeoutMs));
     await session.run(options.task);
+    const backgroundResult = await session.waitForBackgroundIdle?.();
+    if (backgroundResult && outcome?.type !== 'error')
+      outcome = { type: 'done', result: backgroundResult };
     const status = timedOut
       ? 'timeout'
       : pendingQuestion

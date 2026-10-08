@@ -7,6 +7,16 @@ const { saveProfile, defaults } = require('./model-config.cjs');
 let fixture, evidence;
 const child = body =>
   body.messages.some(m => m.role === 'user' && JSON.stringify(m.content).includes('UI_CHILD_ONLY'));
+const taskText = body =>
+  String(
+    body.messages.findLast(
+      m =>
+        m.role === 'user' &&
+        /FOREGROUND_TASK|BACKGROUND_TASK|UI_CHILD_ONLY|background_task/.test(
+          JSON.stringify(m.content),
+        ),
+    )?.content,
+  );
 async function prepare(config, modelDirectory) {
   evidence = path.dirname(config);
   const directory = path.join(config, 'subagent-project');
@@ -64,37 +74,52 @@ async function prepare(config, modelDirectory) {
                 },
               },
             ]
-          : [
-              {
-                name: 'Agent',
-                arguments: {
-                  description: 'Inspect the part independently',
-                  prompt: 'UI_CHILD_ONLY: inspect and summarize.',
-                  subagent_type: 'coder',
-                  run_in_background: JSON.stringify(body.messages).includes('BACKGROUND_TASK'),
+          : taskText(body).includes('SHELL_BACKGROUND_TASK')
+            ? [
+                {
+                  name: 'Bash',
+                  arguments: {
+                    command: 'sleep 1; echo SHELL_BACKGROUND_OUTPUT',
+                    description: 'SHELL_BACKGROUND_MARKER',
+                    run_in_background: true,
+                  },
                 },
-              },
-              ...(JSON.stringify(body.messages).includes('BACKGROUND_TASK')
-                ? []
-                : [
-                    {
-                      name: 'AskUserQuestion',
-                      arguments: {
-                        questions: [
-                          {
-                            question: 'Which inspection?',
-                            header: 'Inspect',
-                            options: [{ label: 'Geometry' }, { label: 'Constraints' }],
-                          },
-                        ],
+              ]
+            : [
+                {
+                  name: 'Agent',
+                  arguments: {
+                    description: 'Inspect the part independently',
+                    prompt: 'UI_CHILD_ONLY: inspect and summarize.',
+                    subagent_type: 'coder',
+                    run_in_background: JSON.stringify(body.messages).includes('BACKGROUND_TASK'),
+                  },
+                },
+                ...(JSON.stringify(body.messages).includes('BACKGROUND_TASK')
+                  ? []
+                  : [
+                      {
+                        name: 'AskUserQuestion',
+                        arguments: {
+                          questions: [
+                            {
+                              question: 'Which inspection?',
+                              header: 'Inspect',
+                              options: [{ label: 'Geometry' }, { label: 'Constraints' }],
+                            },
+                          ],
+                        },
                       },
-                    },
-                  ]),
-            ],
+                    ]),
+              ],
     success: body =>
-      child(body)
-        ? '## Child result\n\n**CHILD_SUMMARY_OK**'
-        : '<think>UI_THINKING_ONLY</think>\n## Final result\n\n**PARENT_FINAL_OK**\n\n| Check | Result |\n|---|---|\n| Native child | Complete |',
+      taskText(body).includes('SHELL_BACKGROUND_MARKER')
+        ? 'SHELL_FOLLOWUP_OK'
+        : taskText(body).includes('SHELL_BACKGROUND_TASK')
+          ? 'SHELL_STARTED_OK'
+          : child(body)
+            ? '## Child result\n\n**CHILD_SUMMARY_OK**'
+            : '<think>UI_THINKING_ONLY</think>\n## Final result\n\n**PARENT_FINAL_OK**\n\n| Check | Result |\n|---|---|\n| Native child | Complete |',
   });
   saveBindings(config, {
     activeId: 'subagent-test',
@@ -208,6 +233,34 @@ async function run(window) {
       `document.querySelectorAll('.ia-subagent-card').length===2&&document.querySelectorAll('.ia-markdown table').length===3`,
     );
     await evaluate(
+      `(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'SHELL_BACKGROUND_TASK');area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+    );
+    await evaluate(`document.querySelector('.ia-send').click()`);
+    await wait(`Boolean(document.querySelector('.ia-approval button'))`);
+    await evaluate(`document.querySelector('.ia-approval button').click()`);
+    await wait(`document.body.innerText.includes('SHELL_STARTED_OK')`);
+    await wait(`Boolean(document.querySelector('button[title="Stop agent"]'))`);
+    await wait(
+      `Array.from(document.querySelectorAll('.ia-approval')).some(n=>n.innerText.includes('FOLLOWUP_TOOL_OK'))`,
+    );
+    await evaluate(`document.querySelector('.ia-approval button').click()`);
+    await wait(`Boolean(document.querySelector('.ia-question input[type="radio"]'))`);
+    await evaluate(
+      `document.querySelector('.ia-question input[type="radio"]').click();document.querySelector('.ia-question button[type="submit"]').click()`,
+    );
+    await wait(
+      `document.body.innerText.includes('SHELL_FOLLOWUP_OK')&&!document.querySelector('button[title="Stop agent"]')`,
+    );
+    const shellHistory = await evaluate(
+      `window.viewerHost.chats().then(state=>window.viewerHost.chatHistory({id:state.activeId}))`,
+    );
+    assert.equal(shellHistory.turns.length, 3);
+    assert.ok(
+      shellHistory.turns
+        .at(-1)
+        .events.some(e => e.type === 'question-resolved' && e.decision === 'answered'),
+    );
+    await evaluate(
       `(() => {const area=document.querySelector('.ia-composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,'BACKGROUND_TASK_CANCEL');area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
     );
     await evaluate(`document.querySelector('.ia-send').click()`);
@@ -239,6 +292,7 @@ async function run(window) {
         nativeKimi: true,
         foreground: true,
         background: true,
+        backgroundShell: true,
         nativeFollowup: true,
         followupApproval: true,
         followupQuestion: true,
