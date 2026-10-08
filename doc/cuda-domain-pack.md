@@ -1,7 +1,7 @@
 # CUDA Domain Pack
 
 Harness consumes the CUDA implementation from Domain Packs 0.4.0, pinned to
-`edb14ffa1aa6fbb574cfcd9e100bc8e600615ca4`. The owner supplies two distinct remote
+`36cb4fa42ddff3fa89453a8a85292b7404bcec33`. The owner supplies two distinct remote
 MCP identities (Compiler and Evaluator), the optimization Skill, source client,
 StateProvider and aggregate Verifier. Kimi, Broker, approvals and canonical
 Actions/Artifacts/States/Checkpoints use the existing shared application path.
@@ -28,8 +28,8 @@ public remote endpoint, desktop bundle or real-model optimization trajectory.
 The CUDA declaration's empty qualifiedBundlePlatforms keeps automatic distribution
 from advertising a package that has not been exercised.
 
-The owner's [setup](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/edb14ffa1aa6fbb574cfcd9e100bc8e600615ca4/packs/cuda/README.md)
-and [native qualification](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/edb14ffa1aa6fbb574cfcd9e100bc8e600615ca4/packs/cuda/QUALIFICATION.md)
+The owner's [setup](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/36cb4fa42ddff3fa89453a8a85292b7404bcec33/packs/cuda/README.md)
+and [native qualification](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/36cb4fa42ddff3fa89453a8a85292b7404bcec33/packs/cuda/QUALIFICATION.md)
 record exact worker identities and limits. The production shared factory/Runtime and Broker exercised actual remote compilation, correctness, profiling, scope, approval, artifacts, persistent checkpoints and cancellation. The pinned consumer then repeated the complete native flow using normal release discovery, without an injected CUDA registration. Consumer regression tests cover registration, Skill materialization and both real MCP transports. Local validation passed 318 portable tests, all 24 architecture tests and all 17 release checks; source tests do not grant GPU qualification.
 
 ## Local installation GPU preflight
@@ -38,6 +38,7 @@ Local Compiler/Evaluator preparation must inspect the GPU model, stable UUID,
 VRAM, driver and compute capability before allocating native workers. The owner’s
 `scripts/preflight.cjs` reports detected devices, mismatches and multi-GPU selection;
 `scripts/allocate.cjs` enforces the check before recipe access or allocation writes.
+It binds both Evaluator visibility and its single GPU reservation to the chosen UUID.
 The current profile accepts RTX 4090 / SM 8.9 / driver 595.71.05 on Linux x64.
 Hardware detection is separate from native qualification. Different hardware or
 drivers require a reviewed profile; do not install or upgrade a driver automatically.
