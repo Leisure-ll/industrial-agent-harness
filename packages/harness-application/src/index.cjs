@@ -57,6 +57,7 @@ class TaskService {
     return this.options.getRegistry?.() || loadRegistry();
   }
   resume(project, chatId) {
+    if (this.closing) throw Error('Task session is unavailable.');
     const entry = this.sessions.get(project, chatId);
     this.chats.get(chatId, project.path, project.domain);
     if (!entry.scope && !this.sessions.busy(entry)) {
@@ -295,6 +296,7 @@ class TaskService {
           },
           resources: this.resources,
           onIdleRelease: () => {
+            if (this.closing) return;
             entry.context?.close();
             entry.context = undefined;
           },
@@ -403,7 +405,7 @@ class TaskService {
   }
   async close() {
     if (this.closing) return this.closing;
-    this.closing = (async () => {
+    this.closing = Promise.resolve().then(async () => {
       const errors = [];
       const active = this.sessions.matching();
       for (const entry of active)
@@ -432,7 +434,7 @@ class TaskService {
         }
       }
       if (errors.length) throw new AggregateError(errors, 'Task service cleanup failed.');
-    })();
+    });
     return this.closing;
   }
 }

@@ -166,7 +166,17 @@ for (const phase of ['prepare', 'start']) {
   });
 }
 test('shutdown during input observation keeps its context database open until the pending write settles', async t => {
-  const { tasks, entry, project } = fixture(t);
+  class IdleRelease extends Kernel {
+    async close() {
+      this.options.onIdleRelease();
+      await super.close();
+    }
+  }
+  const { tasks, entry, project } = fixture(t, IdleRelease);
+  await tasks.prepare(entry, { task: 'create a file' });
+  await (
+    await tasks.start(entry, 'create a file')
+  ).completion;
   await tasks.prepare(entry, { task: 'create a file' });
   const file = path.join(project.path, 'input.txt');
   fs.writeFileSync(file, 'observed input');
@@ -186,10 +196,11 @@ test('shutdown during input observation keeps its context database open until th
   const rejected = assert.rejects(pending, /Task session is unavailable/);
   await observing;
   const closing = tasks.close();
+  assert.throws(() => tasks.resume(project, entry.id), /Task session is unavailable/);
   resume();
   await rejected;
   await closing;
-  assert.equal(entry.agent, undefined, 'shutdown prevents native startup after input capture');
+  assert.equal(entry.agent.closed, true);
 });
 test('background tasks retain leases until their native completion; cancel and approval use the same session', async t => {
   class Background extends Kernel {
