@@ -2,11 +2,11 @@
 
 开发前必读：[已接受的跨仓架构契约 IH-ARCH-001](architecture-contract.md)。领域源码归属、CLI/Desktop 入口、执行后端和冻结迁移例外由该契约及必跑 CI 约束。
 
-当前实现：[共享任务服务与 Pack 消费迁移](shared-task-and-pack-consumption.md)。
+职责边界：[系统架构](architecture.md)，包含 Harness / Domain Packs / CLI / GUI / 执行后端 / Kimi 的关系，以及产品 CLI 与领域工具 CLI 的区别。当前实现：[共享任务服务与 Pack 消费迁移](shared-task-and-pack-consumption.md)。
 
 项目首页：[English](../README.md) · [简体中文](../README.zh-CN.md)。当前版本为**开发者预览版（Developer Preview）**，许可证见 [MIT License](../LICENSE) 与[第三方清单](../THIRD_PARTY_NOTICES.md)。
 
-这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi Code 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。Chip Pack、PCB Bench 与 Godot 本地 MCP 已通过共用网关接入 Desktop/CLI；完整 Core Domain Runtime、工业状态闭环及三平台发行包仍在开发中。文档中的其余接口与验收项，除明确标为“已落实”的事项外，均为设计提案。
+这里记录 Industrial Agent Harness 的产品架构与开发计划。桌面 MVP、三种内置 EDA Viewer、Godot Web Export Viewer V1、素材 Viewer、KiCad Viewer V1、五种通用文件 Viewer、确定性 Broker 和 Kimi Code 接口已落地；Godot、KiCad 与通用文件示例链路已通过 macOS Electron 实测。CLI / Desktop 已共用任务应用层，领域实现由固定版本的 Domain Packs 提供。真实 RTL 持久化闭环及各领域、平台和安装验收的范围，以专题文档和 [CI 回归记录](ci-regression.md)为准；历史计划和未验收的组合不代表当前支持范围。
 
 2026-10-04 更新：[三轨整改记录](harness-quality-three-tracks.md)记录首条真实 RTL 持久化闭环、发行资源修复、SDK 和配对评测入口。受保护的 Agent 当前在 macOS Apple Silicon（arm64）验证；桌面构建与首次启动 CI 保留 Apple Silicon 与 Windows x64，Intel Mac 暂不支持，范围决定见 [PD-036](product-decisions.md#pd-036暂停-intel-mac-支持)。其他领域及平台仍需接入和验收。2026-09-23 评审文件保留为历史基线。
 
@@ -26,7 +26,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | --- | --- |
 | [Kimi Code 迁移](kimi-code-migration.md) | 固定 2.1.1、认证 Server API、身份映射与外壳兼容验收 |
 | [Kimi 后台兼容](kimi-background-compatibility.md) | 原生后台 Bash、WaitFor、自动续答与 Headless 生命周期 |
-| [系统架构](architecture.md) | Kimi Code、桌面端、Broker、工业运行时与领域包的职责和数据流 |
+| [系统架构](architecture.md) | 共享 Harness、CLI / GUI、Domain Packs、执行后端与 Kimi 的职责、两种 CLI 和工程证据链 |
 | [Capability Broker](capability-broker.md) | Capability 解析、skill 与 MCP 工具的渐进式披露、Scope 和 Trace |
 | [Viewer 层](viewer-layer.md) | 内置查看、关键产物预览、外部打开与证据边界 |
 | [通用文件 Viewer](document-viewers.md) | CSV/TSV、JSON、JSONL、Markdown、TXT/LOG 的只读查看、分页与文件边界 |
