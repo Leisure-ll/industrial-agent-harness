@@ -1077,13 +1077,13 @@ body,
 }
 .ia-new-chat,
 .ia-sidebar-chat {
-  margin: 4px 9px;
+  margin: 2px 9px;
   width: calc(100% - 18px);
   display: flex !important;
   align-items: center;
   justify-content: flex-start !important;
   gap: 9px !important;
-  padding: 9px 10px !important;
+  padding: 5px 10px !important;
   text-align: left;
   font-size: 12px !important;
   background: transparent !important;
@@ -2410,14 +2410,14 @@ body,
   scrollbar-gutter: stable;
 }
 .ia-project-chats {
-  margin: 3px 9px 10px 21px;
+  margin: 2px 9px 6px 21px;
   padding-left: 7px;
   border-left: 1px solid var(--ia-border);
 }
 .ia-project-list .ia-project-chats button {
   width: calc(100% - 6px);
-  margin: 2px 3px;
-  padding: 7px 8px;
+  margin: 1px 3px;
+  padding: 4px 8px;
   min-height: 29px;
   color: var(--ia-muted);
   font-size: 11px;
@@ -2615,7 +2615,7 @@ body,
 /* Navigation hierarchy: the project owns a folder, the current chat owns a selection. */
 .ia-app .ia-project-row {
   display: grid !important;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-columns: 16px minmax(0, 1fr) auto auto;
   gap: 4px 8px !important;
   align-items: center;
 }
@@ -2632,15 +2632,15 @@ body,
   grid-row: 1;
 }
 .ia-project-list .ia-project-domain-badge {
-  grid-column: 2 / 4;
-  grid-row: 2;
-  justify-self: start;
+  grid-column: 4;
+  grid-row: 1;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--ia-muted);
   font-size: var(--ia-font-xs);
   font-weight: 400;
+  white-space: nowrap;
 }
 .ia-project-list .ia-sidebar-chat[aria-current='page'] {
   background: var(--ia-sidebar-active) !important;
@@ -3475,7 +3475,7 @@ body,
 .ia-sidebar-chat,
 .ia-new-chat {
   margin-block: 2px;
-  padding-block: 7px !important;
+  padding-block: 5px !important;
   font-weight: 400 !important;
 }
 .ia-project-list .ia-sidebar-chat[aria-current='page'] {
@@ -4111,4 +4111,11 @@ body {
   .ia-rail-preview {
     animation: none;
   }
+}
+
+/* The brand title truncates rather than wrapping inside the 48px row. */
+.ia-sidebar-brand b {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

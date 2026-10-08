@@ -1395,7 +1395,7 @@ async function createWindow() {
     // keeps the native traffic lights; other platforms get in-page controls.
     frame: process.platform === 'darwin',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
-    trafficLightPosition: { x: 16, y: 15 },
+    trafficLightPosition: { x: 20, y: 18 },
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
