@@ -8,6 +8,12 @@ const { loadSuite, runBench } = require('../src/bench.cjs');
 test('bench keeps per-scenario evidence and fails on a wrong capability expectation', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-bench-test-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const previousConfig = process.env.INDUSTRIAL_HARNESS_CONFIG_DIR;
+  process.env.INDUSTRIAL_HARNESS_CONFIG_DIR = path.join(directory, 'config');
+  t.after(() => {
+    if (previousConfig === undefined) delete process.env.INDUSTRIAL_HARNESS_CONFIG_DIR;
+    else process.env.INDUSTRIAL_HARNESS_CONFIG_DIR = previousConfig;
+  });
   fs.mkdirSync(path.join(directory, 'project'));
   const suiteFile = path.join(directory, 'suite.json');
   fs.writeFileSync(
@@ -42,7 +48,11 @@ test('bench keeps per-scenario evidence and fails on a wrong capability expectat
   const outputDir = path.join(directory, 'results');
   assert.equal(await runBench(['--suite', suiteFile, '--output-dir', outputDir]), 1);
   const summary = JSON.parse(fs.readFileSync(path.join(outputDir, 'summary.json')));
-  assert.equal(summary.scenarios[0].passed, true);
+  assert.equal(
+    summary.scenarios[0].passed,
+    true,
+    fs.readFileSync(path.join(outputDir, 'matched.jsonl'), 'utf8'),
+  );
   assert.equal(summary.scenarios[1].passed, false);
   assert.match(summary.scenarios[1].failures.join(' '), /capabilityIds/);
   assert.equal(
