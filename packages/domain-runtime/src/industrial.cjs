@@ -44,6 +44,7 @@ class IndustrialRuntime {
       verifiers = {},
       dispose = () => {},
       releaseOwner = () => {},
+      projectRef,
     } = {},
   ) {
     this.projectDir = fs.realpathSync(projectDir);
@@ -54,11 +55,15 @@ class IndustrialRuntime {
     )
       throw Error('A bound project, domain and StateProvider are required.');
     this.projectIdentity = fs.statSync(this.projectDir);
-    this.project = ProjectRefSchema.parse({
-      schemaVersion: '1',
-      projectId: digest(`${this.projectDir}\0${domain}`),
-      domain,
-    });
+    this.project = ProjectRefSchema.parse(
+      projectRef || {
+        schemaVersion: '1',
+        projectId: digest(`${this.projectDir}\0${domain}`),
+        domain,
+      },
+    );
+    if (this.project.domain !== domain)
+      throw Error('Runtime project domain differs from its binding.');
     this.stateProvider = stateProvider;
     this.dispose = dispose;
     this.releaseOwner = releaseOwner;

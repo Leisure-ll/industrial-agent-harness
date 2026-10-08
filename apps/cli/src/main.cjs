@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const { parseArgs } = require('./args.cjs');
 const {
   resolveProjectTask,
+  runtimeCapabilities,
   createProjectRuntime,
   effectiveCapabilities,
   resourceCatalog,
@@ -32,6 +33,7 @@ const { runBench } = require('./bench.cjs');
 const { loadArtifacts } = require('./lib/artifact-manifest.cjs');
 const { runMcp } = require('./mcp.cjs');
 const { main: inspectDiagnosticLog } = require('./inspect-log.cjs');
+const { runRemote } = require('./remote.cjs');
 const { runDomains } = require('./domains.cjs');
 const { PackManager } = require('@industrial-agent-harness/pack-manager');
 const {
@@ -45,6 +47,7 @@ const usage = `industrial-harness run --project-dir DIR --domain DOMAIN (--task 
 industrial-harness chats --project-dir DIR --domain DOMAIN [--chat-dir DIR]
 industrial-harness doctor --project-dir DIR --domain DOMAIN
 industrial-harness inspect-log --file FILE
+industrial-harness remote --help
 industrial-harness mcp --help
 industrial-harness domains list|available|install|update|remove [options]
 
@@ -141,7 +144,8 @@ async function run(
 }
 
 async function runWithStore(options, output, environment, Session, chats, registry, bundle) {
-  const capabilities = [...registry.capabilities, ...(bundle?.capabilities || [])];
+  const initialState = bundle ? await bundle.runtime.inspect() : null;
+  const capabilities = runtimeCapabilities(registry, bundle);
   const projectDir = fs.realpathSync(path.resolve(options.projectDir));
   if (!fs.statSync(projectDir).isDirectory()) throw Error('Project path must be a directory.');
   const runId = crypto.randomUUID();
@@ -156,7 +160,9 @@ async function runWithStore(options, output, environment, Session, chats, regist
     options.chatId && chats
       ? chats.history(options.chatId, projectDir, options.domain).turns.at(-1)?.broker?.scope
       : undefined;
-  const externalServers = new ExternalMcpRegistry(defaultResourceDirectory(environment)).records();
+  const externalServers = bundle?.runtime.hostRuntimeOnly
+    ? []
+    : new ExternalMcpRegistry(defaultResourceDirectory(environment)).records();
   const catalog = resourceCatalog(options.domain, externalServers);
   const saved = new ResourceSettings(defaultResourceDirectory(environment)).snapshot(
     catalog,
@@ -172,7 +178,7 @@ async function runWithStore(options, output, environment, Session, chats, regist
     if (!catalog.mcpServers.some(item => item.id === id)) throw Error(`Unknown project MCP: ${id}`);
   const broker = resolveProjectTask(
     options.domain,
-    { task: options.task, ...(bundle ? { state: await bundle.runtime.inspect() } : {}) },
+    { task: options.task, ...(initialState ? { state: initialState } : {}) },
     previous,
     capabilities,
     disabled,
@@ -457,6 +463,10 @@ async function runWithStore(options, output, environment, Session, chats, regist
 
 async function main() {
   try {
+    if (process.argv[2] === 'remote') {
+      process.exitCode = await runRemote(process.argv.slice(3));
+      return;
+    }
     if (process.argv[2] === 'mcp') {
       process.exitCode = await runMcp(process.argv.slice(3));
       return;

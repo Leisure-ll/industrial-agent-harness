@@ -4,6 +4,7 @@ import type {
   ResourceMode,
   ResourceSettingsSnapshot,
 } from '@industrial-agent-harness/viewer-builtin/api';
+import { RemoteServiceSettings } from './RemoteExecution';
 import { ExternalMcpSettings } from './ExternalMcpSettings';
 
 export function ResourceSettings({
@@ -145,13 +146,16 @@ export function ResourceSettings({
           ))}
       {saving && <p role="status">{t('Saving…')}</p>}
       {!projectId && (
-        <ExternalMcpSettings
-          busy={busy || saving}
-          onChanged={() => {
-            setRevision(value => value + 1);
-            onChanged();
-          }}
-        />
+        <details className="ia-advanced-mcp">
+          <summary>{t('Self-hosted services and other MCP servers')}</summary>
+          <ExternalMcpSettings
+            busy={busy || saving}
+            onChanged={() => {
+              setRevision(value => value + 1);
+              onChanged();
+            }}
+          />
+        </details>
       )}
     </section>
   );
@@ -203,6 +207,7 @@ export function GlobalResourceSettings({
           ×
         </button>
       </header>
+      <RemoteServiceSettings />
       <ResourceSettings busy={busy} onChanged={onChanged} />
     </dialog>
   );

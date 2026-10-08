@@ -63,6 +63,7 @@ function createSession(options) {
       const state = {
         marker,
         workDir: options.workDir,
+        approvalMode: options.yoloMode ? 'auto' : 'ask',
         approved: false,
         stopped: false,
         interrupts: 0,
@@ -98,29 +99,33 @@ function createSession(options) {
           resume();
         },
         async *[Symbol.asyncIterator]() {
-          yield marker === 'SESSION_THETA'
-            ? {
-                type: 'QuestionRequest',
-                payload: {
-                  id: 'same-question-id',
-                  tool_call_id: 'question',
-                  questions: [
-                    {
-                      question: marker,
-                      header: 'Test',
-                      multi_select: false,
-                      options: [
-                        { label: 'Continue', description: 'Continue this chat' },
-                        { label: 'Wait', description: 'Keep waiting' },
-                      ],
-                    },
-                  ],
-                },
-              }
-            : {
-                type: 'ApprovalRequest',
-                payload: { id: 'same-approval-id', action: 'test approval', description: marker },
-              };
+          if (marker === 'SESSION_AUTO') {
+            assert.equal(options.yoloMode, true, 'this chat passes its own mode to the kernel');
+            resume();
+          } else
+            yield marker === 'SESSION_THETA'
+              ? {
+                  type: 'QuestionRequest',
+                  payload: {
+                    id: 'same-question-id',
+                    tool_call_id: 'question',
+                    questions: [
+                      {
+                        question: marker,
+                        header: 'Test',
+                        multi_select: false,
+                        options: [
+                          { label: 'Continue', description: 'Continue this chat' },
+                          { label: 'Wait', description: 'Keep waiting' },
+                        ],
+                      },
+                    ],
+                  },
+                }
+              : {
+                  type: 'ApprovalRequest',
+                  payload: { id: 'same-approval-id', action: 'test approval', description: marker },
+                };
           await approval;
           if (!state.stopped)
             yield { type: 'ContentPart', payload: { type: 'text', text: `${marker}_ONLY` } };
@@ -131,7 +136,13 @@ function createSession(options) {
   };
 }
 async function run(window) {
-  const evaluate = script => window.webContents.executeJavaScript(script, true);
+  const evaluate = async script => {
+    try {
+      return await window.webContents.executeJavaScript(script, true);
+    } catch (error) {
+      throw Error(`Parallel UI evaluation failed: ${script}`, { cause: error });
+    }
+  };
   async function wait(script) {
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
@@ -169,10 +180,26 @@ async function run(window) {
     await wait(`document.querySelector('.ia-chat-header b')?.innerText==='Parallel project A'`);
     await submit('SESSION_ALPHA');
     const alphaId = await evaluate(`window.viewerHost.chats().then(list=>list.activeId)`);
+    assert.equal(turns.get('SESSION_ALPHA').approvalMode, 'ask');
     assert.equal(await evaluate(`document.querySelector('.ia-new-chat').disabled`), false);
     await newChat();
     await submit('SESSION_BETA');
     const betaId = await evaluate(`window.viewerHost.chats().then(list=>list.activeId)`);
+    assert.equal(await evaluate(`document.querySelector('.ia-chat-approval-mode').disabled`), true);
+    assert.equal(
+      await evaluate(
+        `window.viewerHost.setChatApprovalMode({projectId:'parallel-a',chatId:${JSON.stringify(betaId)},mode:'auto'}).then(()=>false,()=>true)`,
+      ),
+      true,
+      'running chat approval mode cannot change',
+    );
+    assert.equal(
+      await evaluate(
+        `window.viewerHost.setChatApprovalMode({projectId:'parallel-a',chatId:${JSON.stringify(alphaId)},mode:'auto'}).then(()=>false,()=>true)`,
+      ),
+      true,
+      'stale approval setting cannot target a background chat',
+    );
     assert.equal(
       await evaluate(
         `window.viewerHost.runAgent({task:'SESSION_BETA',chatId:${JSON.stringify(betaId)}}).then(()=>false,()=>true)`,
@@ -285,6 +312,37 @@ async function run(window) {
     await wait(
       `window.viewerHost.chats().then(list=>!list.sessions.some(session=>session.running))`,
     );
+    await wait(`Boolean(document.querySelector('.ia-chat-approval-mode:not(:disabled)'))`);
+    await evaluate(
+      `(() => {const select=document.querySelector('.ia-chat-approval-mode');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'auto');select.dispatchEvent(new Event('change',{bubbles:true}));})()`,
+    );
+    await wait(
+      `window.viewerHost.chats().then(list=>list.chats.find(chat=>chat.id===${JSON.stringify(betaId)})?.approvalMode==='auto')`,
+    );
+    assert.equal(
+      await evaluate(
+        `window.viewerHost.chatHistory({id:${JSON.stringify(alphaId)}}).then(history=>history.chat.approvalMode)`,
+      ),
+      'ask',
+    );
+    await window.webContents.reload();
+    await wait(`document.querySelector('.ia-chat-approval-mode')?.value==='auto'`);
+    await evaluate(`window.viewerHost.resolve({task:'SESSION_AUTO'})`);
+    await evaluate(`window.viewerHost.runAgent('SESSION_AUTO')`);
+    await wait(
+      `window.viewerHost.chatHistory({id:${JSON.stringify(betaId)}}).then(history=>history.turns.at(-1)?.events.some(event=>event.type==='text'&&event.text.includes('SESSION_AUTO_ONLY')))`,
+    );
+    assert.equal(turns.get('SESSION_AUTO').approvalMode, 'auto');
+    assert.equal(await evaluate(`Boolean(document.querySelector('.ia-approval'))`), false);
+    turns.get('SESSION_AUTO').finish();
+    await wait(
+      `window.viewerHost.chats().then(list=>!list.sessions.some(session=>session.running))`,
+    );
+    await evaluate(`window.viewerHost.selectChat(${JSON.stringify(alphaId)})`);
+    await window.webContents.reload();
+    await wait(`document.querySelector('.ia-chat-approval-mode:not(:disabled)')?.value==='ask'`);
+    await newChat();
+    assert.equal(await evaluate(`document.querySelector('.ia-chat-approval-mode').value`), 'ask');
     // A persisted running turn without a local native actor is controlled by
     // its original window. Restoring its history cannot resurrect approvals.
     const { ChatStore } = require('@industrial-agent-harness/harness-core');

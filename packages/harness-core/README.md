@@ -13,3 +13,5 @@ Shared project-domain Broker resolution and resource enablement policy for Deskt
 `SessionResourceManager` 以 SQLite 事务管理配置目录内的执行/常驻额度，默认 4/6，宿主退出后回收其租约。资源提供自己的关闭与忙碌状态回调，运行中和待用户交互的资源不自动关闭。空闲回收与跨宿主容量请求必须等物理关闭确认才释放常驻位置；该管理器不实现 Agent loop、会话上下文或工业执行。可用内存准入与压测见[多会话资源保护](../../doc/session-resource-guards.md)。
 
 `resourceCatalog` 与 `resolveProjectTask` 接受显式注册的外部 MCP 快照，按同一资源策略把 canonical Tool ID 加入最终 Scope 并记录 Trace；不增加领域/工业 Capability。`ExternalMcpRegistry` facade 来自 domain-mcp，连接和 Gateway 留在下层包。外部结果不进入工业状态或验证，见 [外部 MCP](../../doc/external-mcp.md)。
+
+`RemoteSettings` 与 `runtimeCapabilities` 为 Desktop/CLI 共享服务连接、项目运行位置与确认上传的文件范围。空服务配置保持“尚未配置”；Factory 在加载本地领域 Runtime 前选择远端实现。见[内置远程运行](../../doc/remote-execution.md)。

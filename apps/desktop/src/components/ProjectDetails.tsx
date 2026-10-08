@@ -1,5 +1,6 @@
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useState } from 'react';
+import { ProjectExecution } from './RemoteExecution';
 import { ResourceSettings } from './ResourceSettings';
 import { MessageSquarePlus } from 'lucide-react';
 import type { DomainOption, ProjectBinding } from '@industrial-agent-harness/viewer-builtin/api';
@@ -23,6 +24,7 @@ export function ProjectDetails({
 }) {
   const { t } = useDisplayText();
   const [domain, setDomain] = useState(project.domain || '');
+  const [executionReady, setExecutionReady] = useState(project.executionLocation !== 'remote');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -52,7 +54,7 @@ export function ProjectDetails({
           <button
             className="ia-project-start"
             onClick={() => void onNewChat()}
-            disabled={busy || !project.domain}
+            disabled={busy || !project.domain || !executionReady}
           >
             <MessageSquarePlus size={15} />
             {t('New chat')}
@@ -94,12 +96,22 @@ export function ProjectDetails({
             </div>
           </div>
         </div>
-        <ResourceSettings
-          key={project.id + project.domain + resourceRevision}
-          projectId={project.id}
-          busy={busy}
-          onChanged={onResourcesChanged}
-        />
+        {project.domain && (
+          <ProjectExecution
+            project={project}
+            busy={busy}
+            onChanged={onResourcesChanged}
+            onReady={setExecutionReady}
+          />
+        )}
+        {project.executionLocation !== 'remote' && (
+          <ResourceSettings
+            key={project.id + project.domain + resourceRevision}
+            projectId={project.id}
+            busy={busy}
+            onChanged={onResourcesChanged}
+          />
+        )}
         {error && <p className="ia-project-error">{t(error)}</p>}
       </div>
     </div>
