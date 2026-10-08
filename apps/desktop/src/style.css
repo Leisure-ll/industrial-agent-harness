@@ -3925,3 +3925,32 @@ body,
     grid-template-columns: 1fr;
   }
 }
+
+.ia-setup-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 24px 10px;
+  padding: 9px 14px;
+  border: 1px solid var(--ia-border);
+  border-left: 3px solid var(--ia-warning);
+  border-radius: 10px;
+  background: var(--ia-code);
+  color: var(--ia-text);
+  font-size: var(--ia-font-sm);
+}
+.ia-setup-banner svg {
+  flex: none;
+  color: var(--ia-warning);
+}
+.ia-setup-banner button {
+  margin-left: auto;
+  flex: none;
+  border: 1px solid var(--ia-accent);
+  border-radius: 7px;
+  padding: 5px 12px;
+  background: var(--ia-accent);
+  color: var(--ia-bg);
+  font-size: var(--ia-font-sm);
+  cursor: pointer;
+}

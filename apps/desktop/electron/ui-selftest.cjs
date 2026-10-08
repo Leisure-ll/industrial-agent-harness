@@ -44,7 +44,7 @@ async function run(window, dialog) {
     await evaluate(`document.fonts.ready`);
     const failures = await evaluate(`(() => {
       const samples = ['.ia-chat-welcome p', '.ia-composer textarea', '.ia-project-row.selected',
-        '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre', '.ia-chat-approval-mode'];
+        '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre', '.ia-chat-approval-mode', '.ia-setup-banner'];
       function rgba(color) { return color.match(/[\\d.]+/g).map(Number); }
       function background(node) {
         if (!node) return [255, 255, 255];

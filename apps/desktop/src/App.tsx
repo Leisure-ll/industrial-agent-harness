@@ -170,6 +170,7 @@ export function App() {
   const [broker, setBroker] = useState<BrokerResult>();
   const [capabilityDetail, setCapabilityDetail] = useState<CapabilityDetail>();
   const [brokerError, setBrokerError] = useState('');
+  const [setupNotice, setSetupNotice] = useState(false);
   const [agentStatus, setAgentStatus] = useState<{
     available: boolean;
     version: string;
@@ -821,10 +822,12 @@ export function App() {
       return;
     }
     if (!agentStatus?.available || !agentStatus.configured) {
+      if (agentStatus?.available) {
+        setSetupNotice(true);
+        return;
+      }
       setBrokerError(
-        !agentStatus?.available
-          ? 'Kimi is unavailable. Check its installation in Settings before running this task.'
-          : 'Configure the Model API in Settings before running this task. Your prompt has been kept.',
+        'Kimi is unavailable. Check its installation in Settings before running this task.',
       );
       return;
     }
@@ -1427,6 +1430,20 @@ export function App() {
                     ))}
                     {brokerError && <div className="ia-flow-error">{t(brokerError)}</div>}
                   </div>
+                  {setupNotice && agentStatus && !agentStatus.configured && (
+                    <div className="ia-setup-banner" role="status">
+                      <Settings2 size={15} />
+                      <span>{t('Configure the Model API to run tasks. Your draft is kept.')}</span>
+                      <button
+                        onClick={() => {
+                          setSetupNotice(false);
+                          setModelSettingsOpen(true);
+                        }}
+                      >
+                        {t('Open model settings')}
+                      </button>
+                    </div>
+                  )}
                   {todo?.type === 'todo' && <TodoList items={todo.items} running={agentBusy} />}
                   {agentBusy && !agentOwned && (
                     <p role="status" className="ia-composer-hint">
