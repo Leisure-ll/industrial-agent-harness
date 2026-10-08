@@ -36,7 +36,12 @@ async function setup(t) {
     backend,
   ]);
   const { definitions, hash } = JSON.parse(stdout);
-  const provider = domainPacks.find(pack => pack.domain === 'pcb').provider;
+  const provider = require(
+    path.join(
+      require('@zhiman-bj/industrial-domain-packs').sourceDirectory('pcb-pack'),
+      'legacy-harness-pack.json',
+    ),
+  ).provider;
   const tools = provider.tools.filter(t => definitions.some(d => d.function.name === t.name));
   const policy = {
     schemaVersion: 1,
@@ -132,13 +137,31 @@ test(
       INDUSTRIAL_HARNESS_PCB_GATEWAY_PYTHON: python,
       INDUSTRIAL_HARNESS_PCB_DOCKER: fixture.policy.docker,
     };
-    const { scope } = resolveProjectTask('pcb', { task: 'pcb mcp' });
-    fs.writeFileSync(path.join(fixture.directory, 'config.toml'), 'default_model = "industrial"\n');
-    const session = prepareSessionFiles(
-      scope,
-      { shareDir: fixture.directory, environment, profile: { imageInput: false } },
+    const legacy = require(
+      path.join(
+        require('@zhiman-bj/industrial-domain-packs').sourceDirectory('pcb-pack'),
+        'legacy-harness-pack.json',
+      ),
+    );
+    const { scope } = resolveProjectTask(
+      'pcb',
+      { task: 'pcb mcp' },
       undefined,
+      legacy.capabilities,
+    );
+    fs.writeFileSync(path.join(fixture.directory, 'config.toml'), 'default_model = "industrial"\n');
+    const session = path.join(fixture.directory, 'standalone-session');
+    fs.mkdirSync(session);
+    require('../../packages/domain-mcp/src/gateway.cjs').gatewayConfig(
+      session,
+      { ...legacy.provider, allowedToolIds: scope.tools },
       fixture.project,
+      environment,
+    );
+    require('../../packages/domain-mcp/src/index.cjs').writeMcpConfig(
+      session,
+      [{ ...legacy.provider, allowedToolIds: scope.tools }],
+      { projectDir: fixture.project, environment },
     );
     t.after(() => fs.rmSync(session, { recursive: true, force: true }));
     const generated = path.join(session, 'mcp-pcb-bench.tools.policy.json');

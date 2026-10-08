@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { resolve, discloseDetail, assertToolAllowed } = require('../src/index.cjs');
 const registry = require('../../domain-skills/src/index.cjs').capabilities.filter(
-  item => item.tools.length > 0 && !item.tools.some(tool => tool.risk),
+  item =>
+    item.tools.length > 0 && (!item.tools.some(tool => tool.risk) || item.id === 'pcb.native.task'),
 );
 
 test('progressive disclosure selects only matching domain and stage', () => {
@@ -31,7 +32,7 @@ test('scope changes replace old capabilities', () => {
     registry,
     first.scope,
   );
-  assert.deepEqual(next.scope.tools, ['pcb.board.inspect']);
+  assert.deepEqual(next.scope.tools, ['pcb.kicad.edit', 'pcb.kicad.verify']);
   assert.equal(
     next.trace.find(item => item.event === 'scope.replace').detail.previous,
     first.scope.version,
@@ -42,8 +43,8 @@ test('scope changes replace old capabilities', () => {
 test('automatic context resolves from task or selected artifact', () => {
   const pcb = resolve({ task: 'Inspect the PCB board routing' }, registry);
   assert.equal(pcb.scope.domain, 'pcb');
-  assert.equal(pcb.scope.stage, 'layout');
-  assert.deepEqual(pcb.scope.capabilityIds, ['pcb.layout.inspect']);
+  assert.equal(pcb.scope.stage, undefined);
+  assert.deepEqual(pcb.scope.capabilityIds, ['pcb.native.task']);
   assert.ok(pcb.contexts.some(item => item.domain === 'chip' && item.stage === 'physical'));
   const waveform = resolve({ task: 'Inspect this artifact', artifactKind: 'waveform' }, registry);
   assert.deepEqual(waveform.scope.capabilityIds, ['chip.verification.waveform.inspect']);

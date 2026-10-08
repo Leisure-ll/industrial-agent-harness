@@ -7,24 +7,17 @@ const crypto = require('node:crypto');
 const { resourceDirectory } = require('./pack-resources.cjs');
 const { domainPacks } = require('./index.cjs');
 
-test('PCB declarations cover all native tools and keep the complete design Skill separate from maintenance', () => {
-  const provider = domainPacks.find(pack => pack.domain === 'pcb').provider;
-  assert.equal(provider.tools.length, 89);
-  assert.equal(new Set(provider.tools.map(tool => tool.name)).size, 89);
-  assert.equal(provider.tools.find(tool => tool.name === 'run_python').risk, 'read-only');
-  assert.equal(provider.tools.find(tool => tool.name === 'add_track').risk, 'mutating');
-  assert.equal(
-    Object.keys(provider.sourceFiles).filter(name => name.startsWith('skills/')).length,
-    11,
+test('public PCB Runtime declarations replace private actor writes with hash-pinned native resources', () => {
+  const pack = domainPacks.find(pack => pack.domain === 'pcb');
+  assert.equal(pack.provider.transport, 'runtime');
+  assert.deepEqual(
+    pack.provider.tools.map(tool => tool.id),
+    ['pcb.kicad.edit', 'pcb.kicad.verify'],
   );
-  assert.ok(
-    Object.hasOwn(provider.sourceFiles, 'skills/pcb-design-e2e/assets/constraints.example.yaml'),
-  );
-  assert.ok(
-    !Object.keys(provider.sourceFiles).some(
-      name => name.includes('maintainer') || name.includes('experiments'),
-    ),
-  );
+  assert.equal(pack.runtime.entry, 'runtime/index.cjs');
+  assert.ok(pack.provider.sourceFiles['runtime/verifier.cjs']);
+  assert.ok(pack.provider.sourceFiles['runtime/native.py']);
+  assert.ok(!Object.keys(pack.provider.sourceFiles).some(name => name.startsWith('pcb-agent/')));
 });
 
 test('external resources reject changed, missing, extra or symlinked files before a session can load them', t => {

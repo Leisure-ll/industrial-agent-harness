@@ -21,3 +21,5 @@ createWorkspacePlugin 提供所有领域共用的初始化、受控文件读写�
 `doctor --project-dir DIR --domain DOMAIN` runs without model credentials and records a read-only environment Action. It probes protected local execution, declared executables/dependency roots and available offline Docker images. Exit 2 means a required prerequisite is missing. Shared tools include `project.environment.inspect`; input selection, local read permissions and approval previews are documented in [Shared workspace](../../doc/shared-workspace.md).
 
 `RemoteRuntime` 保持规范 Runtime 接口，通过认证服务 0.2 控制协议提交已批准的快照操作、查询/取消持久任务并验证回读事实。服务事实保留原身份，产物经摘要校验进入本地 CAS；执行完成与工程通过分开。远程模式不启动本地领域 MCP 或声明任务。`IndustrialRuntime` 可由可信宿主传入已绑定的规范 `projectRef`，不由模型指定。见[内置远程运行](../../doc/remote-execution.md)。
+
+The public module exposes `executeTask` and `runtimeFiles` for trusted owner plugins injected through the shared factory. Protected task lifecycle stays in this backend. Multi-phase native actions can reuse their per-action HOME/TMPDIR; creating those bounded directories is idempotent.

@@ -54,7 +54,7 @@ try {
     assert.equal(rows.at(-1).status, 'scoped');
     assert.ok(
       rows[0].trace.find(row => row.event === 'domain.index').detail.count ===
-        (domain === 'chip' ? 8 : domain === 'pcb' ? 8 : domain === 'cad' ? 4 : 2),
+        (domain === 'chip' ? 8 : domain === 'cad' ? 4 : 1),
     );
     const denied = domain === 'chip' ? 'pcb' : 'chip';
     assert.throws(
@@ -116,15 +116,19 @@ try {
           .trim()
           .split('\n')
           .map(JSON.parse)[0].scope;
-      assert.equal(pcbScope([]).tools.length, 89);
-      assert.deepEqual(pcbScope(['--disable-mcp', 'pcb-bench.tools']).tools, []);
+      assert.deepEqual(pcbScope([]).tools, ['pcb.kicad.edit', 'pcb.kicad.verify']);
+      assert.throws(
+        () => pcbScope(['--disable-mcp', 'pcb-bench.tools']),
+        error => error.stdout.includes('Unknown project MCP'),
+      );
+      assert.ok(fs.existsSync(path.join(packageRoot, 'domain-packs/pcb/runtime/index.cjs')));
       assert.ok(!pcbScope(['--disable-skill', 'pcb.design.e2e']).skills.includes('pcb.design.e2e'));
     }
     if (domain === 'godot') {
       assert.equal(catalog.skills.length, 3);
       assert.equal(catalog.packs.length, 1);
       assert.equal(
-        fs.existsSync(path.join(packageRoot, 'domain-packs/godot/src/runtime.cjs')),
+        fs.existsSync(path.join(packageRoot, 'domain-packs/godot/runtime/index.cjs')),
         true,
       );
       const godotScope = (task, extra = []) =>
@@ -143,13 +147,16 @@ try {
           ).split('\n')[0],
         ).scope;
       assert.deepEqual(godotScope('Inspect scene').tools, [
-        'godot.game.project_status',
-        'godot.game.inspect_scene_source',
+        'godot.scene.edit',
+        'godot.scene.verify',
       ]);
-      assert.equal(godotScope('Develop a Godot game').tools.length, 5);
-      assert.deepEqual(
-        godotScope('Develop a Godot game', ['--disable-mcp', 'godot.local']).tools,
-        [],
+      assert.deepEqual(godotScope('Develop a Godot game').tools, [
+        'godot.scene.edit',
+        'godot.scene.verify',
+      ]);
+      assert.throws(
+        () => godotScope('Develop a Godot game', ['--disable-mcp', 'godot.local']),
+        error => error.stdout.includes('Unknown project MCP'),
       );
       assert.ok(
         !godotScope('Develop a Godot game', [

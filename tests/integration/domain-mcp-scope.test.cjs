@@ -34,7 +34,7 @@ test(
     fs.writeFileSync(path.join(directory, 'config.toml'), 'default_model = "industrial"\n');
     const catalog = resourceCatalog('chip');
     assert.equal(catalog.mcpServers[0].id, 'chip-pack.eda');
-    assert.equal(resourceCatalog('pcb').mcpServers[0].id, 'pcb-bench.tools');
+    assert.deepEqual(resourceCatalog('pcb').mcpServers, []);
     const { scope } = resolveProjectTask('chip', { task: 'project status' });
     const session = prepareSessionFiles(
       scope,

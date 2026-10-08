@@ -4,6 +4,8 @@ const { loadRegistry } = require('@industrial-agent-harness/domain-skills');
 const {
   IndustrialRuntime,
   createWorkspacePlugin,
+  executeTask,
+  runtimeFiles,
 } = require('@industrial-agent-harness/domain-runtime');
 const {
   ExternalMcpRegistry,
@@ -53,6 +55,7 @@ function createProjectRuntime({
     ? require(entry).createRuntimePlugin({
         environment: { ...environment, ...pack.runtimeEnvironment },
         managed: Boolean(pack.managed),
+        runtimeApi: { executeTask, runtimeFiles },
       })
     : {};
   const protectedPaths = [
