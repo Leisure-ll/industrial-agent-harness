@@ -69,6 +69,9 @@ async function run(window) {
     await evaluate(
       `Array.from(document.querySelectorAll('.ia-settings-row')).find(row=>row.innerText.includes('MCP & Skills')).querySelector('button').click()`,
     );
+    await wait(`Boolean(document.querySelector('.ia-advanced-mcp summary'))`);
+    await evaluate(`document.querySelector('.ia-advanced-mcp summary').click()`);
+    await wait(`document.querySelector('.ia-advanced-mcp').open`);
     await wait(`Boolean(document.querySelector('.ia-external-mcp form button:not(:disabled)'))`);
   }
   try {

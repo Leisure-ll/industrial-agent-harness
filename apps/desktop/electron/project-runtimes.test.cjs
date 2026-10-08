@@ -5,6 +5,40 @@ const os = require('node:os');
 const path = require('node:path');
 const { ProjectRuntimes } = require('./project-runtimes.cjs');
 
+test('execution-location reset awaits cleanup, leaves other projects intact and preserves cleanup failure', async () => {
+  const runtimes = new ProjectRuntimes();
+  const project = { path: '/project-a', domain: 'example' };
+  const key = JSON.stringify([project.path, project.domain]);
+  let release;
+  const bundle = {
+    runtime: {
+      close: () =>
+        new Promise(resolve => {
+          release = resolve;
+        }),
+    },
+  };
+  const other = { runtime: { close: () => assert.fail('Another project must remain open.') } };
+  runtimes.bundles.set(key, bundle);
+  runtimes.bundles.set('other-project', other);
+  const resetting = runtimes.reset(project);
+  assert.equal(runtimes.bundles.get(key), bundle);
+  release();
+  await resetting;
+  assert.equal(runtimes.bundles.has(key), false);
+  assert.equal(runtimes.bundles.get('other-project'), other);
+  const failed = {
+    runtime: {
+      close: async () => {
+        throw Error('Cleanup failed');
+      },
+    },
+  };
+  runtimes.bundles.set(key, failed);
+  await assert.rejects(runtimes.reset(project), /Cleanup failed/);
+  assert.equal(runtimes.bundles.get(key), failed);
+});
+
 test('shutdown awaits retired runtime cleanup and all current disposers before reporting failure', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-retired-runtime-'));
   const projectDir = path.join(directory, 'project');

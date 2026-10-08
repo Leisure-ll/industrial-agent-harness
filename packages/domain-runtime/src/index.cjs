@@ -280,4 +280,6 @@ module.exports = {
   ...require('./actions.cjs'),
   ...require('./industrial.cjs'),
   ...require('./workspace.cjs'),
+  ...require('./remote-client.cjs'),
+  ...require('./remote-runtime.cjs'),
 };

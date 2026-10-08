@@ -9,6 +9,8 @@ const {
   ExternalMcpRegistry,
   createExternalRuntimePlugin,
 } = require('@industrial-agent-harness/domain-mcp');
+const { RemoteSettings } = require('./remote-settings.cjs');
+const { createRemoteRuntime } = require('@industrial-agent-harness/domain-runtime');
 const { defaultResourceDirectory } = require('./resource-settings.cjs');
 
 function createProjectRuntime({
@@ -17,7 +19,23 @@ function createProjectRuntime({
   directory,
   environment = process.env,
   registry = loadRegistry(environment),
+  remoteSettings = new RemoteSettings({
+    directory: defaultResourceDirectory(environment),
+    environment,
+  }),
+  onRemoteStatus,
 }) {
+  const execution = remoteSettings.project(projectDir, domain);
+  if (execution.location === 'remote')
+    return createRemoteRuntime({
+      settings: remoteSettings,
+      projectDir,
+      domain,
+      directory,
+      registry,
+      onStatus: onRemoteStatus,
+    });
+  const remoteRevision = remoteSettings.identity();
   const packs = (registry.runtimePacks || []).filter(pack => pack.domain === domain);
   if (packs.length > 1) throw Error('A project must resolve exactly one trusted Domain Runtime.');
   const pack = packs[0];
@@ -88,8 +106,10 @@ function createProjectRuntime({
   return {
     runtime,
     configurationCurrent: () =>
+      remoteSettings.project(projectDir, domain).location === 'local' &&
+      remoteSettings.identity() === remoteRevision &&
       externalRevision ===
-      JSON.stringify(externalRegistry.records().map(server => [server.id, server.revision])),
+        JSON.stringify(externalRegistry.records().map(server => [server.id, server.revision])),
     get stateDiagnostics() {
       return stateDiagnostics;
     },

@@ -177,6 +177,37 @@ test('an enabled plugin contributes skill dir and tools; its approvals are auto-
   );
 });
 
+test('a remote host Runtime materializes no local domain MCP and binds native compatibility to its remote identity', async t => {
+  let identity = 'service-project-snapshot-one';
+  const industrialRuntime = {
+    hostRuntimeOnly: true,
+    compatibilityKey: () => identity,
+    descriptors: () => [],
+    cancel() {},
+    async waitForIdle() {},
+    inspect: async () => ({
+      id: 'example',
+      projectId: 'example',
+      domain: 'example',
+      stage: null,
+      status: 'unverified',
+      verificationIds: [],
+      inputHashes: {},
+    }),
+  };
+  const { session, created } = startSession(t, null, [], { industrialRuntime });
+  await session.run('use remote');
+  assert.deepEqual(
+    JSON.parse(fs.readFileSync(path.join(created[0].options.shareDir, 'mcp.json'), 'utf8'))
+      .mcpServers,
+    {},
+  );
+  assert.ok(created[0].options.externalTools.some(tool => tool.name === 'industrial_action_call'));
+  identity = 'service-project-snapshot-two';
+  await session.run('continue with changed snapshot');
+  assert.equal(created.length, 2);
+});
+
 test('streamed ToolCallPart arguments are assembled and replayed with the tool result', async t => {
   const shareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-kimi-plugin-'));
   t.after(() => fs.rmSync(shareDir, { recursive: true, force: true }));

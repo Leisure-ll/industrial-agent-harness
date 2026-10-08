@@ -3,7 +3,7 @@
   "revision": "IH-ARCH-001",
   "role": "harness",
   "canonical": "https://github.com/Zhiman-BJ/industrial-agent-harness/blob/main/doc/architecture-contract.md",
-  "bootstrapSourceCommit": "0a7448ea63797b00e670cc43dc5b345dee3fcda5",
+  "bootstrapSourceCommit": "62c17143e96d4fa03ee90602cee507f8cef93695",
   "checkerSource": "Zhiman-BJ/industrial-agent-harness:scripts/check-architecture-contract.cjs",
   "frozenPrefixes": [
     "domain-packs",
@@ -243,7 +243,7 @@
     ".github/CODEOWNERS": "ae11864d12c3ad289adc3faaf0c513e1c58b75cd4cbdc66aa18be9535a48d13a",
     ".github/workflows/architecture-contract.yml": "7a8618b688b50f86703d5d74ef30225b2f42324222ec4c1c49d3a491df19157c",
     "scripts/check-architecture-contract.cjs": "16fd912ff7a76986a944925da5304d7df82d50a801d7d29f31703f4dd5bcc0ee",
-    "tests/architecture/contract-policy.test.cjs": "2487957f1e9f6665e1b697a2574c55ff106d30038bfa129da4c7c5bb27e7ef18",
+    "tests/architecture/contract-policy.test.cjs": "53f9f062bcd991315c89b7e1a23a5edcec47b2ea55e27b40add7df327eec9982",
     "doc/architecture-contract.md": "c65f597e2ca49992d754240761c25ac20702942d5f9a16c446926af49b0388e7"
   }
 }

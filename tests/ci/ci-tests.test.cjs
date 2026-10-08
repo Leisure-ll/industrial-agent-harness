@@ -37,6 +37,7 @@ test('real Node test events fail CI for unexpected skips, TODO and assertion fai
     ],
     ['todo', "test('unfinished', {todo:true}, () => {});", false],
     ['failing', "test('broken', () => {throw Error('broken');});", false],
+    ['leaked-handle', "test('executed', () => {}); setInterval(() => {}, 1000);", false],
   ]) {
     const file = path.join(directory, `${name}.test.cjs`);
     fs.writeFileSync(file, `const test = require('node:test');\n${source}\n`);
@@ -44,6 +45,7 @@ test('real Node test events fail CI for unexpected skips, TODO and assertion fai
       suite: name,
       files: [file],
       reportDirectory: directory,
+      ...(name === 'leaked-handle' ? { timeout: 2000 } : {}),
     })}).then(report => {process.exitCode = report.ok ? 0 : 1;})`;
     const launcher = path.join(directory, `${name}-runner.cjs`);
     fs.writeFileSync(launcher, program);
@@ -57,5 +59,9 @@ test('real Node test events fail CI for unexpected skips, TODO and assertion fai
     const report = JSON.parse(fs.readFileSync(path.join(directory, `${name}.json`), 'utf8'));
     assert.equal(report.ok, expected);
     if (name === 'skipped') assert.deepEqual(report.unexpectedSkips, ['missing native']);
+    if (name === 'leaked-handle') {
+      assert.match(result.stdout, /executed/);
+      assert.ok(report.summary.counts.failed > 0 || report.summary.counts.cancelled > 0);
+    }
   }
 });
