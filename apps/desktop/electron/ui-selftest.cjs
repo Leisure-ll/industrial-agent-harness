@@ -166,9 +166,13 @@ async function run(window, dialog) {
   await click('.ia-remote-task-status button');
   await wait(`Boolean(document.querySelector('.ia-project-page'))`);
   await click('.ia-settings-button');
+  await wait(
+    `Array.from(document.querySelectorAll('.ia-settings-row')).some(row => row.textContent.includes('MCP & Skills'))`,
+  );
   await evaluate(
     `Array.from(document.querySelectorAll('.ia-settings-row')).find(row => row.textContent.includes('MCP & Skills')).querySelector('button').click()`,
   );
+  await wait(`Boolean(document.querySelector('.ia-capability'))`);
   await wait(
     `document.querySelector('.ia-remote-service')?.textContent.includes('Not configured')`,
   );
@@ -176,12 +180,17 @@ async function run(window, dialog) {
     await evaluate(`document.querySelector('.ia-remote-service button').disabled`),
     true,
   );
-  assert.equal(await evaluate(`document.querySelector('.ia-advanced-mcp').open`), false);
+  assert.equal(
+    await evaluate(`document.querySelector('.ia-external-mcp form') === null`),
+    true,
+    'The external MCP form stays collapsed until the add action opens it',
+  );
   await capture('builtin-remote-service');
   await setLanguage(window, 'zh-CN');
   await capture('builtin-remote-service-zh');
   await setLanguage(window, 'en');
-  await click('.ia-resource-modal header button');
+  await click('.ia-capability-header button');
+  await wait(`Boolean(document.querySelector('.ia-project-page'))`);
   await click('.ia-execution-options button:first-child');
   await wait(`!document.querySelector('.ia-project-start').disabled`);
   await click('.ia-project-start');

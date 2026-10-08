@@ -12,16 +12,28 @@ async function run(window, evidence) {
     throw Error(`Resource settings timed out: ${script}`);
   }
   async function openGlobal() {
+    await wait(`Boolean(document.querySelector('.ia-settings-button'))`);
     await evaluate(`document.querySelector('.ia-settings-button').click()`);
+    await wait(
+      `Array.from(document.querySelectorAll('.ia-settings-row')).some(row=>row.innerText.includes('MCP & Skills'))`,
+    );
     await evaluate(
       `Array.from(document.querySelectorAll('.ia-settings-row')).find(row=>row.innerText.includes('MCP & Skills')).querySelector('button').click()`,
     );
-    await wait(`document.querySelectorAll('.ia-resource-modal input[type="checkbox"]').length>=6`);
+    await wait(`Boolean(document.querySelector('.ia-capability'))`);
+    await wait(
+      `Array.from(document.querySelectorAll('.ia-capability-nav button')).some(button=>button.innerText.includes('Skills'))`,
+    );
+    await evaluate(
+      `Array.from(document.querySelectorAll('.ia-capability-nav button')).find(button=>button.innerText.includes('Skills')).click()`,
+    );
+    await wait(
+      `document.querySelectorAll('.ia-project-resources input[type="checkbox"]').length>=3`,
+    );
   }
   async function closeGlobal() {
-    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
-    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
-    await wait(`!document.querySelector('.ia-resource-modal')`);
+    await evaluate(`document.querySelector('.ia-capability-header button').click()`);
+    await wait(`!document.querySelector('.ia-capability')`);
   }
   async function projectMode(mode) {
     await wait(
@@ -48,13 +60,13 @@ async function run(window, evidence) {
   );
   await openGlobal();
   assert.ok(
-    await evaluate(`document.querySelector('.ia-resource-modal').innerText.includes('Chip Pack')`),
+    await evaluate(`document.querySelector('.ia-capability').innerText.includes('Chip Pack')`),
   );
   await evaluate(
-    `document.querySelector('.ia-resource-modal [data-resource-id="chip.netlist.inspect"] input').click()`,
+    `document.querySelector('.ia-capability [data-resource-id="chip.netlist.inspect"] input[type="checkbox"]').click()`,
   );
   await wait(
-    `window.viewerHost.resourceGet({projectId:'log-test'}).then(state=>state.effective.skills.includes('chip.netlist.inspect'))`,
+    `window.viewerHost.resourceGet({}).then(state=>state.global.skills.includes('chip.netlist.inspect'))`,
   );
   fs.writeFileSync(
     path.join(evidence, 'global-resources.png'),
@@ -123,7 +135,7 @@ async function run(window, evidence) {
   );
   await openGlobal();
   await evaluate(
-    `document.querySelector('.ia-resource-modal [data-resource-id="chip.netlist.inspect"] input').click()`,
+    `document.querySelector('.ia-capability [data-resource-id="chip.netlist.inspect"] input[type="checkbox"]').click()`,
   );
   await wait(`window.viewerHost.resourceGet({}).then(state=>state.global.skills.length===0)`);
   await closeGlobal();

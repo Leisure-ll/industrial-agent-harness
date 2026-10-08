@@ -69,10 +69,14 @@ async function run(window) {
     await evaluate(
       `Array.from(document.querySelectorAll('.ia-settings-row')).find(row=>row.innerText.includes('MCP & Skills')).querySelector('button').click()`,
     );
-    await wait(`Boolean(document.querySelector('.ia-advanced-mcp summary'))`);
-    await evaluate(`document.querySelector('.ia-advanced-mcp summary').click()`);
-    await wait(`document.querySelector('.ia-advanced-mcp').open`);
-    await wait(`Boolean(document.querySelector('.ia-external-mcp form button:not(:disabled)'))`);
+    await wait(`Boolean(document.querySelector('.ia-capability'))`);
+    await evaluate(
+      `Array.from(document.querySelectorAll('.ia-capability-nav button')).find(button=>button.innerText.includes('MCP')).click()`,
+    );
+    await evaluate(`document.querySelector('.ia-external-mcp > button').click()`);
+    await wait(
+      `Boolean(document.querySelector('.ia-external-mcp form button[type="submit"]:not(:disabled)'))`,
+    );
   }
   try {
     await wait(`Boolean(document.querySelector('.ia-project-row'))`);
@@ -84,10 +88,10 @@ async function run(window) {
     await evaluate(
       `(() => {const area=document.querySelector('.ia-external-mcp textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,${JSON.stringify(configuration)});area.dispatchEvent(new Event('input',{bubbles:true}));})()`,
     );
-    await evaluate(`document.querySelector('.ia-external-mcp form button').click()`);
+    await evaluate(`document.querySelector('.ia-external-mcp form button[type="submit"]').click()`);
     await wait(`document.querySelector('.ia-external-server')?.innerText.includes('3 tools')`);
     assert.ok(
-      !(await evaluate(`document.querySelector('.ia-resource-modal').innerText`)).includes(
+      !(await evaluate(`document.querySelector('.ia-capability').innerText`)).includes(
         'selftest-private-credential',
       ),
     );
@@ -115,12 +119,10 @@ async function run(window) {
       path.join(evidence, 'external-mcp-settings.png'),
       (await window.webContents.capturePage()).toPNG(),
     );
-    await evaluate(
-      `document.querySelector('button[aria-label="Close resource settings"]').click()`,
-    );
+    await evaluate(`document.querySelector('.ia-capability-header button').click()`);
     await evaluate(`document.querySelector('.ia-project-row').click()`);
     await wait(
-      `document.querySelector('.ia-project-resources')?.innerText.includes('computer-use')`,
+      `document.querySelector('.ia-project-resources[aria-label="MCP servers"]')?.innerText.includes('computer-use')`,
     );
     await evaluate(
       `window.viewerHost.resourceSet({projectId:'external-chip',kind:'mcp',id:'external.computer-use',mode:'disabled'})`,

@@ -49,8 +49,8 @@ import { AgentLogPanel } from './components/AgentLogPanel';
 import { AgentFlow } from './components/AgentFlow';
 import { BrokerCall } from './components/BrokerCall';
 import { TodoList } from './components/TodoList';
-import { GlobalResourceSettings } from './components/ResourceSettings';
 import { DomainManager } from './components/DomainManager';
+import { CapabilityCenter, type CapabilitySection } from './components/CapabilityCenter';
 import { CoreUpdatePanel } from './components/CoreUpdatePanel';
 import { ComputerUseSettings } from './components/ComputerUseSettings';
 import { ModelSettings } from './components/ModelSettings';
@@ -87,7 +87,7 @@ export function App() {
   const [modelImageInput, setModelImageInput] = useState(false);
   const sentImages = useRef(new Map<string, PromptImage[]>());
   const sentTasks = useRef(new Map<string, string>());
-  const [page, setPage] = useState<'chat' | 'project'>('chat');
+  const [page, setPage] = useState<'chat' | 'project' | 'capabilities'>('chat');
   const [projectDraft, setProjectDraft] = useState<{
     directory: string;
     name: string;
@@ -149,7 +149,8 @@ export function App() {
   const [fullscreenError, setFullscreenError] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
-  const [resourceSettingsOpen, setResourceSettingsOpen] = useState(false);
+  const [capabilitySection, setCapabilitySection] = useState<CapabilitySection>('packs');
+  const [capabilityReturn, setCapabilityReturn] = useState<'chat' | 'project'>('chat');
   const [domainManagerOpen, setDomainManagerOpen] = useState(false);
   const [coreUpdateOpen, setCoreUpdateOpen] = useState(false);
   const [domainFirstRun, setDomainFirstRun] = useState(false);
@@ -599,6 +600,13 @@ export function App() {
   }
   function showPage(next: 'chat' | 'project') {
     setPage(next);
+    setWorkbenchFocus('chat');
+    setCompactSidebarOpen(false);
+  }
+  function showCapabilities(section: CapabilitySection) {
+    setCapabilityReturn(page === 'project' ? 'project' : 'chat');
+    setCapabilitySection(section);
+    setPage('capabilities');
     setWorkbenchFocus('chat');
     setCompactSidebarOpen(false);
   }
@@ -1124,7 +1132,7 @@ export function App() {
                   <button
                     onClick={() => {
                       setSettingsOpen(false);
-                      setResourceSettingsOpen(true);
+                      showCapabilities('mcp');
                     }}
                   >
                     {t('Configure')}
@@ -1135,8 +1143,7 @@ export function App() {
                   <button
                     onClick={() => {
                       setSettingsOpen(false);
-                      setDomainFirstRun(false);
-                      setDomainManagerOpen(true);
+                      showCapabilities('packs');
                     }}
                   >
                     {t('Manage')}
@@ -1192,9 +1199,11 @@ export function App() {
                     id: 'chat',
                     chat: true,
                     title:
-                      page === 'project'
-                        ? projectName
-                        : chatList.find(chat => chat.id === activeChatId)?.title || t('Chat'),
+                      page === 'capabilities'
+                        ? t('Capability center')
+                        : page === 'project'
+                          ? projectName
+                          : chatList.find(chat => chat.id === activeChatId)?.title || t('Chat'),
                     status: chatList.find(chat => chat.id === activeChatId)?.awaitingQuestion
                       ? t('Awaiting answer')
                       : chatList.find(chat => chat.id === activeChatId)?.awaitingApproval
@@ -1241,76 +1250,94 @@ export function App() {
               role={tabbed ? 'tabpanel' : undefined}
               aria-labelledby={tabbed ? 'tab-chat' : undefined}
             >
-              <header className="ia-chat-header">
-                <div>
-                  {!sidebarVisible && (
+              {page !== 'capabilities' && (
+                <header className="ia-chat-header">
+                  <div>
+                    {!sidebarVisible && (
+                      <button
+                        className="ia-icon"
+                        onClick={() => {
+                          setLeftOpen(true);
+                          setCompactSidebarOpen(true);
+                        }}
+                        title={t('Show sidebar')}
+                        aria-label={t('Show sidebar')}
+                      >
+                        <PanelLeftOpen size={16} />
+                      </button>
+                    )}
                     <button
-                      className="ia-icon"
+                      className="ia-header-project"
+                      onClick={() => setPage('project')}
+                      disabled={!activeProject}
+                      title={activeProject?.path}
+                      aria-label={t('Project details: {0}', { '0': projectName })}
+                    >
+                      <Folder size={16} />
+                      <b>{projectName}</b>
+                      {activeProject && <ChevronDown size={13} />}
+                    </button>
+                  </div>
+                  <div className="ia-chat-actions">
+                    {!tabbed && (
+                      <button
+                        className="ia-layout-toggle"
+                        onClick={toggleLayout}
+                        title={t('Use tab layout')}
+                        aria-label={t('Use tab layout')}
+                      >
+                        <PanelsTopLeft size={16} />
+                      </button>
+                    )}
+                    <button
+                      className="ia-log-button"
+                      aria-label={t('View agent logs')}
+                      title={t('View detailed agent logs')}
+                      disabled={!activeProjectId}
+                      onClick={() => showAgentLog()}
+                    >
+                      {t('Logs')}
+                    </button>
+                    <button
+                      className={debug ? 'active' : ''}
+                      onClick={() => setDebug(value => !value)}
+                      title={t('Toggle debug logs')}
+                      aria-label={t('Toggle debug logs')}
+                      aria-pressed={debug}
+                    >
+                      <Bug size={15} />
+                    </button>
+                    <button
                       onClick={() => {
-                        setLeftOpen(true);
-                        setCompactSidebarOpen(true);
+                        setRightOpen(value => !value);
+                        setWorkbenchFocus('workspace');
                       }}
-                      title={t('Show sidebar')}
-                      aria-label={t('Show sidebar')}
+                      title={rightOpen ? t('Hide workspace') : t('Show workspace')}
+                      aria-label={rightOpen ? t('Hide workspace') : t('Show workspace')}
+                      aria-pressed={rightOpen}
                     >
-                      <PanelLeftOpen size={16} />
+                      {rightOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
                     </button>
-                  )}
-                  <button
-                    className="ia-header-project"
-                    onClick={() => setPage('project')}
-                    disabled={!activeProject}
-                    title={activeProject?.path}
-                    aria-label={t('Project details: {0}', { '0': projectName })}
-                  >
-                    <Folder size={16} />
-                    <b>{projectName}</b>
-                    {activeProject && <ChevronDown size={13} />}
-                  </button>
-                </div>
-                <div className="ia-chat-actions">
-                  {!tabbed && (
-                    <button
-                      className="ia-layout-toggle"
-                      onClick={toggleLayout}
-                      title={t('Use tab layout')}
-                      aria-label={t('Use tab layout')}
-                    >
-                      <PanelsTopLeft size={16} />
-                    </button>
-                  )}
-                  <button
-                    className="ia-log-button"
-                    aria-label={t('View agent logs')}
-                    title={t('View detailed agent logs')}
-                    disabled={!activeProjectId}
-                    onClick={() => showAgentLog()}
-                  >
-                    {t('Logs')}
-                  </button>
-                  <button
-                    className={debug ? 'active' : ''}
-                    onClick={() => setDebug(value => !value)}
-                    title={t('Toggle debug logs')}
-                    aria-label={t('Toggle debug logs')}
-                    aria-pressed={debug}
-                  >
-                    <Bug size={15} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setRightOpen(value => !value);
-                      setWorkbenchFocus('workspace');
-                    }}
-                    title={rightOpen ? t('Hide workspace') : t('Show workspace')}
-                    aria-label={rightOpen ? t('Hide workspace') : t('Show workspace')}
-                    aria-pressed={rightOpen}
-                  >
-                    {rightOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
-                  </button>
-                </div>
-              </header>
-              {page === 'project' && activeProject ? (
+                  </div>
+                </header>
+              )}
+              {page === 'capabilities' ? (
+                <CapabilityCenter
+                  project={activeProject || undefined}
+                  busy={runningSessions.some(session => session.running)}
+                  initialSection={capabilitySection}
+                  returnPage={capabilityReturn}
+                  onDomainsChanged={items => {
+                    setDomains(items);
+                    resourcesChanged();
+                  }}
+                  onResourcesChanged={() => {
+                    setResourceRevision(value => value + 1);
+                    resourcesChanged();
+                  }}
+                  onExit={() => showPage(capabilityReturn)}
+                />
+              ) : page === 'project' && activeProject ? (
                 <ProjectDetails
                   key={activeProject.id}
                   project={activeProject}
@@ -1873,16 +1900,6 @@ export function App() {
           runningTraceId={diagnostic?.type === 'diagnostic-log' ? diagnostic.traceId : undefined}
           running={agentBusy}
           onClose={() => setLogOpen(false)}
-        />
-      )}
-      {resourceSettingsOpen && (
-        <GlobalResourceSettings
-          busy={runningSessions.some(session => session.running)}
-          onChanged={() => {
-            setResourceRevision(value => value + 1);
-            resourcesChanged();
-          }}
-          onClose={() => setResourceSettingsOpen(false)}
         />
       )}
       {domainManagerOpen && (

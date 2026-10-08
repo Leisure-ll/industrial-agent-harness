@@ -409,6 +409,8 @@ function canPersistKey() {
   );
 }
 function readApiKey() {
+  // Local development and selftests can inject a key without the keychain.
+  if (process.env.INDUSTRIAL_MODEL_API_KEY) return process.env.INDUSTRIAL_MODEL_API_KEY;
   if (
     [
       '--mcp-selftest',

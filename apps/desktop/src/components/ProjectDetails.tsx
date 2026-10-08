@@ -1,7 +1,7 @@
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useState } from 'react';
 import { ProjectExecution } from './RemoteExecution';
-import { ResourceSettings } from './ResourceSettings';
+import { ResourceList } from './CapabilityResources';
 import { MessageSquarePlus } from 'lucide-react';
 import type { DomainOption, ProjectBinding } from '@industrial-agent-harness/viewer-builtin/api';
 
@@ -105,12 +105,24 @@ export function ProjectDetails({
           />
         )}
         {project.executionLocation !== 'remote' && (
-          <ResourceSettings
-            key={project.id + project.domain + resourceRevision}
-            projectId={project.id}
-            busy={busy}
-            onChanged={onResourcesChanged}
-          />
+          <>
+            <ResourceList
+              kind="skills"
+              heading={t('Skills')}
+              key={`skills-${project.id}${project.domain}${resourceRevision}`}
+              projectId={project.id}
+              busy={busy}
+              onChanged={onResourcesChanged}
+            />
+            <ResourceList
+              kind="mcpServers"
+              heading={t('MCP servers')}
+              key={`mcp-${project.id}${project.domain}${resourceRevision}`}
+              projectId={project.id}
+              busy={busy}
+              onChanged={onResourcesChanged}
+            />
+          </>
         )}
         {error && <p className="ia-project-error">{t(error)}</p>}
       </div>

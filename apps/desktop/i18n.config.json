@@ -4,15 +4,11 @@
   "locales": {
     "zh-CN": {
       "label": "简体中文",
-      "systemLanguages": [
-        "zh"
-      ]
+      "systemLanguages": ["zh"]
     },
     "en": {
       "label": "English",
-      "systemLanguages": [
-        "en"
-      ]
+      "systemLanguages": ["en"]
     }
   },
   "messages": {
@@ -2915,6 +2911,74 @@
     "Selected files changed. Review them again before uploading.": {
       "en": "Selected files changed. Review them again before uploading.",
       "zh-CN": "所选文件已变化，请重新查看清单后上传。"
+    },
+    "Capability center": {
+      "en": "Capability center",
+      "zh-CN": "能力中心"
+    },
+    "Capability sections": {
+      "en": "Capability sections",
+      "zh-CN": "能力区块"
+    },
+    "Domain packs": {
+      "en": "Domain packs",
+      "zh-CN": "领域包"
+    },
+    "Runtime diagnostics": {
+      "en": "Runtime diagnostics",
+      "zh-CN": "运行时诊断"
+    },
+    "Back to {0}": {
+      "en": "Back to {0}",
+      "zh-CN": "返回{0}"
+    },
+    "Available": {
+      "en": "Available",
+      "zh-CN": "可安装"
+    },
+    "Install": {
+      "en": "Install",
+      "zh-CN": "安装"
+    },
+    "Update": {
+      "en": "Update",
+      "zh-CN": "更新"
+    },
+    "Search…": {
+      "en": "Search…",
+      "zh-CN": "搜索…"
+    },
+    "Settings scope": {
+      "en": "Settings scope",
+      "zh-CN": "配置范围"
+    },
+    "Global default": {
+      "en": "Global default",
+      "zh-CN": "全局默认"
+    },
+    "This project": {
+      "en": "This project",
+      "zh-CN": "本项目"
+    },
+    "Each pack bundles the skills, MCP servers and runtime for one domain.": {
+      "en": "Each pack bundles the skills, MCP servers and runtime for one domain.",
+      "zh-CN": "每个领域包捆绑一个领域的技能、MCP 服务器与运行时。"
+    },
+    "Version {0} → {1}": {
+      "en": "Version {0} → {1}",
+      "zh-CN": "版本 {0} → {1}"
+    },
+    "No issues reported.": {
+      "en": "No issues reported.",
+      "zh-CN": "暂无诊断信息。"
+    },
+    "Open domain packs": {
+      "en": "Open domain packs",
+      "zh-CN": "打开领域包"
+    },
+    "Pack errors and catalog warnings from the last status check.": {
+      "en": "Pack errors and catalog warnings from the last status check.",
+      "zh-CN": "最近一次状态检查中的领域包错误与目录告警。"
     }
   }
 }
