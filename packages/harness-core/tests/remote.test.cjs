@@ -1,4 +1,5 @@
-const test = require('node:test');
+const { test: nodeTest } = require('node:test');
+const test = (name, body) => nodeTest(name, { timeout: 30000 }, body);
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -190,7 +191,13 @@ async function fixture(t) {
     }
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  t.after(
+    () =>
+      new Promise(resolve => {
+        server.close(resolve);
+        server.closeAllConnections();
+      }),
+  );
   const environment = {
     INDUSTRIAL_REMOTE_SERVICE_URL: 'http://127.0.0.1:' + server.address().port,
     INDUSTRIAL_REMOTE_CREDENTIAL_ENV: 'FIXTURE_TOKEN',
