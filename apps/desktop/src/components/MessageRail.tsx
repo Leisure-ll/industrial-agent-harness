@@ -16,14 +16,19 @@ function preview(turn: ChatTurn) {
   return turn.task.replace(/\s+/g, ' ').trim();
 }
 
-// A per-turn tick rail beside the transcript: hover expands the tick and
-// follows the cursor with a preview card; click scrolls to that turn.
+// A per-turn tick rail beside the transcript. Ticks sit at the scroll
+// position of their turn (a minimap), so they cluster wherever messages
+// cluster; short transcripts collapse into one dense centered cluster.
+// Hover stretches the tick under the cursor and follows it with a
+// preview card; click scrolls to that turn.
 export function MessageRail({ turns }: { turns: ChatTurn[] }) {
   const { t } = useDisplayText();
   const area = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [mouseY, setMouseY] = useState(0);
   const [active, setActive] = useState(0);
+  const [positions, setPositions] = useState<number[]>([]);
+  const [dense, setDense] = useState(true);
   const ticks = useMemo<Tick[]>(() => {
     const step = Math.max(1, Math.ceil(turns.length / MAX_TICKS));
     const list: Tick[] = [];
@@ -42,32 +47,53 @@ export function MessageRail({ turns }: { turns: ChatTurn[] }) {
     return list;
   }, [turns, t]);
   useEffect(() => {
-    const container = area.current?.querySelector('.ia-chat-scroll');
+    // The scroll container is a sibling of the rail, not a descendant.
+    const container = area.current
+      ?.closest('.ia-chat-scroll-area')
+      ?.querySelector('.ia-chat-scroll');
     if (!container) return;
-    let frame = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const top = container.getBoundingClientRect().top;
-        let nearest = 0;
-        let best = Infinity;
-        container.querySelectorAll<HTMLElement>('[data-turn-id]').forEach(node => {
-          const distance = Math.abs(node.getBoundingClientRect().top - top);
-          if (distance < best) {
-            best = distance;
-            nearest = Number(node.dataset.turnIndex ?? 0);
-          }
-        });
-        setActive(nearest);
+    const run = () => {
+      const box = container as HTMLElement;
+      const boxTop = box.getBoundingClientRect().top;
+      const scrollable = box.scrollHeight - box.clientHeight > 40;
+      setDense(!scrollable);
+      const nodes = box.querySelectorAll<HTMLElement>('[data-turn-id]');
+      const next = ticks.map((tick, index) => {
+        if (!scrollable) return ticks.length > 1 ? index / (ticks.length - 1) : 0;
+        const node = nodes[tick.turnIndex];
+        if (!node) return 0;
+        const top = node.getBoundingClientRect().top - boxTop + box.scrollTop + 8;
+        return Math.min(100, Math.max(0, (top / box.scrollHeight) * 100));
       });
+      setPositions(next);
+      let nearest = 0;
+      let best = Infinity;
+      nodes.forEach(node => {
+        const distance = Math.abs(node.getBoundingClientRect().top - boxTop);
+        if (distance < best) {
+          best = distance;
+          nearest = Number(node.dataset.turnIndex ?? 0);
+        }
+      });
+      setActive(nearest);
     };
-    container.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+    // Scroll events already arrive at frame cadence and ResizeObserver is
+    // low-frequency; scheduling through rAF would stall in occluded windows.
+    const schedule = () => run();
+    run();
+    // Styles and async content land after the first paint; re-measure.
+    const settle = setTimeout(run, 250);
+    const settle2 = setTimeout(run, 900);
+    const observer = new ResizeObserver(schedule);
+    observer.observe(container);
+    container.addEventListener('scroll', schedule, { passive: true });
     return () => {
-      cancelAnimationFrame(frame);
-      container.removeEventListener('scroll', onScroll);
+      clearTimeout(settle);
+      clearTimeout(settle2);
+      observer.disconnect();
+      container.removeEventListener('scroll', schedule);
     };
-  }, [turns]);
+  }, [ticks]);
   if (ticks.length < 2) return null;
   function jump(tick: Tick) {
     const node = area.current?.querySelector(`[data-turn-id="${CSS.escape(tick.id)}"]`);
@@ -75,7 +101,7 @@ export function MessageRail({ turns }: { turns: ChatTurn[] }) {
   }
   return (
     <div
-      className="ia-message-rail"
+      className={`ia-message-rail ${dense ? 'dense' : ''}`}
       ref={area}
       onMouseLeave={() => setHover(null)}
       onMouseMove={event => {
@@ -85,19 +111,22 @@ export function MessageRail({ turns }: { turns: ChatTurn[] }) {
     >
       {ticks.map((tick, index) => {
         const distance = hover === null ? Infinity : Math.abs(hover - index);
-        const emphasis = distance === 0 ? 2 : distance === 1 ? 1.4 : distance === 2 ? 1.12 : 1;
+        const emphasis = distance === 0 ? 1.7 : distance === 1 ? 1.3 : distance === 2 ? 1.1 : 1;
         return (
           <button
             key={tick.id}
             className={`ia-rail-tick ${active === tick.turnIndex ? 'current' : ''}`}
-            style={{ transform: `scaleX(${emphasis})` }}
+            style={{
+              top: `${positions[index] ?? 0}%`,
+              transform: `scaleX(${emphasis})`,
+            }}
             onMouseEnter={() => setHover(index)}
             onFocus={() => setHover(index)}
             onClick={() => jump(tick)}
             aria-label={t('Jump to message {0}', { '0': index + 1 })}
             aria-current={active === tick.turnIndex ? 'true' : undefined}
           >
-            <span style={{ width: `${18 + tick.weight * 22}px` }} />
+            <span style={{ width: `${10 + tick.weight * 10}px` }} />
           </button>
         );
       })}
