@@ -2,7 +2,7 @@
 
 聊天消息的时间和复制按钮在鼠标悬停或键盘聚焦时显示；复制只针对对应消息的正文，助手正文保留 Markdown 源文，不混入思考与工具日志。核心产品标识使用用户提供的绿色图形，贯穿侧栏、应用和安装器。构建后用 `pnpm --filter @industrial-agent-harness/desktop test:messages` 验证实际悬停、剪贴板、时间持久化和主题交互，范围见[桌面 UI 优化](../../doc/desktop-ui-refinement.md#message-actions-and-product-mark-2026-10-08)。
 
-界面采用 Impeccable 的产品模式做局部优化：项目名称与领域分层、当前聊天单独高亮、首次使用提供创建入口，项目详情首屏可新建聊天；统一自托管字体、主题对比度、输入焦点和窄窗口布局。设计规则见 [DESIGN.md](DESIGN.md)，变更与验证范围见[桌面 UI 优化](../../doc/desktop-ui-refinement.md)。构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:ui` 可验证实际桌面交互链路。
+界面按用户指定的参考图，使用 Impeccable 的产品设计与完成检查流程调整为中性灰工作台。优先使用系统字体，正文与输入为 13 px、1.6 倍行距，常规文字减轻字重；空白聊天的标题与输入区居中，提交消息后输入区回到底部。明暗主题均使用灰阶层次，并保留当前主题偏好。项目名称与领域分层、当前聊天高亮、项目创建与详情入口、三栏工作区保持既有交互。设计规则见 [DESIGN.md](DESIGN.md)，变更与验证范围见[桌面 UI 优化](../../doc/desktop-ui-refinement.md#neutral-workbench-redesign-2026-10-08)。构建后运行 `pnpm --filter @industrial-agent-harness/desktop test:ui` 可验证实际桌面交互链路。
 
 当前开发者预览版的桌面构建与首次启动 CI 目标为 **macOS Apple Silicon（arm64）和 Windows x64**。Intel Mac 暂不支持，已退出 CI 与安装包发行矩阵；恢复前需有对应测试机并完成安装、运行与升级验收。签名安装器和真实 OTA 尚待验证，Windows 的真实工业 Agent 执行也仍受[执行边界](../../SECURITY.md)限制。
 

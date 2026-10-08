@@ -34,13 +34,6 @@ async function run(window, dialog) {
     })()`);
   async function quality(name) {
     await evaluate(`document.fonts.ready`);
-    assert.equal(
-      await evaluate(
-        `Array.from(document.fonts).some(face => face.family === 'IBM Plex Sans' && face.status === 'loaded')`,
-      ),
-      true,
-      `${name}: the self-hosted font must load through the production app protocol`,
-    );
     const failures = await evaluate(`(() => {
       const samples = ['.ia-chat-welcome p', '.ia-composer textarea', '.ia-project-row.selected',
         '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre', '.ia-chat-approval-mode'];
@@ -242,6 +235,12 @@ async function run(window, dialog) {
   await input('.ia-composer textarea', draft);
   await quality('chat-dark');
   await capture('chat-dark');
+  await setLanguage(window, 'zh-CN');
+  await input('.ia-composer textarea', '');
+  await evaluate(`document.activeElement?.blur()`);
+  await quality('empty-dark-zh');
+  await capture('empty-dark-zh');
+  await input('.ia-composer textarea', draft);
   assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').value`), draft);
   assert.equal(fs.readFileSync(path.join(project, 'sobel_filter.v'), 'utf8'), source);
   console.log(

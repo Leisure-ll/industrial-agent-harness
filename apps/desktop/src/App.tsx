@@ -1053,7 +1053,7 @@ export function App() {
                     onClick={() => setSettingsOpen(false)}
                     aria-label={t('Close settings')}
                   >
-                    ×
+                    <X size={16} />
                   </button>
                 </div>
                 <div className="ia-settings-row">
@@ -1188,7 +1188,7 @@ export function App() {
             )}
           </aside>
         )}
-        <main className="ia-chat">
+        <main className={`ia-chat${page !== 'project' && !turns.length ? ' ia-chat-empty' : ''}`}>
           <header className="ia-chat-header">
             <div>
               {!leftOpen && (
@@ -1291,34 +1291,6 @@ export function App() {
                             'Choose a local folder and a domain, then describe what you want to work on.',
                           )}
                     </p>
-                    <div className="ia-welcome-actions">
-                      {activeProject ? (
-                        <>
-                          <button onClick={() => setPage('project')}>
-                            <Settings2 size={15} />
-                            {t('Project details')}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setRightOpen(true);
-                              setFileTreeOpen(true);
-                            }}
-                          >
-                            <FolderOpen size={15} />
-                            {t('Browse project files')}
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          className="ia-welcome-create"
-                          onClick={chooseProject}
-                          disabled={navigating || submitting.current}
-                        >
-                          <Plus size={16} />
-                          {t('New project')}
-                        </button>
-                      )}
-                    </div>
                   </div>
                 )}
                 {turns.map((turn, index) => (
@@ -1397,139 +1369,154 @@ export function App() {
                     }
                   }}
                 >
-                  <ImageThumbnails
-                    images={attachments.images}
-                    onRemove={attachments.remove}
-                    disabled={agentBusy || attachments.loading}
-                  />
-                  {attachments.error && (
-                    <p role="alert" className="ia-flow-error">
-                      {t(attachments.error)}
-                    </p>
+                  {!turns.length && (
+                    <button
+                      className="ia-composer-project"
+                      type="button"
+                      onClick={activeProject ? () => setPage('project') : chooseProject}
+                      disabled={navigating || submitting.current}
+                      title={activeProject ? t('Project details') : t('New project')}
+                    >
+                      <Folder size={15} />
+                      <span>{activeProject?.name || t('New project')}</span>
+                      <ChevronDown size={13} />
+                    </button>
                   )}
-                  {attachments.loading && <p role="status">{t('Preparing images…')}</p>}
-                  {attachments.images.length > 0 && !modelImageInput && (
-                    <p className="ia-image-model-hint">
-                      {t('This model is configured for text only.')}{' '}
-                      <button onClick={() => setModelSettingsOpen(true)}>
-                        {t('Configure image input')}
-                      </button>
-                    </p>
-                  )}
-                  <textarea
-                    aria-label={t('Engineering task')}
-                    aria-describedby="ia-composer-help"
-                    placeholder={
-                      activeProject
-                        ? t('Ask about your project…')
-                        : t('Create or choose a project to start…')
-                    }
-                    value={task}
-                    disabled={
-                      agentBusy ||
-                      navigating ||
-                      !fixedDomain ||
-                      (activeProject?.executionLocation === 'remote' && !remoteExecutionReady)
-                    }
-                    onChange={event => setTask(event.target.value)}
-                    onKeyDown={event => {
-                      if (
-                        event.key === 'Enter' &&
-                        !event.shiftKey &&
-                        !event.nativeEvent.isComposing
-                      ) {
-                        event.preventDefault();
-                        void resolveTask();
-                      }
-                    }}
-                  />
-                  <div className="ia-composer-footer">
-                    <div className="ia-chat-controls">
-                      <DomainPill
-                        domain={fixedDomain}
-                        domains={domains}
-                        label={t('Session domain')}
-                      />
-                      <select
-                        className="ia-chat-approval-mode"
-                        aria-label={t('Approval mode for this chat')}
-                        title={
-                          approvalMode === 'auto'
-                            ? t(
-                                'Tools are automatically approved in this chat only. Questions still wait for your answer.',
-                              )
-                            : t(
-                                'Ask before actions in this chat. New chats use this mode by default.',
-                              )
-                        }
-                        value={approvalMode}
-                        disabled={!activeChatId || agentBusy || navigating || approvalModeBusy}
-                        onChange={event =>
-                          void changeChatApprovalMode(event.target.value as 'ask' | 'auto')
-                        }
-                      >
-                        <option value="ask">{t('Request approval')}</option>
-                        <option value="auto">{t('Auto approve')}</option>
-                      </select>
-                    </div>
-                    <div className="ia-send-actions">
-                      <ImageAttachButton
-                        attachments={attachments}
-                        disabled={agentBusy || attachments.loading || !activeProjectId}
-                      />
-                      {agentOwned && agentBusy && (
-                        <button
-                          disabled={navigating}
-                          onClick={() => {
-                            if (navigationPending.current) return;
-                            void window
-                              .viewerHost!.interruptAgent(activeChatId || undefined)
-                              .catch(reason => setBrokerError(String(reason)));
-                          }}
-                          title={t('Stop agent')}
-                          aria-label={t('Stop agent')}
-                        >
-                          <Square size={14} />
+                  <div className="ia-composer-body">
+                    <ImageThumbnails
+                      images={attachments.images}
+                      onRemove={attachments.remove}
+                      disabled={agentBusy || attachments.loading}
+                    />
+                    {attachments.error && (
+                      <p role="alert" className="ia-flow-error">
+                        {t(attachments.error)}
+                      </p>
+                    )}
+                    {attachments.loading && <p role="status">{t('Preparing images…')}</p>}
+                    {attachments.images.length > 0 && !modelImageInput && (
+                      <p className="ia-image-model-hint">
+                        {t('This model is configured for text only.')}{' '}
+                        <button onClick={() => setModelSettingsOpen(true)}>
+                          {t('Configure image input')}
                         </button>
-                      )}
-                      {Boolean(
-                        broker &&
-                          agentStatus?.available &&
-                          agentStatus.configured &&
-                          agentStatus.projectDir,
-                      ) && (
+                      </p>
+                    )}
+                    <textarea
+                      aria-label={t('Engineering task')}
+                      aria-describedby="ia-composer-help"
+                      placeholder={
+                        activeProject
+                          ? t('Ask about your project…')
+                          : t('Create or choose a project to start…')
+                      }
+                      value={task}
+                      disabled={
+                        agentBusy ||
+                        navigating ||
+                        !fixedDomain ||
+                        (activeProject?.executionLocation === 'remote' && !remoteExecutionReady)
+                      }
+                      onChange={event => setTask(event.target.value)}
+                      onKeyDown={event => {
+                        if (
+                          event.key === 'Enter' &&
+                          !event.shiftKey &&
+                          !event.nativeEvent.isComposing
+                        ) {
+                          event.preventDefault();
+                          void resolveTask();
+                        }
+                      }}
+                    />
+                    <div className="ia-composer-footer">
+                      <div className="ia-chat-controls">
+                        <DomainPill
+                          domain={fixedDomain}
+                          domains={domains}
+                          label={t('Session domain')}
+                        />
+                        <select
+                          className="ia-chat-approval-mode"
+                          aria-label={t('Approval mode for this chat')}
+                          title={
+                            approvalMode === 'auto'
+                              ? t(
+                                  'Tools are automatically approved in this chat only. Questions still wait for your answer.',
+                                )
+                              : t(
+                                  'Ask before actions in this chat. New chats use this mode by default.',
+                                )
+                          }
+                          value={approvalMode}
+                          disabled={!activeChatId || agentBusy || navigating || approvalModeBusy}
+                          onChange={event =>
+                            void changeChatApprovalMode(event.target.value as 'ask' | 'auto')
+                          }
+                        >
+                          <option value="ask">{t('Request approval')}</option>
+                          <option value="auto">{t('Auto approve')}</option>
+                        </select>
+                      </div>
+                      <div className="ia-send-actions">
+                        <ImageAttachButton
+                          attachments={attachments}
+                          disabled={agentBusy || attachments.loading || !activeProjectId}
+                        />
+                        {agentOwned && agentBusy && (
+                          <button
+                            disabled={navigating}
+                            onClick={() => {
+                              if (navigationPending.current) return;
+                              void window
+                                .viewerHost!.interruptAgent(activeChatId || undefined)
+                                .catch(reason => setBrokerError(String(reason)));
+                            }}
+                            title={t('Stop agent')}
+                            aria-label={t('Stop agent')}
+                          >
+                            <Square size={14} />
+                          </button>
+                        )}
+                        {Boolean(
+                          broker &&
+                            agentStatus?.available &&
+                            agentStatus.configured &&
+                            agentStatus.projectDir,
+                        ) && (
+                          <button
+                            onClick={() => void runAgent()}
+                            disabled={
+                              navigating ||
+                              agentBusy ||
+                              submitting.current ||
+                              turns.at(-1)?.status !== 'scoped'
+                            }
+                            title={t('Run with Kimi')}
+                            aria-label={t('Run with Kimi')}
+                          >
+                            <Play size={14} />
+                          </button>
+                        )}
                         <button
-                          onClick={() => void runAgent()}
+                          className="ia-send"
+                          onClick={() => void resolveTask()}
                           disabled={
                             navigating ||
                             agentBusy ||
-                            submitting.current ||
-                            turns.at(-1)?.status !== 'scoped'
+                            !fixedDomain ||
+                            (activeProject?.executionLocation === 'remote' &&
+                              !remoteExecutionReady) ||
+                            attachments.loading ||
+                            (!task.trim() && !attachments.images.length) ||
+                            (attachments.images.length > 0 && !modelImageInput)
                           }
-                          title={t('Run with Kimi')}
-                          aria-label={t('Run with Kimi')}
+                          title={t('Send task')}
+                          aria-label={t('Send task')}
                         >
-                          <Play size={14} />
+                          <ArrowUp size={18} />
                         </button>
-                      )}
-                      <button
-                        className="ia-send"
-                        onClick={() => void resolveTask()}
-                        disabled={
-                          navigating ||
-                          agentBusy ||
-                          !fixedDomain ||
-                          (activeProject?.executionLocation === 'remote' &&
-                            !remoteExecutionReady) ||
-                          attachments.loading ||
-                          (!task.trim() && !attachments.images.length) ||
-                          (attachments.images.length > 0 && !modelImageInput)
-                        }
-                        title={t('Send task')}
-                        aria-label={t('Send task')}
-                      >
-                        <ArrowUp size={18} />
-                      </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1554,6 +1541,36 @@ export function App() {
                     <kbd>Shift Enter</kbd> {t('New line')}
                   </span>
                 </div>
+                {!turns.length && (
+                  <div className="ia-welcome-actions">
+                    {activeProject ? (
+                      <>
+                        <button onClick={() => setPage('project')}>
+                          <Settings2 size={15} />
+                          {t('Project details')}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRightOpen(true);
+                            setFileTreeOpen(true);
+                          }}
+                        >
+                          <FolderOpen size={15} />
+                          {t('Browse project files')}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="ia-welcome-create"
+                        onClick={chooseProject}
+                        disabled={navigating || submitting.current}
+                      >
+                        <Plus size={16} />
+                        {t('New project')}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}

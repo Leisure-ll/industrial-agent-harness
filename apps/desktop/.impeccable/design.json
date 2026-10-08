@@ -1,0 +1,740 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-08T08:36:29.673Z",
+  "title": "Design System: Industrial Harness desktop",
+  "extensions": {
+    "colorMeta": {
+      "light-bg": {
+        "role": "neutral",
+        "displayName": "Light Conversation ground",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-panel": {
+        "role": "neutral",
+        "displayName": "Light Panel",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-raised": {
+        "role": "neutral",
+        "displayName": "Light Raised surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-border": {
+        "role": "neutral",
+        "displayName": "Light Divider",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-control-border": {
+        "role": "neutral",
+        "displayName": "Light Control border",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-text": {
+        "role": "neutral",
+        "displayName": "Light Text",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-muted": {
+        "role": "neutral",
+        "displayName": "Light Muted text",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-hover": {
+        "role": "neutral",
+        "displayName": "Light Hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-active": {
+        "role": "neutral",
+        "displayName": "Light Active",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-accent": {
+        "role": "primary",
+        "displayName": "Light Neutral action",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-code": {
+        "role": "neutral",
+        "displayName": "Light Code surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-sidebar": {
+        "role": "neutral",
+        "displayName": "Light Navigation ground",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-sidebar-hover": {
+        "role": "neutral",
+        "displayName": "Light Project selection",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-sidebar-active": {
+        "role": "neutral",
+        "displayName": "Light Chat selection",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "light-success": {
+        "role": "semantic",
+        "displayName": "Light Success state",
+        "tonalRamp": [
+          "oklch(15.00% 0.08163 163.12)",
+          "oklch(26.43% 0.08163 163.12)",
+          "oklch(37.86% 0.08163 163.12)",
+          "oklch(49.29% 0.08163 163.12)",
+          "oklch(60.71% 0.08163 163.12)",
+          "oklch(72.14% 0.08163 163.12)",
+          "oklch(83.57% 0.08163 163.12)",
+          "oklch(95.00% 0.08163 163.12)"
+        ]
+      },
+      "light-danger": {
+        "role": "semantic",
+        "displayName": "Light Error state",
+        "tonalRamp": [
+          "oklch(15.00% 0.15608 24.36)",
+          "oklch(26.43% 0.15608 24.36)",
+          "oklch(37.86% 0.15608 24.36)",
+          "oklch(49.29% 0.15608 24.36)",
+          "oklch(60.71% 0.15608 24.36)",
+          "oklch(72.14% 0.15608 24.36)",
+          "oklch(83.57% 0.15608 24.36)",
+          "oklch(95.00% 0.15608 24.36)"
+        ]
+      },
+      "light-warning": {
+        "role": "semantic",
+        "displayName": "Light Warning state",
+        "tonalRamp": [
+          "oklch(15.00% 0.10465 69.58)",
+          "oklch(26.43% 0.10465 69.58)",
+          "oklch(37.86% 0.10465 69.58)",
+          "oklch(49.29% 0.10465 69.58)",
+          "oklch(60.71% 0.10465 69.58)",
+          "oklch(72.14% 0.10465 69.58)",
+          "oklch(83.57% 0.10465 69.58)",
+          "oklch(95.00% 0.10465 69.58)"
+        ]
+      },
+      "dark-bg": {
+        "role": "neutral",
+        "displayName": "Dark Conversation ground",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-panel": {
+        "role": "neutral",
+        "displayName": "Dark Panel",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-raised": {
+        "role": "neutral",
+        "displayName": "Dark Raised surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-border": {
+        "role": "neutral",
+        "displayName": "Dark Divider",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-control-border": {
+        "role": "neutral",
+        "displayName": "Dark Control border",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-text": {
+        "role": "neutral",
+        "displayName": "Dark Text",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-muted": {
+        "role": "neutral",
+        "displayName": "Dark Muted text",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-hover": {
+        "role": "neutral",
+        "displayName": "Dark Hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-active": {
+        "role": "neutral",
+        "displayName": "Dark Active",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-accent": {
+        "role": "primary",
+        "displayName": "Dark Neutral action",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-code": {
+        "role": "neutral",
+        "displayName": "Dark Code surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-sidebar": {
+        "role": "neutral",
+        "displayName": "Dark Navigation ground",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-sidebar-hover": {
+        "role": "neutral",
+        "displayName": "Dark Project selection",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-sidebar-active": {
+        "role": "neutral",
+        "displayName": "Dark Chat selection",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "dark-success": {
+        "role": "semantic",
+        "displayName": "Dark Success state",
+        "tonalRamp": [
+          "oklch(15.00% 0.08964 164.01)",
+          "oklch(26.43% 0.08964 164.01)",
+          "oklch(37.86% 0.08964 164.01)",
+          "oklch(49.29% 0.08964 164.01)",
+          "oklch(60.71% 0.08964 164.01)",
+          "oklch(72.14% 0.08964 164.01)",
+          "oklch(83.57% 0.08964 164.01)",
+          "oklch(95.00% 0.08964 164.01)"
+        ]
+      },
+      "dark-danger": {
+        "role": "semantic",
+        "displayName": "Dark Error state",
+        "tonalRamp": [
+          "oklch(15.00% 0.10344 19.68)",
+          "oklch(26.43% 0.10344 19.68)",
+          "oklch(37.86% 0.10344 19.68)",
+          "oklch(49.29% 0.10344 19.68)",
+          "oklch(60.71% 0.10344 19.68)",
+          "oklch(72.14% 0.10344 19.68)",
+          "oklch(83.57% 0.10344 19.68)",
+          "oklch(95.00% 0.10344 19.68)"
+        ]
+      },
+      "dark-warning": {
+        "role": "semantic",
+        "displayName": "Dark Warning state",
+        "tonalRamp": [
+          "oklch(15.00% 0.09818 80.44)",
+          "oklch(26.43% 0.09818 80.44)",
+          "oklch(37.86% 0.09818 80.44)",
+          "oklch(49.29% 0.09818 80.44)",
+          "oklch(60.71% 0.09818 80.44)",
+          "oklch(72.14% 0.09818 80.44)",
+          "oklch(83.57% 0.09818 80.44)",
+          "oklch(95.00% 0.09818 80.44)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "welcome": {
+        "displayName": "Welcome",
+        "purpose": "Centered empty-session title."
+      },
+      "project-title": {
+        "displayName": "Project Title",
+        "purpose": "Project details heading."
+      },
+      "dialog-title": {
+        "displayName": "Dialog Title",
+        "purpose": "Model dialog heading."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Regular shell copy."
+      },
+      "conversation": {
+        "displayName": "Conversation",
+        "purpose": "Conversation body and composer input."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Navigation and message time."
+      },
+      "metadata": {
+        "displayName": "Metadata",
+        "purpose": "Status hints and small metadata."
+      },
+      "domain-status": {
+        "displayName": "Domain Status",
+        "purpose": "Read-only domain pill text."
+      },
+      "source": {
+        "displayName": "Source",
+        "purpose": "Read-only project source preview."
+      }
+    },
+    "shadows": [
+      {
+        "name": "settings",
+        "value": "0 12px 32px #00000026",
+        "purpose": "Floating Settings popover."
+      },
+      {
+        "name": "model-dialog",
+        "value": "0 16px 56px #00000033",
+        "purpose": "Model settings dialog."
+      },
+      {
+        "name": "agent-log",
+        "value": "0 20px 70px #0005",
+        "purpose": "Agent log dialog."
+      }
+    ],
+    "motion": [
+      {
+        "name": "composer-border",
+        "value": "border-color 160ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Composer border only; disabled by prefers-reduced-motion."
+      },
+      {
+        "name": "buttons",
+        "value": "none",
+        "purpose": "Immediate theme and interaction changes."
+      },
+      {
+        "name": "todo-spinner",
+        "value": "ia-spin 1.4s linear infinite",
+        "purpose": "Existing in-progress todo icon; reduced motion disables animation."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-shell",
+        "value": "1250px",
+        "kind": "viewport-max"
+      },
+      {
+        "name": "compact-navigation",
+        "value": "1050px",
+        "kind": "viewport-max"
+      },
+      {
+        "name": "compact-logs",
+        "value": "1100px",
+        "kind": "viewport-max"
+      },
+      {
+        "name": "hide-keyboard-hint",
+        "value": "560px",
+        "kind": "chat-container-max"
+      },
+      {
+        "name": "compact-empty-input",
+        "value": "440px",
+        "kind": "chat-container-max"
+      }
+    ],
+    "focus": [
+      {
+        "name": "shell-control",
+        "value": "outline: 2px solid var(--ia-accent); outline-offset: 2px",
+        "purpose": "Buttons, selects, and textarea defaults; composer textarea delegates to focus-within."
+      },
+      {
+        "name": "input-summary",
+        "value": "outline: 2px solid var(--ia-accent); outline-offset: 3px",
+        "purpose": "Input and summary keyboard focus."
+      },
+      {
+        "name": "composer",
+        "value": "border-color: var(--ia-accent); outline: 1px solid var(--ia-accent); outline-offset: 3px",
+        "purpose": "Composer focus-within."
+      }
+    ],
+    "iconography": {
+      "family": "Lucide",
+      "strokeWidth": 1.6,
+      "controlSize": "32px",
+      "sendSize": "34px",
+      "brandMarkSize": "22px",
+      "provenance": "Inline SVG path data copied from installed lucide-react 1.37.0 (ISC). The green Core mark remains its existing raster asset; Pack domain markers remain functional metadata."
+    },
+    "nativeWindow": {
+      "minWidth": "1000px",
+      "minHeight": "650px",
+      "rendererCssFloor": "880px",
+      "observedPlatform": "macOS arm64"
+    },
+    "previewBinding": "Snippets inherit --ia-* variables when the host provides the active shell theme; literal fallbacks render the documented light theme standalone. Preview content demonstrates appearance and is not a task or verification record.",
+    "tonalRampProvenance": "Eight-step OKLCH ramps are synthesized display strips from the actual hex color's hue/chroma. They are not additional implemented theme tokens."
+  },
+  "components": [
+    {
+      "name": "Primary project action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The filled New chat action in project details; its neutral contrast follows the active theme.",
+      "html": "<button type=\"button\" class=\"ds-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>New chat</button>",
+      "css": ".ds-primary { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 400; line-height: 1.5; cursor: pointer; transition: none; } .ds-primary:disabled { opacity: .42; cursor: default; } .ds-primary { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 0; border-radius: 6px; background: var(--ia-accent, #343434); color: var(--ia-bg, #fafafa); } .ds-primary:hover:not(:disabled) { opacity: .85; } .ds-primary:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary arrival action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet bordered project details action below the centered empty composer.",
+      "html": "<button type=\"button\" class=\"ds-secondary\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 17H5\"/><path d=\"M19 7h-9\"/><circle cx=\"17\" cy=\"17\" r=\"3\"/><circle cx=\"7\" cy=\"7\" r=\"3\"/></svg>Project details</button>",
+      "css": ".ds-secondary { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 400; line-height: 1.5; cursor: pointer; transition: none; } .ds-secondary:disabled { opacity: .42; cursor: default; } .ds-secondary { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 5px 10px; border: 1px solid var(--ia-border, #dedede); border-radius: 8px; background: transparent; color: var(--ia-muted, #686868); } .ds-secondary:hover:not(:disabled) { background: var(--ia-hover, #e8e8e8); } .ds-secondary:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost icon control",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The Settings close control uses Lucide X with an explicit accessible name.",
+      "html": "<button type=\"button\" class=\"ds-ghost\" aria-label=\"Close settings\" title=\"Close settings\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></svg></button>",
+      "css": ".ds-ghost { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 400; line-height: 1.5; cursor: pointer; transition: none; } .ds-ghost:disabled { opacity: .42; cursor: default; } .ds-ghost { display: grid; place-items: center; width: 32px; height: 32px; padding: 7px; border: 0; border-radius: 6px; background: transparent; color: var(--ia-muted, #686868); } .ds-ghost:hover:not(:disabled) { background: var(--ia-hover, #e8e8e8); } .ds-ghost:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; }"
+    },
+    {
+      "name": "Send",
+      "kind": "button",
+      "refersTo": "button-send",
+      "description": "A compact upward arrow for sending an eligible task; availability remains controlled by the application.",
+      "html": "<button type=\"button\" class=\"ds-send\" aria-label=\"Send task\" title=\"Send task\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/></svg></button>",
+      "css": ".ds-send { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 400; line-height: 1.5; cursor: pointer; transition: none; } .ds-send:disabled { opacity: .42; cursor: default; } .ds-send { display: grid; place-items: center; width: 34px; height: 34px; padding: 7px; border: 0; border-radius: 9px; background: var(--ia-accent, #343434); color: var(--ia-bg, #fafafa); } .ds-send:hover:not(:disabled) { opacity: .82; } .ds-send:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; }"
+    },
+    {
+      "name": "Composer",
+      "kind": "input",
+      "refersTo": "composer",
+      "description": "The actual raised input body and project strip. This static preview illustrates appearance only.",
+      "html": "<div class=\"ds-composer\"><button type=\"button\" class=\"ds-composer-project\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/></svg><span>New project</span><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m6 9 6 6 6-6\"/></svg></button><div class=\"ds-composer-body\"><textarea aria-label=\"Engineering task\" placeholder=\"Create or choose a project to start…\"></textarea><div class=\"ds-composer-footer\"><span class=\"ds-composer-domain\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\"/><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\"/><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\"/></svg>No domain</span><select aria-label=\"Approval mode\"><option>Request approval</option></select><button class=\"ds-composer-send\" aria-label=\"Send task\" type=\"button\" disabled><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/></svg></button></div></div></div>",
+      "css": ".ds-composer { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; font-size: 13px; line-height: 1.6; max-width: 680px; border: 1px solid var(--ia-border, #dedede); border-radius: 14px; background: var(--ia-panel, #f2f2f2); color: var(--ia-text, #252525); transition: border-color 160ms cubic-bezier(.16,1,.3,1); } .ds-composer:focus-within { border-color: var(--ia-accent, #343434); outline: 1px solid var(--ia-accent, #343434); outline-offset: 3px; } .ds-composer-project { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; padding: 8px 16px; border: 0; border-radius: 13px 13px 0 0; background: transparent; color: var(--ia-muted, #686868); font: 400 12px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; cursor: pointer; } .ds-composer-project:hover { background: var(--ia-hover, #e8e8e8); } .ds-composer-project:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } .ds-composer-body { padding: 14px; background: var(--ia-raised, #ffffff); border-top: 1px solid var(--ia-border, #dedede); border-radius: 13px; } .ds-composer textarea { width: 100%; height: 64px; min-height: 50px; max-height: 160px; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--ia-text, #252525); padding: 0 2px; font: 400 13px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; caret-color: var(--ia-accent, #343434); } .ds-composer textarea::placeholder { color: var(--ia-muted, #686868); } .ds-composer-footer { display: flex; align-items: center; gap: 8px; } .ds-composer-domain { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--ia-border, #dedede); border-radius: 999px; background: var(--ia-raised, #ffffff); color: var(--ia-text, #252525); font-size: 11px; line-height: 16px; } .ds-composer select { max-width: 150px; padding: 4px 6px; border: 1px solid var(--ia-border, #dedede); border-radius: 6px; background: var(--ia-panel, #f2f2f2); color: var(--ia-muted, #686868); font: 400 11px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; } .ds-composer select:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } .ds-composer-send { display: grid; place-items: center; margin-left: auto; width: 34px; height: 34px; padding: 7px; border: 0; border-radius: 9px; background: var(--ia-accent, #343434); color: var(--ia-bg, #fafafa); } .ds-composer-send:disabled { opacity: .42; cursor: default; } .ds-composer-send:hover:not(:disabled) { opacity: .82; } .ds-composer-send:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-composer { transition: none; } }"
+    },
+    {
+      "name": "Project and chat navigation",
+      "kind": "nav",
+      "refersTo": "navigation-chat-active",
+      "description": "Project name above domain metadata, with a quiet nested chat and gray current-chat selection.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Project navigation\"><button class=\"ds-nav-project\" type=\"button\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/></svg><span>Project folder</span><small>Domain</small></button><div class=\"ds-nav-chats\"><button type=\"button\" class=\"ds-nav-chat\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg><span>Previous chat</span></button><button type=\"button\" class=\"ds-nav-chat\" aria-current=\"page\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg><span>Current chat</span></button></div></nav>",
+      "css": ".ds-nav { width: 236px; padding: 10px; background: var(--ia-sidebar, #eeeeee); color: var(--ia-text, #252525); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; } .ds-nav button { width: 100%; border: 0; border-radius: 6px; font: 400 12px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; cursor: pointer; color: var(--ia-muted, #686868); } .ds-nav-project { display: grid; grid-template-columns: 16px minmax(0,1fr); gap: 2px 8px; text-align: left; padding: 8px 10px; background: var(--ia-sidebar-hover, #e3e3e3); } .ds-nav-project span { color: var(--ia-text, #252525); font-weight: 500; } .ds-nav-project small { grid-column: 2; font-size: 11px; font-weight: 400; } .ds-nav-chats { margin: 3px 9px 10px 21px; padding-left: 7px; border-left: 1px solid var(--ia-border, #dedede); } .ds-nav-chat { display: flex; align-items: center; gap: 9px; margin: 2px 3px; padding: 7px 10px; background: transparent; text-align: left; } .ds-nav-chat[aria-current=\"page\"] { background: var(--ia-sidebar-active, #dedede); color: var(--ia-text, #252525); } .ds-nav-chat:hover { background: var(--ia-hover, #e8e8e8); } .ds-nav button:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; }"
+    },
+    {
+      "name": "Read-only domain pill",
+      "kind": "chip",
+      "refersTo": "domain-pill",
+      "description": "Session domain status, shown with the actual Lucide fallback when no Pack marker is available.",
+      "html": "<span class=\"ds-domain\" role=\"status\" aria-label=\"Domain: None\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\"/><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\"/><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\"/></svg><span>No domain</span></span>",
+      "css": ".ds-domain { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--ia-border, #dedede); border-radius: 999px; background: var(--ia-raised, #ffffff); color: var(--ia-text, #252525); font: 400 11px/16px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; }"
+    },
+    {
+      "name": "Approval container",
+      "kind": "card",
+      "refersTo": "approval",
+      "description": "Compact bordered permission content with visible actions; preview buttons do not grant permissions.",
+      "html": "<div class=\"ds-approval\"><div class=\"ds-approval-preview\">Requested action details</div><button type=\"button\">Approve</button><button type=\"button\">Reject</button></div>",
+      "css": ".ds-approval { border: 1px solid var(--ia-border, #dedede); border-radius: 7px; padding: 12px; background: transparent; color: var(--ia-text, #252525); font: 400 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; } .ds-approval-preview { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 400 12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; } .ds-approval button { margin-right: 6px; padding: 6px 9px; border: 1px solid var(--ia-border, #dedede); border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; } .ds-approval button:hover:not(:disabled) { background: var(--ia-hover, #e8e8e8); } .ds-approval button:disabled { opacity: .42; cursor: default; } .ds-approval button:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; }"
+    },
+    {
+      "name": "User message",
+      "kind": "custom",
+      "refersTo": "user-message",
+      "description": "Right-aligned neutral bubble with compact conversation type.",
+      "html": "<div class=\"ds-user-entry\"><div class=\"ds-user-message\">Inspect the project files.</div></div>",
+      "css": ".ds-user-entry { margin: 6px 0 8px auto; max-width: 85%; width: max-content; min-width: 88px; } .ds-user-message { padding: 10px 14px; border: 0; border-radius: 14px; background: var(--ia-active, #e9e9e9); color: var(--ia-text, #252525); font: 400 13px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; }"
+    },
+    {
+      "name": "Message hover actions",
+      "kind": "custom",
+      "refersTo": "message-copy",
+      "description": "Hover or tab into the reply to reveal a reserved metadata row. The Copy button is a visual preview.",
+      "html": "<div class=\"ds-message\"><p>The source preview is read-only.</p><div class=\"ds-message-actions\"><time datetime=\"2026-10-08T08:25:00Z\" title=\"Preview time\">16:25</time><button type=\"button\" class=\"ds-message-copy\" aria-label=\"Copy message\" title=\"Copy message\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"/><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"/></svg></button></div></div>",
+      "css": ".ds-message { font: 400 13px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'IBM Plex Sans', sans-serif; color: var(--ia-text, #252525); } .ds-message p { margin: .6em 0; } .ds-message-actions { display: flex; align-items: center; gap: 8px; min-height: 32px; margin-top: 2px; opacity: 0; pointer-events: none; color: var(--ia-muted, #686868); font-size: 12px; line-height: 1.5; } .ds-message:hover .ds-message-actions,.ds-message:focus-within .ds-message-actions { opacity: 1; pointer-events: auto; } .ds-message-actions time { white-space: nowrap; font-variant-numeric: tabular-nums; } .ds-message-copy { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 12px; background: var(--ia-panel, #f2f2f2); color: var(--ia-muted, #686868); cursor: pointer; } .ds-message-copy:hover,.ds-message-copy:focus-visible { background: var(--ia-hover, #e8e8e8); color: var(--ia-text, #252525); } .ds-message-copy:focus-visible { outline: 2px solid var(--ia-accent, #343434); outline-offset: 2px; } .ds-message-copy:disabled { opacity: .42; cursor: default; } @media (hover: none) { .ds-message-actions { opacity: 1; pointer-events: auto; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Neutral desktop conversation workbench",
+    "overview": "The user's desktop reference replaces the former blue shell. Charcoal content, slightly lighter navigation and input surfaces, fine system type, and quiet gray selection keep attention on the current project and conversation. Light mode uses the same hierarchy in neutral whites. The user's saved theme preference continues to determine the active theme.\n\nThis records the implemented shell in [style.css](src/style.css), [App.tsx](src/App.tsx), and [MessageActions.tsx](src/components/MessageActions.tsx), under the approved [surface direction](.impeccable/surfaces/apps-desktop-src-app-tsx.md). [PRODUCT.md](../../PRODUCT.md) supplies the retained green Core identity and functional constraints. Pack-supplied domain markers remain functional metadata.",
+    "keyCharacteristics": [
+      "Neutral paired themes with tonal panel separation.",
+      "Regular system type, compact conversation rhythm, and restrained medium headings.",
+      "Thin Lucide controls and quiet gray navigation selection.",
+      "One composer centered on arrival and anchored below an ongoing conversation.",
+      "Hover and keyboard message controls with reserved space."
+    ],
+    "rules": [
+      {
+        "name": "The Paired Theme Rule",
+        "body": "Resolve foreground, surface, and selection from the same active theme. Preserve the saved theme preference.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Hierarchy Rule",
+        "body": "Use regular weight (400) for conversation and chat labels, and medium weight (500) for established headings and project names.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Shell Rule",
+        "body": "Keep ordinary navigation, messages, and the composer free of added shadows; use the existing overlay shadows for floating surfaces.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do resolve colors through the active shell theme and preserve the saved preference.",
+      "Do keep conversation and input at 13 px / 1.6, with regular weight.",
+      "Do retain the green Core raster and functional Pack domain markers.",
+      "Do keep time and Copy available on hover, keyboard focus, and non-hover devices without layout movement.",
+      "Do preserve actual task, remote, approval, and read-only Viewer boundaries."
+    ],
+    "donts": [
+      "Don't restore the discarded blue shell or a coarse, heavy conversation hierarchy.",
+      "Don't add shadows or decorative icon tiles to resting shell surfaces.",
+      "Don't make domain status in the generic composer an editable selector.",
+      "Don't infer readiness, approval, timestamps, or engineering acceptance from visual presentation."
+    ]
+  }
+}

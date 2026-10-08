@@ -1,6 +1,8 @@
 # Desktop UI refinement with Impeccable
 
-2026-10-05. This change refines the existing engineering workbench using the
+2026-10-05. The initial refinement below is a historical record; the current
+visual direction is the neutral redesign recorded at the end of this document.
+The initial change refines the existing engineering workbench using the
 [Impeccable](https://impeccable.cn/#downloads) Operate and polish guidance.
 The source guidance was inspected at upstream revision
 `ece38d9904b8a619b3f77cab476eacad09c4fb11`; the detector used engine 0.1.11.
@@ -60,7 +62,8 @@ workspace, not a completed engineering run.
 
 ## Message actions and product mark (2026-10-08)
 
-Based on latest main `62c1714`, messages now provide their time and a Copy button
+The initial message-action change was based on main `62c1714`; the final PR was
+rebased onto `2482114` for the neutral redesign below. Messages provide their time and a Copy button
 on hover, without clicking to reveal them. The row also appears on keyboard
 focus, and remains visible on devices without hover. User controls align below
 the right edge of the bubble; assistant controls align with the reply. Reserved
@@ -123,3 +126,70 @@ run. Native clipboard tests never copy data from an existing user project.
 ![Message hover with transparent brand mark](images/desktop-message-hover-light.png)
 
 ![Dark reply hover and copied feedback](images/desktop-message-hover-dark.png)
+
+## Neutral workbench redesign (2026-10-08)
+
+The user requested a substantial overall restyle following their supplied
+desktop screenshot, with lighter type and tighter leading, and explicitly
+asked to preserve the existing theme preference. The branch incorporates main
+`2482114`, including IH-ARCH-001, project execution location, and per-chat
+approvals. This work changes the desktop presentation and reuses existing
+actions; it adds no orchestration and changes no frozen Domain implementation.
+
+Both themes now use neutral surfaces and fine separators. The dark conversation
+canvas is `#161616`, navigation `#282828`, composer header `#222222`, and input
+surface `#282828`. The light theme uses the same hierarchy with light gray
+surfaces. The system UI font precedes the existing bundled fallback; normal
+body text is 400, headings generally 500, and conversation/input text is
+13 px with 1.6 line height. Headers are 48 px, and the main reading/composer
+measure is 680 px. Source code remains monospace.
+
+On an empty chat, the greeting and composer form a centered group. The composer
+context opens existing project details or project creation, and existing
+welcome actions sit below it. After submission, the composer stays at the
+bottom as before. The three work areas, collapsible panels, settings location,
+green core identity, hover-only message actions, and stored theme preference
+remain available. No unrelated reference-app branding, models, or tasks were
+added.
+
+The Impeccable source guidance at the revision above was applied with the user
+reference as the pinned direction. Confirmed product context is in `PRODUCT.md`;
+the recorded surface brief and desktop design document describe the resulting
+contract. An independent finish reviewer inspected actual native captures at
+normal and minimum window sizes, requested one consistent close-icon fix, and
+accepted the recaptured correction. The earlier single source scan was not
+rerun; its neutral blockquote border is now 1 px. Source scan and native visual
+review remain separate evidence.
+
+Verified locally on macOS arm64 after the restyle:
+
+- Build/typecheck; 34 desktop and 23 architecture tests, including the
+  architecture-contract checker and its 11 negative policy regressions.
+- All 9 existing native industrial-core integration tests passed, including
+  the signed installed Chip Pack, real Verilator, cancellation/failure and
+  pinned Kimi CLI path. This checkout has no local EDA virtual environment;
+  the gate used the existing workspace EDA Python through the supported
+  `INDUSTRIAL_HARNESS_EDA_PYTHON` setting. No Domain source was changed.
+- Native `test:ui` and `test:messages`, including normal/minimum layouts,
+  Chinese/English, both themes, contrast, centered empty chat, project/file
+  navigation, input focus and draft retention, body-to-button mouse hover,
+  exact clipboard contents, copy/retry, timestamps, history and reload.
+- Native `test:language`, `test:parallel`, and `test:images`, preserving IME,
+  concurrent chat/approval/question/stop isolation, and image selection,
+  paste/drop, model capability, draft isolation, and error retry.
+- An unsigned macOS arm64 application directory built from the final renderer
+  passed its packaged `--messages-selftest` through `app://viewer`. The native
+  pointer helper waits for scrolling/layout before targeting the message, then
+  checks hover and visible actions before clicking Copy. Its isolated fresh
+  Core closes Domain onboarding and installs no Domain packs. This verifies
+  the packaged UI path, not installation or engineering execution.
+
+Windows runtime/NSIS installation, production signing/notarization, and release
+rollout remain outside this change's verification scope.
+
+The screenshots below are real Electron captures of isolated UI fixtures. They
+do not represent a model run or engineering verification.
+
+![Neutral dark welcome in Chinese](images/desktop-neutral-welcome-dark.png)
+
+![Neutral light welcome](images/desktop-neutral-welcome-light.png)

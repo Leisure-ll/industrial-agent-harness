@@ -62,7 +62,7 @@ async function run(window) {
     }
     assert.equal(await clipboard.readText(), expected);
   }
-  async function move(selector) {
+  async function move(selector, revealOwner = false) {
     app.focus({ steal: true });
     window.focus();
     window.webContents.focus();
@@ -71,19 +71,28 @@ async function run(window) {
       await evaluate(
         `document.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: 'nearest' })`,
       );
+    // Settle scrolling/layout before choosing coordinates in the native window.
+    await evaluate(
+      `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+    );
     const point = selector
       ? await evaluate(
-          `(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return {x: Math.round(r.left + r.width / 2), y: Math.round(r.top + Math.min(r.height / 2, 20))}; })()`,
+          `(() => { let node = document.querySelector(${JSON.stringify(selector)}); if (${revealOwner}) node = node.closest('.ia-message').querySelector('.ia-markdown, .ia-user-message'); const r = node.getBoundingClientRect(); return {x: Math.round(r.left + r.width / 2), y: Math.round(r.top + Math.min(r.height / 2, 20))}; })()`,
         )
       : { x: 2, y: 2 };
     window.webContents.sendInputEvent({ type: 'mouseEnter', ...point });
     window.webContents.sendInputEvent({ type: 'mouseMove', ...point });
     if (selector) {
       try {
-        await wait(`document.querySelector(${JSON.stringify(selector)}).matches(':hover')`);
+        await wait(
+          `document.querySelector(${JSON.stringify(selector)})${revealOwner ? ".closest('.ia-message')" : ''}.matches(':hover')`,
+        );
+        await wait(
+          `(() => { const message = document.querySelector(${JSON.stringify(selector)}).closest('.ia-message'); return !message || (message.matches(':hover') && getComputedStyle(message.querySelector('.ia-message-actions')).opacity === '1'); })()`,
+        );
       } catch (error) {
         const target = await evaluate(
-          `JSON.stringify({ point: ${JSON.stringify(point)}, hit: document.elementFromPoint(${point.x}, ${point.y})?.outerHTML.slice(0, 500), hovered: Array.from(document.querySelectorAll(':hover')).map(node => node.className), focused: document.hasFocus(), dialogs: Array.from(document.querySelectorAll('dialog[open]')).map(node => node.className) })`,
+          `JSON.stringify({ point: ${JSON.stringify(point)}, hit: document.elementFromPoint(${point.x}, ${point.y})?.outerHTML.slice(0, 500), hovered: Array.from(document.querySelectorAll(':hover')).map(node => node.className), focused: document.hasFocus(), actions: Array.from(document.querySelectorAll('.ia-message-actions')).map(node => ({ opacity: getComputedStyle(node).opacity, owner: node.parentElement.className, hovered: node.parentElement.matches(':hover') })), dialogs: Array.from(document.querySelectorAll('dialog[open]')).map(node => node.className) })`,
         );
         throw Error(`${error.message}; hit target=${target}`);
       }
@@ -112,6 +121,8 @@ async function run(window) {
     );
   }
   async function nativeCopy(selector, expected) {
+    // Follow the real pointer path: hover the message before its hidden control.
+    await move(selector, true);
     await move(selector);
     const point = await evaluate(
       `(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return {x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2)}; })()`,
@@ -159,6 +170,7 @@ async function run(window) {
     }
     await select(chat.id);
     await wait(`document.querySelectorAll('.ia-agent-text').length === 2`);
+    await evaluate(`document.fonts.ready`);
     await move();
     await evaluate(`document.activeElement?.blur()`);
     assert.equal(await opacity(userActions), '0');
