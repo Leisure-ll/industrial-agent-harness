@@ -51,6 +51,7 @@ import { BrokerCall } from './components/BrokerCall';
 import { TodoList } from './components/TodoList';
 import { DomainManager } from './components/DomainManager';
 import { CapabilityCenter, type CapabilitySection } from './components/CapabilityCenter';
+import { WindowControls } from './components/WindowControls';
 import { CoreUpdatePanel } from './components/CoreUpdatePanel';
 import { ComputerUseSettings } from './components/ComputerUseSettings';
 import { ModelSettings } from './components/ModelSettings';
@@ -929,6 +930,7 @@ export function App() {
   return (
     <div
       className={`rp-shell ia-app theme-${theme} ${sidebarVisible ? '' : 'left-collapsed'} ${rightOpen ? '' : 'right-collapsed'} ${tabbed ? 'layout-tabs' : 'layout-split'}`}
+      data-platform={window.viewerHost?.platform}
     >
       <div className="ia-columns">
         {sidebarVisible && (
@@ -1182,7 +1184,9 @@ export function App() {
         )}
         <div className="ia-workbench">
           {tabbed && (
-            <div className="ia-workbench-tabbar">
+            <div
+              className={`ia-workbench-tabbar ${!sidebarVisible && window.viewerHost?.platform === 'darwin' ? 'ia-lights-gap' : ''}`}
+            >
               {!sidebarVisible && (
                 <button
                   className="ia-icon"
@@ -1282,6 +1286,7 @@ export function App() {
                     </button>
                   </div>
                   <div className="ia-chat-actions">
+                    <WindowControls />
                     {!tabbed && (
                       <button
                         className="ia-layout-toggle"

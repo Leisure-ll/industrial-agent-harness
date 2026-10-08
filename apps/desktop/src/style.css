@@ -3954,3 +3954,62 @@ body,
   font-size: var(--ia-font-sm);
   cursor: pointer;
 }
+
+/* Frameless window: body never scrolls (panels scroll internally); the top
+   bars act as drag regions. macOS traffic lights overlay the sidebar brand. */
+html,
+body {
+  overflow: hidden;
+}
+.ia-sidebar-brand,
+.ia-chat-header,
+.ia-capability-header {
+  -webkit-app-region: drag;
+}
+.ia-sidebar-brand :is(button, input, select),
+.ia-chat-header :is(button, input, select),
+.ia-capability-header :is(button, input, select) {
+  -webkit-app-region: no-drag;
+}
+[data-platform='darwin'] .ia-sidebar-brand {
+  padding-left: 78px;
+}
+.ia-window-controls {
+  display: flex;
+  align-self: stretch;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+.ia-chat-header .ia-window-controls {
+  margin-left: 0;
+}
+.ia-window-control {
+  width: 42px;
+  border: none;
+  background: transparent;
+  color: var(--ia-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 0;
+}
+.ia-window-control:hover {
+  background: var(--ia-hover);
+  color: var(--ia-text);
+}
+.ia-window-control.close:hover {
+  background: var(--ia-danger);
+  color: #ffffff;
+}
+
+/* With the sidebar collapsed the tab strip owns the top-left corner, so it
+   needs the same traffic-light reservation and doubles as a drag region. */
+.ia-workbench-tabbar {
+  -webkit-app-region: drag;
+}
+.ia-workbench-tabbar :is(button, [role='tab']) {
+  -webkit-app-region: no-drag;
+}
+.ia-workbench-tabbar.ia-lights-gap {
+  padding-inline-start: 78px;
+}

@@ -631,6 +631,16 @@ const viewerRegistry = createViewerRegistry([
 ]);
 
 function registerHandlers() {
+  ipcMain.on('window:minimize', event => {
+    if (event.sender === mainWindow?.webContents) mainWindow?.minimize();
+  });
+  ipcMain.on('window:maximize-toggle', event => {
+    if (event.sender !== mainWindow?.webContents || !mainWindow) return;
+    mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+  });
+  ipcMain.on('window:close', event => {
+    if (event.sender === mainWindow?.webContents) mainWindow?.close();
+  });
   function diagnosticProject(event, request) {
     if (
       event.sender !== mainWindow?.webContents ||
@@ -1381,6 +1391,11 @@ async function createWindow() {
     backgroundColor: '#0c1218',
     title: 'Industrial Agent Harness',
     icon: productIcon,
+    // Frameless: the renderer draws its own top bars and drag regions. macOS
+    // keeps the native traffic lights; other platforms get in-page controls.
+    frame: process.platform === 'darwin',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
+    trafficLightPosition: { x: 16, y: 15 },
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

@@ -95,5 +95,11 @@ const api = {
     ipcRenderer.on('agent:event', listener);
     return () => ipcRenderer.removeListener('agent:event', listener);
   },
+  window: {
+    minimize: () => ipcRenderer.send('window:minimize'),
+    toggleMaximize: () => ipcRenderer.send('window:maximize-toggle'),
+    close: () => ipcRenderer.send('window:close'),
+  },
+  platform: process.platform,
 };
 contextBridge.exposeInMainWorld('viewerHost', api);

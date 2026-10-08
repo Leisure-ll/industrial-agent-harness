@@ -400,6 +400,12 @@ export interface ViewerHostApi {
   }): Promise<'ask' | 'auto'>;
   interruptAgent(chatId?: string): Promise<void>;
   onAgentEvent(callback: (event: AgentEvent) => void): () => void;
+  window: {
+    minimize(): void;
+    toggleMaximize(): void;
+    close(): void;
+  };
+  platform: NodeJS.Platform;
 }
 
 export interface ProjectBinding {
