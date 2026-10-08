@@ -25,7 +25,11 @@ async function setup(t) {
   const project = path.join(directory, 'project');
   fs.mkdirSync(project);
   const fakeDocker = path.join(directory, 'controlled-docker');
-  fs.writeFileSync(fakeDocker, `#!${python}\n` + fs.readFileSync(backend, 'utf8'), { mode: 0o700 });
+  const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
+  // The immutable pnpm dependency path can exceed Linux's shebang limit.
+  fs.writeFileSync(fakeDocker, `#!/bin/sh\nexec ${quote(python)} ${quote(backend)} "$@"\n`, {
+    mode: 0o700,
+  });
   const { stdout } = await execute(python, [
     '-c',
     'import importlib.util,hashlib,json,sys; s=importlib.util.spec_from_file_location("fixture",sys.argv[1]); m=importlib.util.module_from_spec(s);s.loader.exec_module(m);print(json.dumps({"definitions":m.DEFINITIONS,"hash":hashlib.sha256(json.dumps(m.DEFINITIONS,sort_keys=True).encode()).hexdigest()}))',

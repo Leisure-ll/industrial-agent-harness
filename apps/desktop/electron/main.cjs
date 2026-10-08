@@ -315,9 +315,7 @@ function ensureChat() {
   return activeChatId;
 }
 function chatHistory(id, before = null) {
-  const history = chats.history(id, projectDir, activeProject().domain, before);
-  const entry = sessions.find(id);
-  return { ...history, executing: sessions.busy(entry), eventRevision: entry?.eventRevision || 0 };
+  return tasks.history(activeProject(), id, before);
 }
 function selectedSession() {
   return tasks.resume(activeProject(), ensureChat());

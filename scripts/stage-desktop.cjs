@@ -39,6 +39,13 @@ for (const name of ['.venv-kimi', '.venv-klayout', 'src', 'scripts', 'viewer-hos
   fs.rmSync(path.join(target, name), { recursive: true, force: true });
 const requireFromApp = createRequire(path.join(target, 'electron', 'main.cjs'));
 requireFromApp.resolve('../i18n.config.json');
+// electron-builder removes lock files from node_modules by default. Stage the
+// complete immutable release separately so its content lock remains valid.
+const packRelease = requireFromApp('@zhiman-bj/industrial-domain-packs');
+fs.cpSync(packRelease.root, path.join(target, 'domain-pack-release'), {
+  recursive: true,
+  filter: file => path.basename(file) !== 'node_modules',
+});
 const skillsRoot = path.dirname(
   path.dirname(requireFromApp.resolve('@industrial-agent-harness/domain-skills')),
 );
