@@ -188,6 +188,7 @@ class ChatStore {
     });
   }
   append(turnId, event) {
+    const recorded = { ...event, recordedAt: new Date().toISOString() };
     // Collapse streamed chunks for a bounded read model; raw events remain in diagnostic JSONL.
     this.transaction(() => {
       if (!this.statement('SELECT id FROM turns WHERE id = ?').get(turnId))
@@ -212,9 +213,10 @@ class ChatStore {
         turnId,
         sequence,
         event.type,
-        JSON.stringify(event),
+        JSON.stringify(recorded),
       );
     });
+    return recorded;
   }
   finish(turnId, status) {
     this.statement('UPDATE turns SET status = ?, owner_pid = NULL WHERE id = ?').run(

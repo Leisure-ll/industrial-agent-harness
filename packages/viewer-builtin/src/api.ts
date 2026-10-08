@@ -331,6 +331,7 @@ export interface ViewerHostApi {
     gui?: GuiPluginState;
   }>;
   guiState(): Promise<GuiPluginState>;
+  openGuiPermissionSettings(permission: 'screen' | 'accessibility'): Promise<void>;
   setGuiPlugin(enabled: boolean): Promise<GuiPluginState>;
   onGuiProgress(
     callback: (event: { phase: string; tag?: string; cached?: boolean; error?: string }) => void,
@@ -412,8 +413,13 @@ export interface ProjectBinding {
 }
 export interface GuiPluginState {
   enabled: boolean;
-  install: 'missing' | 'ready' | string;
+  install: 'missing' | 'ready' | 'installing' | 'error' | string;
   version: string | null;
+  permissions?: {
+    screen: 'granted' | 'denied' | 'restricted' | 'not-determined' | 'unknown';
+    accessibility: 'granted' | 'denied' | 'unknown';
+  } | null;
+  error?: string;
 }
 export interface DomainOption {
   id: string;
@@ -470,6 +476,8 @@ export type SubagentState = {
   summary?: string;
 };
 export type AgentEvent = {
+  /** Host receipt time for display; absent on older persisted events. */
+  recordedAt?: string;
   chatId?: string;
   projectId?: string;
   turnId?: string;

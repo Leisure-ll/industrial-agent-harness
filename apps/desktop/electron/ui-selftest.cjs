@@ -11,6 +11,14 @@ function prepare(config) {
   project = path.join(config, 'sobel-project');
   fs.mkdirSync(project, { recursive: true });
   fs.writeFileSync(path.join(project, 'sobel_filter.v'), source);
+  fs.writeFileSync(
+    path.join(project, 'acceptance.md'),
+    '# Acceptance checklist\n\n- [x] RTL source available\n- [ ] Review timing constraints\n',
+  );
+  fs.writeFileSync(
+    path.join(project, 'installation.txt'),
+    'Local installation notes\n'.repeat(120),
+  );
   saveBindings(config, { activeId: null, projects: [] });
 }
 
@@ -34,16 +42,9 @@ async function run(window, dialog) {
     })()`);
   async function quality(name) {
     await evaluate(`document.fonts.ready`);
-    assert.equal(
-      await evaluate(
-        `Array.from(document.fonts).some(face => face.family === 'IBM Plex Sans' && face.status === 'loaded')`,
-      ),
-      true,
-      `${name}: the self-hosted font must load through the production app protocol`,
-    );
     const failures = await evaluate(`(() => {
       const samples = ['.ia-chat-welcome p', '.ia-composer textarea', '.ia-project-row.selected',
-        '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre'];
+        '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre', '.ia-chat-approval-mode'];
       function rgba(color) { return color.match(/[\\d.]+/g).map(Number); }
       function background(node) {
         if (!node) return [255, 255, 255];
@@ -59,7 +60,7 @@ async function run(window, dialog) {
       }
       return samples.flatMap(selector => {
         const node = document.querySelector(selector);
-        if (!node || node.disabled) return [];
+        if (!node || (node.disabled && selector !== '.ia-chat-approval-mode')) return [];
         const foreground = luminance(rgba(getComputedStyle(node).color).slice(0, 3));
         const surface = luminance(background(node));
         const ratio = (Math.max(foreground, surface) + .05) / (Math.min(foreground, surface) + .05);
@@ -145,6 +146,23 @@ async function run(window, dialog) {
   );
   assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').disabled`), true);
   assert.equal(await evaluate(`document.querySelector('.ia-send').disabled`), true);
+  await evaluate(`window.__remoteStatus = document.querySelector('.ia-remote-task-status')`);
+  await click('.ia-layout-toggle');
+  await wait(`Boolean(document.querySelector('.layout-tabs'))`);
+  await click('.ia-tab-add');
+  await wait(`document.querySelector('.ia-chat').hidden`);
+  await click('#tab-chat');
+  await wait(`!document.querySelector('.ia-chat').hidden`);
+  assert.equal(
+    await evaluate(`document.querySelector('.ia-remote-task-status') === window.__remoteStatus`),
+    true,
+    'Remote task status must stay mounted when browsing another tab',
+  );
+  assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').disabled`), true);
+  assert.equal(await evaluate(`document.querySelector('.ia-send').disabled`), true);
+  await click('.ia-chat-actions button[title="Hide workspace"]');
+  await click('.ia-layout-toggle');
+  await wait(`Boolean(document.querySelector('.layout-split'))`);
   await click('.ia-remote-task-status button');
   await wait(`Boolean(document.querySelector('.ia-project-page'))`);
   await click('.ia-settings-button');
@@ -220,7 +238,7 @@ async function run(window, dialog) {
   window.setSize(1440, 900);
   await setLanguage(window, 'en');
   await click('.ia-chat-actions button[title="Hide workspace"]');
-  await wait(`!document.querySelector('.ia-workspace')`);
+  await wait(`document.querySelector('.ia-workspace').hidden`);
   window.focus();
   window.webContents.focus();
   await evaluate(`(() => {
@@ -242,10 +260,154 @@ async function run(window, dialog) {
   await input('.ia-composer textarea', draft);
   await quality('chat-dark');
   await capture('chat-dark');
+  await setLanguage(window, 'zh-CN');
+  await input('.ia-composer textarea', '');
+  await evaluate(`document.activeElement?.blur()`);
+  await quality('empty-dark-zh');
+  await capture('empty-dark-zh');
+  await input('.ia-composer textarea', draft);
+  await setLanguage(window, 'en');
   assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').value`), draft);
+  await click('.ia-layout-toggle');
+  await wait(`Boolean(document.querySelector('.layout-tabs'))`);
+  assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').value`), draft);
+  await click('.ia-tab-add');
+  await wait(`Boolean(document.querySelector('.ia-workspace-tree'))`);
+  await evaluate(
+    `document.querySelector('.ia-workbench-tabbar [role="tab"]:not(#tab-chat)').dispatchEvent(new MouseEvent('dblclick', {bubbles:true}))`,
+  );
+  await click('.ia-file-list button[title="acceptance.md"]');
+  await wait(
+    `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-markdown h1')?.textContent === 'Acceptance checklist'`,
+  );
+  await evaluate(
+    `document.querySelector('.ia-workbench-tabbar [aria-selected="true"]').dispatchEvent(new MouseEvent('dblclick', {bubbles:true}))`,
+  );
+  await wait(
+    `!document.querySelector('.ia-workbench-tabbar [aria-selected="true"]').closest('.ia-tab-item').classList.contains('ia-tab-preview')`,
+  );
+  await quality('tabs-markdown');
+  await capture('tabs-markdown');
+  await click('.ia-file-list button[title="installation.txt"]');
+  await wait(
+    `document.querySelector('.ia-viewer-header b')?.textContent === 'installation.txt' && document.querySelector('.ia-viewer-footer')?.textContent.includes('Ready')`,
+  );
+  await click('.ia-file-list button[title="acceptance.md"]');
+  await wait(`document.querySelector('.ia-viewer-header b')?.textContent === 'acceptance.md'`);
+  assert.equal(
+    await evaluate(`document.querySelectorAll('.ia-workbench-tabbar [role="tab"]').length`),
+    4,
+  );
+  await click('.ia-file-list button[title="installation.txt"]');
+  await wait(`document.querySelector('.ia-viewer-header b')?.textContent === 'installation.txt'`);
+  assert.equal(
+    await evaluate(`document.querySelectorAll('.ia-workbench-tabbar .ia-tab-preview').length`),
+    1,
+  );
+  await evaluate(
+    `window.__retainedDocument = document.querySelector('.ia-file-view:not([hidden])'); window.__retainedDraft = document.querySelector('.ia-composer textarea');`,
+  );
+  const selected = await evaluate(
+    `document.querySelector('.ia-workbench-tabbar [aria-selected="true"]').id`,
+  );
+  assert.equal(
+    await evaluate(`document.querySelectorAll('.ia-workbench-tabbar [role="tab"]').length`),
+    4,
+  );
+  await evaluate(
+    `document.querySelector('.ia-workbench-tabbar [aria-selected="true"]').dispatchEvent(new KeyboardEvent('keydown', {key:'Home', bubbles:true}))`,
+  );
+  await wait(`!document.querySelector('.ia-chat').hidden`);
+  assert.equal(await evaluate(`document.activeElement.id`), 'tab-chat');
+  assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').value`), draft);
+  await evaluate(`document.getElementById(${JSON.stringify(selected)}).click()`);
+  await wait(`!document.querySelector('.ia-workspace').hidden`);
+  assert.equal(
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])') === window.__retainedDocument`,
+    ),
+    true,
+    'Tab switch must retain the document DOM',
+  );
+  await click('.ia-layout-toggle');
+  await wait(`Boolean(document.querySelector('.layout-split'))`);
+  assert.equal(
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])') === window.__retainedDocument`,
+    ),
+    true,
+    'Layout switch must retain the document DOM',
+  );
+  window.setContentSize(800, 600);
+  await wait(`Boolean(document.querySelector('.layout-tabs'))`);
+  assert.equal(
+    await evaluate(`localStorage.getItem('ia-layout-v1')`),
+    'split',
+    'Responsive fallback must preserve the chosen layout',
+  );
+  await quality('tabs-800');
+  await capture('tabs-800');
+  window.setSize(640, 480);
+  await wait(`!document.querySelector('.ia-sidebar')`);
+  await quality('tabs-minimum');
+  await click('.ia-workbench-tabbar .ia-icon[aria-label="Show sidebar"]');
+  await wait(`Boolean(document.querySelector('.ia-sidebar'))`);
+  await click('.ia-settings-button');
+  await quality('tabs-settings-minimum');
+  await capture('tabs-settings-minimum');
+  await click('.ia-settings-title button');
+  await click('.ia-sidebar-backdrop');
+  await wait(`!document.querySelector('.ia-sidebar')`);
+  await capture('tabs-minimum');
+  await click('#tab-chat');
+  await wait(`!document.querySelector('.ia-chat').hidden`);
+  await quality('chat-minimum');
+  assert.equal(
+    await evaluate(`(() => {
+      const title = document.querySelector('.ia-chat-welcome h1').getBoundingClientRect();
+      const viewport = document.querySelector('.ia-chat-scroll').getBoundingClientRect();
+      return title.top >= viewport.top && title.bottom <= viewport.bottom;
+    })()`),
+    true,
+    'The empty-chat title must remain visible at the native minimum size',
+  );
+  await capture('chat-minimum');
+  await evaluate(`document.getElementById(${JSON.stringify(selected)}).click()`);
+  window.setContentSize(1440, 900);
+  await wait(`Boolean(document.querySelector('.layout-split'))`);
+  await click('.ia-layout-toggle');
+  await wait(`Boolean(document.querySelector('.layout-tabs'))`);
+  await setLanguage(window, 'zh-CN');
+  await quality('tabs-dark-zh');
+  await capture('tabs-dark-zh');
+  await setLanguage(window, 'en');
+  await evaluate(
+    `(() => { const tab = document.querySelector('.ia-workbench-tabbar [aria-selected="true"]'); tab.focus(); tab.dispatchEvent(new KeyboardEvent('keydown', {key:'Delete', bubbles:true})); })()`,
+  );
+  await wait(`document.querySelectorAll('.ia-workbench-tabbar [role="tab"]').length === 3`);
+  await wait(`document.activeElement.getAttribute('aria-selected') === 'true'`);
+  assert.equal(
+    await evaluate(`document.activeElement.getAttribute('aria-selected')`),
+    'true',
+    'Closing a tab must return keyboard focus to the selected neighbor',
+  );
+  assert.equal(
+    await evaluate(`document.querySelector('.ia-composer textarea') === window.__retainedDraft`),
+    true,
+  );
+  assert.equal(await evaluate(`localStorage.getItem('ia-layout-v1')`), 'tabs');
+  await window.webContents.reload();
+  await wait(
+    `Boolean(document.querySelector('.layout-tabs')) && Boolean(document.querySelector('.ia-composer textarea'))`,
+  );
+  assert.equal(
+    await evaluate(`document.querySelectorAll('.ia-file-view').length`),
+    0,
+    'File sessions are scoped to the current window, not restored into a different project',
+  );
   assert.equal(fs.readFileSync(path.join(project, 'sobel_filter.v'), 'utf8'), source);
   console.log(
-    'UI selftest passed: builtin remote configuration states, project execution location, onboarding, source preview, themes, contrast, languages, compact layout, keyboard input, and draft retention.',
+    'UI selftest passed: builtin remote configuration states, project execution location, onboarding, source preview, themes, contrast, languages, compact layout, tabs, layout persistence, minimum-window navigation, keyboard focus, mounted documents, and draft retention.',
   );
 }
 

@@ -15,56 +15,58 @@ body,
   margin: 0;
   width: 100%;
   height: 100%;
-  min-width: 880px;
+  min-width: 0;
 }
 .ia-app {
-  --ia-bg: #fbfcfd;
-  --ia-panel: #f1f5f8;
+  --ia-bg: #fafafa;
+  --ia-panel: #f2f2f2;
   --ia-raised: #ffffff;
-  --ia-border: #d9e2e8;
-  --ia-control-border: #8295a3;
-  --ia-text: #223441;
-  --ia-muted: #5c707f;
-  --ia-hover: #e9eff4;
-  --ia-active: #dce9f2;
-  --ia-accent: #315f7e;
-  --ia-code: #edf2f6;
-  --ia-sidebar: #eaf1f6;
-  --ia-sidebar-hover: #dde8f0;
-  --ia-sidebar-active: #d0e2ef;
+  --ia-border: #dedede;
+  --ia-control-border: #b5b5b5;
+  --ia-text: #252525;
+  --ia-muted: #686868;
+  --ia-hover: #e8e8e8;
+  --ia-active: #e9e9e9;
+  --ia-accent: #343434;
+  --ia-code: #f3f3f3;
+  --ia-sidebar: #eeeeee;
+  --ia-sidebar-hover: #e3e3e3;
+  --ia-sidebar-active: #dedede;
   --ia-success: #317357;
   --ia-danger: #b13939;
   --ia-warning: #96631e;
   --ia-font-xs: 11px;
   --ia-font-sm: 12px;
-  --ia-font-body: 14px;
-  --ia-header-height: 56px;
+  --ia-font-body: 13px;
+  --ia-header-height: 48px;
   --ia-control-size: 32px;
   --rp-blue: var(--ia-accent) !important;
   background: var(--ia-bg);
   color: var(--ia-text);
   color-scheme: light;
-  font-family: 'IBM Plex Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    'IBM Plex Sans', sans-serif;
   font-size: 13px;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 .ia-app.theme-dark {
-  --ia-bg: #161f26;
-  --ia-panel: #1d2933;
-  --ia-raised: #202e39;
-  --ia-border: #334654;
-  --ia-control-border: #607a8c;
-  --ia-text: #e6eef4;
-  --ia-muted: #a6bac8;
-  --ia-hover: #2a3a47;
-  --ia-active: #314c60;
-  --ia-accent: #b4d5ec;
-  --ia-code: #1c2933;
-  --ia-sidebar: #1d2c37;
-  --ia-sidebar-hover: #293e4d;
-  --ia-sidebar-active: #34546b;
+  --ia-bg: #161616;
+  --ia-panel: #222222;
+  --ia-raised: #282828;
+  --ia-border: #3a3a3a;
+  --ia-control-border: #707070;
+  --ia-text: #dedede;
+  --ia-muted: #a1a1a1;
+  --ia-hover: #343434;
+  --ia-active: #333333;
+  --ia-accent: #dedede;
+  --ia-code: #202020;
+  --ia-sidebar: #282828;
+  --ia-sidebar-hover: #343434;
+  --ia-sidebar-active: #3d3d3d;
   --ia-success: #85d0ae;
   --ia-danger: #f19b9b;
   --ia-warning: #edc580;
@@ -115,7 +117,7 @@ body,
 }
 .ia-top-left b {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 .ia-top-right {
@@ -133,9 +135,15 @@ body,
   height: 28px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--ia-border);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   flex-shrink: 0;
+}
+.ia-product-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .ia-app .ia-icon {
   width: var(--ia-control-size);
@@ -164,7 +172,7 @@ body,
   justify-content: space-between;
   padding: 0 13px 0 18px;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.7px;
   color: var(--ia-muted);
 }
@@ -176,7 +184,7 @@ body,
   margin: 0 9px;
   padding: 6px 9px !important;
   font-size: 11px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   min-width: 0;
 }
 .ia-tree-root span {
@@ -187,7 +195,7 @@ body,
 .ia-tree-section {
   font-size: 10px;
   color: var(--ia-muted);
-  font-weight: 600;
+  font-weight: 500;
   padding: 18px 17px 7px;
 }
 .ia-tree-items {
@@ -245,7 +253,7 @@ body,
   z-index: 30;
   background: var(--ia-raised);
   border: 0;
-  box-shadow: 0 12px 32px #122b3c26;
+  box-shadow: 0 12px 32px #00000026;
   border-radius: 12px;
   padding: 14px;
   max-height: calc(100dvh - 88px);
@@ -340,7 +348,7 @@ body,
 }
 .ia-chat-header b {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-chat-header span {
   color: var(--ia-muted);
@@ -372,7 +380,7 @@ body,
   min-height: 0;
   flex: 1;
   overflow: auto;
-  padding: 32px max(24px, calc((100% - 720px) / 2));
+  padding: 32px max(24px, calc((100% - 680px) / 2));
   scrollbar-width: thin;
   scrollbar-gutter: stable;
 }
@@ -381,7 +389,7 @@ body,
   max-width: 560px;
 }
 .ia-chat-welcome h1 {
-  font-size: clamp(26px, 4.5cqi, 34px);
+  font-size: 26px;
   letter-spacing: -0.03em;
   font-weight: 500;
   margin: 0 0 16px;
@@ -391,7 +399,7 @@ body,
 .ia-chat-welcome p {
   font-size: var(--ia-font-body);
   color: var(--ia-muted);
-  line-height: 1.7;
+  line-height: 1.6;
   max-width: 48ch;
   margin: 0;
   text-wrap: pretty;
@@ -407,11 +415,14 @@ body,
   border: 1px solid var(--ia-border);
   padding: 7px 10px;
 }
-.ia-user-message {
-  margin: 6px 0 24px auto;
+.ia-user-entry {
+  margin: 6px 0 8px auto;
   max-width: 85%;
   width: max-content;
-  padding: 14px 18px;
+  min-width: 88px;
+}
+.ia-user-message {
+  padding: 10px 14px;
   background: var(--ia-active);
   border: 0;
   border-radius: 14px;
@@ -420,11 +431,64 @@ body,
   font-size: var(--ia-font-body);
   overflow-wrap: anywhere;
 }
+.ia-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin-top: 2px;
+  color: var(--ia-muted);
+  font-size: var(--ia-font-sm);
+  opacity: 0;
+  pointer-events: none;
+}
+.ia-user-entry > .ia-message-actions {
+  justify-content: flex-end;
+}
+.ia-message:hover > .ia-message-actions,
+.ia-message:focus-within > .ia-message-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.ia-message-actions time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ia-app .ia-message-copy {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ia-panel);
+  color: var(--ia-muted);
+}
+.ia-app .ia-message-copy:hover,
+.ia-app .ia-message-copy:focus-visible {
+  background: var(--ia-hover);
+  color: var(--ia-text);
+}
+.ia-message-actions[data-copy-status='copied'] .ia-message-copy {
+  color: var(--ia-success);
+}
+.ia-message-copy-error {
+  color: var(--ia-danger);
+  overflow-wrap: anywhere;
+}
+@media (hover: none) {
+  .ia-message-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
 .ia-message-label {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 11px;
 }
 .ia-message-label span {
@@ -464,7 +528,7 @@ body,
 }
 .ia-capability b {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-capability small {
   font-size: 10px;
@@ -490,7 +554,7 @@ body,
 }
 .ia-agent-flow p {
   font-size: var(--ia-font-body);
-  line-height: 1.8;
+  line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -548,7 +612,7 @@ body,
 }
 .ia-composer-wrap {
   flex-shrink: 0;
-  padding: 12px max(24px, calc((100% - 720px) / 2)) 18px;
+  padding: 12px max(24px, calc((100% - 680px) / 2)) 18px;
   border-top: 0;
 }
 .ia-composer {
@@ -569,7 +633,7 @@ body,
   outline: 0 !important;
   background: transparent;
   font-size: var(--ia-font-body);
-  line-height: 1.7;
+  line-height: 1.6;
   padding: 0 2px;
   caret-color: var(--ia-accent);
 }
@@ -588,10 +652,10 @@ body,
   flex-wrap: wrap;
   gap: 8px;
 }
-.ia-chat-approval-mode {
+.ia-app .ia-chat-approval-mode {
   max-width: 150px;
   color: var(--ia-muted);
-  background: transparent;
+  background: var(--ia-panel);
   border: 1px solid var(--ia-border);
   border-radius: 6px;
   padding: 4px 6px;
@@ -770,7 +834,7 @@ body,
 }
 .ia-agent-text p {
   font-size: var(--ia-font-body);
-  line-height: 1.8;
+  line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -881,7 +945,7 @@ body,
   background: var(--ia-raised);
   border: 0;
   border-radius: 14px;
-  box-shadow: 0 16px 56px #122b3c33;
+  box-shadow: 0 16px 56px #00000033;
   color: var(--ia-text);
 }
 .ia-model-modal > header {
@@ -916,7 +980,7 @@ body,
   flex-direction: column;
   gap: 6px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-model-fields input,
 .ia-model-fields select {
@@ -985,7 +1049,7 @@ body,
   width: 100%;
 }
 .ia-sidebar {
-  flex: 0 0 248px;
+  flex: 0 0 256px;
   background: var(--ia-sidebar);
   border-right: 1px solid var(--ia-border);
 }
@@ -1003,13 +1067,13 @@ body,
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: -0.02em;
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-sidebar-brand .ia-icon {
   margin-left: auto;
 }
 .ia-sidebar .ia-product-mark {
-  background: var(--ia-bg);
+  background: transparent;
 }
 .ia-new-chat,
 .ia-sidebar-chat {
@@ -1065,7 +1129,7 @@ body,
   font-size: 13px;
 }
 .ia-chat-scroll {
-  padding: 32px max(24px, calc((100% - 720px) / 2));
+  padding: 32px max(24px, calc((100% - 680px) / 2));
   scrollbar-gutter: stable;
 }
 .ia-chat-welcome {
@@ -1073,7 +1137,7 @@ body,
   max-width: 560px;
 }
 .ia-chat-welcome h1 {
-  font-size: clamp(26px, 4.5cqi, 34px);
+  font-size: 26px;
   line-height: 1.2;
   letter-spacing: -0.03em;
   font-weight: 500;
@@ -1082,14 +1146,14 @@ body,
 }
 .ia-chat-welcome p {
   font-size: var(--ia-font-body);
-  line-height: 1.7;
+  line-height: 1.6;
   max-width: 48ch;
   margin: 0;
   text-wrap: pretty;
 }
 .ia-user-message {
   font-size: var(--ia-font-body);
-  padding: 14px 18px;
+  padding: 10px 14px;
   background: var(--ia-active);
   border: 0;
   border-radius: 14px;
@@ -1099,24 +1163,24 @@ body,
 .ia-detail-message p,
 .ia-agent-text p {
   font-size: var(--ia-font-body);
-  line-height: 1.8;
+  line-height: 1.6;
   overflow-wrap: anywhere;
 }
 .ia-composer-wrap {
   border-top: 0;
-  padding: 12px max(24px, calc((100% - 720px) / 2)) 18px;
+  padding: 12px max(24px, calc((100% - 680px) / 2)) 18px;
 }
 .ia-composer {
   border-radius: 14px;
   box-shadow: none;
-  padding: 14px;
+  padding: 0;
   border: 1px solid var(--ia-control-border);
   transition: border-color 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .ia-composer textarea {
   font-size: var(--ia-font-body);
-  height: 80px;
-  line-height: 1.7;
+  height: 64px;
+  line-height: 1.6;
   padding: 0 2px;
   caret-color: var(--ia-accent);
 }
@@ -1233,7 +1297,7 @@ body,
 .ia-source-panel pre {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: var(--ia-font-sm);
-  line-height: 1.8;
+  line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   margin: 0;
@@ -1275,7 +1339,7 @@ body,
 .ia-file-search {
   font-size: 10px;
   color: var(--ia-muted);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.5px;
   padding: 13px 8px 7px;
 }
@@ -1354,7 +1418,7 @@ body,
 }
 .ia-project-list button.selected {
   background: var(--ia-sidebar-hover);
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-workspace-actions {
   display: flex;
@@ -1384,7 +1448,7 @@ body,
   padding: 24px 14px 8px 20px;
   color: var(--ia-muted);
   font-size: var(--ia-font-xs);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.06em;
 }
 .ia-projects-heading button {
@@ -1422,7 +1486,7 @@ body,
   flex-direction: column;
   gap: 6px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-app .ia-folder-picker {
   display: flex;
@@ -1545,7 +1609,7 @@ body,
 .ia-app .ia-domain-choice[aria-pressed='true'] {
   border-color: var(--ia-accent);
   background: var(--ia-active);
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-app .ia-domain-choice:hover {
   background: var(--ia-hover);
@@ -1930,7 +1994,7 @@ body,
 .ia-log-tabs button.active {
   background: var(--ia-active);
   color: var(--ia-text);
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-log-tabs small {
   margin-left: 8px;
@@ -1970,7 +2034,7 @@ body,
   min-height: 0;
 }
 .ia-log-filters {
-  padding: 14px 18px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -2114,7 +2178,7 @@ body,
   display: flex;
   flex-wrap: wrap;
   gap: 9px 16px;
-  padding: 14px 18px;
+  padding: 10px 14px;
   color: var(--ia-muted);
   font-size: 11px;
 }
@@ -2141,7 +2205,7 @@ body,
 .ia-log-detail pre {
   font-family: ui-monospace, monospace;
   font-size: 11px;
-  line-height: 1.75;
+  line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   background: var(--ia-code);
@@ -2509,7 +2573,7 @@ body,
   margin: 0;
 }
 .ia-question legend {
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.5;
 }
 .ia-question legend small {
@@ -2581,7 +2645,7 @@ body,
 .ia-project-list .ia-sidebar-chat[aria-current='page'] {
   background: var(--ia-sidebar-active) !important;
   color: var(--ia-text);
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-chat-row .ia-chat-delete {
   opacity: 0;
@@ -2644,7 +2708,7 @@ body,
 }
 .ia-composer:focus-within {
   border-color: var(--ia-accent);
-  outline: 2px solid var(--ia-accent);
+  outline: 1px solid var(--ia-accent);
   outline-offset: 3px;
 }
 .ia-composer-shortcuts {
@@ -2781,7 +2845,7 @@ body,
 }
 .ia-markdown {
   font-size: 13px;
-  line-height: 1.75;
+  line-height: 1.6;
 }
 .ia-markdown > :first-child {
   margin-top: 0;
@@ -2797,13 +2861,13 @@ body,
 .ia-markdown h6 {
   margin: 1.4em 0 0.6em;
   line-height: 1.4;
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-markdown h1 {
-  font-size: 21px;
+  font-size: 20px;
 }
 .ia-markdown h2 {
-  font-size: 18px;
+  font-size: 17px;
 }
 .ia-markdown h3 {
   font-size: 15px;
@@ -2827,7 +2891,7 @@ body,
 .ia-markdown blockquote {
   margin: 1em 0;
   padding-left: 14px;
-  border-left: 3px solid var(--ia-border);
+  border-left: 1px solid var(--ia-border);
   color: var(--ia-muted);
 }
 .ia-markdown hr {
@@ -2880,7 +2944,7 @@ body,
 .ia-markdown th {
   text-align: left;
   background: var(--ia-panel);
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-markdown tr:last-child td {
   border-bottom: 0;
@@ -2915,7 +2979,7 @@ body,
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-subagent-role,
 .ia-subagent-status,
@@ -2966,7 +3030,7 @@ body,
   color: var(--ia-muted);
 }
 .ia-todo-label {
-  font-weight: 600;
+  font-weight: 500;
 }
 .ia-todo-count {
   color: var(--ia-muted);
@@ -3072,6 +3136,212 @@ body,
   flex-shrink: 0;
 }
 
+/* Both layouts share mounted conversation and Viewer surfaces. */
+.ia-workbench {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.ia-workbench-content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.ia-workbench [hidden] {
+  display: none !important;
+}
+.ia-file-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.ia-workbench-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  min-height: 52px;
+  background: var(--ia-panel);
+  border-bottom: 1px solid var(--ia-border);
+}
+.ia-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.ia-workbench-tabbar > .ia-tabs {
+  flex: 1;
+}
+.ia-tab-list {
+  display: flex;
+  min-width: 0;
+  overflow: auto;
+  gap: 4px;
+  scrollbar-width: thin;
+}
+.ia-tab-item {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  max-width: 280px;
+  border-radius: 9px;
+}
+.ia-tab-item:has([aria-selected='true']) {
+  background: var(--ia-raised);
+  box-shadow: none;
+}
+.ia-tab-item [role='tab'] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 12px;
+  text-align: left;
+  color: var(--ia-muted);
+  white-space: nowrap;
+}
+.ia-tab-item [aria-selected='true'] {
+  color: var(--ia-text);
+  font-weight: 500;
+}
+.ia-tab-item [role='tab'] span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ia-tab-item svg {
+  flex-shrink: 0;
+}
+.ia-tab-item .ia-tab-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  height: 28px;
+  margin-right: 5px;
+  color: var(--ia-muted);
+}
+.ia-tab-status {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ia-warning);
+}
+.ia-tab-add,
+.ia-layout-toggle {
+  flex-shrink: 0;
+}
+.ia-workspace > .ia-tabs {
+  border-bottom: 1px solid var(--ia-border);
+  padding: 4px 8px;
+  background: var(--ia-panel);
+}
+.layout-tabs .ia-chat,
+.layout-tabs .ia-workspace {
+  flex: 1;
+  min-width: 0;
+}
+.layout-tabs .ia-workspace {
+  border-left: 0;
+}
+@media (max-width: 759px) {
+  .ia-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 248px;
+    z-index: 26;
+    box-shadow: 4px 0 24px #00000030;
+  }
+  .ia-sidebar-backdrop {
+    position: absolute;
+    inset: 0;
+    border-radius: 0 !important;
+    background: #00000030 !important;
+    z-index: 25;
+  }
+  .ia-chat-header {
+    padding: 6px 10px;
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+  }
+  .ia-chat-actions {
+    margin-left: auto;
+  }
+  .ia-chat-scroll {
+    padding: 20px 16px;
+  }
+  .ia-composer-wrap {
+    padding: 8px 12px 12px;
+  }
+  .ia-chat-welcome {
+    margin-top: 24px;
+  }
+  .ia-workbench-tabbar {
+    padding-inline: 6px;
+  }
+  .ia-tab-item {
+    max-width: 220px;
+  }
+  .ia-workspace .ia-viewer-header b {
+    max-width: 180px;
+  }
+}
+
+.ia-gui-status {
+  padding: 0 3px 8px;
+  color: var(--ia-muted);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.ia-gui-status > span,
+.ia-gui-permissions,
+.ia-gui-status button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ia-gui-status button {
+  color: var(--ia-accent);
+  font-size: inherit;
+  padding: 2px 0;
+}
+.ia-gui-status button:hover {
+  text-decoration: underline;
+}
+.ia-gui-authorized {
+  color: var(--ia-success);
+}
+.ia-gui-error {
+  padding: 0 3px 8px;
+  color: var(--ia-muted);
+  font-size: 10px;
+}
+.ia-gui-error p {
+  overflow-wrap: anywhere;
+}
+
+.ia-tab-preview [role='tab'] > span {
+  font-style: italic;
+}
+.ia-tab-pin {
+  color: var(--ia-muted);
+  min-width: 28px;
+  padding: 0 6px;
+}
+.ia-tab-pin:hover {
+  color: var(--ia-text);
+  background: var(--ia-hover);
+}
+
 /* Built-in remote execution: one project choice, bounded consent, compact task state. */
 .ia-remote-service,
 .ia-project-execution {
@@ -3162,4 +3432,216 @@ body,
   cursor: pointer;
   color: var(--ia-muted);
   font-size: 13px;
+}
+
+/* Neutral desktop shell: the supplied reference owns type, density and surfaces. */
+.ia-app {
+  padding: 6px 6px 6px 0;
+  background: var(--ia-sidebar);
+  font-weight: 400;
+}
+.ia-app .lucide {
+  stroke-width: 1.6;
+}
+.ia-sidebar {
+  border-right: 0;
+}
+.ia-sidebar-brand {
+  gap: 8px;
+  padding-inline: 14px;
+}
+.ia-sidebar-brand b {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.ia-sidebar-brand .ia-product-mark {
+  width: 22px;
+  height: 22px;
+}
+.ia-sidebar .ia-tree-heading {
+  height: 40px;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.ia-project-list .ia-project-row {
+  padding-block: 8px !important;
+  gap: 2px 8px !important;
+}
+.ia-project-list .ia-project-row-name {
+  font-weight: 500;
+}
+.ia-sidebar-chat,
+.ia-new-chat {
+  margin-block: 2px;
+  padding-block: 7px !important;
+  font-weight: 400 !important;
+}
+.ia-project-list .ia-sidebar-chat[aria-current='page'] {
+  font-weight: 400;
+}
+.ia-sidebar .ia-tree-bottom {
+  border-top-color: transparent;
+}
+.ia-chat {
+  border: 1px solid var(--ia-border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.ia-app.layout-split:not(.right-collapsed) .ia-chat {
+  border-radius: 14px 0 0 14px;
+}
+.ia-chat-header {
+  border-bottom: 0;
+  padding-inline: 16px;
+}
+.ia-chat-header b {
+  font-size: 12px;
+  font-weight: 400;
+}
+.ia-chat-empty .ia-chat-scroll {
+  flex: 0 1 auto;
+  margin-top: auto;
+  padding-top: 24px;
+  padding-bottom: 0;
+}
+.ia-chat-empty .ia-chat-welcome {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+}
+.ia-chat-welcome h1 {
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+.ia-chat-empty .ia-chat-welcome p {
+  font-size: 12px;
+  max-width: 58ch;
+  margin-inline: auto;
+  line-height: 1.6;
+}
+.ia-chat-empty .ia-composer-wrap {
+  margin-bottom: auto;
+  padding-top: 28px;
+}
+.ia-composer {
+  background: var(--ia-panel);
+  border-color: var(--ia-border);
+}
+.ia-composer-body {
+  min-width: 0;
+  padding: 14px;
+  border-radius: 13px;
+  background: var(--ia-raised);
+}
+.ia-chat-empty .ia-composer-body {
+  border-top: 1px solid var(--ia-border);
+}
+.ia-app .ia-composer-project {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 13px 13px 0 0;
+  color: var(--ia-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.ia-composer-project span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ia-app .ia-composer textarea {
+  height: 64px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ia-chat-empty .ia-welcome-actions {
+  justify-content: center;
+  margin-top: 20px;
+  gap: 8px;
+}
+.ia-chat-empty .ia-welcome-actions button {
+  padding: 5px 10px;
+  min-height: 32px;
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  background: transparent;
+  color: var(--ia-muted);
+}
+.ia-composer-hint {
+  margin-top: 8px;
+}
+.ia-agent-text {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ia-agent-text .ia-markdown p {
+  margin: 0.6em 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ia-markdown h1,
+.ia-markdown h2,
+.ia-markdown h3,
+.ia-markdown h4,
+.ia-markdown h5,
+.ia-markdown h6 {
+  font-weight: 500;
+  margin: 1.1em 0 0.45em;
+}
+.ia-markdown li {
+  margin-block: 0.2em;
+}
+.ia-markdown pre {
+  padding: 10px 12px;
+  margin-block: 0.8em;
+}
+@container (max-width: 440px) {
+  .ia-chat-welcome h1 {
+    font-size: 22px;
+  }
+  .ia-composer-body {
+    padding: 12px;
+  }
+  .ia-chat-empty .ia-welcome-actions {
+    margin-top: 12px;
+  }
+}
+
+@media (max-height: 600px) {
+  .ia-chat-empty .ia-chat-scroll {
+    flex-shrink: 0;
+    padding-top: 12px;
+  }
+  .ia-chat-empty .ia-chat-welcome h1 {
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+  .ia-chat-empty .ia-composer-wrap {
+    padding-top: 12px;
+  }
+  .ia-chat-empty .ia-composer-body {
+    padding: 12px;
+  }
+  .ia-chat-empty .ia-composer textarea {
+    height: 50px;
+  }
+  .ia-chat-empty .ia-welcome-actions {
+    margin-top: 12px;
+  }
+  .ia-chat-empty .ia-composer-shortcuts {
+    display: none;
+  }
 }

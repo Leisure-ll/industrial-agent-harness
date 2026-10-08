@@ -170,6 +170,41 @@ async function verifyResize(window, project) {
     Math.abs((await layout()).workspace - restoredWidth) < 2,
     'Fullscreen must retain the split width.',
   );
+  await evaluate(
+    `window.__cadCanvas = document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas'); window.__cadPose = {yaw: document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.yaw, zoom: document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.zoom}; document.querySelector('.ia-layout-toggle').click();`,
+  );
+  await pause();
+  sameShape(await capture(), fittedRatio, 'Switching to tab layout');
+  await evaluate(`document.getElementById('tab-chat').click()`);
+  await pause();
+  assert.equal(await evaluate(`document.querySelector('.ia-workspace').hidden`), true);
+  await evaluate(
+    `Array.from(document.querySelectorAll('.ia-workbench-tabbar [role="tab"]')).find(tab => tab.textContent === 'model.FCStd').click()`,
+  );
+  await pause();
+  assert.equal(
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas') === window.__cadCanvas`,
+    ),
+    true,
+    'Chat/file tab switching must retain the OCCT WebGL canvas',
+  );
+  assert.deepEqual(
+    await evaluate(
+      `({yaw: document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.yaw, zoom: document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad').dataset.zoom})`,
+    ),
+    await evaluate(`window.__cadPose`),
+  );
+  sameShape(await capture(), fittedRatio, 'Restoring a hidden CAD tab');
+  await evaluate(`document.querySelector('.ia-layout-toggle').click()`);
+  await pause();
+  assert.equal(
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas') === window.__cadCanvas`,
+    ),
+    true,
+  );
+  sameShape(await capture(), fittedRatio, 'Returning to split layout');
   console.log(
     'CAD pixel proportions survive divider drag and fullscreen; 280 px chat, window shrink, keyboard limits and split reset passed',
   );

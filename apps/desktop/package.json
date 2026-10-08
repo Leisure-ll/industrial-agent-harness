@@ -16,6 +16,7 @@
     "test:documents": "electron . --documents-selftest",
     "test:language": "electron . --language-selftest",
     "test:ui": "electron . --ui-selftest",
+    "test:messages": "electron . --messages-selftest",
     "test:engineering": "electron . --engineering-selftest",
     "test:cad": "electron . --cad-selftest",
     "setup:layout": "node scripts/setup-layout.cjs",
@@ -24,7 +25,8 @@
     "test:mcp": "electron . --mcp-selftest",
     "test:external-mcp": "electron . --external-mcp-selftest",
     "test:cad-resize": "electron . --cad-resize-selftest",
-    "test:subagents": "electron . --subagent-selftest"
+    "test:subagents": "electron . --subagent-selftest",
+    "test:gui-settings": "electron . --gui-settings-selftest"
   },
   "dependencies": {
     "@industrial-agent-harness/agent-kimi": "workspace:*",

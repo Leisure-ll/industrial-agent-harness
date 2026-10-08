@@ -62,7 +62,10 @@ test('Desktop task API and CLI persist the same real file Action, verification a
     task: 'create and edit project files',
   });
   assert.ok(prepared.scope.tools.includes('project.files.apply'));
-  const started = await desktop.tasks.start(desktop.entry, 'create and edit project files');
+  const liveEvents = [];
+  const started = await desktop.tasks.start(desktop.entry, 'create and edit project files', {
+    onEvent: event => liveEvents.push(event),
+  });
   const result = await started.completion;
   assert.equal(
     result.status,
@@ -71,6 +74,9 @@ test('Desktop task API and CLI persist the same real file Action, verification a
   );
   const history = desktop.tasks.history(desktop.project, desktop.entry.id);
   const fact = history.turns[0].events.find(event => event.type === 'industrial-result');
+  const liveFact = liveEvents.find(event => event.type === 'industrial-result');
+  assert.ok(Number.isFinite(Date.parse(liveFact.recordedAt)));
+  assert.equal(liveFact.recordedAt, fact.recordedAt);
   assert.ok(fact.action.id && fact.verification.id && fact.state.id);
   assert.equal(
     fs.readFileSync(path.join(desktop.project.path, 'answer.txt'), 'utf8'),

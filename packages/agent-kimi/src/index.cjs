@@ -5,6 +5,7 @@ const {
   KIMI_CODE_VERSION,
 } = require('./code-session.cjs');
 const { createKimiPaths } = require('./legacy-paths.cjs');
+const { thinkingEffort } = require('./model-config.cjs');
 const { z } = require('zod');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
@@ -393,7 +394,7 @@ class KimiSession {
           model: runtime.profile.model,
           contextSize: runtime.profile.contextSize,
           thinking: runtime.profile.thinking,
-          onBackgroundEvent: event => this.emitEvent(event),
+          thinkingEffort: thinkingEffort(runtime.profile),
           imageInput: Boolean(runtime.profile.imageInput),
         },
         approvalMode,
@@ -550,6 +551,7 @@ class KimiSession {
           resumeRequired: Boolean(stored?.initialized),
           model: 'industrial',
           thinking: runtime.profile.thinking,
+          thinkingEffort: thinkingEffort(runtime.profile),
           onBackgroundEvent: event => this.handleBackgroundEvent(event),
           env: this.processSandbox?.env || runtime.env,
           yoloMode: approvalMode === 'auto',

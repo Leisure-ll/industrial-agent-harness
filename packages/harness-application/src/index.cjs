@@ -217,7 +217,7 @@ class TaskService {
           !entry.agent?.backgroundTasks
         )
           entry.backgroundRelease?.();
-        this.chats.append(turnId, event);
+        const recorded = this.chats.append(turnId, event);
         entry.eventRevision = (entry.eventRevision || 0) + 1;
         if (event.type === 'done' || event.type === 'error') outcome = event;
         const metadata = {
@@ -226,8 +226,8 @@ class TaskService {
           turnId,
           eventRevision: entry.eventRevision,
         };
-        this.options.onEvent?.(event, metadata);
-        options.onEvent?.(event, metadata);
+        this.options.onEvent?.(recorded, metadata);
+        options.onEvent?.(recorded, metadata);
         if (
           [
             'background-state',

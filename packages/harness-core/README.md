@@ -8,6 +8,8 @@ Shared project-domain Broker resolution and resource enablement policy for Deskt
 
 `ChatStore` 保存产品聊天、每轮展示事件和不透明的 Agent 运行时关联，提供 Project/Domain 隔离、分页、跨进程执行锁和中断标记。它不依赖 Kimi/Electron，也不保存或压缩模型上下文；Desktop/CLI 共用该存储。见 [聊天持久化](../../doc/chat-persistence.md)。
 
+`append` 为新展示事件增加宿主接收时间 `recordedAt`，返回该事件供实时 UI 使用。合并连续正文时保留首个接收时间；已存储的旧事件不补造时间。该字段仅用于消息显示，不是工业状态、模型上下文或工程验证时间。
+
 每次资源策略解析只枚举一次禁用 MCP Provider，按 Domain 建立工具集合，再筛选 Capability；资源和 Provider 仍在每次请求重新读取。`ChatStore` 在数据库连接内复用 prepared statements，并为运行中的轮次与聊天运行时关联建立索引；关闭连接时清理语句引用，持久化字段和接口保持兼容。
 
 `SessionResourceManager` 以 SQLite 事务管理配置目录内的执行/常驻额度，默认 4/6，宿主退出后回收其租约。资源提供自己的关闭与忙碌状态回调，运行中和待用户交互的资源不自动关闭。空闲回收与跨宿主容量请求必须等物理关闭确认才释放常驻位置；该管理器不实现 Agent loop、会话上下文或工业执行。可用内存准入与压测见[多会话资源保护](../../doc/session-resource-guards.md)。

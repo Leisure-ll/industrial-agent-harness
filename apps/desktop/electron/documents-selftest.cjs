@@ -93,11 +93,11 @@ async function run(window) {
   }
   const click = label =>
     evaluate(
-      `Array.from(document.querySelectorAll('.rp-document button')).find(button => button.textContent === ${JSON.stringify(label)}).click()`,
+      `Array.from(document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-document button')).find(button => button.textContent === ${JSON.stringify(label)}).click()`,
     );
   const find = query =>
     evaluate(
-      `(() => {const input=document.querySelector('input[aria-label="Find in document"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(query)});input.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+      `(() => {const input=document.querySelector('.ia-file-view:not([hidden])').querySelector('input[aria-label="Find in document"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(query)});input.dispatchEvent(new Event('input',{bubbles:true}));})()`,
     );
   async function open(file, kind) {
     await evaluate(
@@ -131,7 +131,7 @@ async function run(window) {
       await verifyNavigation(window, measure);
       await verifyWheel(window, measure, (delta, ctrl) =>
         evaluate(
-          `(() => {const element=document.querySelector('.rp-document-viewport'); const event=new WheelEvent('wheel',{deltaY:${delta},ctrlKey:${ctrl},cancelable:true}); element.dispatchEvent(event); return event.defaultPrevented;})()`,
+          `(() => {const element=document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-viewport'); const event=new WheelEvent('wheel',{deltaY:${delta},ctrlKey:${ctrl},cancelable:true}); element.dispatchEvent(event); return event.defaultPrevented;})()`,
         ),
       );
       const screenshot = path.join(directory, `${kind}.png`);
@@ -140,56 +140,79 @@ async function run(window) {
     }
     await open('data.csv', 'table');
     assert.equal(
-      await evaluate(`document.querySelectorAll('.rp-document-table tbody tr').length`),
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-document-table tbody tr').length`,
+      ),
       100,
     );
     assert.ok(
       await evaluate(
-        `document.querySelector('.rp-document-table tbody').textContent.includes(${JSON.stringify('hello, world\nsecond line')})`,
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-table tbody').textContent.includes(${JSON.stringify('hello, world\nsecond line')})`,
       ),
     );
     await click('Next');
-    await wait(`document.querySelector('.rp-document-pages').textContent.includes('Page 2')`);
+    await wait(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-pages').textContent.includes('Page 2')`,
+    );
     await find('item224');
-    await wait(`document.querySelectorAll('.rp-document-table tbody tr').length === 1`);
+    await wait(
+      `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-document-table tbody tr').length === 1`,
+    );
     assert.ok(
-      await evaluate(`document.querySelector('.rp-document-pages').textContent.includes('Page 1')`),
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-pages').textContent.includes('Page 1')`,
+      ),
     );
     await click('Source');
-    await wait(`Boolean(document.querySelector('.rp-document-text'))`);
+    await wait(
+      `Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-text'))`,
+    );
     await open('data.tsv', 'table');
     assert.ok(
       await evaluate(
-        `document.querySelector('.rp-document-table').textContent.includes('00123') && document.querySelector('.rp-document-table').textContent.includes('=1+2')`,
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-table').textContent.includes('00123') && document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-table').textContent.includes('=1+2')`,
       ),
     );
-    await evaluate(`document.querySelector('.rp-document-options input[type="checkbox"]').click()`);
-    await wait(`document.querySelectorAll('.rp-document-table tbody tr').length === 3`);
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-options input[type="checkbox"]').click()`,
+    );
+    await wait(
+      `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-document-table tbody tr').length === 3`,
+    );
     assert.ok(
       await evaluate(
-        `document.querySelector('.rp-document-table thead').textContent.includes('Column 1')`,
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-table thead').textContent.includes('Column 1')`,
       ),
     );
     await open('array.json', 'json');
-    assert.equal(await evaluate(`document.querySelectorAll('.rp-json-leaf').length`), 50);
+    assert.equal(
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-json-leaf').length`,
+      ),
+      50,
+    );
     await click('Next');
-    await wait(`document.querySelector('.rp-document-json').textContent.includes('value-50')`);
+    await wait(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-json').textContent.includes('value-50')`,
+    );
     assert.ok(
       !(await evaluate(
-        `document.querySelector('.rp-document-json').textContent.includes('"value-0"')`,
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-json').textContent.includes('"value-0"')`,
       )),
     );
     await open('large-number.json', 'json');
     assert.ok(
       await evaluate(
-        `document.querySelector('.rp-document-text').textContent.includes('9007199254740993') && Boolean(document.querySelector('.rp-document-notice[role="status"]'))`,
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-text').textContent.includes('9007199254740993') && Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-notice[role="status"]'))`,
       ),
     );
     await open('settings.json', 'json');
     await evaluate(
-      `Array.from(document.querySelectorAll('.rp-json-toggle')).find(button => button.querySelector('b')?.textContent === 'nested').click()`,
+      `Array.from(document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-json-toggle')).find(button => button.querySelector('b')?.textContent === 'nested').click()`,
     );
-    await wait(`document.querySelector('.rp-document-json').textContent.includes('answer')`);
+    await wait(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-json').textContent.includes('answer')`,
+    );
     await evaluate(`document.querySelector('button[aria-label="Zoom in"]').click()`);
     await transitionFullscreen(window, true, () =>
       evaluate(`document.querySelector('button[aria-label="Fullscreen viewer"]').click()`),
@@ -199,14 +222,18 @@ async function run(window) {
       '120%',
     );
     assert.ok(
-      await evaluate(`document.querySelector('.rp-document-json').textContent.includes('answer')`),
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-json').textContent.includes('answer')`,
+      ),
     );
     await transitionFullscreen(window, false, () => {
       window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
       window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
     });
     assert.ok(
-      await evaluate(`document.querySelector('.rp-document-json').textContent.includes('answer')`),
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-json').textContent.includes('answer')`,
+      ),
     );
     assert.equal(
       await evaluate(`document.querySelector('output[aria-label="Viewer zoom"]').textContent`),
@@ -214,25 +241,31 @@ async function run(window) {
     );
     await open('events.jsonl', 'jsonl');
     await click('Next');
-    await wait(`document.querySelector('.rp-document-json').textContent.includes('Line 21')`);
+    await wait(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-json').textContent.includes('Line 21')`,
+    );
     await open('events.ndjson', 'jsonl');
     assert.ok(
       await evaluate(
-        `document.querySelector('.rp-document-json').textContent.includes('2 records')`,
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-json').textContent.includes('2 records')`,
       ),
     );
     await open('README.md', 'markdown');
     assert.equal(
-      await evaluate(`document.querySelector('.rp-document-markdown h1').textContent`),
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-markdown h1').textContent`,
+      ),
       'Document preview',
     );
     assert.equal(
-      await evaluate(`document.querySelectorAll('.rp-document-markdown table tbody tr').length`),
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-document-markdown table tbody tr').length`,
+      ),
       1,
     );
     assert.equal(
       await evaluate(
-        `document.querySelectorAll('.rp-document-markdown img,.rp-document-markdown iframe,.rp-document-markdown script,.rp-document-markdown a[href]').length`,
+        `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-document-markdown img,.rp-document-markdown iframe,.rp-document-markdown script,.rp-document-markdown a[href]').length`,
       ),
       0,
     );
@@ -240,35 +273,43 @@ async function run(window) {
     await click('Source');
     assert.ok(
       await evaluate(
-        `document.querySelector('.rp-document-text').textContent.includes('<script>')`,
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-text').textContent.includes('<script>')`,
       ),
     );
     await open('deep.md', 'markdown');
     assert.ok(
       await evaluate(
-        `document.querySelector('.rp-document-notice[role="alert"]').textContent.includes('node/depth limit') && Boolean(document.querySelector('.rp-document-text'))`,
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-notice[role="alert"]').textContent.includes('node/depth limit') && Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-text'))`,
       ),
     );
     await open('run.log', 'text');
     await click('Next');
-    await wait(`document.querySelector('.rp-document-pages').textContent.includes('Page 2')`);
+    await wait(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-pages').textContent.includes('Page 2')`,
+    );
     await find('UNIQUE_RESULT');
-    await wait(`document.querySelectorAll('.rp-document-line').length === 1`);
+    await wait(
+      `document.querySelector('.ia-file-view:not([hidden])').querySelectorAll('.rp-document-line').length === 1`,
+    );
     assert.ok(
       await evaluate(
-        `document.querySelector('.rp-document-pages').textContent.includes('Page 1') && document.querySelector('.rp-document-line-number').textContent === '323'`,
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-pages').textContent.includes('Page 1') && document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-line-number').textContent === '323'`,
       ),
     );
-    await evaluate(`document.querySelector('.rp-document-options input[type="checkbox"]').click()`);
+    await evaluate(
+      `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-options input[type="checkbox"]').click()`,
+    );
     assert.equal(
       await evaluate(
-        `getComputedStyle(document.querySelector('.rp-document-text pre')).whiteSpace`,
+        `getComputedStyle(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-text pre')).whiteSpace`,
       ),
       'pre',
     );
     await open('notes.txt', 'text');
     assert.ok(
-      await evaluate(`document.querySelector('.rp-document-text').textContent.includes('中文')`),
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-text').textContent.includes('中文')`,
+      ),
     );
     for (const [file, kind] of [
       ['invalid.csv', 'table'],
@@ -278,7 +319,7 @@ async function run(window) {
       await open(file, kind);
       assert.ok(
         await evaluate(
-          `Boolean(document.querySelector('.rp-document [role="alert"]') && document.querySelector('.rp-document-text'))`,
+          `Boolean(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document [role="alert"]') && document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-text'))`,
         ),
       );
     }
@@ -324,7 +365,9 @@ async function run(window) {
     await evaluate(`document.querySelector('.ia-file-tree-toggle').click()`);
     await open('settings.json', 'json');
     assert.ok(
-      await evaluate(`document.querySelector('.rp-document-json').textContent.includes('other')`),
+      await evaluate(
+        `document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-document-json').textContent.includes('other')`,
+      ),
     );
     assert.equal(
       await evaluate(`window.viewerHost.readProjectFile('settings.json').then(file=>file.viewer)`),
