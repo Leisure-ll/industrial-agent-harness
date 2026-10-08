@@ -21,10 +21,15 @@ async function startDesktop({root,entry,environment}) {
   if(!target)throw Error('Desktop renderer did not start.');
   socket=new WebSocket(target.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});});
   socket.addEventListener('message',event=>{const reply=JSON.parse(event.data),call=pending.get(reply.id);if(!call)return;pending.delete(reply.id);clearTimeout(call.timer);reply.error?call.reject(Error(JSON.stringify(reply.error))):call.resolve(reply.result);});
-  function send(method,params={}){return new Promise((resolve,reject)=>{const id=++sequence,timer=setTimeout(()=>{pending.delete(id);reject(Error('CDP request timed out: '+method));},30000);pending.set(id,{resolve,reject,timer});socket.send(JSON.stringify({id,method,params}));});}
-  async function evaluate(expression){const r=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true,userGesture:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;}
-  async function wait(expression,timeout=30000){const end=Date.now()+timeout;while(Date.now()<end){try{const value=await evaluate(expression);if(value)return value;}catch{}await delay(100);}throw Error('UI timed out: '+expression+'\n'+await evaluate('document.body.innerText.slice(-4000)'));}
-  await wait('Boolean(window.viewerHost)');
+  const rejectPending=reason=>{for(const call of pending.values()){clearTimeout(call.timer);call.reject(Error(reason));}pending.clear();};
+  child.once('exit',(code,signal)=>rejectPending(`Desktop exited: code=${code}, signal=${signal}; see desktop.log.`));
+  socket.addEventListener('close',()=>rejectPending('Desktop debugging connection closed; see desktop.log.'));
+  function send(method,params={}){return new Promise((resolve,reject)=>{if(child.exitCode!==null)return reject(Error('Desktop exited; see desktop.log.'));const id=++sequence,timer=setTimeout(()=>{pending.delete(id);reject(Error('CDP request timed out: '+method));},30000);pending.set(id,{resolve,reject,timer});socket.send(JSON.stringify({id,method,params}));});}
+  async function evaluate(expression){try{const r=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true,userGesture:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;}catch(error){throw Error('Desktop evaluation failed: '+expression,{cause:error});}}
+  async function wait(expression,timeout=30000){const end=Date.now()+timeout;while(Date.now()<end){try{const value=await evaluate(expression);if(value)return value;}catch(error){if(child.exitCode!==null)throw error;}await delay(100);}throw Error('UI timed out: '+expression+'\n'+await evaluate('document.body.innerText.slice(-4000)'));}
+  // Preload exposes viewerHost before the initial loadURL promise settles. Reloading
+  // then aborts that navigation and exits the real app; wait for the rendered page.
+  await wait("location.href === 'app://viewer/index.html' && document.readyState === 'complete' && Boolean(window.viewerHost && document.querySelector('.ia-app'))",60000);
   return {evaluate,wait,send,close,async screenshot(file){const r=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(file,Buffer.from(r.data,'base64'));}};
  }catch(error){await close();throw error;}
 }
