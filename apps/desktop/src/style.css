@@ -4051,10 +4051,10 @@ body {
   transform-origin: left center;
 }
 .ia-rail-tick span {
-  height: 2px;
-  border-radius: 1px;
-  background: var(--ia-border);
-  opacity: 0.8;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ia-muted);
+  opacity: 0.55;
   transition:
     transform 0.16s ease,
     background-color 0.16s ease,
@@ -4062,11 +4062,12 @@ body {
 }
 .ia-rail-tick:hover span,
 .ia-rail-tick:focus-visible span {
-  background: var(--ia-muted);
+  background: var(--ia-text);
   opacity: 1;
 }
 .ia-rail-tick.current span {
   background: var(--ia-text);
+  opacity: 0.9;
 }
 .ia-rail-preview {
   position: absolute;
