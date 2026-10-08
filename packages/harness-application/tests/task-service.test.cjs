@@ -123,6 +123,48 @@ test('kernel failure releases chat and Pack leases; chat can be resumed and owne
   await tasks.prepare(entry, { task: 'retry file creation' });
   assert.equal(tasks.history(project, entry.id).turns.at(-1).status, 'scoped');
 });
+for (const phase of ['prepare', 'start']) {
+  test(`shutdown during ${phase} drains state inspection and prevents a late native session`, async t => {
+    let nativeSessions = 0;
+    class Counting extends Kernel {
+      constructor(...args) {
+        super(...args);
+        nativeSessions++;
+      }
+    }
+    const { tasks, entry } = fixture(t, Counting);
+    if (phase === 'start') await tasks.prepare(entry, { task: 'create a file' });
+    let inspected, resume;
+    const entered = new Promise(resolve => (inspected = resolve));
+    const gate = new Promise(resolve => (resume = resolve));
+    const resolve = tasks.resolve.bind(tasks);
+    tasks.resolve = async (...args) => {
+      const result = await resolve(...args);
+      inspected();
+      await gate;
+      return result;
+    };
+    let releases = 0;
+    tasks.packManager = { acquireUse: () => () => releases++ };
+    const pending =
+      phase === 'start'
+        ? tasks.start(entry, 'create a file')
+        : tasks.prepare(entry, { task: 'create a file' });
+    const rejected = assert.rejects(pending, /Task session is unavailable/);
+    await entered;
+    let closed = false;
+    const closing = tasks.close().then(() => (closed = true));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(closed, false, 'fact stores stay open until pending inspection drains');
+    resume();
+    await rejected;
+    await closing;
+    assert.equal(nativeSessions, 0);
+    assert.equal(releases, phase === 'start' ? 1 : 0);
+    assert.equal(tasks.sessions.matching().length, 0);
+    assert.equal(tasks.operations.size, 0);
+  });
+}
 test('background tasks retain leases until their native completion; cancel and approval use the same session', async t => {
   class Background extends Kernel {
     async run() {

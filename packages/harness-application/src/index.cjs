@@ -25,6 +25,7 @@ class TaskService {
     this.options = options;
     this.environment = options.environment || process.env;
     this.sessions = new SessionManager();
+    this.operations = new Set();
 
     this.resources = new SessionResourceManager({
       environment: this.environment,
@@ -124,6 +125,15 @@ class TaskService {
     if (this.closing || this.sessions.find(entry?.id) !== entry)
       throw Error('Task session is unavailable.');
   }
+  beginOperation() {
+    let done;
+    const settled = new Promise(resolve => (done = resolve));
+    this.operations.add(settled);
+    return () => {
+      this.operations.delete(settled);
+      done();
+    };
+  }
   async prepare(entry, request, { preview = false, persist = true, overrides } = {}) {
     this.assertEntry(entry);
     if (this.sessions.busy(entry)) throw Error('This chat is already running.');
@@ -134,11 +144,13 @@ class TaskService {
     )
       throw Error('Describe the task first.');
     entry.resolving = true;
+    const settled = this.beginOperation();
     let release;
     try {
       if (persist) release = this.chats.acquire(entry.id);
       entry.overrides = overrides;
       const result = await this.resolve(entry, request, this.registry(), preview);
+      this.assertEntry(entry);
       entry.resolvedRequest = { ...request };
       result.request = entry.resolvedRequest;
       entry.scope = result.scope;
@@ -156,8 +168,12 @@ class TaskService {
         ...(entry.preparedTurn ? { turnId: entry.preparedTurn.id } : {}),
       };
     } finally {
-      release?.();
-      entry.resolving = false;
+      try {
+        release?.();
+      } finally {
+        entry.resolving = false;
+        settled();
+      }
     }
   }
   context(entry) {
@@ -195,11 +211,13 @@ class TaskService {
       throw Error('Resolve this task in the current chat first.');
     let turnId;
     entry.cancelReason = undefined;
+    const settled = this.beginOperation();
     try {
       entry.releasePack = this.packManager?.acquireUse(entry.project.domain);
       entry.release = this.chats.acquire(entry.id);
       this.chats.recoverInterrupted();
       const current = await this.resolve(entry, { ...entry.resolvedRequest, task });
+      this.assertEntry(entry);
       current.request = entry.resolvedRequest;
       entry.scope = current.scope;
       entry.trace = current.trace;
@@ -248,6 +266,7 @@ class TaskService {
           kind: artifact.metadata.kind,
           file: artifact.file,
         });
+      this.assertEntry(entry);
       entry.onDisclosure = options.onDisclosure;
       entry.agent ||= new this.Session(
         entry.project.path,
@@ -348,13 +367,15 @@ class TaskService {
       this.options.onChanged?.();
       return { started: true, chatId: entry.id, turnId, completion };
     } catch (error) {
-      if (turnId) this.chats.finish(turnId, 'error');
+      if (turnId) this.chats.finish(turnId, this.closing ? 'interrupted' : 'error');
       finishTurn(
         entry,
         () => {},
         () => this.options.onChanged?.(),
       );
       throw error;
+    } finally {
+      settled();
     }
   }
   approve(entry, id, response) {
@@ -392,6 +413,9 @@ class TaskService {
           try {
             await this.sessions.close();
           } finally {
+            // Preparation/startup may still be inspecting state or observing
+            // inputs. Drain them before closing their Runtime and chat stores.
+            await Promise.all([...this.operations]);
             const completed = await Promise.allSettled(active.map(entry => entry.completion));
             errors.push(
               ...completed
