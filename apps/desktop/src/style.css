@@ -4039,7 +4039,7 @@ body {
   z-index: 3;
   padding: 2px 0;
 }
-.ia-rail-tick {
+.ia-app .ia-rail-tick {
   height: 14px;
   width: 22px;
   padding: 0;
@@ -4072,6 +4072,7 @@ body {
 .ia-rail-preview {
   position: absolute;
   left: 30px;
+  width: max-content;
   max-width: 340px;
   padding: 10px 14px;
   border: 1px solid var(--ia-border);
