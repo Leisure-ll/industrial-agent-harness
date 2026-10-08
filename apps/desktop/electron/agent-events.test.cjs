@@ -28,3 +28,14 @@ test('batched display events preserve streamed content, activity boundaries and 
   assert.equal(latestEvent(result, 'todo'), undefined);
   assert.equal(appendDisplayEvents(result, []), result);
 });
+
+test('streamed text keeps its first receipt time across later chunks and a restored history', async () => {
+  const { appendDisplayEvents } = await import('../src/agent-events.ts');
+  const first = { type: 'text', text: 'First', recordedAt: '2026-10-08T05:54:45.000Z' };
+  const later = { type: 'text', text: ' second', recordedAt: '2026-10-08T05:55:01.000Z' };
+  assert.deepEqual(appendDisplayEvents([first], [later]), [{ ...first, text: 'First second' }]);
+  // Legacy history has no receipt time: do not invent a time for its first chunk.
+  assert.deepEqual(appendDisplayEvents([{ type: 'text', text: 'Old' }], [later]), [
+    { type: 'text', text: 'Old second' },
+  ]);
+});

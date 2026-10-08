@@ -3,6 +3,8 @@ import type { AgentEvent } from '@industrial-agent-harness/viewer-builtin/api';
 import { SubagentCard } from './SubagentCard';
 import { AnswerMarkdown } from './AnswerMarkdown';
 import { ThinkingPreview } from './ThinkingPreview';
+import { MessageActions } from './MessageActions';
+import { splitLeadingThinking } from '../message-content';
 import { memo, useRef, useState } from 'react';
 
 type ToolResult = Extract<AgentEvent, { type: 'tool-result' }>;
@@ -345,12 +347,15 @@ export const AgentFlow = memo(function AgentFlow({
               {event.message}
             </div>
           );
-        if (event.type === 'text')
+        if (event.type === 'text') {
+          const body = splitLeadingThinking(event.text).body;
           return (
-            <article className="ia-agent-text" key={index}>
+            <article className="ia-agent-text ia-message" key={index}>
               <AnswerMarkdown text={event.text} active={running && index === lastActivity} />
+              {body && <MessageActions text={body} recordedAt={event.recordedAt} />}
             </article>
           );
+        }
         if (event.type === 'thinking')
           return (
             <ThinkingPreview

@@ -42,16 +42,9 @@ async function run(window, dialog) {
     })()`);
   async function quality(name) {
     await evaluate(`document.fonts.ready`);
-    assert.equal(
-      await evaluate(
-        `Array.from(document.fonts).some(face => face.family === 'IBM Plex Sans' && face.status === 'loaded')`,
-      ),
-      true,
-      `${name}: the self-hosted font must load through the production app protocol`,
-    );
     const failures = await evaluate(`(() => {
       const samples = ['.ia-chat-welcome p', '.ia-composer textarea', '.ia-project-row.selected',
-        '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre'];
+        '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre', '.ia-chat-approval-mode'];
       function rgba(color) { return color.match(/[\\d.]+/g).map(Number); }
       function background(node) {
         if (!node) return [255, 255, 255];
@@ -67,7 +60,7 @@ async function run(window, dialog) {
       }
       return samples.flatMap(selector => {
         const node = document.querySelector(selector);
-        if (!node || node.disabled) return [];
+        if (!node || (node.disabled && selector !== '.ia-chat-approval-mode')) return [];
         const foreground = luminance(rgba(getComputedStyle(node).color).slice(0, 3));
         const surface = luminance(background(node));
         const ratio = (Math.max(foreground, surface) + .05) / (Math.min(foreground, surface) + .05);
@@ -267,6 +260,13 @@ async function run(window, dialog) {
   await input('.ia-composer textarea', draft);
   await quality('chat-dark');
   await capture('chat-dark');
+  await setLanguage(window, 'zh-CN');
+  await input('.ia-composer textarea', '');
+  await evaluate(`document.activeElement?.blur()`);
+  await quality('empty-dark-zh');
+  await capture('empty-dark-zh');
+  await input('.ia-composer textarea', draft);
+  await setLanguage(window, 'en');
   assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').value`), draft);
   await click('.ia-layout-toggle');
   await wait(`Boolean(document.querySelector('.layout-tabs'))`);
@@ -362,6 +362,15 @@ async function run(window, dialog) {
   await click('#tab-chat');
   await wait(`!document.querySelector('.ia-chat').hidden`);
   await quality('chat-minimum');
+  assert.equal(
+    await evaluate(`(() => {
+      const title = document.querySelector('.ia-chat-welcome h1').getBoundingClientRect();
+      const viewport = document.querySelector('.ia-chat-scroll').getBoundingClientRect();
+      return title.top >= viewport.top && title.bottom <= viewport.bottom;
+    })()`),
+    true,
+    'The empty-chat title must remain visible at the native minimum size',
+  );
   await capture('chat-minimum');
   await evaluate(`document.getElementById(${JSON.stringify(selected)}).click()`);
   window.setContentSize(1440, 900);

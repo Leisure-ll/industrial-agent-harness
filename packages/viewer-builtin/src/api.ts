@@ -476,6 +476,8 @@ export type SubagentState = {
   summary?: string;
 };
 export type AgentEvent = {
+  /** Host receipt time for display; absent on older persisted events. */
+  recordedAt?: string;
   chatId?: string;
   projectId?: string;
   turnId?: string;

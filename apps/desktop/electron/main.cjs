@@ -145,6 +145,7 @@ if (
     '--documents-selftest',
     '--language-selftest',
     '--ui-selftest',
+    '--messages-selftest',
     '--gui-settings-selftest',
     '--engineering-selftest',
     '--cad-selftest',
@@ -1318,13 +1319,13 @@ function registerHandlers() {
           !entry.agent?.backgroundTasks
         )
           entry.backgroundRelease?.();
-        chats.append(turnId, event);
+        const recorded = chats.append(turnId, event);
         entry.eventRevision = (entry.eventRevision || 0) + 1;
         if (event.type === 'done') outcome = event.result.status;
         if (event.type === 'error') outcome = 'error';
         if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
           mainWindow.webContents.send('agent:event', {
-            ...event,
+            ...recorded,
             chatId: entry.id,
             projectId: entry.project.id,
             turnId,
@@ -1481,6 +1482,8 @@ async function createWindow() {
     require('./gui-settings-selftest.cjs').prepare();
   if (process.argv.includes('--ui-selftest'))
     require('./ui-selftest.cjs').prepare(projectConfigDir());
+  if (process.argv.includes('--messages-selftest'))
+    require('./messages-selftest.cjs').prepare(projectConfigDir(), chats);
   if (process.argv.includes('--subagent-selftest'))
     await require('./subagent-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--mcp-selftest'))
@@ -1536,11 +1539,14 @@ async function createWindow() {
     return viewerProtocol.handle(request);
   });
   registerHandlers();
+  const productIcon = path.join(desktopRoot, 'dist', 'app-icon.png');
+  if (fs.existsSync(productIcon)) app.dock?.setIcon(productIcon);
   const window = new BrowserWindow({
     show: !process.argv.includes('--gui-settings-selftest'),
     ...require('./window-bounds.cjs').windowBounds(screen.getPrimaryDisplay().workArea),
     backgroundColor: '#0c1218',
     title: 'Industrial Agent Harness',
+    icon: productIcon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -1696,6 +1702,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--ui-selftest')) {
     await require('./ui-selftest.cjs').run(window, dialog);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--messages-selftest')) {
+    await require('./messages-selftest.cjs').run(window);
     app.quit();
     return;
   }
