@@ -58,12 +58,15 @@ export function MessageRail({ turns }: { turns: ChatTurn[] }) {
       const scrollable = box.scrollHeight - box.clientHeight > 40;
       setDense(!scrollable);
       const nodes = box.querySelectorAll<HTMLElement>('[data-turn-id]');
+      const range = Math.max(1, box.scrollHeight - box.clientHeight);
       const next = ticks.map((tick, index) => {
         if (!scrollable) return ticks.length > 1 ? index / (ticks.length - 1) : 0;
         const node = nodes[tick.turnIndex];
         if (!node) return 0;
         const top = node.getBoundingClientRect().top - boxTop + box.scrollTop + 8;
-        return Math.min(100, Math.max(0, (top / box.scrollHeight) * 100));
+        // Fractions of the scrollable range, so the tick sits where the
+        // scrollbar thumb rests when that turn tops the viewport.
+        return Math.min(100, Math.max(0, (top / range) * 100));
       });
       setPositions(next);
       let nearest = 0;
@@ -96,7 +99,10 @@ export function MessageRail({ turns }: { turns: ChatTurn[] }) {
   }, [ticks]);
   if (ticks.length < 2) return null;
   function jump(tick: Tick) {
-    const node = area.current?.querySelector(`[data-turn-id="${CSS.escape(tick.id)}"]`);
+    // Turns live in the sibling `.ia-chat-scroll`, not inside the rail.
+    const node = area.current
+      ?.closest('.ia-chat-scroll-area')
+      ?.querySelector(`[data-turn-id="${CSS.escape(tick.id)}"]`);
     node?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   return (
@@ -126,7 +132,7 @@ export function MessageRail({ turns }: { turns: ChatTurn[] }) {
             aria-label={t('Jump to message {0}', { '0': index + 1 })}
             aria-current={active === tick.turnIndex ? 'true' : undefined}
           >
-            <span style={{ width: `${10 + tick.weight * 10}px` }} />
+            <span style={{ width: `${10 + tick.weight * 6}px` }} />
           </button>
         );
       })}

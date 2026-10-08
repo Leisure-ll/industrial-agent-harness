@@ -4051,6 +4051,12 @@ body {
   align-items: center;
   cursor: pointer;
   transform-origin: left center;
+  transition: transform 0.16s ease;
+}
+/* Global `.ia-app button:hover` paints a gray box on ticks; keep the gutter
+   quiet — only the tick line itself responds to the pointer. */
+.ia-app .ia-rail-tick:hover:not(:disabled) {
+  background: none;
 }
 .ia-rail-tick span {
   height: 2px;
@@ -4109,6 +4115,9 @@ body {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .ia-app .ia-rail-tick {
+    transition: none;
+  }
   .ia-rail-tick span {
     transition: none;
   }
