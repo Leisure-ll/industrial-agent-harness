@@ -28,17 +28,20 @@ async function run(window, store, project) {
     const chat = store.create(project, 'chip');
     lengths.forEach((length, index) => {
       const turn = store.beginTurn(chat.id, `${title} ${index + 1}`);
-      store.append(turn, {
-        type: 'text',
-        text: 'Inspect the project files and retain the verification evidence.\n\n'.repeat(length),
-      });
+      if (length)
+        store.append(turn, {
+          type: 'text',
+          text: 'Inspect the project files and retain the verification evidence.\n\n'.repeat(
+            length,
+          ),
+        });
       store.finish(turn, 'completed');
     });
   }
   seed('Rail long transcript', [1, 18, 1, 35, 1, 70]);
-  seed('Rail short transcript', [1, 1]);
+  seed('Rail short transcript', [0, 0]);
   seed('Rail sampled history', Array(120).fill(1));
-  window.setContentSize(1440, 900);
+  window.setContentSize(1280, 720);
   window.webContents.reload();
   await wait(`document.querySelectorAll('.ia-sidebar-chat').length >= 3`);
   if (await evaluate(`Boolean(document.querySelector('.theme-dark'))`)) {
@@ -183,7 +186,10 @@ async function run(window, store, project) {
     `document.querySelector('.ia-rail-tick[aria-current="true"]') === document.querySelector('.ia-rail-tick')`,
   );
   window.setContentSize(640, 480);
-  await wait(`document.querySelectorAll('.ia-rail-tick').length < 30`);
+  await wait(`innerWidth <= 640`);
+  await wait(
+    `document.querySelectorAll('.ia-rail-tick').length <= Math.max(2, Math.floor(document.querySelector('.ia-chat-scroll').clientHeight / 16))`,
+  );
   await compact(null, true);
   await capture('rail-sampled-minimum');
   await evaluate(`Array.from(document.querySelectorAll('.ia-rail-tick')).at(-1).click()`);
