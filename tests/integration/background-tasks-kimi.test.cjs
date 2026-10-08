@@ -71,7 +71,7 @@ async function fixture(t, options) {
         queueMicrotask(() =>
           session.approve(event.id, 'approve').catch(error => failures.push(error)),
         );
-      if (event.type === 'question')
+      if (event.type === 'question' && options.answerQuestions !== false)
         queueMicrotask(() =>
           session
             .answerQuestion(event.id, { 'Continue after completion?': 'Continue' })
@@ -431,6 +431,56 @@ test(
     assert.ok(child.exitCode !== null || child.signalCode !== null);
     assert.equal(f.model.requests.filter(notification).length, 0);
     assert.ok(!f.events.some(e => e.type === 'error'), 'explicit Stop is not a transport failure');
+  },
+);
+
+test(
+  'Stop during a native background question expires controls and resumes without stale tool events',
+  { timeout: 25000 },
+  async t => {
+    let resumed = false;
+    const f = await fixture(t, {
+      answerQuestions: false,
+      calls: body =>
+        resumed
+          ? []
+          : notification(body)
+            ? [
+                tool('AskUserQuestion', {
+                  questions: [
+                    {
+                      question: 'Continue after completion?',
+                      header: 'Continue',
+                      options: [{ label: 'Continue' }, { label: 'Stop' }],
+                    },
+                  ],
+                }),
+              ]
+            : [
+                tool('Bash', {
+                  command: 'sleep 1; echo QUESTION_BACKGROUND_OUTPUT',
+                  description: 'Question continuation task',
+                  run_in_background: true,
+                }),
+              ],
+      success: () => (resumed ? 'RESUMED_AFTER_STOP' : 'STARTED_OK'),
+    });
+    await f.session.run('Run background work and ask when it completes.');
+    await until(() => f.events.some(e => e.type === 'question'));
+    assert.ok(f.session.pendingToolArgs.size > 0, 'question has an unfinished native tool call');
+    await f.session.interrupt();
+    assert.equal(f.session.pendingQuestions.size, 0);
+    assert.equal(f.session.pendingToolArgs.size, 0);
+    resumed = true;
+    const start = f.events.length;
+    await f.session.run('Continue after Stop.');
+    await f.session.waitForBackgroundIdle();
+    assert.ok(f.events.slice(start).some(e => e.text === 'RESUMED_AFTER_STOP'));
+    assert.ok(
+      !f.events.slice(start).some(e => e.type === 'tool'),
+      'old background tools cannot leak into the next turn',
+    );
+    assert.ok(!f.events.slice(start).some(e => e.type === 'error'));
   },
 );
 

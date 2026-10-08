@@ -765,6 +765,11 @@ class KimiSession {
     }
     this.emitAgent({ type: 'background-state', running: busy });
     if (!busy) {
+      if (!this.running) {
+        this.pendingToolArgs.clear();
+        this.toolNames.clear();
+        this.lastToolCall = null;
+      }
       if (this.backgroundLog) {
         this.backgroundLog.close();
         if (this.log === this.backgroundLog) this.log = undefined;
