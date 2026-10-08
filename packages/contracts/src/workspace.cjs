@@ -80,7 +80,26 @@ const ProjectTaskSchema = z
     timeoutMs: z.number().int().min(100).max(3600000).default(60000),
     runtime: z
       .discriminatedUnion('kind', [
-        z.object({ kind: z.literal('local') }).strict(),
+        z
+          .object({
+            kind: z.literal('local'),
+            readOnlyDirs: z
+              .array(
+                z
+                  .string()
+                  .min(1)
+                  .max(4096)
+                  .refine(
+                    value =>
+                      !value.includes('\0') &&
+                      (value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)),
+                    'Expected an absolute dependency directory',
+                  ),
+              )
+              .max(32)
+              .optional(),
+          })
+          .strict(),
         z
           .object({
             kind: z.literal('docker'),
@@ -101,6 +120,13 @@ const ProjectTaskSchema = z
 const ProjectTaskManifestSchema = z
   .object({
     schemaVersion: z.literal('1'),
+    workspace: z
+      .object({
+        inputs: z.array(ProjectPathSchema).min(1).max(256).optional(),
+        ignore: z.array(ProjectPathSchema).max(256).optional(),
+      })
+      .strict()
+      .optional(),
     tasks: z.record(z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/), ProjectTaskSchema),
   })
   .strict();

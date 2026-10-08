@@ -12,6 +12,7 @@ const {ListToolsRequestSchema, CallToolRequestSchema} = mcpRequire('@modelcontex
 const image = {type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6i8AAAAASUVORK5CYII='};
 const empty = {type: 'object', properties: {}, additionalProperties: false};
 function createFixture(options = {}) {
+  let count = 0;
   const server = new Server({name: 'Controlled external computer-use fixture', version: '1.0.0'}, {capabilities: {tools: {}}});
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     if (options.driftFile && fs.existsSync(options.driftFile) && fs.readFileSync(options.driftFile, 'utf8') === 'fail') throw Error(`Controlled tool-list failure: ${options.secret} ${'界'.repeat(20000)}`);
@@ -27,7 +28,7 @@ function createFixture(options = {}) {
     if (request.params.name === 'long_text') return {content: [{type: 'text', text: '界'.repeat(20000) + (options.secret || '')}]};
     if (request.params.name === 'click') {
       const {roots} = await server.listRoots();
-      const evidence = {clicked: true, arguments: request.params.arguments, roots};
+      const evidence = {clicked: true, arguments: request.params.arguments, roots, count: ++count, pid: process.pid};
       if (options.marker) fs.writeFileSync(options.marker, JSON.stringify(evidence));
       return {content: [{type: 'text', text: JSON.stringify(evidence)}]};
     }
@@ -62,7 +63,7 @@ async function startRemoteFixture(options = {}) {
     } catch {if (!response.headersSent) response.writeHead(500); response.end();}
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  return {url: `http://127.0.0.1:${server.address().port}`, close: async () => {await Promise.allSettled([...active].map(mcp => mcp.close())); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));}};
+  return {url: `http://127.0.0.1:${server.address().port}`, disconnectSse: async () => {await Promise.allSettled([...legacy.values()].map(transport => transport.close()));}, close: async () => {await Promise.allSettled([...active].map(mcp => mcp.close())); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));}};
 }
 
 if (require.main === module) void createFixture({marker: process.env.FIXTURE_CLICK_MARKER, driftFile: process.env.FIXTURE_DRIFT_FILE, secret: process.env.FIXTURE_SECRET}).connect(new StdioServerTransport());

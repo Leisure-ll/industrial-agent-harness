@@ -509,6 +509,14 @@ body,
   padding: 12px;
   border-radius: 7px;
 }
+.ia-approval-preview {
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
 .ia-approval button {
   border: 1px solid var(--ia-border);
   margin-right: 6px;

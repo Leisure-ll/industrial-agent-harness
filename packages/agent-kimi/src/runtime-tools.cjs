@@ -6,7 +6,7 @@ function runtimeTools(
   getScope,
   approve,
   onResult = () => {},
-  { imageInput = false } = {},
+  { imageInput = false, ownerId = 'project' } = {},
 ) {
   if (!runtime) return [];
   const tools = [
@@ -77,12 +77,19 @@ function runtimeTools(
           request = { toolId: request.toolId, expectedStateId: request.expectedStateId, inputs };
         }
         const descriptor = runtime.descriptors().find(item => item.id === request.toolId);
+        const boundRequest = JSON.stringify(request);
         const scope = getScope();
         // Unknown/stale scopes still enter Runtime to record the rejected attempt.
         const inScope = Boolean(scope?.tools.includes(request.toolId));
         const approval =
-          descriptor?.risk !== 'mutating' ? true : inScope && (await approve(descriptor, request));
-        const result = await runtime.execute(request, { scope: getScope(), approval });
+          descriptor?.risk !== 'mutating'
+            ? true
+            : inScope && (await approve(descriptor, JSON.parse(boundRequest)));
+        const result = await runtime.execute(JSON.parse(boundRequest), {
+          scope: getScope(),
+          approval,
+          ownerId,
+        });
         await onResult(result);
         const output = JSON.stringify({
           runId: result.run.id,

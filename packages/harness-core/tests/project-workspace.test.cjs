@@ -31,7 +31,8 @@ test('shared factory boots an empty project without a Pack and keeps workspace t
       );
       assert.equal(scoped.scope.stage, null);
       assert.ok(scoped.scope.skills.includes('project.work'));
-      assert.equal(scoped.scope.tools.length, 5);
+      assert.equal(scoped.scope.tools.length, 6);
+      assert.ok(scoped.scope.tools.includes('project.environment.inspect'));
       const staged = resolveProjectTask(
         domain,
         { task: 'unrelated words', state: { ...state, stage: 'real-stage' } },

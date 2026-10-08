@@ -23,11 +23,13 @@ async function startModel(options = {}) {
     }
     const success = typeof options.success === 'function' ? options.success(body, requests.length - 1) : options.success;
     const usage = (typeof options.usage === 'function' ? options.usage(body, requests.length - 1) : options.usage) || {prompt_tokens: 100, completion_tokens: 10, total_tokens: 110};
-    const message = call ? {role: 'assistant', content: options.beforeTool || null, tool_calls: [{id: `mcp-call-${index}`, type: 'function', function: {name: call.name, arguments: JSON.stringify(call.arguments)}}]} : {role: 'assistant', content: rejected ? 'MCP_REJECTED' : success || 'MCP_CONTEXT_CONFIRMED'};
+    const stepText = (typeof options.stepText === 'function' ? options.stepText(body, requests.length - 1) : options.stepText) ?? options.beforeTool;
+    const thinking = typeof options.thinking === 'function' ? options.thinking(body, requests.length - 1) : options.thinking;
+    const message = call ? {role: 'assistant', content: stepText || null, tool_calls: [{id: `mcp-call-${index}`, type: 'function', function: {name: call.name, arguments: JSON.stringify(call.arguments)}}]} : {role: 'assistant', content: rejected ? 'MCP_REJECTED' : success || 'MCP_CONTEXT_CONFIRMED'};
     if (body.stream) {
       response.writeHead(200, {'Content-Type': 'text/event-stream'});
-      if (options.thinking) response.write(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {reasoning_content: options.thinking}, finish_reason: null}]})}\n\n`);
-      if (call && options.beforeTool) response.write(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {content: options.beforeTool}, finish_reason: null}]})}\n\n`);
+      if (thinking) response.write(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {reasoning_content: thinking}, finish_reason: null}]})}\n\n`);
+      if (call && stepText) response.write(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {content: stepText}, finish_reason: null}]})}\n\n`);
       const delta = call ? {role: 'assistant', tool_calls: [{index: 0, ...message.tool_calls[0]}]} : message;
       response.write(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta, finish_reason: null}]})}\n\n`);
       response.end(`data: ${JSON.stringify({id: 'fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{index: 0, delta: {}, finish_reason: call ? 'tool_calls' : 'stop'}], usage})}\n\ndata: [DONE]\n\n`);

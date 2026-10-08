@@ -25,8 +25,17 @@ function normalizeConfig(config, directory = process.cwd(), checkDirectory = tru
   if (!object(config)) throw Error('MCP server configuration must be an object.');
   const remote = typeof config.url === 'string';
   const keys = remote
-    ? ['url', 'type', 'transport', 'headers', 'headerEnv']
-    : ['command', 'args', 'cwd', 'env', 'envRefs', 'type', 'transport'];
+    ? ['url', 'type', 'transport', 'headers', 'headerEnv', 'requestTimeoutMs']
+    : ['command', 'args', 'cwd', 'env', 'envRefs', 'type', 'transport', 'requestTimeoutMs'];
+  if (
+    config.requestTimeoutMs !== undefined &&
+    (!Number.isSafeInteger(config.requestTimeoutMs) ||
+      config.requestTimeoutMs < 100 ||
+      config.requestTimeoutMs > 3600000)
+  )
+    throw Error('MCP requestTimeoutMs must be an integer from 100 to 3600000.');
+  const timing =
+    config.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: config.requestTimeoutMs };
   if (Object.keys(config).some(key => !keys.includes(key)))
     throw Error(
       'Unsupported MCP configuration property. Use command/args or url; credentials may use envRefs/headerEnv.',
@@ -54,6 +63,7 @@ function normalizeConfig(config, directory = process.cwd(), checkDirectory = tru
       if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name) || /[\r\n]/.test(headers[name] || ''))
         throw Error('Invalid MCP header.');
     return {
+      ...timing,
       transport: transport === 'streamable-http' ? 'http' : transport,
       url: url.href,
       headers,
@@ -89,6 +99,7 @@ function normalizeConfig(config, directory = process.cwd(), checkDirectory = tru
   )
     throw Error('Invalid MCP environment variable name.');
   return {
+    ...timing,
     transport: 'stdio',
     command: config.command,
     args: config.args || [],

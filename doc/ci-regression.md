@@ -8,9 +8,9 @@
 | 跨平台基础 | Ubuntu 24.04 x64 / ARM64、macOS 15 ARM64、Windows 2025 x64 | 共享包、CLI、SDK、Viewer 边界、资源与持久化，以及 Chip/PCB/Godot/CAD 四种独立 CLI 包的实际消费 |
 | 桌面安装 | macOS 15 ARM64、Windows 2025 x64 | 打包应用首次启动、内置资源与 Domain 安装流程 |
 | Linux 安装与工业闭环 | Ubuntu 22.04 x86-64 | bubblewrap/seccomp、真实 Kimi/Verilator、成功/失败/取消/恢复、干净 Chip 安装包、实际安装消费与重复安装 |
-| 原生工业闭环 | macOS 15 / 26 ARM64 | 实际 Seatbelt、Verilator、FreeCAD、固定 Kimi CLI、持久化事实、审批拒绝、失败恢复、图像/并行会话、聊天恢复、空闲回收与强制中断，以及真实 CAD 产物的桌面查看 |
+| 原生工业闭环 | macOS 15 / 26 ARM64 | 实际 Seatbelt、Verilator、FreeCAD、固定 Kimi Code、持久化事实、审批拒绝、失败恢复、图像/并行会话、聊天恢复、空闲回收与强制中断，以及真实 CAD 产物的桌面查看 |
 
-`ubuntu-24.04`、`ubuntu-24.04-arm`、`macos-15`、`windows-2025` 直接对应原生 OS/架构机器。基础测试还会检查 Node 实际报告的 OS 与架构，避免把交叉编译当作目标平台运行。Node 固定为 24，pnpm 固定为 11.1.3，Python 为 3.13，uv 为 0.11.6，Kimi CLI 为 1.51.0；安装遵循已有锁文件。CI 使用本地 HTTP 模型 fixture，不需要模型 API 密钥。
+`ubuntu-24.04`、`ubuntu-24.04-arm`、`macos-15`、`windows-2025` 直接对应原生 OS/架构机器。基础测试还会检查 Node 实际报告的 OS 与架构，避免把交叉编译当作目标平台运行。Node 固定为 24，pnpm 固定为 11.1.3，Python 为 3.13，uv 为 0.11.6，Kimi Code 为 2.1.1；安装遵循已有锁文件。CI 使用本地 HTTP 模型 fixture，不需要模型 API 密钥。
 
 ## 门禁与证据
 
@@ -62,3 +62,11 @@ FreeCAD 首批 native suite 和实际 Electron CAD Viewer 加入 macOS arm64 原
 FreeCAD 1.1.4 的原生 CAD/RTL/Kimi 综合门禁覆盖 `macos-15` 和 `macos-26` arm64；四平台 Portable 与 Desktop macOS 打包仍固定 `macos-15`。FreeCAD 的配置、数据与缓存目录在每次 Action 内独立创建和验证，确保全新托管环境无需预先启动桌面 FreeCAD。
 
 2026-10-05 共享底座：四平台 Portable 覆盖文件边界和真实 stdio/HTTP/SSE；macOS arm64 与 Linux x86-64 native 强制真实 Kimi 的空工程→编辑→通过→失败→修复及外部 MCP 审批/图片/禁用。独立 Chip/PCB 包和 Linux 安装消费者重复闭环，Linux 实际 Docker 镜像另验共享任务。缺少必需依赖不跳过。
+
+2026-10-07 修复门禁：公共包回归新增分步文本/思考流、真实子 Agent 审批批准/拒绝/取消、
+MCP 同聊天状态连续性/跨聊天隔离/过期失败、旧 SSE 断连拒绝自动重建与清理、工作区筛选和增量哈希、审批输入冻结、
+无模型环境诊断。桌面安装 job 增加实际 UI 和语言切换自测，保留截图与日志。
+Linux 候选安装从公开 preview.4 升级：旧包创建真实聊天/原生上下文、模型配置、MCP 注册及
+项目开关，新包续聊，验证旧历史/原生文件保留、上下文版本分段和新段跨进程继续。
+升级验收报告由 scripts/smoke-cli-upgrade.cjs 生成；CI 结果以对应 commit 的运行记录为准。
+子问题仅验事件转发协议；固定内核 coder Profile 未开放 AskUserQuestion，不声称该原生路径可用。

@@ -167,3 +167,5 @@ pnpm run format:check
 内置渲染器、字体、依赖和单独安装的专业工具保留各自许可证，完整发行物并非全部采用 MIT。请查阅 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 和相关来源记录。本仓许可证不授予外部私有 PCB 资源的公众复用权。
 
 所有领域共用的初始化、编辑、本地/Docker 任务和外部 MCP 见[共享工程底座](doc/shared-workspace.md)。打包消费者 CI 验证空工程创建、失败和修复；专业工具、模型及签核由 Pack/工程负责。
+
+工程审批展示文件差异、声明命令和外部参数。`doctor` 无需模型即可检查执行前提；工作区筛选与显式本地依赖目录见[共享工程底座](doc/shared-workspace.md)。外部 MCP 在当前聊天进程内保留连接状态，状态丢失时明确失败。

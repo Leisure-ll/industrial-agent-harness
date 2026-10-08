@@ -46,10 +46,11 @@ function ApprovalCard({
           · {event.action}
         </summary>
         <p>{event.description}</p>
+        {event.preview && <pre className="ia-approval-preview">{event.preview.text}</pre>}
       </details>
     );
   return (
-    <div className="ia-approval">
+    <div className="ia-approval" data-approval-id={event.id}>
       <b>
         {t('Approval requested ·')} {event.action}
       </b>
@@ -59,6 +60,13 @@ function ApprovalCard({
         </small>
       )}
       <p>{event.description}</p>
+      {event.agentId && event.agentId !== 'main' && <p>{event.agentId}</p>}
+      {event.preview && (
+        <div className="ia-approval-operation">
+          <b>{event.preview.title}</b>
+          <pre className="ia-approval-preview">{event.preview.text}</pre>
+        </div>
+      )}
       <button disabled={busy} onClick={() => void respond('approve')}>
         {busy ? t('Submitting…') : t('Approve')}
       </button>

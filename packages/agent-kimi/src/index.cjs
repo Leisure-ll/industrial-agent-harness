@@ -528,7 +528,7 @@ class KimiSession {
           this.getScope,
           (descriptor, request) => this.requestRuntimeApproval(descriptor, request),
           result => this.diagnostics.onIndustrialResult?.(result),
-          { imageInput: Boolean(runtime.profile.imageInput) },
+          { imageInput: Boolean(runtime.profile.imageInput), ownerId: this.resourceId },
         );
         this.hostRuntimeTools = new Set(hostedTools.map(tool => tool.name));
         this.session = this.sessionFactory({
@@ -811,6 +811,7 @@ class KimiSession {
           id: event.payload.id,
           description: event.payload.description,
           action: event.payload.action,
+          agentId: event.payload.agentId,
         });
     } else if (event.type === 'QuestionRequest') {
       const { id, tool_call_id, questions } = event.payload;
@@ -978,6 +979,7 @@ class KimiSession {
         description: `Execute ${descriptor.id} through the persistent industrial runtime.`,
         action: descriptor.id,
         stateId: request.expectedStateId,
+        preview: this.diagnostics.industrialRuntime?.approvalPreview?.(request),
       });
     });
   }
@@ -1006,7 +1008,7 @@ class KimiSession {
     }
   }
   interrupt() {
-    this.diagnostics.industrialRuntime?.cancel();
+    this.diagnostics.industrialRuntime?.cancel(this.resourceId);
     for (const [id, resolve] of this.runtimeApprovals) {
       resolve(false);
       this.resolveApproval(id, 'reject');
@@ -1040,8 +1042,9 @@ class KimiSession {
   }
   async close() {
     if (this.running) this.interruptRequested = true;
-    this.diagnostics.industrialRuntime?.cancel();
-    await this.diagnostics.industrialRuntime?.waitForIdle();
+    this.diagnostics.industrialRuntime?.cancel(this.resourceId);
+    await this.diagnostics.industrialRuntime?.waitForIdle(this.resourceId);
+    await this.diagnostics.industrialRuntime?.releaseOwner?.(this.resourceId);
     await this.diagnostics.resources?.remove(this.resourceId);
     await this.closeNative();
   }

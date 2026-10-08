@@ -7,10 +7,10 @@ CLI 不启动 Electron，也不导入桌面 UI。它面向 Domain Task bench：�
 ## Linux Chip 一键安装
 
 ```bash
-wget -O install-chip-linux.sh https://github.com/Zhiman-BJ/industrial-agent-harness/releases/download/chip-linux-installer-v0.1.0-preview.2/install-chip-linux.sh && bash install-chip-linux.sh
+wget -O install-chip-linux.sh https://github.com/Zhiman-BJ/industrial-agent-harness/releases/download/chip-linux-installer-v0.1.0-preview.4/install-chip-linux.sh && bash install-chip-linux.sh
 ```
 
-安装运行时、Chip CLI/MCP 和 EDA 镜像；需要允许 bubblewrap 的用户命名空间。版本、路径、校验、模型配置前提及已知限制见[版本说明](../../releases/chip-linux-installer-v0.1.0-preview.2.md)。
+安装运行时、Chip CLI/MCP 和 EDA 镜像；需要允许 bubblewrap 的用户命名空间。版本、路径、校验、模型配置前提及已知限制见[版本说明](../../releases/chip-linux-installer-v0.1.0-preview.4.md)。
 
 ## GitHub Release 安装
 
@@ -109,3 +109,5 @@ CLI 与同一配置目录的 Desktop/其他 CLI 共用执行和常驻额度，�
 真实运行在所有领域中提供 project.initialize、project.files.read/apply、project.tasks.inspect、project.task.run。空目录无需专业配置；共享 project.work Skill 用 harness.tasks.json 声明任务、读失败并修复重跑。格式、历史与离线限制见[共享工程底座](../../doc/shared-workspace.md)。
 
 Managed runtime dependencies declared by a Pack are prepared by `domains install/update`. Use `domains repair DOMAIN` to check and repair them; `domains list` reports their readiness. Apple Silicon CAD uses the same pinned official FreeCAD installation as Desktop. See [macOS CAD distribution](../../doc/macos-cad-distribution.md).
+
+`doctor --project-dir DIR --domain DOMAIN` runs without model credentials and records a read-only environment Action. It probes protected local execution, declared executables/dependency roots and available offline Docker images. Exit 2 means a required prerequisite is missing. Shared tools include `project.environment.inspect`; input selection, local read permissions and approval previews are documented in [Shared workspace](../../doc/shared-workspace.md).

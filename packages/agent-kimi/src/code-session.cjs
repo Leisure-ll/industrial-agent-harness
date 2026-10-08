@@ -646,7 +646,7 @@ class CodeSession {
       case 'event.approval.requested':
         emit('ApprovalRequest', {
           id: p.approval_id,
-          agentId: p.agentId === 'main' ? undefined : p.agentId,
+          agentId: p.agentId || 'main',
           background: this.subagents.get(p.agentId)?.background || turn === this.backgroundTurn,
           sender: toolName(p.tool_name),
           harness_callback: p.tool_name?.startsWith('mcp__harness_adapter__') === true,
@@ -667,7 +667,7 @@ class CodeSession {
         this.questions.set(p.question_id, p.questions);
         emit('QuestionRequest', {
           id: p.question_id,
-          agentId: p.agentId === 'main' ? undefined : p.agentId,
+          agentId: p.agentId || 'main',
           background: this.subagents.get(p.agentId)?.background || turn === this.backgroundTurn,
           tool_call_id: p.tool_call_id,
           questions: p.questions.map(item => ({
