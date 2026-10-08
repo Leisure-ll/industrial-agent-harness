@@ -21,12 +21,8 @@ async function run(window, evidence) {
       `Array.from(document.querySelectorAll('.ia-settings-row')).find(row=>row.innerText.includes('MCP & Skills')).querySelector('button').click()`,
     );
     await wait(`Boolean(document.querySelector('.ia-capability'))`);
-    await wait(
-      `Array.from(document.querySelectorAll('.ia-capability-nav button')).some(button=>button.innerText.includes('Skills'))`,
-    );
-    await evaluate(
-      `Array.from(document.querySelectorAll('.ia-capability-nav button')).find(button=>button.innerText.includes('Skills')).click()`,
-    );
+    await wait(`Boolean(document.querySelector('.ia-capability-nav button[title="Skills"]'))`);
+    await evaluate(`document.querySelector('.ia-capability-nav button[title="Skills"]').click()`);
     await wait(
       `document.querySelectorAll('.ia-project-resources input[type="checkbox"]').length>=3`,
     );

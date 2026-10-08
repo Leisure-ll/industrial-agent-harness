@@ -4,10 +4,11 @@ const assert = require('node:assert/strict');
 const { saveBindings } = require('./project-bindings.cjs');
 const { setLanguage } = require('./selftest-language.cjs');
 
-let project;
+let project, chatStore;
 const source =
   '// A source preview must preserve the project file.\nmodule sobel_filter;\nendmodule\n';
-function prepare(config) {
+function prepare(config, chats) {
+  chatStore = chats;
   project = path.join(config, 'sobel-project');
   fs.mkdirSync(project, { recursive: true });
   fs.writeFileSync(path.join(project, 'sobel_filter.v'), source);
@@ -415,6 +416,7 @@ async function run(window, dialog) {
     'File sessions are scoped to the current window, not restored into a different project',
   );
   assert.equal(fs.readFileSync(path.join(project, 'sobel_filter.v'), 'utf8'), source);
+  await require('./message-rail-selftest.cjs').run(window, chatStore, project);
   console.log(
     'UI selftest passed: builtin remote configuration states, project execution location, onboarding, source preview, themes, contrast, languages, compact layout, tabs, layout persistence, minimum-window navigation, keyboard focus, mounted documents, and draft retention.',
   );

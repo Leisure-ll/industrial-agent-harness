@@ -1325,7 +1325,7 @@ async function createWindow() {
   if (process.argv.includes('--gui-settings-selftest'))
     require('./gui-settings-selftest.cjs').prepare();
   if (process.argv.includes('--ui-selftest'))
-    require('./ui-selftest.cjs').prepare(projectConfigDir());
+    require('./ui-selftest.cjs').prepare(projectConfigDir(), chats);
   if (process.argv.includes('--messages-selftest'))
     require('./messages-selftest.cjs').prepare(projectConfigDir(), chats);
   if (process.argv.includes('--subagent-selftest'))
@@ -1455,7 +1455,7 @@ async function createWindow() {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
       const state = await window.webContents.executeJavaScript(
-        `JSON.stringify({rows: Array.from(document.querySelectorAll('.ia-domain-install-row')).map(row => ({text: row.textContent, checked: row.querySelector('input')?.checked, disabled: row.querySelector('input')?.disabled})), primary: document.querySelector('.ia-domains-primary')?.textContent, primaryDisabled: document.querySelector('.ia-domains-primary')?.disabled, errors: Array.from(document.querySelectorAll('[role="alert"]')).map(node => node.textContent)})`,
+        `JSON.stringify({rows: Array.from(document.querySelectorAll('.ia-domain-install-row')).map(row => ({text: row.textContent, checked: row.querySelector('input')?.checked, disabled: row.querySelector('input')?.disabled})), cards: Array.from(document.querySelectorAll('.ia-pack-card')).map(card => ({title: card.querySelector('.ia-pack-title b')?.textContent, action: card.querySelector('.ia-pack-action')?.textContent, disabled: card.querySelector('.ia-pack-action')?.disabled})), primary: document.querySelector('.ia-domains-primary')?.textContent, primaryDisabled: document.querySelector('.ia-domains-primary')?.disabled, errors: Array.from(document.querySelectorAll('[role="alert"]')).map(node => node.textContent)})`,
       );
       throw Error(`Packaged Domain smoke timed out: ${script}; state=${state}`);
     }
@@ -1477,7 +1477,7 @@ async function createWindow() {
       );
       const initial = planned.slice(0, 2);
       let installed = 0;
-      async function install(items, firstRun = false) {
+      async function installInitial(items) {
         await click(
           `for (const name of ${JSON.stringify(items.map(item => item.label))}) Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row => row.textContent.includes(name)).querySelector('input').click()`,
         );
@@ -1487,14 +1487,14 @@ async function createWindow() {
         await click(`document.querySelector('.ia-domains-primary').click()`);
         installed += items.length;
         await waitFor(
-          `window.viewerHost.domainStatus().then(status => status.installed.length === ${installed} && ${firstRun ? "!document.querySelector('.ia-domains-modal')" : "Boolean(document.querySelector('.ia-domains-modal'))"})`,
+          `window.viewerHost.domainStatus().then(status => status.installed.length === ${installed} && !document.querySelector('.ia-domains-modal'))`,
         );
       }
-      await install(initial, true);
+      await installInitial(initial);
       for (const item of planned.slice(initial.length)) {
         if (
           !(await window.webContents.executeJavaScript(
-            `Boolean(document.querySelector('.ia-domains-modal'))`,
+            `Boolean(document.querySelector('.ia-capability'))`,
           ))
         ) {
           await click(`document.querySelector('.ia-settings-button').click()`);
@@ -1504,9 +1504,15 @@ async function createWindow() {
           );
         }
         await waitFor(
-          `Array.from(document.querySelectorAll('.ia-domain-install-row')).some(row => row.textContent.includes(${JSON.stringify(item.label)}))`,
+          `Array.from(document.querySelectorAll('.ia-pack-card')).some(card => card.querySelector('.ia-pack-title b')?.textContent === ${JSON.stringify(item.label)} && card.querySelector('.ia-pack-action')?.textContent === 'Install' && !card.querySelector('.ia-pack-action').disabled)`,
         );
-        await install([item]);
+        await click(
+          `Array.from(document.querySelectorAll('.ia-pack-card')).find(card => card.querySelector('.ia-pack-title b')?.textContent === ${JSON.stringify(item.label)}).querySelector('.ia-pack-action').click()`,
+        );
+        installed++;
+        await waitFor(
+          `window.viewerHost.domainStatus().then(status => status.installed.length === ${installed} && status.installed.some(item => item.domain === ${JSON.stringify(item.id)}))`,
+        );
       }
       const domains = await window.webContents.executeJavaScript(
         `window.viewerHost.domains().then(items => items.map(item => item.id).sort())`,

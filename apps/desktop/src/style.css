@@ -4025,6 +4025,9 @@ body {
 .ia-chat-scroll-area .ia-chat-scroll {
   flex: 1;
 }
+.ia-message-rail + .ia-chat-scroll {
+  padding-inline-start: max(48px, calc((100% - 680px) / 2));
+}
 .ia-message-rail {
   position: absolute;
   left: 8px;
@@ -4033,17 +4036,19 @@ body {
   width: 20px;
   z-index: 3;
 }
-.ia-message-rail.dense {
+.ia-rail-ticks {
+  position: absolute;
   top: 50%;
-  bottom: auto;
-  height: min(50%, 300px);
   transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
 }
 .ia-app .ia-rail-tick {
-  position: absolute;
-  margin-top: -6px;
-  height: 12px;
+  flex: 0 0 8px;
+  min-height: 8px;
+  height: 8px;
   width: 20px;
+  margin: 0;
   padding: 0;
   border: none;
   background: none;
