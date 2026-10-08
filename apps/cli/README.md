@@ -39,9 +39,9 @@ node dist/headless/industrial-harness.cjs bench --suite examples/bench/scope-smo
 
 `bench` 读取 JSON suite，顺序运行多个 `run` 场景，逐场保存 JSONL，并生成 `summary.json`；断言失败时返回非零退出码。Suite 中 `projectDir` 和可选的 `artifactManifest` 相对于 suite 文件定位。每个场景可设置 `scopeOnly`、`disabledSkills`、`disabledMcpServers`、`timeoutMs`，并在 `expected` 中断言 `status`、`capabilityIds`、`skills`、`tools`、`mcpServers`。请使用全新的输出目录，避免覆盖先前证据。`examples/bench/scope-smoke.json` 是当前能力基线，其中 RTL 验证请求解析为空，表明该能力链尚未实现。
 
-打包目录包含 CLI、Broker、固定 Domain Packs 的 Skill 文件、MCP 注册表、随包 Kimi Code 2.1.1、Server API 接入与只读观察状态存储；不包含 Electron 或工业可执行文件。当前源码注册 Chip Pack 0.6.2，经共享 Scope Gateway 调用；需先准备固定 Python 环境。真实 Agent 场景还需模型 API Key，`KIMI_EXECUTABLE` 为可选的同版本覆盖。2026-10-03 的本地运行时修复需要同时重建 EDA 工具镜像，具体迁移和验证范围见 [运行时修复说明](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/acf572b6c4c135e87c613bed5760c473eaf7c298/packs/chip/eda-harness/docs/runtime-reliability.md)。已有 GitHub Release 不会随本地源码修改而更新。
+打包目录包含 CLI、Broker、固定 Domain Packs 的 Skill 文件、MCP 注册表、随包 Kimi Code 2.1.1、Server API 接入与只读观察状态存储；不包含 Electron 或工业可执行文件。当前源码注册 Chip Pack 0.6.2，经共享 Scope Gateway 调用；需先准备固定 Python 环境。真实 Agent 场景还需模型 API Key，`KIMI_EXECUTABLE` 为可选的同版本覆盖。2026-10-03 的本地运行时修复需要同时重建 EDA 工具镜像，具体迁移和验证范围见 [运行时修复说明](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/d705340b5a86358ba7fda07cc95d99a1c5ccd510/packs/chip/eda-harness/docs/runtime-reliability.md)。已有 GitHub Release 不会随本地源码修改而更新。
 
-如需独立使用完整芯片 MCP 工具集，请安装 [Chip Pack 0.6.1 Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.1-preview.1)。它已与本 CLI 的 Broker Scope 经共享网关连接，使用和验收路径见 [Chip Pack 文档](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/acf572b6c4c135e87c613bed5760c473eaf7c298/packs/chip/README.md)。
+如需独立使用完整芯片 MCP 工具集，请安装 [Chip Pack 0.6.1 Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.1-preview.1)。它已与本 CLI 的 Broker Scope 经共享网关连接，使用和验收路径见 [Chip Pack 文档](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/d705340b5a86358ba7fda07cc95d99a1c5ccd510/packs/chip/README.md)。
 
 每个 `headless-v*` Release 正文都列出该版**相比原生 Kimi Code 实际集成的 Harness 能力**及尚未集成的部分；发布时使用仓库中与标签同名的 `releases/<tag>.md`，不复用上一版说明。
 
