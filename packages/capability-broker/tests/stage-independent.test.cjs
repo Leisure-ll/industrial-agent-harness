@@ -76,15 +76,25 @@ test('continuations retain only still-available capabilities for the same projec
       t => t.event === 'capability.resolve' && t.detail.selected[0]?.reason.includes('continue'),
     ),
   );
+  // A stale previous scope must not carry over as a continuation. The
+  // domain-bound fallback may still expose the current domain's primary
+  // capability, so assert the selection reason rather than emptiness.
   for (const previous of [
     { ...first.scope, projectId: 'c'.repeat(64) },
     { ...first.scope, domain: 'other' },
     { ...first.scope, stage: 'finished' },
   ])
-    assert.deepEqual(resolveFromState({ task, state }, [item], previous).scope.tools, []);
+    assert.match(
+      resolveFromState({ task, state }, [item], previous).trace.find(
+        t => t.event === 'capability.resolve',
+      ).detail.selected[0]?.reason,
+      /domain-bound fallback/,
+    );
   assert.deepEqual(resolveFromState({ task, state }, [], first.scope).scope.tools, []);
-  assert.deepEqual(
-    resolveFromState({ task: 'Plan a holiday', state }, [item], first.scope).scope.tools,
-    [],
+  assert.match(
+    resolveFromState({ task: 'Plan a holiday', state }, [item], first.scope).trace.find(
+      t => t.event === 'capability.resolve',
+    ).detail.selected[0]?.reason,
+    /domain-bound fallback/,
   );
 });
