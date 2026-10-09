@@ -103,8 +103,9 @@
 | T2-15 | `test:documents` | 通用文件 Viewer（CSV/JSON/Markdown 等） |
 | T2-16 | `test:cad` / `test:cad-resize` | CAD 领域交互 / 视口 resize。真实调用 `cad.freecad.build`/`cad.freecad.export` 工具，**必须先完成 T4-1 native 准备中的 FreeCAD 步骤并导出 `INDUSTRIAL_HARNESS_FREECAD_CMD`**，否则在干净环境必然失败 |
 | T2-17 | `test:results` | 任务成果卡：自动成果生成、版本关联、预览与历史重载（PR #72 引入） |
+| T2-18 | `test:model-sync` | 模型/项目配置广播同步：非 UI 的 `model:save`、`project:create` 后渲染端状态免刷新（PR #75 引入） |
 
-CI 参考集：`desktop-package.yml` 跑 `ui language parallel gui-settings`；`industrial-core.yml` 跑 `chats logs mcp subagents kicad engineering ui language documents images parallel`。本地全量即把上表全部执行（共 18 个入口，其中 T2-16 受 FreeCAD 前置约束）。
+CI 参考集：`desktop-package.yml` 跑 `ui language parallel gui-settings`；`industrial-core.yml` 跑 `chats logs mcp subagents kicad engineering ui language documents images parallel model-sync`。本地全量即把上表全部执行（共 19 个入口，其中 T2-16 受 FreeCAD 前置约束）。
 
 ### T3 Transport 与 Benchmark（CI：structure.yml 后段）
 
@@ -200,7 +201,7 @@ pnpm run test:ci -- portable 2>&1 | tee "$EVID/portable.log"; mv dist/ci-reports
 pnpm run smoke:ci-packages 2>&1 | tee "$EVID/packages.log"                                  # T1-2
 pnpm --filter @industrial-agent-harness/desktop build                                        # T2 前置
 export INDUSTRIAL_UI_SCREENSHOTS="$PWD/$EVID/ui"; mkdir -p "$INDUSTRIAL_UI_SCREENSHOTS"
-for suite in ui parallel language gui-settings messages chats logs mcp external-mcp subagents images kicad godot engineering documents results; do
+for suite in ui parallel language gui-settings messages chats logs mcp external-mcp subagents images kicad godot engineering documents results model-sync; do
   pnpm --filter @industrial-agent-harness/desktop "test:$suite" 2>&1 | tee "$EVID/desktop-$suite.log"
 done
 # T2 CAD 入口（test:cad / test:cad-resize）不在标准档：需先完成 T4-1 的 FreeCAD 准备
