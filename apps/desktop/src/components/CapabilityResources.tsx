@@ -221,6 +221,13 @@ export function McpSection({
   const { t } = useDisplayText();
   const [scope, setScope] = useState<'global' | 'project'>(project ? 'global' : 'global');
   const [search, setSearch] = useState('');
+  // External servers added or removed on this page must refresh the resource
+  // list in place; ResourceList only refetches when its revision changes.
+  const [revision, setRevision] = useState(0);
+  const refresh = () => {
+    setRevision(value => value + 1);
+    onChanged();
+  };
   return (
     <section className="ia-capability-section" aria-label={t('MCP servers')}>
       <div className="ia-capability-section-head">
@@ -242,9 +249,10 @@ export function McpSection({
         projectId={scope === 'project' ? project?.id : undefined}
         busy={busy}
         search={search}
-        onChanged={onChanged}
+        revision={revision}
+        onChanged={refresh}
       />
-      {scope === 'global' && <ExternalMcpPanel busy={busy} onChanged={onChanged} />}
+      {scope === 'global' && <ExternalMcpPanel busy={busy} onChanged={refresh} />}
     </section>
   );
 }
