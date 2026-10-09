@@ -267,6 +267,15 @@ test(
     await manager.install(entry, {
       bytes: fs.readFileSync(path.join(output, path.basename(entry.url))),
       prepareRuntime: true,
+      onProgress: progress =>
+        console.log(
+          'CAD runtime preparation: ' +
+            JSON.stringify({
+              at: new Date().toISOString(),
+              id: progress.id,
+              phase: progress.phase,
+            }),
+        ),
     });
     const prior = process.env.INDUSTRIAL_HARNESS_PACK_STORE;
     process.env.INDUSTRIAL_HARNESS_PACK_STORE = manager.directory;

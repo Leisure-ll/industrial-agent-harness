@@ -45,6 +45,12 @@ Optional `HARNESS_RUNTIME_ARCHIVES` maps runtime asset IDs to exact official arc
 
 CAD qualification can additionally set `HARNESS_CAD_INSTALL_RUNTIME_CACHE` to a previously production-verified runtime asset store. The selftest creates an independent copy in its empty isolated store, validates ordinary production readiness and asserts no Pack is preinstalled. Installation UI, both native tasks, Viewer, executable corruption, real repair and restart remain required. The report labels this `warm-runtime-reuse`; it is not a second cold native installation. Repair diagnostics retain recent UI state and window lifecycle events on failure.
 
+## Current source reconciliation, 2026-10-10
+
+The current source merges the latest main-branch model/project synchronization and capability resource refresh, while retaining the installation flows and navigation alignment above. It pins Domain Packs 0.5.2 at `b9759342cace66df0be0c4559b7c24fb28ea07d9` (Godot `0.2.2`, CAD `1.1.4-pack.7`). This reconciliation preserves the complete Godot Runtime validation from main together with the owner-maintained native preparation declarations.
+
+The source and CI reconciliation is distinct from the already qualified local DMG below. Its owner 0.5.1 identity, source commit, hashes and acceptance results remain historical facts. The new source requires its own CI result and any applicable native acceptance; those results are recorded separately when complete. No new installer qualification follows merely from updating the pin.
+
 ## Integrated delivery
 
 Source `7fc7c445263fdc6efd03b6c9293b1fcf0ecfad21` includes the main-branch task-results integration and the capability-center alignment correction. It consumes the combined owner 0.5.1 / CAD `.7` release, preserving both native installation recipes and result presentation. Its Apple Silicon DMG is 272,166,575 bytes, SHA-256 `bddd7de095ebb6ece157d70a7f0615543a9422154142332f3111c66ffd679d85`.

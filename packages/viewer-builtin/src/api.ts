@@ -332,6 +332,8 @@ export interface ViewerHostApi {
     id: string,
   ): Promise<{ chats: ChatSummary[]; activeId: string | null; sessions: SessionStatus[] }>;
   onChatUpdated(callback: () => void): () => void;
+  onModelChanged(callback: () => void): () => void;
+  onProjectsChanged(callback: () => void): () => void;
   newChat(): Promise<ChatHistory>;
   projectFiles(): Promise<Array<{ path: string; name: string; depth: number; directory: boolean }>>;
   readProjectFile(relative: string): Promise<{

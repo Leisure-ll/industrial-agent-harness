@@ -210,11 +210,12 @@ try {
     ];
     const scope = JSON.parse(command(domain, args).split('\n')[0]).scope;
     assert.equal(scope.tools.filter(id => id.startsWith('external.host.')).length, 3);
-    assert.deepEqual(
-      JSON.parse(command(domain, [...args, '--disable-mcp', 'external.host']).split('\n')[0]).scope
-        .tools,
-      [],
-    );
+    // The domain-bound fallback may keep its primary capability's tools; the
+    // disable policy must still remove every external registration tool.
+    const disabledTools = JSON.parse(
+      command(domain, [...args, '--disable-mcp', 'external.host']).split('\n')[0],
+    ).scope.tools;
+    assert.ok(disabledTools.every(id => !id.startsWith('external.host.')));
     console.log(
       JSON.stringify({ domain, externalRegistrationShared: true, scoped: true, disable: true }),
     );

@@ -451,11 +451,63 @@ test('late installer abort waits for the real child to finish before reporting c
   assert.ok(fs.existsSync(ready));
   const pid = Number(fs.readFileSync(ready, 'utf8'));
   controller.abort(Error('User cancelled native preparation'));
-  await assert.rejects(active, /User cancelled/);
+  await assert.rejects(active, error => {
+    assert.equal(error, controller.signal.reason);
+    assert.match(error.message, /User cancelled/);
+    return true;
+  });
   // Windows terminates directly instead of dispatching the JS SIGTERM handler.
   // On every platform rejection must follow actual process termination.
   assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
   if (process.platform !== 'win32') assert.equal(fs.readFileSync(marker, 'utf8'), 'exited');
+});
+
+test(
+  'native preparation timeout identifies the command with bounded output after its process exits',
+  { timeout: 15000 },
+  async t => {
+    const { run } = require('./runtime-assets.cjs');
+    const f = fixture(t),
+      marker = path.join(f.directory, 'timed-out-child-exited'),
+      ready = marker + '.ready';
+    const script = `const fs=require('node:fs');
+    process.on('SIGTERM',()=>setTimeout(()=>{fs.writeFileSync(process.argv[1],'exited');process.exit(0)},150));
+    fs.writeFileSync(process.argv[2],String(process.pid));
+    process.stderr.write('discarded-prefix'+'x'.repeat(3000)+'native-command-stalled');
+    setInterval(()=>{},1000);`;
+    await assert.rejects(
+      run(process.execPath, ['-e', script, marker, ready], {
+        timeout: 1000,
+        env: { ...process.env, HARNESS_TEST_PRIVATE: 'private-env-must-not-be-logged' },
+      }),
+      error => {
+        assert.match(error.message, /Runtime preparation timed out after 1 seconds\./);
+        const detail = error.message.match(/Command: ([^;]+); elapsed: (\d+) ms/);
+        assert.equal(detail?.[1], path.basename(process.execPath));
+        assert.ok(Number(detail[2]) >= 1000);
+        assert.match(error.message, /native-command-stalled$/);
+        assert.doesNotMatch(error.message, /discarded-prefix|private-env-must-not-be-logged/);
+        assert.ok(error.message.length < 2200);
+        return true;
+      },
+    );
+    const pid = Number(fs.readFileSync(ready, 'utf8'));
+    assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+    if (process.platform !== 'win32') assert.equal(fs.readFileSync(marker, 'utf8'), 'exited');
+  },
+);
+
+test('failed native commands retain exit diagnostics and command identity', async () => {
+  const { run } = require('./runtime-assets.cjs');
+  await assert.rejects(
+    run(process.execPath, ['-e', "process.stderr.write('vendor diagnostic');process.exit(7)"]),
+    error => {
+      assert.match(error.message, /Runtime preparation failed \(7\)/);
+      assert.ok(error.message.includes(`Command: ${path.basename(process.execPath)}; elapsed:`));
+      assert.match(error.message, /vendor diagnostic$/);
+      return true;
+    },
+  );
 });
 
 test('an attach that partially mounts before rejecting is detached before cleanup', async t => {

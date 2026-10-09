@@ -139,6 +139,72 @@ test('explicit tool names select the smallest capability that can perform the re
   );
   assert.deepEqual(
     resolve({ domain: 'pcb', task: 'Inspect notplace_componentX' }, candidates).scope.capabilityIds,
+    // No tool matched, but a domain-bound session keeps the primary capability.
+    ['pcb.complete'],
+  );
+});
+
+test('a domain-bound session falls back to the primary capability without a keyword match', () => {
+  const native = [
+    {
+      id: 'godot.native.task',
+      domain: 'godot',
+      title: 'Native',
+      stages: [],
+      priority: 100,
+      keywords: ['godot', 'gdscript', '游戏', '场景'],
+      skills: [{ id: 'godot.game.develop' }, { id: 'godot.game.inspect' }],
+      tools: [{ id: 'godot.scene.edit' }, { id: 'godot.scene.verify' }],
+    },
+  ];
+  const colloquial = resolve(
+    { domain: 'godot', task: '帮我把盒子的边长改成 8 8 8，挪到原点，然后跑一下看看改对了没' },
+    native,
+  );
+  assert.equal(colloquial.scope.domain, 'godot');
+  assert.deepEqual(colloquial.scope.capabilityIds, ['godot.native.task']);
+  assert.deepEqual(colloquial.scope.tools, ['godot.scene.edit', 'godot.scene.verify']);
+  assert.match(
+    colloquial.trace.find(row => row.event === 'capability.resolve').detail.selected[0].reason,
+    /domain-bound fallback/,
+  );
+  // The fallback selection scores zero; it must not also appear as excluded.
+  assert.deepEqual(
+    colloquial.trace.find(row => row.event === 'capability.resolve').detail.excluded,
     [],
   );
+  assert.equal(
+    colloquial.trace.find(row => row.event === 'context.infer').detail.source,
+    'domain-fallback',
+  );
+  const inferred = resolve({ task: '帮我把盒子的边长改成 8 8 8' }, native);
+  assert.deepEqual(inferred.scope.capabilityIds, []);
+  assert.equal(inferred.scope.domain, null);
+});
+
+test('a domain-bound multi-capability fallback follows the declared priority', () => {
+  const candidates = [
+    {
+      id: 'chip.eda.viewer',
+      domain: 'chip',
+      title: 'Viewer',
+      stages: ['physical'],
+      priority: 10,
+      keywords: [],
+      skills: [],
+      tools: [],
+    },
+    {
+      id: 'chip.eda.run',
+      domain: 'chip',
+      title: 'Run',
+      stages: ['physical'],
+      priority: 30,
+      keywords: [],
+      skills: [],
+      tools: [],
+    },
+  ];
+  const result = resolve({ domain: 'chip', stage: 'physical', task: 'make it nice' }, candidates);
+  assert.deepEqual(result.scope.capabilityIds, ['chip.eda.run']);
 });

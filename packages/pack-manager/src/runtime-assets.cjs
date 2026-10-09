@@ -127,6 +127,7 @@ async function fileHash(file) {
 function run(command, args, { cwd, env, signal, timeout = 60000 } = {}) {
   signal?.throwIfAborted();
   return new Promise((resolve, reject) => {
+    const startedAt = performance.now();
     const child = spawn(command, args, {
       cwd,
       env,
@@ -137,6 +138,17 @@ function run(command, args, { cwd, env, signal, timeout = 60000 } = {}) {
       failure,
       settled = false,
       forceKill;
+    const diagnostic = error => {
+      const elapsed = Math.round(performance.now() - startedAt);
+      const detail = Error(
+        `${error.message || String(error)}\nCommand: ${path.basename(command)}; elapsed: ${elapsed} ms` +
+          (output ? `\nOutput (last 2000 characters): ${output.slice(-2000)}` : ''),
+        { cause: error },
+      );
+      detail.name = error.name || 'Error';
+      if (error.code !== undefined) detail.code = error.code;
+      return detail;
+    };
     const kill = mode => {
       if (!child.pid) return;
       try {
@@ -180,16 +192,17 @@ function run(command, args, { cwd, env, signal, timeout = 60000 } = {}) {
       if (!child.pid && !settled) {
         settled = true;
         cleanup();
-        reject(error);
+        reject(diagnostic(error));
       }
     });
     child.on('close', code => {
       if (settled) return;
       settled = true;
       cleanup();
-      if (failure) reject(failure);
+      if (failure)
+        reject(signal?.aborted && failure === signal.reason ? failure : diagnostic(failure));
       else if (code === 0) resolve(output);
-      else reject(Error(`Runtime preparation failed (${code}): ${output.slice(-2000)}`));
+      else reject(diagnostic(Error(`Runtime preparation failed (${code}).`)));
     });
   });
 }

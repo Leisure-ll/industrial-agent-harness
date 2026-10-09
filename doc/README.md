@@ -55,6 +55,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [FreeCAD CAD Pack](freecad-domain-pack.md) | 参数化 3D 零件建模、持久 Runtime、独立几何回读、实体 Viewer 与 macOS arm64 原生 CI |
 | [Kimi 原生机制兼容性审计](kimi-native-compatibility-audit.md) | 项目发现、输入命令、配置、会话、环境和执行边界的实际差异及修复 |
 | [CI 回归与托管环境](ci-regression.md) | 四种原生 OS/架构环境、分层门禁、测试证据与覆盖缺口 |
+| [QA 测试用例与自动执行手册](qa-runbook.md) | T0–T6 分层用例目录、命令与通过判据；Agent 自动执行整个 QA 流程的唯一入口 |
 | [Node SDK](sdk.md) | 项目绑定、聊天恢复、流事件、取消和 stdio RPC |
 | [配对评测基线](benchmark-baseline.md) | 原生 Kimi/Harness、冻结输入、独立验收与正式结果边界 |
 | [早期开发计划](development-plan.md) | 两份原始 Plan 的阶段性整理；里程碑顺序以新的实施路线图为准 |

@@ -151,6 +151,7 @@ if (
     '--chat-selftest',
     '--parallel-selftest',
     '--image-input-selftest',
+    '--model-sync-selftest',
     '--packaged-smoke',
     '--install-experience-selftest',
   ].some(flag => process.argv.includes(flag))
@@ -317,10 +318,22 @@ function contextStoreOptions() {
     : {};
 }
 
+function sendToMainWindow(channel) {
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
+    mainWindow.webContents.send(channel);
+}
 function notifySessions() {
   if (tasks.closing) return;
-  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
-    mainWindow.webContents.send('chat:updated');
+  sendToMainWindow('chat:updated');
+}
+// Renderer state for the model profile and project bindings is a snapshot
+// pulled on demand; mutations must push an invalidation so the UI stays
+// coherent even when the change did not originate in the main window.
+function notifyModelChanged() {
+  sendToMainWindow('model:changed');
+}
+function notifyProjectsChanged() {
+  sendToMainWindow('projects:changed');
 }
 function diagnosticDirectory() {
   return process.argv.some(flag => flag.endsWith('-selftest'))
@@ -419,6 +432,41 @@ function readApiKey() {
 function kimiExecutable() {
   if (process.env.KIMI_EXECUTABLE) return process.env.KIMI_EXECUTABLE;
   return bundledExecutable();
+}
+// The availability probe spawns the Kimi runtime twice (--version and
+// `web --help`) and blocks the main process for roughly a second. Status is
+// re-queried on every window focus and model/project broadcast, so cache the
+// probe per resolved executable; the runtime binary cannot change while the
+// app is running. Failures are not cached — a retry may catch a completed
+// setup.
+let cachedAgentRuntime;
+function agentRuntimeStatus() {
+  const executable = kimiExecutable();
+  if (cachedAgentRuntime?.executable === executable) return cachedAgentRuntime;
+  const script = /\.[cm]?js$/.test(executable);
+  const command = script ? process.execPath : executable;
+  const prefix = script ? [executable] : [];
+  const probeOptions = {
+    encoding: 'utf8',
+    timeout: 10000,
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', KIMI_CODE_NO_AUTO_UPDATE: '1' },
+  };
+  const result = spawnSync(command, [...prefix, '--version'], probeOptions);
+  const help =
+    result.status === 0 ? spawnSync(command, [...prefix, 'web', '--help'], probeOptions) : null;
+  const available =
+    !result.error &&
+    result.status === 0 &&
+    help?.status === 0 &&
+    result.stdout.trim() === KIMI_CODE_VERSION &&
+    help.stdout.includes('--no-open');
+  const status = {
+    executable,
+    available,
+    version: available ? result.stdout.split('\n')[0].trim() : '',
+  };
+  if (available) cachedAgentRuntime = status;
+  return status;
 }
 function modelStatus() {
   return {
@@ -910,6 +958,7 @@ function registerHandlers() {
       }
       writeCliConfig(configDir(), profile);
       modelRevision++;
+      notifyModelChanged();
       return modelStatus();
     } finally {
       changingResources = false;
@@ -928,27 +977,10 @@ function registerHandlers() {
       ].some(flag => process.argv.includes(flag))
     )
       return { available: true, version: 'SDK seam selftest', projectDir, configured: true };
-    const executable = kimiExecutable();
-    const script = /\.[cm]?js$/.test(executable);
-    const command = script ? process.execPath : executable;
-    const prefix = script ? [executable] : [];
-    const probeOptions = {
-      encoding: 'utf8',
-      timeout: 10000,
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', KIMI_CODE_NO_AUTO_UPDATE: '1' },
-    };
-    const result = spawnSync(command, [...prefix, '--version'], probeOptions);
-    const help =
-      result.status === 0 ? spawnSync(command, [...prefix, 'web', '--help'], probeOptions) : null;
-    const available =
-      !result.error &&
-      result.status === 0 &&
-      help?.status === 0 &&
-      result.stdout.trim() === KIMI_CODE_VERSION &&
-      help.stdout.includes('--no-open');
+    const runtime = agentRuntimeStatus();
     return {
-      available,
-      version: available ? result.stdout.split('\n')[0].trim() : '',
+      available: runtime.available,
+      version: runtime.version,
       projectDir: projectDir || null,
       configured: Boolean(readApiKey()),
       gui: guiBridgeState(),
@@ -974,6 +1006,7 @@ function registerHandlers() {
         activeChatId = undefined;
       }
       saveBindings(projectConfigDir(), projectBindings);
+      notifyProjectsChanged();
       return projectSnapshot();
     } finally {
       changingResources = false;
@@ -1116,6 +1149,7 @@ function registerHandlers() {
     if (!request?.projectId || typeof request?.enabled !== 'boolean')
       throw Error('Invalid project resource change.');
     await setResource(event, { ...request, mode: request.enabled ? 'enabled' : 'disabled' });
+    notifyProjectsChanged();
     return projectSnapshot();
   });
   ipcMain.handle('project:select', async (_event, id) => {
@@ -1128,6 +1162,7 @@ function registerHandlers() {
     clearProjectArtifacts();
     restoreChatSelection();
     saveBindings(projectConfigDir(), projectBindings);
+    notifyProjectsChanged();
     return projectSnapshot();
   });
   ipcMain.handle('project:choose-directory', async (_event, locale) => {
@@ -1153,6 +1188,7 @@ function registerHandlers() {
     activeChatId = undefined;
     clearProjectArtifacts();
     saveBindings(projectConfigDir(), projectBindings);
+    notifyProjectsChanged();
     return projectSnapshot();
   });
   ipcMain.handle('agent:new', event => {
@@ -1649,6 +1685,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--gui-settings-selftest')) {
     await require('./gui-settings-selftest.cjs').run(window, systemPreferences, shell);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--model-sync-selftest')) {
+    await require('./model-sync-selftest.cjs').run(window);
     app.quit();
     return;
   }

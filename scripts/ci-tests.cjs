@@ -17,6 +17,7 @@ const nativeFiles = [
   'tests/integration/task-results-kimi.test.cjs',
   'tests/integration/pcb-godot-runtime.test.cjs',
   'tests/integration/pcb-godot-installed.test.cjs',
+  'tests/integration/godot-native.test.cjs',
   'tests/integration/industrial-core-vertical-slice.test.cjs',
   'tests/integration/industrial-core-installed-pack.test.cjs',
   'packages/agent-kimi/tests/process-sandbox.test.cjs',
@@ -80,7 +81,7 @@ function portableFiles() {
     });
     return matches.map(file => path.join(directory, file).split(path.sep).join('/'));
   });
-  return [...new Set([...files, 'tests/ci/ci-tests.test.cjs'])]
+  return [...new Set([...files, 'tests/ci/ci-tests.test.cjs', 'tests/ci/ci-areas.test.cjs'])]
     .filter(
       file =>
         ![...nativeFiles, ...linuxNativeFiles].includes(file) ||
