@@ -19,6 +19,9 @@ jobs:
   # shared-package Portable matrix and the Linux chip installer acceptance
   # (neither layer ships Desktop UI code). Pushes to main and manual
   # dispatches always run every layer, so merged code keeps the full net.
+  # The classification rules live in scripts/ci-areas.cjs and are unit-tested
+  # by the portable suite, so this job checks out the repository to require
+  # the shared module.
   changes:
     name: Detect changed areas
     runs-on: ubuntu-24.04
@@ -27,19 +30,19 @@ jobs:
       docs_only: ${{ steps.areas.outputs.docs_only }}
       shared_changed: ${{ steps.areas.outputs.shared_changed }}
     steps:
+      - uses: actions/checkout@v4
       - name: Classify changed files
         id: areas
         uses: actions/github-script@v7
         with:
           script: |
-            const docs = file => /\.md$/i.test(file) || file === 'LICENSE' || file.startsWith('doc/');
-            const withinDesktop = file => docs(file) || file.startsWith('apps/desktop/');
+            const { classify } = require('./scripts/ci-areas.cjs');
             if (context.eventName !== 'pull_request') {
               core.setOutput('docs_only', 'false');
               core.setOutput('shared_changed', 'true');
               return;
             }
-            const files = [];
+            const entries = [];
             for (let page = 1; page <= 30; page += 1) {
               const chunk = await github.rest.pulls.listFiles({
                 ...context.repo,
@@ -47,18 +50,20 @@ jobs:
                 per_page: 100,
                 page,
               });
-              files.push(...chunk.data.map(entry => entry.filename));
+              entries.push(...chunk.data.map(entry => ({
+                filename: entry.filename,
+                previous_filename: entry.previous_filename,
+              })));
               if (chunk.data.length < 100) break;
             }
-            if (files.length >= 3000) {
+            if (entries.length >= 3000) {
               // Too many files to classify reliably; run every layer.
               core.setOutput('docs_only', 'false');
               core.setOutput('shared_changed', 'true');
               return;
             }
-            core.info(`Changed files (${files.length}):\n${files.join('\n')}`);
-            const docsOnly = files.length > 0 && files.every(withinDesktop) && files.every(docs);
-            const sharedChanged = files.length === 0 || files.some(file => !withinDesktop(file));
+            core.info(`Changed files (${entries.length}):\n${entries.map(entry => entry.filename).join('\n')}`);
+            const { docsOnly, sharedChanged } = classify(entries);
             core.setOutput('docs_only', String(docsOnly));
             core.setOutput('shared_changed', String(sharedChanged));
 
