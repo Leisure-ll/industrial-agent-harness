@@ -104,7 +104,14 @@ function resolve(request, registry, previous) {
       reason: `${continuation ? 'continue previous capability; ' : ''}${fallback ? 'domain-bound fallback; ' : ''}task: ${hits.join(', ') || 'none'}; tools: ${toolHits.map(tool => tool.id).join(', ') || 'none'}; artifact: ${artifactMatch ? artifactKind : 'none'}`,
     })),
     excluded: scored
-      .filter(({ score, item }) => !score && !item.alwaysAvailable)
+      .filter(
+        candidate =>
+          !candidate.score &&
+          !candidate.item.alwaysAvailable &&
+          // A domain-bound fallback selection has zero score but is selected;
+          // listing it as excluded too would contradict the selection.
+          !selected.includes(candidate),
+      )
       .map(({ item }) => ({ id: item.id, reason: 'no task, tool or artifact match' })),
   });
   const domain = selected[0]?.item.domain ?? requestedDomain;

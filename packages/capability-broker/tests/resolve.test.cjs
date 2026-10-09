@@ -168,6 +168,11 @@ test('a domain-bound session falls back to the primary capability without a keyw
     colloquial.trace.find(row => row.event === 'capability.resolve').detail.selected[0].reason,
     /domain-bound fallback/,
   );
+  // The fallback selection scores zero; it must not also appear as excluded.
+  assert.deepEqual(
+    colloquial.trace.find(row => row.event === 'capability.resolve').detail.excluded,
+    [],
+  );
   assert.equal(
     colloquial.trace.find(row => row.event === 'context.infer').detail.source,
     'domain-fallback',
