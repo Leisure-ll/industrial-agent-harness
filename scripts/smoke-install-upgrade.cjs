@@ -17,7 +17,7 @@ function argumentsFor(argv) {
   const args = {};
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
-    if (['--plan', '--prepare', '--upgrade', '--capture-existing'].includes(key))
+    if (['--plan', '--prepare', '--upgrade', '--capture-existing', '--recheck-final'].includes(key))
       args[key.slice(2)] = true;
     else if (['--old-app', '--new-dmg', '--evidence', '--archive'].includes(key)) {
       assert.ok(argv[i + 1] && !argv[i + 1].startsWith('--'), `Missing value for ${key}`);
@@ -29,8 +29,9 @@ function argumentsFor(argv) {
     'Pass --old-app and --evidence; --plan is read-only.',
   );
   assert.ok(
-    [args.prepare, args.upgrade, args['capture-existing']].filter(Boolean).length <= 1,
-    'Choose one of --prepare, --upgrade or --capture-existing; omit all for the complete flow.',
+    [args.prepare, args.upgrade, args['capture-existing'], args['recheck-final']].filter(Boolean)
+      .length <= 1,
+    'Choose one execution stage; omit stage flags for the complete preparation and upgrade flow.',
   );
   assert.ok(
     args.plan || args.prepare || args['capture-existing'] || args['new-dmg'],
@@ -509,13 +510,83 @@ async function upgrade(args, evidence, application) {
     `Old → new packaged app replacement and data preservation passed: ${evidence}\n`,
   );
 }
+// Recheck a later build of the same version without claiming another Pack upgrade.
+// The original candidate's upgrade reports and identities remain unchanged.
+async function recheckFinal(args, evidence, application) {
+  assert.ok(
+    !fs.existsSync(path.join(evidence, 'final-restart.json')),
+    'Final recheck evidence already exists.',
+  );
+  const original = JSON.parse(fs.readFileSync(path.join(evidence, 'upgrade.json'), 'utf8'));
+  assert.equal(original.passed, true);
+  assert.deepEqual(await appIdentity(application), original.newIdentity);
+  const originalAfter = JSON.parse(
+    fs.readFileSync(path.join(evidence, 'after-upgrade.json'), 'utf8'),
+  );
+  const before = await snapshotEvidence(evidence);
+  const baseline = compareSnapshots(originalAfter, before);
+  assert.ok(baseline.preserved, baseline.changes.join('\n'));
+  writeJson(evidence, 'before-final-restart.json', before);
+  const finalIdentity = await withMountedDmg(args['new-dmg'], appIdentity);
+  assert.equal(finalIdentity.version, '1.0.1-beta.1');
+  assert.equal(finalIdentity.bundleId, original.newIdentity.bundleId);
+  const dmgSha256 = await fileHash(args['new-dmg']);
+  writeJson(evidence, 'final-application.json', { ...finalIdentity, dmgSha256 });
+  await withMountedDmg(args['new-dmg'], async source => {
+    assert.deepEqual(await appIdentity(source), finalIdentity);
+    fs.rmSync(application, { recursive: true });
+    await execute('/usr/bin/ditto', [source, application]);
+  });
+  assert.deepEqual(await appIdentity(application), finalIdentity);
+  const originalRestart = fs.readFileSync(path.join(evidence, 'restart.json'));
+  // The packaged legacy entry point has one report filename. Preserve its prior
+  // bytes and retain the new result separately, including when a recheck fails.
+  fs.writeFileSync(path.join(evidence, 'original-upgrade-restart.json'), originalRestart);
+  let restarted;
+  try {
+    await launch(
+      application,
+      ['--cad-install-selftest', '--cad-install-restart'],
+      evidence,
+      applicationEnvironment(evidence),
+      'final-restart.log',
+      120000,
+    );
+    restarted = JSON.parse(fs.readFileSync(path.join(evidence, 'restart.json'), 'utf8'));
+    writeJson(evidence, 'final-restart-result.json', restarted);
+  } finally {
+    fs.writeFileSync(path.join(evidence, 'restart.json'), originalRestart);
+  }
+  assert.deepEqual(restarted, { ready: true, projectRestored: true, actions: 2 });
+  const after = await snapshotEvidence(evidence);
+  writeJson(evidence, 'after-final-restart.json', after);
+  const preservation = compareSnapshots(before, after);
+  writeJson(evidence, 'final-restart.json', {
+    passed: preservation.preserved,
+    finalIdentity,
+    dmgSha256,
+    sourceUpgradeDmgSha256: JSON.parse(
+      fs.readFileSync(path.join(evidence, 'new-application.json'), 'utf8'),
+    ).dmgSha256,
+    sameApplicationPath: application,
+    sameProfile: path.join(evidence, 'profile'),
+    samePackStore: path.join(evidence, 'packs'),
+    restarted,
+    preservation,
+    packUpgradeRepeated: false,
+    qualification:
+      'Final build restart with the previously upgraded .6 CAD Pack and existing data; the original .4-to-.6 migration remains attributed to its original DMG. No signed Core OTA claim.',
+  });
+  assert.ok(preservation.preserved, preservation.changes.join('\n'));
+  process.stdout.write(`Final DMG restart preserves the upgraded profile: ${evidence}\n`);
+}
 async function main(argv = process.argv.slice(2)) {
   const args = argumentsFor(argv);
   assert.ok(
     process.platform === 'darwin' && process.arch === 'arm64',
     'This gate requires Apple Silicon.',
   );
-  if (args.upgrade || args['capture-existing'])
+  if (args.upgrade || args['capture-existing'] || args['recheck-final'])
     assert.ok(
       fs.statSync(args.evidence).isDirectory(),
       'Upgrade requires completed --prepare evidence.',
@@ -536,20 +607,23 @@ async function main(argv = process.argv.slice(2)) {
   // production legacy runtime installer performs its own actual disk preflight.
   const plan = {
     kind: 'isolated-packaged-app-replacement',
-    stage: args.prepare
-      ? 'prepare'
-      : args.upgrade
-        ? 'upgrade'
-        : args['capture-existing']
-          ? 'capture-existing'
-          : 'complete',
+    stage: args['recheck-final']
+      ? 'recheck-final'
+      : args.prepare
+        ? 'prepare'
+        : args.upgrade
+          ? 'upgrade'
+          : args['capture-existing']
+            ? 'capture-existing'
+            : 'complete',
     oldApp: args['old-app'],
     newDmg: args['new-dmg'] || null,
     evidence: args.evidence,
     oldVersion: '1.0.0',
     newVersion: '1.0.1-beta.1',
     availableBytes: space.bavail * space.bsize,
-    minimumFreeBytes: (args['capture-existing'] ? 0.1 : args.upgrade ? 2 : 8) * GiB,
+    minimumFreeBytes:
+      (args['capture-existing'] ? 0.1 : args.upgrade || args['recheck-final'] ? 2 : 8) * GiB,
     expectedMinutes:
       '5–25 for preparation (official archive cache supplied); download time is additional',
     scope:
@@ -563,20 +637,24 @@ async function main(argv = process.argv.slice(2)) {
     plan.availableBytes >= plan.minimumFreeBytes,
     `Keep at least ${plan.minimumFreeBytes / GiB} GiB free for this stage.`,
   );
-  if (!args.upgrade && !args['capture-existing']) fs.mkdirSync(args.evidence, { recursive: true });
+  if (!args.upgrade && !args['capture-existing'] && !args['recheck-final'])
+    fs.mkdirSync(args.evidence, { recursive: true });
   const evidence = fs.realpathSync(args.evidence);
   writeJson(
     evidence,
-    args.upgrade
-      ? 'upgrade-plan.json'
-      : args['capture-existing']
-        ? 'capture-plan.json'
-        : 'plan.json',
+    args['recheck-final']
+      ? 'final-restart-plan.json'
+      : args.upgrade
+        ? 'upgrade-plan.json'
+        : args['capture-existing']
+          ? 'capture-plan.json'
+          : 'plan.json',
     plan,
   );
   const application = path.join(evidence, 'application', appName);
   try {
-    if (args['capture-existing']) await captureExistingOld(evidence, application);
+    if (args['recheck-final']) await recheckFinal(args, evidence, application);
+    else if (args['capture-existing']) await captureExistingOld(evidence, application);
     else {
       if (!args.upgrade) await prepareOld(args, evidence, application);
       if (!args.prepare) await upgrade(args, evidence, application);
@@ -585,11 +663,13 @@ async function main(argv = process.argv.slice(2)) {
     fs.writeFileSync(
       path.join(
         evidence,
-        args.upgrade
-          ? 'upgrade-failure.log'
-          : args['capture-existing']
-            ? 'capture-failure.log'
-            : 'failure.log',
+        args['recheck-final']
+          ? 'final-restart-failure.log'
+          : args.upgrade
+            ? 'upgrade-failure.log'
+            : args['capture-existing']
+              ? 'capture-failure.log'
+              : 'failure.log',
       ),
       error.stack + '\n',
     );
