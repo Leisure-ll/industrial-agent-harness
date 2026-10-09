@@ -448,6 +448,41 @@ function kimiExecutable() {
   if (process.env.KIMI_EXECUTABLE) return process.env.KIMI_EXECUTABLE;
   return bundledExecutable();
 }
+// The availability probe spawns the Kimi runtime twice (--version and
+// `web --help`) and blocks the main process for roughly a second. Status is
+// re-queried on every window focus and model/project broadcast, so cache the
+// probe per resolved executable; the runtime binary cannot change while the
+// app is running. Failures are not cached — a retry may catch a completed
+// setup.
+let cachedAgentRuntime;
+function agentRuntimeStatus() {
+  const executable = kimiExecutable();
+  if (cachedAgentRuntime?.executable === executable) return cachedAgentRuntime;
+  const script = /\.[cm]?js$/.test(executable);
+  const command = script ? process.execPath : executable;
+  const prefix = script ? [executable] : [];
+  const probeOptions = {
+    encoding: 'utf8',
+    timeout: 10000,
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', KIMI_CODE_NO_AUTO_UPDATE: '1' },
+  };
+  const result = spawnSync(command, [...prefix, '--version'], probeOptions);
+  const help =
+    result.status === 0 ? spawnSync(command, [...prefix, 'web', '--help'], probeOptions) : null;
+  const available =
+    !result.error &&
+    result.status === 0 &&
+    help?.status === 0 &&
+    result.stdout.trim() === KIMI_CODE_VERSION &&
+    help.stdout.includes('--no-open');
+  const status = {
+    executable,
+    available,
+    version: available ? result.stdout.split('\n')[0].trim() : '',
+  };
+  if (available) cachedAgentRuntime = status;
+  return status;
+}
 function modelStatus() {
   return {
     ...readProfile(configDir()),
@@ -924,27 +959,10 @@ function registerHandlers() {
       ].some(flag => process.argv.includes(flag))
     )
       return { available: true, version: 'SDK seam selftest', projectDir, configured: true };
-    const executable = kimiExecutable();
-    const script = /\.[cm]?js$/.test(executable);
-    const command = script ? process.execPath : executable;
-    const prefix = script ? [executable] : [];
-    const probeOptions = {
-      encoding: 'utf8',
-      timeout: 10000,
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', KIMI_CODE_NO_AUTO_UPDATE: '1' },
-    };
-    const result = spawnSync(command, [...prefix, '--version'], probeOptions);
-    const help =
-      result.status === 0 ? spawnSync(command, [...prefix, 'web', '--help'], probeOptions) : null;
-    const available =
-      !result.error &&
-      result.status === 0 &&
-      help?.status === 0 &&
-      result.stdout.trim() === KIMI_CODE_VERSION &&
-      help.stdout.includes('--no-open');
+    const runtime = agentRuntimeStatus();
     return {
-      available,
-      version: available ? result.stdout.split('\n')[0].trim() : '',
+      available: runtime.available,
+      version: runtime.version,
       projectDir: projectDir || null,
       configured: Boolean(readApiKey()),
       gui: guiBridgeState(),
