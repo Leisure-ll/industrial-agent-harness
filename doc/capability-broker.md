@@ -60,7 +60,7 @@ Broker 可以先作为独立本地 Sidecar 实现，再与控制面和 MCP Gatew
 
 默认 Skill 已由仓库中的 `SKILL.md` 文件注册，Project 保存禁用 ID。Broker 在解析前过滤被禁用的资源，并记录 `resource.policy` Trace；Kimi 会话通过 `extra_skill_dirs` 只追加当前 Scope 的仓库 Skill。Domain MCP 已注册 Chip Pack，默认清单和 ToolDescriptors 经校验合入共享 Registry；Gateway 检查真实工具面，只按需披露选中工具 schema，调用时校验 Scope 和项目。见 [MCP 接入](domain-mcp-integration.md)。
 
-每个 Project 绑定一个本地目录和一个 Domain。创建 Project 时从 Capability Registry 注册的领域中选择，之后在该 Project 的详情页修改。新 Session 在输入框中用只读小按钮展示所属 Domain；主进程拒绝跨领域解析请求。修改项目 Domain 时清空当前会话 Scope，Broker 结果中的阶段选项也受项目 Domain 限制。当前 MVP 在确定的领域内，根据任务词与用户指向的选中产物格式识别能力及阶段，并在 Trace 中记录 `context.infer`。没有匹配能力时保留空工业 Tool Scope，Kimi 仍可处理普通项目任务。更完整的项目 Domain State 尚未实现，当前推断不作为工程状态事实。
+每个 Project 绑定一个本地目录和一个 Domain。创建 Project 时从 Capability Registry 注册的领域中选择，之后在该 Project 的详情页修改。新 Session 在输入框中用只读小按钮展示所属 Domain；主进程拒绝跨领域解析请求。修改项目 Domain 时清空当前会话 Scope，Broker 结果中的阶段选项也受项目 Domain 限制。当前 MVP 在确定的领域内，根据任务词与用户指向的选中产物格式识别能力及阶段，并在 Trace 中记录 `context.infer`。没有匹配能力时区分两种情况：从任务文本推断领域（未显式绑定 Domain）时保留空工业 Tool Scope，Kimi 仍可处理普通项目任务；显式绑定 Domain 的会话（桌面 Project 或 CLI 发行版均属此类）回退选中该域优先级最高的 Capability，避免口语化任务措辞绕开类型化工具、改走通用底座的高开销路径，回退以 `domain-bound fallback` 记入 L1 Trace。更完整的项目 Domain State 尚未实现，当前推断不作为工程状态事实。
 
 每次解析至少记录任务、Domain State、候选和选中的 Capability、披露的 Skill/Tool、Scope 版本与决策原因。工具调用后关联实际调用、结果、Action、Artifact 和 Verification。Trace 不应把未验证的工具返回包装为成功结论。
 

@@ -96,6 +96,7 @@ test(
       'failed discovery never leaves partially registered services',
     );
     const external = registry.records();
+    const externalIds = external[0].tools.map(tool => tool.id);
     for (const domain of ['chip', 'pcb', 'godot']) {
       const broker = resolveProjectTask(
         domain,
@@ -105,9 +106,11 @@ test(
         {},
         external,
       );
+      // The domain-bound fallback may add its primary capability's tools; the
+      // external registration must always be present on top of them.
       assert.deepEqual(
-        broker.scope.tools,
-        external[0].tools.map(tool => tool.id),
+        broker.scope.tools.filter(id => id.startsWith('external.')),
+        externalIds,
       );
       assert.ok(broker.trace.some(row => row.event === 'mcp.external.scope'));
       const disabled = resolveProjectTask(
@@ -118,7 +121,10 @@ test(
         { mcpServers: ['external.computer-use'] },
         external,
       );
-      assert.deepEqual(disabled.scope.tools, []);
+      assert.ok(
+        disabled.scope.tools.every(id => !id.startsWith('external.')),
+        'the disable policy removes every external tool',
+      );
     }
     const project = path.join(directory, 'policy-project');
     fs.mkdirSync(project);
