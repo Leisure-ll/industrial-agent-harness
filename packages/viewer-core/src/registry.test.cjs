@@ -23,3 +23,11 @@ test('Viewer registry selects plugins without embedding domain kinds in Core', (
     /duplicate/,
   );
 });
+
+test('automatic opening requires an explicit plugin opt-in and keeps the normal Registry match', () => {
+  const plugin = { id: 'read-only', matches: file => file.endsWith('.sample'), open() {} };
+  assert.equal(createViewerRegistry([plugin]).canAutoPreview('a.sample'), false);
+  const registry = createViewerRegistry([{ ...plugin, autoPreview: true }]);
+  assert.equal(registry.canAutoPreview('a.sample'), true);
+  assert.equal(registry.canAutoPreview('a.unknown'), false);
+});

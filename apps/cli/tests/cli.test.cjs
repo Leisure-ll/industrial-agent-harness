@@ -163,7 +163,17 @@ test('headless CLI runs a task and emits agent and approval events', async t => 
   assert.equal(await run(options, output, { KIMI_API_KEY: 'test-key' }, FakeSession), 0);
   assert.deepEqual(
     rows.map(item => item.type),
-    ['scope', 'chat', 'agent_event', 'agent_event', 'approval_decision', 'agent_event', 'result'],
+    [
+      'scope',
+      'chat',
+      'agent_event',
+      'agent_event',
+      'approval_decision',
+      'agent_event',
+      'results_changed',
+      'results_ready',
+      'result',
+    ],
   );
   assert.deepEqual(approvals, [{ id: 'a1', decision: 'reject' }]);
   assert.equal(rows.at(-1).status, 'completed');

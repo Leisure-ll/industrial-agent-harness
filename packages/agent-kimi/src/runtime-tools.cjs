@@ -6,7 +6,7 @@ function runtimeTools(
   getScope,
   approve,
   onResult = () => {},
-  { imageInput = false, ownerId = 'project' } = {},
+  { imageInput = false, ownerId = 'project', getApplicationContext } = {},
 ) {
   if (!runtime) return [];
   const tools = [
@@ -58,6 +58,7 @@ function runtimeTools(
         expectedStateId: z.string().uuid(),
       }),
       handler: async request => {
+        const applicationContext = getApplicationContext?.();
         if ((request.inputs !== undefined) === (request.inputsJson !== undefined))
           throw Error('Supply exactly one of inputs or inputsJson.');
         if (request.inputsJson !== undefined) {
@@ -90,7 +91,7 @@ function runtimeTools(
           approval,
           ownerId,
         });
-        await onResult(result);
+        const results = await onResult(result, applicationContext);
         const output = JSON.stringify({
           runId: result.run.id,
           actionId: result.action.id,
@@ -107,6 +108,7 @@ function runtimeTools(
           checkpointId: result.checkpoint.id,
           allowedTools: getScope().tools,
           diagnostics: result.action.diagnostics,
+          ...(results ? { results } : {}),
         });
         return { output, message: result.verification.reason };
       },

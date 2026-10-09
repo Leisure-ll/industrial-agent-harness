@@ -229,7 +229,11 @@ async function run(
           skills: detail.skills.map(item => item.id),
           tools: detail.tools.map(item => item.id),
         }),
-      onEvent: event => {
+      onEvent: (event, metadata) => {
+        if (event.type === 'results-changed' || event.type === 'results-ready') {
+          send({ ...event, ...metadata, type: event.type.replaceAll('-', '_') });
+          return;
+        }
         if (event.type === 'industrial-result') {
           send({ ...event, type: 'industrial_result' });
           return;

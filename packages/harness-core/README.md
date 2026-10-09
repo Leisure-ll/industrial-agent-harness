@@ -18,4 +18,6 @@ Shared project-domain Broker resolution and resource enablement policy for Deskt
 
 `RemoteSettings` 与 `runtimeCapabilities` 为 Desktop/CLI 共享服务连接、项目运行位置与确认上传的文件范围。空服务配置保持“尚未配置”；Factory 在加载本地领域 Runtime 前选择远端实现。见[内置远程运行](../../doc/remote-execution.md)。
 
+`readProjectRecords` 按已保存的项目运行位置及规范项目身份，只读访问本地事实库或远程回读缓存。该入口不要求服务凭据、快照确认或 Pack Registry，不初始化执行 Runtime；未有远程规范身份或事实库时返回 null。聊天历史因此与远程执行就绪状态解耦，实际执行仍由 Factory 检查完整配置。
+
 Trusted installed factories receive `runtimeApi: { executeTask, runtimeFiles }` from Core. This generic backend/file boundary supports plugins installed outside the workspace dependency graph. Domain semantics and Verifiers stay in their owner Pack; this API does not alter canonical persistence or authorization.

@@ -28,6 +28,8 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [Kimi 后台兼容](kimi-background-compatibility.md) | 原生后台 Bash、WaitFor、自动续答与 Headless 生命周期 |
 | [系统架构](architecture.md) | Kimi Code、桌面端、Broker、工业运行时与领域包的职责和数据流 |
 | [Capability Broker](capability-broker.md) | Capability 解析、skill 与 MCP 工具的渐进式披露、Scope 和 Trace |
+| [任务成果](task-results.md) | 自动成果卡、确切版本关联、可选选择、CLI/Desktop 与原生验收 |
+| [全领域成果声明与扩展计划（Owner）](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/docs/result-presentation-plan.md) | 五领域、六 Pack 的声明草案、生产缺口、跨仓顺序与待实施测试矩阵 |
 | [Viewer 层](viewer-layer.md) | 内置查看、关键产物预览、外部打开与证据边界 |
 | [通用文件 Viewer](document-viewers.md) | CSV/TSV、JSON、JSONL、Markdown、TXT/LOG 的只读查看、分页与文件边界 |
 | [素材 Viewer](godot-assets-viewers.md) | 图片预览、图集切分、动画播放与 Godot 文本资源支持范围 |
@@ -50,6 +52,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [FreeCAD CAD Pack](freecad-domain-pack.md) | 参数化 3D 零件建模、持久 Runtime、独立几何回读、实体 Viewer 与 macOS arm64 原生 CI |
 | [Kimi 原生机制兼容性审计](kimi-native-compatibility-audit.md) | 项目发现、输入命令、配置、会话、环境和执行边界的实际差异及修复 |
 | [CI 回归与托管环境](ci-regression.md) | 四种原生 OS/架构环境、分层门禁、测试证据与覆盖缺口 |
+| [QA 测试用例与自动执行手册](qa-runbook.md) | T0–T6 分层用例目录、命令与通过判据；Agent 自动执行整个 QA 流程的唯一入口 |
 | [Node SDK](sdk.md) | 项目绑定、聊天恢复、流事件、取消和 stdio RPC |
 | [配对评测基线](benchmark-baseline.md) | 原生 Kimi/Harness、冻结输入、独立验收与正式结果边界 |
 | [早期开发计划](development-plan.md) | 两份原始 Plan 的阶段性整理；里程碑顺序以新的实施路线图为准 |

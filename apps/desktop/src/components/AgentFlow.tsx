@@ -1,6 +1,9 @@
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import type { AgentEvent } from '@industrial-agent-harness/viewer-builtin/api';
-import { SubagentCard } from './SubagentCard';
+import { SubagentCard, AgentGlyph, agentGlyphSeed } from './SubagentCard';
+import { TaskResults } from './TaskResults';
+import { IndustrialResult } from './IndustrialResult';
+import type { ResultOpenRequest } from '@industrial-agent-harness/viewer-builtin/api';
 import { AnswerMarkdown } from './AnswerMarkdown';
 import { ThinkingPreview } from './ThinkingPreview';
 import { MessageActions } from './MessageActions';
@@ -254,6 +257,9 @@ export const AgentFlow = memo(function AgentFlow({
   approve,
   answer,
   onLog,
+  onOpenResult,
+  turnId,
+  chatId,
 }: {
   events: AgentEvent[];
   running: boolean;
@@ -261,6 +267,9 @@ export const AgentFlow = memo(function AgentFlow({
   approve: (id: string, decision: 'approve' | 'reject') => Promise<void>;
   answer: (id: string, answers: Record<string, string>) => Promise<void>;
   onLog?: (traceId?: string) => void;
+  onOpenResult?: (request: ResultOpenRequest) => Promise<void>;
+  turnId?: string;
+  chatId?: string;
 }) {
   const { t, locale } = useDisplayText();
   const results = new Map<string, ToolResult>();
@@ -287,6 +296,10 @@ export const AgentFlow = memo(function AgentFlow({
     if (event.type === 'approval-resolved') decisions.set(event.id, event.decision);
     if (event.type === 'question-resolved') answered.set(event.id, event);
   }
+  let latestResults = -1;
+  events.forEach((event, index) => {
+    if (event.type === 'results-changed') latestResults = index;
+  });
   let lastActivity = -1;
   for (let index = events.length - 1; index >= 0; index--) {
     if (
@@ -306,32 +319,24 @@ export const AgentFlow = memo(function AgentFlow({
           return firstChildIndex.get(event.id) === index ? (
             <SubagentCard key={event.id} state={children.get(event.id)!} />
           ) : null;
-        if (event.type === 'industrial-result') {
-          const verified =
-            event.verification.status === 'passed' && event.state.status === 'verified';
+        if (event.type === 'results-changed')
+          return index === latestResults ? (
+            <TaskResults key="task-results" results={event.results} onOpen={onOpenResult} />
+          ) : null;
+        if (event.type === 'results-ready') return null;
+        if (event.type === 'industrial-result')
           return (
-            <details
-              className={`ia-agent-tool ${event.verification.status === 'failed' ? 'error' : ''}`}
-              key={index}
-            >
-              <summary>
-                {verified
-                  ? t('Engineering verification passed')
-                  : event.state.status === 'stale'
-                    ? t('Engineering evidence is stale')
-                    : event.verification.status === 'failed'
-                      ? t('Engineering verification failed')
-                      : t('Engineering evidence is insufficient')}
-              </summary>
-              <p>{event.verification.reason}</p>
-              {debug && (
-                <small>
-                  {t('Action')} {event.action.id} {t('· Checkpoint')} {event.checkpoint.id}
-                </small>
-              )}
-            </details>
+            <IndustrialResult
+              key={event.action.id}
+              event={event}
+              debug={debug}
+              onOpenArtifact={
+                onOpenResult && turnId && chatId
+                  ? (actionId, artifactId) => onOpenResult({ chatId, turnId, actionId, artifactId })
+                  : undefined
+              }
+            />
           );
-        }
         if (event.type === 'diagnostic-log')
           return (
             <div className="ia-agent-minor" key={index}>
@@ -406,9 +411,13 @@ export const AgentFlow = memo(function AgentFlow({
         if (event.type === 'tool') {
           if (lastToolIndex.get(event.id) !== index) return null;
           const result = results.get(event.id);
+          const childStates = [...children.values()].filter(c => c.parentToolCallId === event.id);
           return (
             <details className={`ia-agent-tool ${result?.error ? 'error' : ''}`} key={index}>
               <summary>
+                {childStates.map(child => (
+                  <AgentGlyph key={child.id} seed={agentGlyphSeed(child)} className="mini" />
+                ))}
                 {result?.error ? t('Tool failed') : result ? t('Tool finished') : t('Using tool')} ·{' '}
                 {event.name}
               </summary>

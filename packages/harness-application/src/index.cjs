@@ -16,6 +16,8 @@ const { ObservedContextStore } = require('@industrial-agent-harness/domain-runti
 const { discloseDetail } = require('@industrial-agent-harness/capability-broker');
 const { PackManager } = require('@industrial-agent-harness/pack-manager');
 const { SessionManager, finishTurn } = require('./session-manager.cjs');
+const { resolveResultArtifact } = require('./result-artifacts.cjs');
+const { TaskResults } = require('./results.cjs');
 const { ProjectRuntimes } = require('./project-runtimes.cjs');
 
 // Application orchestration is above canonical Core and below both adapters.
@@ -239,14 +241,36 @@ class TaskService {
         const recorded = this.chats.append(turnId, event);
         entry.eventRevision = (entry.eventRevision || 0) + 1;
         if (event.type === 'done' || event.type === 'error') outcome = event;
+        if (
+          event.type === 'background-state' &&
+          !entry.agent?.backgroundTasks &&
+          entry.resultContext?.turnId === turnId &&
+          entry.resultContext.wasBackground
+        )
+          entry.resultContext.settle(entry.cancelReason || outcome?.result?.status || 'incomplete');
         const metadata = {
           chatId: entry.id,
           projectId: entry.project.id,
           turnId,
           eventRevision: entry.eventRevision,
         };
-        this.options.onEvent?.(recorded, metadata);
-        options.onEvent?.(recorded, metadata);
+        const displayed = ['results-changed', 'results-ready'].includes(recorded.type)
+          ? {
+              ...recorded,
+              results:
+                entry.resultContext?.turnId === turnId
+                  ? entry.resultContext.view(recorded.results)
+                  : new TaskResults(
+                      this.chats,
+                      entry,
+                      turnId,
+                      entry.runtimeBundle?.runtime,
+                      () => {},
+                    ).view(recorded.results),
+            }
+          : recorded;
+        this.options.onEvent?.(displayed, metadata);
+        options.onEvent?.(displayed, metadata);
         if (
           [
             'background-state',
@@ -260,6 +284,32 @@ class TaskService {
           ].includes(event.type)
         )
           this.options.onChanged?.();
+      };
+      const resultContext = new TaskResults(
+        this.chats,
+        entry,
+        turnId,
+        entry.runtimeBundle?.runtime,
+        emit,
+      );
+      entry.resultContext = resultContext;
+      resultContext.onIndustrialResult = async result => {
+        resultContext.register(result);
+        if (entry.resultContext === resultContext) {
+          const refreshed = resolveProjectTask(
+            entry.project.domain,
+            { ...entry.resolvedRequest, state: result.state },
+            entry.scope,
+            runtimeCapabilities(this.registry(), entry.runtimeBundle),
+            entry.disabled,
+            entry.externalServers,
+            this.registry().domains,
+          );
+          Object.assign(entry.scope, refreshed.scope);
+          entry.trace.push(...refreshed.trace);
+        }
+        emit({ type: 'industrial-result', ...result });
+        return resultContext.view();
       };
       for (const [id, artifact] of options.artifacts || [])
         await this.context(entry).observeArtifact({
@@ -280,20 +330,9 @@ class TaskService {
         {
           industrialRuntime: entry.runtimeBundle?.runtime,
           protectedPaths: entry.runtimeBundle?.protectedPaths,
-          onIndustrialResult: async result => {
-            const refreshed = resolveProjectTask(
-              entry.project.domain,
-              { ...entry.resolvedRequest, state: result.state },
-              entry.scope,
-              runtimeCapabilities(this.registry(), entry.runtimeBundle),
-              entry.disabled,
-              entry.externalServers,
-              this.registry().domains,
-            );
-            Object.assign(entry.scope, refreshed.scope);
-            entry.trace.push(...refreshed.trace);
-            entry.agent.emit({ type: 'industrial-result', ...result });
-          },
+          getApplicationContext: () => entry.resultContext,
+          onIndustrialResult: (result, context) =>
+            (context || entry.resultContext).onIndustrialResult(result),
           resources: this.resources,
           onIdleRelease: () => {
             if (this.closing) return;
@@ -337,6 +376,7 @@ class TaskService {
               : outcome?.type === 'done'
                 ? outcome.result.status
                 : 'incomplete');
+          resultContext.settle(status, Boolean(entry.agent?.backgroundTasks));
           finishTurn(
             entry,
             () => this.chats.finish(turnId, status),
@@ -354,6 +394,7 @@ class TaskService {
                 : 'incomplete'),
           chatId: entry.id,
           turnId,
+          results: resultContext.view(),
           ...(state
             ? {
                 engineering: {
@@ -394,11 +435,76 @@ class TaskService {
   }
   history(project, id, before = null) {
     const entry = this.sessions.find(id);
+    const history = this.chats.history(id, project.path, project.domain, before);
+    const resultEvent = event => ['results-changed', 'results-ready'].includes(event.type);
+    if (history.turns.some(turn => turn.events.some(resultEvent))) {
+      const records = this.projects.read(project);
+      const contentStatuses = new Map();
+      try {
+        history.turns = history.turns.map(turn => {
+          const results = new TaskResults(this.chats, { id, project }, turn.id, records, () => {});
+          return {
+            ...turn,
+            events: turn.events.map(event =>
+              resultEvent(event)
+                ? { ...event, results: results.view(event.results, contentStatuses) }
+                : event,
+            ),
+          };
+        });
+      } finally {
+        records?.close();
+      }
+    }
     return {
-      ...this.chats.history(id, project.path, project.domain, before),
+      ...history,
       executing: this.sessions.busy(entry),
       eventRevision: entry?.eventRevision || 0,
     };
+  }
+  results(entry, turnId) {
+    this.chats.get(entry.id, entry.project.path, entry.project.domain);
+    if (!this.chats.turnBelongsTo(entry.id, turnId))
+      throw Error('Result request belongs to another chat.');
+    const runtime =
+      entry.runtimeBundle?.runtime || this.projects.get(entry.project, this.registry())?.runtime;
+    return new TaskResults(this.chats, entry, turnId, runtime, () => {}).view();
+  }
+  async openResult(entry, request) {
+    if (request.chatId && request.chatId !== entry.id)
+      throw Error('Result request belongs to another chat.');
+    this.chats.get(entry.id, entry.project.path, entry.project.domain);
+    const events = this.chats.turnEvents(entry.id, request.turnId);
+    const runtime =
+      entry.runtimeBundle?.runtime || this.projects.get(entry.project, this.registry())?.runtime;
+    let group;
+    if (request.groupId) {
+      const view = this.results(entry, request.turnId);
+      group = view.groups.find(group => group.id === request.groupId);
+      if (!group || !group.artifacts.some(artifact => artifact.id === request.artifactId))
+        throw Error('Output is outside this recorded result group.');
+    } else if (
+      !events.some(
+        event => event.type === 'industrial-result' && event.action?.id === request.actionId,
+      )
+    )
+      throw Error('Output Action is outside this request.');
+    const artifact = runtime.get('artifact', request.artifactId);
+    const resolved = await resolveResultArtifact(runtime, {
+      actionId: group ? artifact?.actionId : request.actionId,
+      artifactId: request.artifactId,
+    });
+    const companions = [];
+    if (
+      group &&
+      !request.revealOnly &&
+      [group.primaryArtifactId, group.previewArtifactId].includes(request.artifactId)
+    )
+      for (const id of group.companionArtifactIds)
+        companions.push(
+          await resolveResultArtifact(runtime, { actionId: group.actionId, artifactId: id }),
+        );
+    return { ...resolved, companions };
   }
   evidence(entry, id) {
     return entry.runtimeBundle?.runtime.readArtifact(id) || this.context(entry).readArtifact(id);

@@ -166,3 +166,60 @@ export const ProjectTaskCheckReportSchema: z.ZodType<{
   schemaVersion: '1';
   checks: { name: string; passed: boolean; details?: string }[];
 }>;
+
+export interface ResultGroup {
+  schemaVersion: '1';
+  id: string;
+  projectId: string;
+  chatId: string;
+  turnId: string;
+  actionId: string;
+  title: string;
+  primaryArtifactId: string;
+  previewArtifactId?: string;
+  attachmentArtifactIds: string[];
+  companionArtifactIds: string[];
+  supersedes: string[];
+  verificationRefs: Array<{ actionId: string; verificationId: string }>;
+}
+export interface PresentationInput {
+  relativePath: string;
+  sha256: string;
+}
+export interface ToolPresentation {
+  schemaVersion: '1';
+  inputs: Array<{ output: string; relativePath: string }>;
+  groups: Array<{
+    key: string;
+    title: string;
+    primary: string;
+    preview?: string;
+    attachments: string[];
+    companions: string[];
+    supersedesInput?: PresentationInput;
+  }>;
+  checks: Array<{ input: PresentationInput; outputs: string[] }>;
+}
+export interface ActionPresentation {
+  schemaVersion: '1';
+  actionId: string;
+  groups: Array<{
+    key: string;
+    title: string;
+    primaryArtifactId: string;
+    previewArtifactId?: string;
+    attachmentArtifactIds: string[];
+    companionArtifactIds: string[];
+    supersedesInput?: PresentationInput;
+  }>;
+  checks: Array<{ input: PresentationInput; artifactIds: string[] }>;
+  diagnostics: string[];
+}
+export const ToolPresentationSchema: z.ZodType<ToolPresentation>;
+export const ActionPresentationSchema: z.ZodType<ActionPresentation>;
+export const ResultGroupSchema: z.ZodType<ResultGroup>;
+export const ResultSelectionRequestSchema: z.ZodType<{
+  groupIds: string[];
+  revision: number;
+  historical: boolean;
+}>;

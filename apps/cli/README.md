@@ -39,9 +39,9 @@ node dist/headless/industrial-harness.cjs bench --suite examples/bench/scope-smo
 
 `bench` 读取 JSON suite，顺序运行多个 `run` 场景，逐场保存 JSONL，并生成 `summary.json`；断言失败时返回非零退出码。Suite 中 `projectDir` 和可选的 `artifactManifest` 相对于 suite 文件定位。每个场景可设置 `scopeOnly`、`disabledSkills`、`disabledMcpServers`、`timeoutMs`，并在 `expected` 中断言 `status`、`capabilityIds`、`skills`、`tools`、`mcpServers`。请使用全新的输出目录，避免覆盖先前证据。`examples/bench/scope-smoke.json` 是当前能力基线，其中 RTL 验证请求解析为空，表明该能力链尚未实现。
 
-打包目录包含 CLI、Broker、固定 Domain Packs 的 Skill 文件、MCP 注册表、随包 Kimi Code 2.1.1、Server API 接入与只读观察状态存储；不包含 Electron 或工业可执行文件。当前源码注册 Chip Pack 0.6.2，经共享 Scope Gateway 调用；需先准备固定 Python 环境。真实 Agent 场景还需模型 API Key，`KIMI_EXECUTABLE` 为可选的同版本覆盖。2026-10-03 的本地运行时修复需要同时重建 EDA 工具镜像，具体迁移和验证范围见 [运行时修复说明](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/49481057c372c4fa22742d833935335b7812416d/packs/chip/eda-harness/docs/runtime-reliability.md)。已有 GitHub Release 不会随本地源码修改而更新。
+打包目录包含 CLI、Broker、固定 Domain Packs 的 Skill 文件、MCP 注册表、随包 Kimi Code 2.1.1、Server API 接入与只读观察状态存储；不包含 Electron 或工业可执行文件。当前源码注册 Chip Pack 0.6.2，经共享 Scope Gateway 调用；需先准备固定 Python 环境。真实 Agent 场景还需模型 API Key，`KIMI_EXECUTABLE` 为可选的同版本覆盖。2026-10-03 的本地运行时修复需要同时重建 EDA 工具镜像，具体迁移和验证范围见 [运行时修复说明](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/packs/chip/eda-harness/docs/runtime-reliability.md)。已有 GitHub Release 不会随本地源码修改而更新。
 
-如需独立使用完整芯片 MCP 工具集，请安装 [Chip Pack 0.6.1 Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.1-preview.1)。它已与本 CLI 的 Broker Scope 经共享网关连接，使用和验收路径见 [Chip Pack 文档](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/49481057c372c4fa22742d833935335b7812416d/packs/chip/README.md)。
+如需独立使用完整芯片 MCP 工具集，请安装 [Chip Pack 0.6.1 Release](https://github.com/Zhiman-BJ/industrial-agent-harness/releases/tag/chip-v0.6.1-preview.1)。它已与本 CLI 的 Broker Scope 经共享网关连接，使用和验收路径见 [Chip Pack 文档](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/packs/chip/README.md)。
 
 每个 `headless-v*` Release 正文都列出该版**相比原生 Kimi Code 实际集成的 Harness 能力**及尚未集成的部分；发布时使用仓库中与标签同名的 `releases/<tag>.md`，不复用上一版说明。
 
@@ -119,3 +119,7 @@ Managed runtime dependencies declared by a Pack are prepared by `domains install
 `remote status|connect|use|sync|task|cancel` 与桌面共用项目运行配置。用户无需手填服务名或 URL，首次上传需选择文件并显式传入 `--confirm-upload`。公网与登录配置留空时显示尚未配置；内部连接、原生检查验收和当前限制见[内置远程运行](../../doc/remote-execution.md)。
 
 任务生命周期已由共享 `harness-application` TaskService 负责；领域源码、声明与 Skill 来自固定 Domain Packs 消费包，原生版本和平台限制见[迁移说明](../../doc/shared-task-and-pack-consumption.md)。独立叶子工具的历史 Release 保持其原有安装路径。
+
+## 任务成果
+
+`results_changed` 和 `results_ready` JSONL 行提供共享 TaskService 的请求归属、稳定成果组 ID、展示 revision、selection 与实际文件引用；终态记录含 `results`。分组不依赖 Agent 调用选择工具。普通文件无工程 Verifier 时保留 `not_run`，部分失败不移除已产生文件；历史检查不会随展示选择变成新版本验收。CLI 不加载 Electron／Viewer UI。[契约、可选工具和验收](../../doc/task-results.md)。

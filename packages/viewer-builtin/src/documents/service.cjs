@@ -196,6 +196,7 @@ function parseDocument(kind, text, extension) {
 function createDocumentPlugins({ projectRoot }) {
   return Object.entries(extensions).map(([id, formats]) => ({
     id,
+    autoPreview: true,
     matches: file => formats.includes(path.extname(file).toLowerCase()),
     open: ({ artifact, file }) => {
       const text = readDocument(
