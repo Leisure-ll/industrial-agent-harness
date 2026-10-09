@@ -7,6 +7,7 @@ test('domain options include registered Viewer-only domains', () => {
   assert.deepEqual(listDomains(capabilities), [
     { id: 'cad', label: 'CAD', emoji: '📐' },
     { id: 'chip', label: 'Chip', emoji: '💠' },
+    { id: 'cuda', label: 'CUDA', emoji: '⚡' },
     { id: 'godot', label: 'Godot', emoji: '🎮' },
     { id: 'pcb', label: 'PCB', emoji: '🔌' },
   ]);
