@@ -1,5 +1,5 @@
 const { ChatStore, defaultChatDirectory } = require('./chat-store.cjs');
-const { createProjectRuntime } = require('./project-runtime.cjs');
+const { createProjectRuntime, readProjectRecords } = require('./project-runtime.cjs');
 const sessionResources = require('./session-resources.cjs');
 const { availableMemoryBytes } = require('./available-memory.cjs');
 const { resolve, resolveFromState } = require('@industrial-agent-harness/capability-broker');
@@ -116,6 +116,7 @@ function resolveProjectTask(
 
 module.exports = {
   createProjectRuntime,
+  readProjectRecords,
   runtimeCapabilities,
   RemoteSettings: require('./remote-settings.cjs').RemoteSettings,
   ...sessionResources,

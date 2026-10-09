@@ -33,15 +33,52 @@ const schemas = {
   checkpoint: IndustrialCheckpointSchema,
   presentation: ActionPresentationSchema,
 };
+const defaultDirectory = path.join(os.homedir(), '.industrial-agent-harness', 'core');
+const projectReference = (projectDir, domain, projectRef) => {
+  const project = ProjectRefSchema.parse(
+    projectRef || { schemaVersion: '1', projectId: digest(`${projectDir}\0${domain}`), domain },
+  );
+  if (project.domain !== domain) throw Error('Runtime project domain differs from its binding.');
+  return project;
+};
+const readRecord = (db, kind, id) => {
+  const row = db.prepare('SELECT json FROM core_records WHERE kind=? AND id=?').get(kind, id);
+  return row ? schemas[kind].parse(JSON.parse(row.json)) : null;
+};
 
 // Execution implementations and engineering interpretation are injected by a Pack.
 // This class owns policy, identities, immutable facts, CAS and the durable head.
 class IndustrialRuntime {
+  // History reads existing canonical facts without acquiring an execution lease,
+  // recovering interrupted Actions, migrating stores or loading producer plugins.
+  static openRecords(projectDir, domain, { directory = defaultDirectory, projectRef } = {}) {
+    projectDir = fs.realpathSync(projectDir);
+    const project = projectReference(projectDir, domain, projectRef);
+    const file = path.join(directory, `${project.projectId}.sqlite`);
+    if (!fs.existsSync(file)) return null;
+    const db = new DatabaseSync(file, { readOnly: true });
+    try {
+      if (db.prepare('PRAGMA user_version').get().user_version !== 1)
+        throw Error('Unsupported industrial store version.');
+      const stored = readRecord(db, 'project', project.projectId);
+      if (!stored || stored.projectId !== project.projectId || stored.domain !== domain)
+        throw Error('Industrial store differs from its project binding.');
+      return {
+        projectDir,
+        project,
+        get: (kind, id) => readRecord(db, kind, id),
+        close: () => db.close(),
+      };
+    } catch (error) {
+      db.close();
+      throw error;
+    }
+  }
   constructor(
     projectDir,
     domain,
     {
-      directory = path.join(os.homedir(), '.industrial-agent-harness', 'core'),
+      directory = defaultDirectory,
       stateProvider,
       tools = [],
       verifiers = {},
@@ -58,15 +95,7 @@ class IndustrialRuntime {
     )
       throw Error('A bound project, domain and StateProvider are required.');
     this.projectIdentity = fs.statSync(this.projectDir);
-    this.project = ProjectRefSchema.parse(
-      projectRef || {
-        schemaVersion: '1',
-        projectId: digest(`${this.projectDir}\0${domain}`),
-        domain,
-      },
-    );
-    if (this.project.domain !== domain)
-      throw Error('Runtime project domain differs from its binding.');
+    this.project = projectReference(this.projectDir, domain, projectRef);
     this.stateProvider = stateProvider;
     this.dispose = dispose;
     this.releaseOwner = releaseOwner;
@@ -128,10 +157,7 @@ class IndustrialRuntime {
     return value;
   }
   get(kind, id) {
-    const row = this.db
-      .prepare('SELECT json FROM core_records WHERE kind=? AND id=?')
-      .get(kind, id);
-    return row ? schemas[kind].parse(JSON.parse(row.json)) : null;
+    return readRecord(this.db, kind, id);
   }
   list(kind) {
     return this.db

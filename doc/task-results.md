@@ -10,6 +10,8 @@ A live foreground request may open one preview after all related work is ready, 
 
 Partial output stays visible with request/Action failure status. A valid native file can still be revealed if its preview companions are unavailable; preview opening requires all companions. Missing files or changed contents produce an explicit error; the recorded path is never silently rebound to new bytes. Historical checks remain historical facts and do not certify changed bytes. Display freshness hashes files up to 64 MiB; larger files show an unchecked state and are still fully digest-checked when opened. An unavailable Viewer leaves manual file/source entries; native software launch remains a separate path.
 
+Reading history does not initialize execution Runtime or load Packs. Empty/text-only chats need no industrial store; saved result events use existing canonical records through a read-only cursor, including cached remote facts before remote setup is ready. Within one history call, cumulative events reuse file validation by canonical Artifact ID. The cache is discarded at return: subsequent reads detect changed bytes, and opening a result independently validates the source and companions. The 32-file/32-MiB regression fixture now reads 32 MiB per history call, compared with 528 MiB without reuse.
+
 ## Producer and host contract
 
 `packages/contracts/src/results.cjs` owns strict, version `'1'` display schemas, separate from canonical Artifact/Action/Verification records. A minimal producer declaration is:
@@ -56,7 +58,7 @@ Rebase validation (2026-10-09): the branch is based on main `e5236e54323d1aade05
 
 | Evidence | Exercised behavior |
 | --- | --- |
-| `pnpm test` | Contracts, bound outputs, ordinary file results, persistence/restart, duplicate registration, exact-version/late/background isolation, stale/multiple/historical selection, changed-content opening, shared CLI events and preview policy |
+| `pnpm test` | Contracts, bound outputs, ordinary file results, persistence/restart, duplicate registration, exact-version/late/background isolation, stale/multiple/historical selection, changed-content opening, shared CLI events and preview policy; unconfigured remote chat/history, read-only record lifecycle, per-read validation reuse and subsequent changed-byte detection |
 | `pnpm test:architecture-contract`, `pnpm test:architecture` | Existing ownership gates unchanged; no added policy exceptions |
 | Owner `npm test`, `npm run lock:check`, `npm run test:architecture-contract`, locked real stdio MCP smoke | Owner production declarations, partial/failure cases, inventories and source identity |
 | `pnpm test:results` with `INDUSTRIAL_HARNESS_FREECAD_CMD` | Real FreeCAD generation/edit/inspection, two-design comparison, report selection, exact companion mismatch rejection; pinned Kimi with controlled model responses through the authenticated MCP bridge, without `select_result` |
@@ -76,5 +78,7 @@ The new native test files join the existing native CI test catalog; architecture
 本轮工具产生文件后，紧凑成果条目自动出现，无需 Agent 记住收尾调用。默认两行展示标题、打开操作、执行状态、文件数量和检查摘要；文件和检查详情按需展开。主入口预览对应版本，“文件”可打开真实附件，文件夹图标定位可取走的原生文件。明确作为其他成果附件的辅助结果统一收在“附件与报告”中，展开后用步骤区分多份同名报告；不按标题去重。失败、证据不足、内容变化及用户明确选中的结果保持直接可见。模型与诊断报告分开；只有明确替代关系才折叠旧版本，并列方案全部保留。检查摘要只说明所引用版本的实际证据，执行结束或能预览不等于工程检查通过。
 
 当前前台请求结束、相关工作就绪且只有一个明确支持的只读预览时，最多自动打开一次。已经手动换文件／标签／对话、查看历史版本，或任务失败、取消、仍在后台、多方案不明确时，只更新成果。重启和历史回放不自动打开。文件变化、附件不可读或 Viewer 不可用会明确反馈；失败后的部分文件仍可查看，不冒充完成。
+
+读取历史不初始化执行 Runtime 或加载 Pack，远程配置未完成也能新建／读取聊天，并查看已缓存的成果记录。单次读取按 Artifact 身份复用文件校验，下一次读取及打开文件仍重新校验；32 个文件共 32 MiB 的回归用例将读取量从 528 MiB 降至 32 MiB。
 
 需要对比方案或突出诊断时，Agent 可按需调用 `list_results`／`select_result`，选择已登记的组；默认可见性不依赖它。CLI 获取同一成果身份、分组、选择和检查状态。实际验收限上表的 macOS arm64 源码运行态，未新增跨平台或安装包支持承诺。

@@ -7,6 +7,9 @@ const { TaskService } = require('../src/index.cjs');
 const { runtimeTools } = require('../../agent-kimi/src/runtime-tools.cjs');
 const { applicationTools } = require('../../agent-kimi/src/application-tools.cjs');
 const { startToolServer } = require('../../agent-kimi/src/tool-server.cjs');
+const { RemoteSettings } = require('@industrial-agent-harness/harness-core');
+const { IndustrialRuntime } = require('@industrial-agent-harness/domain-runtime');
+const { TaskResults } = require('../src/results.cjs');
 
 function setup(t, script) {
   const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-results-')));
@@ -72,14 +75,171 @@ function setup(t, script) {
       await tasks.prepare(entry, { task });
       return (await tasks.start(entry, task)).completion;
     },
-    async reopen() {
+    async reopen(runtimeOptions = {}) {
       await tasks.close();
-      tasks = new TaskService(options);
+      tasks = new TaskService({
+        ...options,
+        runtimeOptions: { ...options.runtimeOptions, ...runtimeOptions },
+      });
       entry = tasks.resume(project, chat.id);
     },
   };
 }
 const change = (file, content, expectedSha256 = null) => ({ path: file, content, expectedSha256 });
+
+test('empty and text-only remote histories do not require execution setup or load Packs', async t => {
+  const f = setup(t, async () => {});
+  const settings = new RemoteSettings({
+    directory: path.join(path.dirname(f.project.path), 'remote'),
+    environment: {},
+  });
+  settings.setLocation(f.project.path, f.project.domain, 'remote');
+  await f.reopen({ remoteSettings: settings });
+  assert.throws(() => f.tasks.projects.get(f.project, f.tasks.registry()), /confirm files/);
+  f.tasks.registry = () => {
+    throw Error('History must not load execution Packs.');
+  };
+  assert.deepEqual(f.tasks.history(f.project, f.entry.id).turns, []);
+  const turnId = f.tasks.chats.beginTurn(f.entry.id, 'Saved conversation', null, false);
+  f.tasks.chats.append(turnId, {
+    type: 'answer',
+    text: 'Readable while remote setup is incomplete.',
+  });
+  f.tasks.chats.finish(turnId, 'completed');
+  assert.equal(
+    f.tasks.history(f.project, f.entry.id).turns[0].events[0].text,
+    'Readable while remote setup is incomplete.',
+  );
+  const chat = f.tasks.chats.create(f.project.path, f.project.domain);
+  assert.deepEqual(f.tasks.history(f.project, chat.id).turns, []);
+  assert.equal(f.tasks.projects.bundles.size, 0);
+});
+
+test('persisted remote result records remain readable before remote execution is ready', async t => {
+  const f = setup(t, async ({ apply }) => {
+    await apply([change('saved.txt', 'Saved output')]);
+  });
+  const result = await f.run('produce saved output');
+  const projectId = result.results.projectId;
+  const state = f.entry.runtimeBundle.runtime.directory;
+  await f.tasks.close();
+  fs.mkdirSync(path.join(state, 'remote-workspaces'));
+  fs.renameSync(
+    path.join(state, projectId + '.sqlite'),
+    path.join(state, 'remote-workspaces', projectId + '.sqlite'),
+  );
+  const settings = new RemoteSettings({
+    directory: path.join(path.dirname(f.project.path), 'remote'),
+    environment: {},
+  });
+  settings.update(f.project.path, f.project.domain, {
+    location: 'remote',
+    canonicalProjectId: projectId,
+  });
+  await f.reopen({ remoteSettings: settings });
+  assert.throws(() => f.tasks.projects.get(f.project, f.tasks.registry()), /confirm files/);
+  f.tasks.registry = () => {
+    throw Error('History must not load execution Packs.');
+  };
+  const history = f.tasks.history(f.project, f.entry.id);
+  const groups = history.turns[0].events.findLast(event => event.type === 'results-ready').results
+    .groups;
+  assert.equal(groups[0].id, result.results.groups[0].id);
+  assert.equal(groups[0].contentStatus, 'recorded');
+  assert.equal(groups[0].artifacts[0].relativePath, 'saved.txt');
+  assert.equal(f.tasks.projects.bundles.size, 0);
+});
+
+test('one history read hashes each recorded file once and the next read detects changed content', async t => {
+  const size = 1024 * 1024;
+  const files = new Set();
+  const f = setup(t, async () => {});
+  const runtime = new IndustrialRuntime(f.project.path, f.project.domain, {
+    directory: path.join(path.dirname(f.project.path), 'state'),
+    stateProvider: async () => ({ stage: null, inputHashes: {} }),
+    verifiers: {
+      fixture: async () => ({ status: 'not_run', reason: 'File fixture only.', metrics: {} }),
+    },
+    tools: [
+      {
+        descriptor: {
+          schemaVersion: '1',
+          id: 'test.output',
+          version: '1',
+          risk: 'mutating',
+          verification: ['fixture'],
+        },
+        execute: ({ inputs }) => {
+          const file = `output-${inputs.index}.txt`;
+          fs.writeFileSync(path.join(f.project.path, file), 'x'.repeat(size));
+          files.add(path.join(f.project.path, file));
+          return {
+            executionSucceeded: true,
+            artifacts: [{ localId: 'file', file, kind: 'text' }],
+            presentation: {
+              schemaVersion: '1',
+              groups: [{ key: 'file', title: file, primary: 'file' }],
+            },
+          };
+        },
+      },
+    ],
+  });
+  t.after(() => runtime.close());
+  const turnId = f.tasks.chats.beginTurn(f.entry.id, 'produce cumulative results', null, false);
+  const context = new TaskResults(f.tasks.chats, f.entry, turnId, runtime, event =>
+    f.tasks.chats.append(turnId, event),
+  );
+  for (let index = 0; index < 32; index++) {
+    const state = await runtime.inspect();
+    const result = await runtime.execute(
+      { toolId: 'test.output', inputs: { index }, expectedStateId: state.id },
+      {
+        scope: {
+          domain: f.project.domain,
+          projectId: state.projectId,
+          stateId: state.id,
+          tools: ['test.output'],
+        },
+        approval: true,
+      },
+    );
+    assert.equal(result.action.status, 'completed');
+    context.register(result);
+  }
+  f.tasks.chats.finish(turnId, 'completed');
+  await runtime.close();
+  await f.reopen();
+  const open = fs.openSync,
+    read = fs.readSync,
+    close = fs.closeSync;
+  const descriptors = new Set();
+  let bytes = 0;
+  t.mock.method(fs, 'openSync', function (file, ...args) {
+    const fd = open.call(this, file, ...args);
+    if (files.has(String(file))) descriptors.add(fd);
+    return fd;
+  });
+  t.mock.method(fs, 'readSync', function (fd, ...args) {
+    const count = read.call(this, fd, ...args);
+    if (descriptors.has(fd)) bytes += count;
+    return count;
+  });
+  t.mock.method(fs, 'closeSync', function (fd) {
+    descriptors.delete(fd);
+    return close.call(this, fd);
+  });
+  f.tasks.history(f.project, f.entry.id);
+  assert.equal(bytes, 32 * size, 'cumulative events must share one per-read validation cache');
+  fs.writeFileSync([...files][0], 'y'.repeat(size));
+  bytes = 0;
+  const history = f.tasks.history(f.project, f.entry.id);
+  assert.equal(bytes, 32 * size, 'a new history read must validate files again');
+  const resultEvents = history.turns[0].events.filter(event =>
+    ['results-ready', 'results-changed'].includes(event.type),
+  );
+  assert.ok(resultEvents.every(event => event.results.groups[0].contentStatus === 'changed'));
+});
 
 test('ordinary files automatically register real refs, persist once and open only the recorded contents', async t => {
   let fact;

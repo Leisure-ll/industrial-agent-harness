@@ -435,29 +435,29 @@ class TaskService {
   }
   history(project, id, before = null) {
     const entry = this.sessions.find(id);
+    const history = this.chats.history(id, project.path, project.domain, before);
+    const resultEvent = event => ['results-changed', 'results-ready'].includes(event.type);
+    if (history.turns.some(turn => turn.events.some(resultEvent))) {
+      const records = this.projects.read(project);
+      const contentStatuses = new Map();
+      try {
+        history.turns = history.turns.map(turn => {
+          const results = new TaskResults(this.chats, { id, project }, turn.id, records, () => {});
+          return {
+            ...turn,
+            events: turn.events.map(event =>
+              resultEvent(event)
+                ? { ...event, results: results.view(event.results, contentStatuses) }
+                : event,
+            ),
+          };
+        });
+      } finally {
+        records?.close();
+      }
+    }
     return {
-      ...(() => {
-        const history = this.chats.history(id, project.path, project.domain, before);
-        const runtime = this.projects.get(project, this.registry())?.runtime;
-        history.turns = history.turns.map(turn => ({
-          ...turn,
-          events: turn.events.map(event =>
-            ['results-changed', 'results-ready'].includes(event.type)
-              ? {
-                  ...event,
-                  results: new TaskResults(
-                    this.chats,
-                    { id, project },
-                    turn.id,
-                    runtime,
-                    () => {},
-                  ).view(event.results),
-                }
-              : event,
-          ),
-        }));
-        return history;
-      })(),
+      ...history,
       executing: this.sessions.busy(entry),
       eventRevision: entry?.eventRevision || 0,
     };

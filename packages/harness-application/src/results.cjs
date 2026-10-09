@@ -143,7 +143,7 @@ class TaskResults {
     this.wasBackground ||= background;
     return view;
   }
-  view(value = this.snapshot()) {
+  view(value = this.snapshot(), contentStatuses = new Map()) {
     const all = this.all();
     const groups = all.flatMap(result => result.groups);
     const checks = all.flatMap(result => result.checks || []);
@@ -169,6 +169,8 @@ class TaskResults {
         const primary = this.runtime?.get('artifact', group.primaryArtifactId);
         const related = checks.filter(check => check.groupId === group.id);
         const refs = [...group.verificationRefs, ...related];
+        if (primary && !contentStatuses.has(primary.id))
+          contentStatuses.set(primary.id, resultContentStatus(this.runtime, primary));
         return {
           ...group,
           historical: group.turnId !== this.turnId,
@@ -188,7 +190,7 @@ class TaskResults {
             .map(id => this.runtime?.get('artifact', id))
             .filter(Boolean),
           executionStatus: action?.status || 'unavailable',
-          contentStatus: primary ? resultContentStatus(this.runtime, primary) : 'unavailable',
+          contentStatus: primary ? contentStatuses.get(primary.id) : 'unavailable',
           verifications: [...new Set(refs.map(ref => ref.verificationId))]
             .map(id => this.runtime?.get('verification', id))
             .filter(Boolean),
