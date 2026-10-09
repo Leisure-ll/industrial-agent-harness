@@ -1554,6 +1554,21 @@ body,
   align-items: center;
   gap: 8px;
 }
+.ia-domain-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.ia-domain-select > .ia-domain-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--ia-muted);
+  pointer-events: none;
+}
+.ia-project-domain-edit .ia-domain-select select {
+  padding-left: 32px;
+}
 .ia-project-domain-edit select {
   min-width: 150px;
   max-width: 220px;
@@ -1641,9 +1656,6 @@ body,
 }
 .ia-domain-install-row small {
   color: var(--ia-muted);
-}
-.ia-domain-install-emoji {
-  font-size: 22px;
 }
 .ia-domains-installed {
   margin-top: 22px;

@@ -1,3 +1,4 @@
+import { DomainIcon } from '@industrial-agent-harness/viewer-builtin/domain-icon';
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useRef, useState } from 'react';
 import type { DomainOption } from '@industrial-agent-harness/viewer-builtin/api';
@@ -255,9 +256,7 @@ export function DomainManager({
                       disabled={saving || busy}
                       onChange={() => toggle(item.domain)}
                     />
-                    <span className="ia-domain-install-emoji" aria-hidden="true">
-                      {item.emoji || current?.emoji || '⚙️'}
-                    </span>
+                    <DomainIcon domain={item.domain} size={22} />
                     <span>
                       <b>{item.label || current?.label || item.domain}</b>
                       <small>
@@ -287,7 +286,7 @@ export function DomainManager({
                 {installed.map(item => (
                   <div key={item.domain} className="ia-domains-installed-row">
                     <span>
-                      {item.emoji} {t(item.label)} · {item.version}
+                      <DomainIcon domain={item.domain} /> {t(item.label)} · {item.version}
                       {item.runtimeState && (
                         <small className="ia-domain-readiness">
                           {t(item.runtimeState === 'ready' ? 'Ready to use' : 'Needs preparation')}

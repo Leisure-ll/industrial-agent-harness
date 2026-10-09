@@ -1,3 +1,4 @@
+import { DomainIcon } from '@industrial-agent-harness/viewer-builtin/domain-icon';
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useState } from 'react';
 import { ProjectExecution } from './RemoteExecution';
@@ -71,22 +72,25 @@ export function ProjectDetails({
           <div className="ia-project-property">
             <label htmlFor="ia-project-domain">{t('Domain')}</label>
             <div className="ia-project-domain-edit">
-              <select
-                id="ia-project-domain"
-                aria-label={t('Project domain')}
-                value={domain}
-                onChange={event => setDomain(event.target.value)}
-                disabled={busy || saving}
-              >
-                <option value="" disabled>
-                  {t('Select a domain')}
-                </option>
-                {domains.map(item => (
-                  <option key={item.id} value={item.id}>
-                    {item.emoji} {t(item.label)}
+              <span className="ia-domain-select">
+                <DomainIcon domain={domain} />
+                <select
+                  id="ia-project-domain"
+                  aria-label={t('Project domain')}
+                  value={domain}
+                  onChange={event => setDomain(event.target.value)}
+                  disabled={busy || saving}
+                >
+                  <option value="" disabled>
+                    {t('Select a domain')}
                   </option>
-                ))}
-              </select>
+                  {domains.map(item => (
+                    <option key={item.id} value={item.id}>
+                      {t(item.label)}
+                    </option>
+                  ))}
+                </select>
+              </span>
               <button
                 onClick={() => void save()}
                 disabled={busy || saving || !domain || domain === project.domain}

@@ -1,3 +1,4 @@
+import { DomainIcon } from '@industrial-agent-harness/viewer-builtin/domain-icon';
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useState } from 'react';
 import { FolderOpen, X } from 'lucide-react';
@@ -82,7 +83,7 @@ export function CreateProjectModal({
                   aria-pressed={draft.domain === item.id}
                   onClick={() => onChange({ ...draft, domain: item.id })}
                 >
-                  <span aria-hidden="true">{item.emoji}</span>
+                  <DomainIcon domain={item.id} />
                   {t(item.label)}
                 </button>
               ))}
