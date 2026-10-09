@@ -113,7 +113,7 @@ Apple Silicon 桌面构建包含可选 CAD Pack。首次选择 CAD 会自动准�
 
 工具产生文件后，共享任务服务自动登记紧凑成果条目，辅助报告收在“附件与报告”中，文件和检查详情按需展开；CLI 输出同一分组和文件引用。主入口查看成果，原生文件／导出入口取走文件，检查摘要只对应记录版本。明确替代关系保留历史，并列方案全部可见。当前前台请求结束、只有一个支持的只读预览且未手动换文件／标签／聊天时，最多自动打开一次；历史、后台、失败和多方案不抢焦点。部分结果和文件变化明确提示，Agent 的 `select_result` 可选。FreeCAD 生成→连续修改→检查→卡片→OCCT 已在 macOS arm64 源码态验证，并另行记录真实模型演示；未扩大安装包或平台支持。[行为、契约和验收](doc/task-results.md)。
 
-Owner 已整理[全部五领域、六个 Pack 的声明草案与扩展计划](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/docs/result-presentation-plan.md)。当前接入任务成果的领域生产者为 FreeCAD；其他领域接入及 CUDA 消费升级仍属待实施项。
+Owner 已整理[全部五领域、六个 Pack 的声明草案与扩展计划](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/docs/result-presentation-plan.md)。当前接入任务成果的领域生产者为 FreeCAD；其他领域的成果接入仍属待实施项。当前消费版本保留 main 已接入的 CUDA 支持。
 
 ## 已接入的 Viewer
 
