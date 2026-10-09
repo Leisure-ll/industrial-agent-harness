@@ -78,6 +78,16 @@ const api = {
     ipcRenderer.on('chat:updated', listener);
     return () => ipcRenderer.removeListener('chat:updated', listener);
   },
+  onModelChanged: callback => {
+    const listener = () => callback();
+    ipcRenderer.on('model:changed', listener);
+    return () => ipcRenderer.removeListener('model:changed', listener);
+  },
+  onProjectsChanged: callback => {
+    const listener = () => callback();
+    ipcRenderer.on('projects:changed', listener);
+    return () => ipcRenderer.removeListener('projects:changed', listener);
+  },
   newChat: () => ipcRenderer.invoke('agent:new'),
   projectFiles: () => ipcRenderer.invoke('project:list'),
   readProjectFile: relative => ipcRenderer.invoke('project:read', relative),

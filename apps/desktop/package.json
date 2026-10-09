@@ -26,7 +26,8 @@
     "test:external-mcp": "electron . --external-mcp-selftest",
     "test:cad-resize": "electron . --cad-resize-selftest",
     "test:subagents": "electron . --subagent-selftest",
-    "test:gui-settings": "electron . --gui-settings-selftest"
+    "test:gui-settings": "electron . --gui-settings-selftest",
+    "test:model-sync": "electron . --model-sync-selftest"
   },
   "dependencies": {
     "@industrial-agent-harness/agent-kimi": "workspace:*",

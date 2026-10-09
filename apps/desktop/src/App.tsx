@@ -551,11 +551,61 @@ export function App() {
     const removeUpdated = window.viewerHost.onChatUpdated(() => {
       void refreshChats().catch(reason => setError(String(reason)));
     });
+    const refreshAgentStatus = () => {
+      void window
+        .viewerHost!.agentStatus()
+        .then(status => {
+          if (!disposed) setAgentStatus(status);
+        })
+        .catch(reason => setError(String(reason)));
+    };
+    const refreshModelProfile = () => {
+      void window
+        .viewerHost!.modelGet()
+        .then(profile => {
+          if (!disposed) setModelImageInput(profile.imageInput);
+        })
+        .catch(reason => setError(String(reason)));
+    };
+    const applyProjectBindings = () => {
+      void window
+        .viewerHost!.projectBindings()
+        .then(bindings => {
+          if (disposed) return;
+          const previousActiveId = projectIdRef.current;
+          setProjects(bindings.projects);
+          setActiveProjectId(bindings.activeId);
+          projectIdRef.current = bindings.activeId;
+          if (
+            bindings.activeId !== previousActiveId &&
+            bindings.projects.find(item => item.id === bindings.activeId)?.domain
+          )
+            void refreshChats(true).catch(reason => setError(String(reason)));
+        })
+        .catch(reason => setError(String(reason)));
+    };
+    // Model and project state can change outside this window's own UI flows
+    // (external IPC senders, direct config-file edits). Broadcasts invalidate
+    // the mount-time snapshots; a focus re-pull additionally covers mutations
+    // that bypass IPC entirely, since sending a task requires focusing first.
+    const removeModelChanged = window.viewerHost.onModelChanged(() => {
+      refreshAgentStatus();
+      refreshModelProfile();
+    });
+    const removeProjectsChanged = window.viewerHost.onProjectsChanged(applyProjectBindings);
+    const refreshOnWindowFocus = () => {
+      refreshAgentStatus();
+      applyProjectBindings();
+    };
+    window.addEventListener('focus', refreshOnWindowFocus);
     return () => {
       disposed = true;
       clearTimeout(eventTimer);
       removeEvents();
       removeUpdated();
+      removeModelChanged();
+      removeProjectsChanged();
+      window.removeEventListener('focus', refreshOnWindowFocus);
     };
   }, []);
   const activeFile = openFiles.find(file => file.id === activeFileId);

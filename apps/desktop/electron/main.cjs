@@ -147,6 +147,7 @@ if (
     '--chat-selftest',
     '--parallel-selftest',
     '--image-input-selftest',
+    '--model-sync-selftest',
     '--packaged-smoke',
   ].some(flag => process.argv.includes(flag))
 )
@@ -332,10 +333,22 @@ function contextStoreOptions() {
     : {};
 }
 
+function sendToMainWindow(channel) {
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
+    mainWindow.webContents.send(channel);
+}
 function notifySessions() {
   if (tasks.closing) return;
-  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed())
-    mainWindow.webContents.send('chat:updated');
+  sendToMainWindow('chat:updated');
+}
+// Renderer state for the model profile and project bindings is a snapshot
+// pulled on demand; mutations must push an invalidation so the UI stays
+// coherent even when the change did not originate in the main window.
+function notifyModelChanged() {
+  sendToMainWindow('model:changed');
+}
+function notifyProjectsChanged() {
+  sendToMainWindow('projects:changed');
 }
 function diagnosticDirectory() {
   return process.argv.some(flag => flag.endsWith('-selftest'))
@@ -892,6 +905,7 @@ function registerHandlers() {
       }
       writeCliConfig(configDir(), profile);
       modelRevision++;
+      notifyModelChanged();
       return modelStatus();
     } finally {
       changingResources = false;
@@ -956,6 +970,7 @@ function registerHandlers() {
         activeChatId = undefined;
       }
       saveBindings(projectConfigDir(), projectBindings);
+      notifyProjectsChanged();
       return projectSnapshot();
     } finally {
       changingResources = false;
@@ -1098,6 +1113,7 @@ function registerHandlers() {
     if (!request?.projectId || typeof request?.enabled !== 'boolean')
       throw Error('Invalid project resource change.');
     await setResource(event, { ...request, mode: request.enabled ? 'enabled' : 'disabled' });
+    notifyProjectsChanged();
     return projectSnapshot();
   });
   ipcMain.handle('project:select', async (_event, id) => {
@@ -1110,6 +1126,7 @@ function registerHandlers() {
     clearProjectArtifacts();
     restoreChatSelection();
     saveBindings(projectConfigDir(), projectBindings);
+    notifyProjectsChanged();
     return projectSnapshot();
   });
   ipcMain.handle('project:choose-directory', async (_event, locale) => {
@@ -1135,6 +1152,7 @@ function registerHandlers() {
     activeChatId = undefined;
     clearProjectArtifacts();
     saveBindings(projectConfigDir(), projectBindings);
+    notifyProjectsChanged();
     return projectSnapshot();
   });
   ipcMain.handle('agent:new', event => {
@@ -1562,6 +1580,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--gui-settings-selftest')) {
     await require('./gui-settings-selftest.cjs').run(window, systemPreferences, shell);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--model-sync-selftest')) {
+    await require('./model-sync-selftest.cjs').run(window);
     app.quit();
     return;
   }
