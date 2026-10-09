@@ -4,10 +4,11 @@ const assert = require('node:assert/strict');
 const { saveBindings } = require('./project-bindings.cjs');
 const { setLanguage } = require('./selftest-language.cjs');
 
-let project;
+let project, chatStore;
 const source =
   '// A source preview must preserve the project file.\nmodule sobel_filter;\nendmodule\n';
-function prepare(config) {
+function prepare(config, chats) {
+  chatStore = chats;
   project = path.join(config, 'sobel-project');
   fs.mkdirSync(project, { recursive: true });
   fs.writeFileSync(path.join(project, 'sobel_filter.v'), source);
@@ -44,7 +45,7 @@ async function run(window, dialog) {
     await evaluate(`document.fonts.ready`);
     const failures = await evaluate(`(() => {
       const samples = ['.ia-chat-welcome p', '.ia-composer textarea', '.ia-project-row.selected',
-        '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre', '.ia-chat-approval-mode'];
+        '.ia-sidebar-chat[aria-current="page"]', '.ia-file-list button.selected', '.ia-source-panel pre', '.ia-chat-approval-mode', '.ia-setup-banner'];
       function rgba(color) { return color.match(/[\\d.]+/g).map(Number); }
       function background(node) {
         if (!node) return [255, 255, 255];
@@ -166,9 +167,13 @@ async function run(window, dialog) {
   await click('.ia-remote-task-status button');
   await wait(`Boolean(document.querySelector('.ia-project-page'))`);
   await click('.ia-settings-button');
+  await wait(
+    `Array.from(document.querySelectorAll('.ia-settings-row')).some(row => row.textContent.includes('MCP & Skills'))`,
+  );
   await evaluate(
     `Array.from(document.querySelectorAll('.ia-settings-row')).find(row => row.textContent.includes('MCP & Skills')).querySelector('button').click()`,
   );
+  await wait(`Boolean(document.querySelector('.ia-capability'))`);
   await wait(
     `document.querySelector('.ia-remote-service')?.textContent.includes('Not configured')`,
   );
@@ -176,12 +181,17 @@ async function run(window, dialog) {
     await evaluate(`document.querySelector('.ia-remote-service button').disabled`),
     true,
   );
-  assert.equal(await evaluate(`document.querySelector('.ia-advanced-mcp').open`), false);
+  assert.equal(
+    await evaluate(`document.querySelector('.ia-external-mcp form') === null`),
+    true,
+    'The external MCP form stays collapsed until the add action opens it',
+  );
   await capture('builtin-remote-service');
   await setLanguage(window, 'zh-CN');
   await capture('builtin-remote-service-zh');
   await setLanguage(window, 'en');
-  await click('.ia-resource-modal header button');
+  await click('.ia-capability-header button');
+  await wait(`Boolean(document.querySelector('.ia-project-page'))`);
   await click('.ia-execution-options button:first-child');
   await wait(`!document.querySelector('.ia-project-start').disabled`);
   await click('.ia-project-start');
@@ -406,6 +416,7 @@ async function run(window, dialog) {
     'File sessions are scoped to the current window, not restored into a different project',
   );
   assert.equal(fs.readFileSync(path.join(project, 'sobel_filter.v'), 'utf8'), source);
+  await require('./message-rail-selftest.cjs').run(window, chatStore, project);
   console.log(
     'UI selftest passed: builtin remote configuration states, project execution location, onboarding, source preview, themes, contrast, languages, compact layout, tabs, layout persistence, minimum-window navigation, keyboard focus, mounted documents, and draft retention.',
   );

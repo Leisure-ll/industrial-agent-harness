@@ -111,7 +111,9 @@ async function run(window) {
   );
   await new Promise(resolve => setTimeout(resolve, 70));
   await evaluate(`document.querySelector('.ia-send').click()`);
-  await wait(`document.querySelector('.ia-flow-error')?.textContent.includes('Settings')`);
+  await wait(
+    `document.querySelector('.ia-setup-banner')?.textContent.includes('Configure the Model API') && document.querySelector('.ia-setup-banner button')?.textContent === 'Open model settings'`,
+  );
   assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').value`), prompt);
   assert.equal(await evaluate(`document.querySelector('.ia-composer textarea').disabled`), false);
   assert.equal(await evaluate(`document.querySelectorAll('.ia-chat-turn').length`), 0);

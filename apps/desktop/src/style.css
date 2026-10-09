@@ -1077,13 +1077,13 @@ body,
 }
 .ia-new-chat,
 .ia-sidebar-chat {
-  margin: 4px 9px;
+  margin: 2px 9px;
   width: calc(100% - 18px);
   display: flex !important;
   align-items: center;
   justify-content: flex-start !important;
   gap: 9px !important;
-  padding: 9px 10px !important;
+  padding: 5px 10px !important;
   text-align: left;
   font-size: 12px !important;
   background: transparent !important;
@@ -2410,14 +2410,14 @@ body,
   scrollbar-gutter: stable;
 }
 .ia-project-chats {
-  margin: 3px 9px 10px 21px;
+  margin: 2px 9px 6px 21px;
   padding-left: 7px;
   border-left: 1px solid var(--ia-border);
 }
 .ia-project-list .ia-project-chats button {
   width: calc(100% - 6px);
-  margin: 2px 3px;
-  padding: 7px 8px;
+  margin: 1px 3px;
+  padding: 4px 8px;
   min-height: 29px;
   color: var(--ia-muted);
   font-size: 11px;
@@ -2615,7 +2615,7 @@ body,
 /* Navigation hierarchy: the project owns a folder, the current chat owns a selection. */
 .ia-app .ia-project-row {
   display: grid !important;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-columns: 16px minmax(0, 1fr) auto auto;
   gap: 4px 8px !important;
   align-items: center;
 }
@@ -2632,15 +2632,15 @@ body,
   grid-row: 1;
 }
 .ia-project-list .ia-project-domain-badge {
-  grid-column: 2 / 4;
-  grid-row: 2;
-  justify-self: start;
+  grid-column: 4;
+  grid-row: 1;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--ia-muted);
   font-size: var(--ia-font-xs);
   font-weight: 400;
+  white-space: nowrap;
 }
 .ia-project-list .ia-sidebar-chat[aria-current='page'] {
   background: var(--ia-sidebar-active) !important;
@@ -3475,7 +3475,7 @@ body,
 .ia-sidebar-chat,
 .ia-new-chat {
   margin-block: 2px;
-  padding-block: 7px !important;
+  padding-block: 5px !important;
   font-weight: 400 !important;
 }
 .ia-project-list .ia-sidebar-chat[aria-current='page'] {
@@ -3644,4 +3644,496 @@ body,
   .ia-chat-empty .ia-composer-shortcuts {
     display: none;
   }
+}
+
+/* Capability center */
+.ia-capability {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ia-capability-header {
+  flex: none;
+  height: var(--ia-header-height);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--ia-border);
+}
+.ia-capability-header h1 {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.ia-capability-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.ia-capability-nav {
+  flex: none;
+  width: 168px;
+  border-right: 1px solid var(--ia-border);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--ia-panel);
+}
+.ia-capability-nav button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--ia-muted);
+  font-size: var(--ia-font-sm);
+  cursor: pointer;
+}
+.ia-capability-nav button:hover {
+  background: var(--ia-hover);
+  color: var(--ia-text);
+}
+.ia-capability-nav button[aria-current='page'] {
+  background: var(--ia-active);
+  color: var(--ia-text);
+}
+.ia-capability-nav button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ia-capability-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 30px 34px 48px;
+}
+.ia-capability-inner {
+  max-width: 860px;
+  margin: 0 auto;
+  display: grid;
+  gap: 36px;
+  align-content: start;
+}
+.ia-capability-section h2 {
+  font-size: 19px;
+  font-weight: 500;
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+}
+.ia-capability-section > p {
+  color: var(--ia-muted);
+  font-size: var(--ia-font-sm);
+  margin: 0 0 16px;
+}
+.ia-capability-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ia-capability-section-head h2 {
+  margin: 0;
+}
+.ia-capability-note {
+  color: var(--ia-muted);
+  font-size: var(--ia-font-sm);
+}
+.ia-scope-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+}
+.ia-scope-switch button {
+  border: none;
+  background: none;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: var(--ia-font-sm);
+  color: var(--ia-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ia-scope-switch button[aria-checked='true'] {
+  background: var(--ia-active);
+  color: var(--ia-text);
+}
+.ia-scope-switch button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ia-resource-search {
+  width: 100%;
+  max-width: 340px;
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: var(--ia-raised);
+  color: var(--ia-text);
+  font-size: var(--ia-font-sm);
+  margin-bottom: 14px;
+}
+.ia-pack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 10px;
+}
+.ia-pack-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid var(--ia-border);
+  border-radius: 10px;
+  background: var(--ia-raised);
+}
+.ia-pack-icon {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  background: var(--ia-panel);
+  border-radius: 10px;
+}
+.ia-pack-body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  font-size: var(--ia-font-sm);
+}
+.ia-pack-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+.ia-pack-title small {
+  color: var(--ia-muted);
+  white-space: nowrap;
+}
+.ia-pack-summary {
+  margin: 0;
+  color: var(--ia-muted);
+  font-size: var(--ia-font-sm);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ia-pack-meta {
+  color: var(--ia-muted);
+  overflow-wrap: anywhere;
+}
+.ia-pack-badge {
+  color: var(--ia-success);
+}
+.ia-pack-badge.warn {
+  color: var(--ia-warning);
+}
+.ia-pack-error {
+  color: var(--ia-danger);
+}
+.ia-pack-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: none;
+}
+.ia-pack-action {
+  border: 1px solid var(--ia-border);
+  border-radius: 7px;
+  padding: 6px 12px;
+  background: var(--ia-raised);
+  color: var(--ia-text);
+  font-size: var(--ia-font-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ia-pack-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ia-pack-action.primary {
+  background: var(--ia-accent);
+  color: var(--ia-bg);
+  border-color: var(--ia-accent);
+}
+.ia-diagnostic-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ia-border);
+}
+.ia-diagnostic-row span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.ia-diagnostic-row small {
+  color: var(--ia-danger);
+  overflow-wrap: anywhere;
+}
+.ia-diagnostic-row button {
+  flex: none;
+  border: 1px solid var(--ia-border);
+  border-radius: 7px;
+  padding: 6px 12px;
+  background: var(--ia-raised);
+  color: var(--ia-text);
+  font-size: var(--ia-font-sm);
+  cursor: pointer;
+}
+.ia-external-form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ia-external-form-head h4 {
+  margin: 0;
+}
+@media (max-width: 1050px) {
+  .ia-capability-nav {
+    width: auto;
+    padding: 12px 6px;
+  }
+  .ia-capability-nav button {
+    padding: 8px;
+    gap: 0;
+  }
+  .ia-capability-nav button span {
+    display: none;
+  }
+  .ia-capability-content {
+    padding: 22px 20px 40px;
+  }
+  .ia-pack-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ia-setup-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 24px 10px;
+  padding: 9px 14px;
+  border: 1px solid var(--ia-border);
+  border-left: 3px solid var(--ia-warning);
+  border-radius: 10px;
+  background: var(--ia-code);
+  color: var(--ia-text);
+  font-size: var(--ia-font-sm);
+}
+.ia-setup-banner svg {
+  flex: none;
+  color: var(--ia-warning);
+}
+.ia-setup-banner button {
+  margin-left: auto;
+  flex: none;
+  border: 1px solid var(--ia-accent);
+  border-radius: 7px;
+  padding: 5px 12px;
+  background: var(--ia-accent);
+  color: var(--ia-bg);
+  font-size: var(--ia-font-sm);
+  cursor: pointer;
+}
+
+/* Frameless window: body never scrolls (panels scroll internally); the top
+   bars act as drag regions. macOS traffic lights overlay the sidebar brand. */
+html,
+body {
+  overflow: hidden;
+}
+.ia-sidebar-brand,
+.ia-chat-header,
+.ia-capability-header {
+  -webkit-app-region: drag;
+}
+.ia-sidebar-brand :is(button, input, select),
+.ia-chat-header :is(button, input, select),
+.ia-capability-header :is(button, input, select) {
+  -webkit-app-region: no-drag;
+}
+[data-platform='darwin'] .ia-sidebar-brand {
+  padding-left: 92px;
+}
+.ia-window-controls {
+  display: flex;
+  align-self: stretch;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+.ia-chat-header .ia-window-controls {
+  margin-left: 0;
+}
+.ia-window-control {
+  width: 42px;
+  border: none;
+  background: transparent;
+  color: var(--ia-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 0;
+}
+.ia-window-control:hover {
+  background: var(--ia-hover);
+  color: var(--ia-text);
+}
+.ia-window-control.close:hover {
+  background: var(--ia-danger);
+  color: #ffffff;
+}
+
+/* With the sidebar collapsed the tab strip owns the top-left corner, so it
+   needs the same traffic-light reservation and doubles as a drag region. */
+.ia-workbench-tabbar {
+  -webkit-app-region: drag;
+}
+.ia-workbench-tabbar :is(button, [role='tab']) {
+  -webkit-app-region: no-drag;
+}
+.ia-workbench-tabbar.ia-lights-gap {
+  padding-inline-start: 92px;
+}
+
+/* Quick-jump message rail: per-turn ticks overlay the transcript gutter.
+   Ticks stretch toward the hovered one; a preview card tracks the cursor. */
+.ia-chat-scroll-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.ia-chat-scroll-area .ia-chat-scroll {
+  flex: 1;
+}
+.ia-message-rail + .ia-chat-scroll {
+  padding-inline-start: max(48px, calc((100% - 680px) / 2));
+}
+.ia-message-rail {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  bottom: 6px;
+  width: 20px;
+  z-index: 3;
+}
+.ia-rail-ticks {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+}
+.ia-app .ia-rail-tick {
+  flex: 0 0 8px;
+  min-height: 8px;
+  height: 8px;
+  width: 20px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transform-origin: left center;
+  transition: transform 0.16s ease;
+}
+/* Global `.ia-app button:hover` paints a gray box on ticks; keep the gutter
+   quiet — only the tick line itself responds to the pointer. */
+.ia-app .ia-rail-tick:hover:not(:disabled) {
+  background: none;
+}
+.ia-rail-tick span {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--ia-muted);
+  opacity: 0.5;
+  transition:
+    transform 0.16s ease,
+    background-color 0.16s ease,
+    opacity 0.16s ease;
+}
+.ia-rail-tick:hover span,
+.ia-rail-tick:focus-visible span {
+  background: var(--ia-text);
+  opacity: 1;
+}
+.ia-rail-tick.current span {
+  background: var(--ia-text);
+  opacity: 0.85;
+}
+.ia-rail-preview {
+  position: absolute;
+  left: 30px;
+  width: max-content;
+  max-width: 340px;
+  padding: 10px 14px;
+  border: 1px solid var(--ia-border);
+  border-radius: 10px;
+  background: var(--ia-raised);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
+  display: grid;
+  gap: 4px;
+  z-index: 4;
+  pointer-events: none;
+  animation: ia-rail-in 0.14s ease-out;
+}
+.ia-rail-preview b {
+  font-size: var(--ia-font-sm);
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ia-rail-preview small {
+  color: var(--ia-muted);
+}
+@keyframes ia-rail-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ia-app .ia-rail-tick {
+    transition: none;
+  }
+  .ia-rail-tick span {
+    transition: none;
+  }
+  .ia-rail-preview {
+    animation: none;
+  }
+}
+
+/* The brand title truncates rather than wrapping inside the 48px row. */
+.ia-sidebar-brand b {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

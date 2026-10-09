@@ -1,7 +1,17 @@
 const { spawn } = require('node:child_process');
 const http = require('node:http');
+const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
+// Optional local-only overrides (INDUSTRIAL_MODEL_API_KEY, …); never committed.
+try {
+  for (const line of fs.readFileSync(path.join(root, '.env.local'), 'utf8').split('\n')) {
+    const match = line.match(/^([A-Z0-9_]+)=(.*)\s*$/);
+    if (match && !(match[1] in process.env)) process.env[match[1]] = match[2];
+  }
+} catch {
+  // No .env.local is fine; the app then uses its regular keychain profile.
+}
 const vite = spawn('pnpm', ['exec', 'vite', '--host', '127.0.0.1'], {
   cwd: root,
   stdio: 'inherit',

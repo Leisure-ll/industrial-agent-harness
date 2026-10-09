@@ -403,9 +403,13 @@ class KimiSession {
       this.emitAgent({ type: 'diagnostic-log', traceId: log.traceId, path: log.file });
       if (excluded) {
         log.record('resource.filtered', { ...excluded, reason: 'protected-industrial-execution' });
+        // A structured event instead of assistant text: the UI renders the
+        // filtered services inline, and the transcript stays free of
+        // model-voiced notices the model did not author.
         this.emitAgent({
-          type: 'text',
-          text: '本轮部分资源因执行边界暂不可用，已接入的项目工具可继续使用。\n',
+          type: 'resources-filtered',
+          externalMcp: excluded.externalMcp,
+          plugins: excluded.plugins,
         });
       }
       const anchor = await this.diagnostics.getContextAnchor?.();

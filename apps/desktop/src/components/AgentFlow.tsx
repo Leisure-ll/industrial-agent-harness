@@ -347,6 +347,20 @@ export const AgentFlow = memo(function AgentFlow({
               {event.message}
             </div>
           );
+        if (event.type === 'resources-filtered') {
+          const names = [
+            ...event.externalMcp.map(id => `${id} · MCP`),
+            ...event.plugins.map(name => `${name} · plugin`),
+          ];
+          return (
+            <div className="ia-agent-minor" key={index} title={names.join('\n')}>
+              {t(
+                'Industrial boundary: {0} external resources are excluded from this turn. Project tools stay available.',
+                { '0': names.length },
+              )}
+            </div>
+          );
+        }
         if (event.type === 'text') {
           const body = splitLeadingThinking(event.text).body;
           return (

@@ -1,10 +1,12 @@
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useId, useRef, useState } from 'react';
+import { Plus, X } from 'lucide-react';
 import type { ExternalMcpSummary } from '@industrial-agent-harness/viewer-builtin/api';
 
-export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChanged: () => void }) {
+export function ExternalMcpPanel({ busy, onChanged }: { busy: boolean; onChanged: () => void }) {
   const { t } = useDisplayText();
   const [servers, setServers] = useState<ExternalMcpSummary[]>();
+  const [open, setOpen] = useState(false);
   const [connection, setConnection] = useState('stdio');
   const [name, setName] = useState('');
   const [command, setCommand] = useState('');
@@ -54,6 +56,7 @@ export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChan
         setArgumentsText('');
         setUrl('');
         setConfiguration('');
+        setOpen(false);
       }
       onChanged();
     } catch (reason) {
@@ -140,92 +143,108 @@ export function ExternalMcpSettings({ busy, onChanged }: { busy: boolean; onChan
           </div>
         </div>
       ))}
-      <form
-        onSubmit={event => {
-          event.preventDefault();
-          add();
-        }}
-      >
-        <h4>{t('Add an MCP service')}</h4>
-        <label htmlFor={`${field}-connection`}>{t('Connection')}</label>
-        <select
-          id={`${field}-connection`}
-          value={connection}
-          disabled={disabled}
-          onChange={event => setConnection(event.target.value)}
+      {open ? (
+        <form
+          onSubmit={event => {
+            event.preventDefault();
+            add();
+          }}
         >
-          <option value="stdio">{t('Local command')}</option>
-          <option value="http">{t('Remote URL')}</option>
-          <option value="import">{t('Import configuration')}</option>
-        </select>
-        {connection === 'import' ? (
-          <>
-            <label htmlFor={`${field}-configuration`}>{t('MCP configuration JSON')}</label>
-            <textarea
-              id={`${field}-configuration`}
-              required
-              value={configuration}
-              disabled={disabled}
-              onChange={event => setConfiguration(event.target.value)}
-              placeholder={'{"mcpServers":{"computer-use":{"command":"…","args":[]}}}'}
-            />
-          </>
-        ) : (
-          <>
-            <label htmlFor={`${field}-name`}>{t('Name')}</label>
-            <input
-              id={`${field}-name`}
-              required
-              value={name}
-              disabled={disabled}
-              onChange={event => setName(event.target.value)}
-              placeholder="computer-use"
-              pattern="[A-Za-z0-9][A-Za-z0-9_.\-]{0,63}"
-            />
-            {connection === 'stdio' ? (
-              <>
-                <label htmlFor={`${field}-command`}>{t('Command')}</label>
-                <input
-                  id={`${field}-command`}
-                  required
-                  value={command}
-                  disabled={disabled}
-                  onChange={event => setCommand(event.target.value)}
-                  placeholder={t('Absolute executable path or installed command')}
-                />
-                <label htmlFor={`${field}-arguments`}>{t('Arguments, one per line')}</label>
-                <textarea
-                  id={`${field}-arguments`}
-                  value={argumentsText}
-                  disabled={disabled}
-                  onChange={event => setArgumentsText(event.target.value)}
-                />
-              </>
-            ) : (
-              <>
-                <label htmlFor={`${field}-url`}>{t('Service URL')}</label>
-                <input
-                  id={`${field}-url`}
-                  type="url"
-                  required
-                  value={url}
-                  disabled={disabled}
-                  onChange={event => setUrl(event.target.value)}
-                  placeholder="https://example.com/mcp"
-                />
-              </>
-            )}
-          </>
-        )}
-        <p>
-          {t(
-            'Use Import configuration for environment variables, authentication headers or legacy SSE connections. Adding or refreshing connects to the service to check its tools.',
+          <div className="ia-external-form-head">
+            <h4>{t('Add an MCP service')}</h4>
+            <button
+              type="button"
+              className="ia-icon"
+              onClick={() => setOpen(false)}
+              aria-label={t('Cancel')}
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <label htmlFor={`${field}-connection`}>{t('Connection')}</label>
+          <select
+            id={`${field}-connection`}
+            value={connection}
+            disabled={disabled}
+            onChange={event => setConnection(event.target.value)}
+          >
+            <option value="stdio">{t('Local command')}</option>
+            <option value="http">{t('Remote URL')}</option>
+            <option value="import">{t('Import configuration')}</option>
+          </select>
+          {connection === 'import' ? (
+            <>
+              <label htmlFor={`${field}-configuration`}>{t('MCP configuration JSON')}</label>
+              <textarea
+                id={`${field}-configuration`}
+                required
+                value={configuration}
+                disabled={disabled}
+                onChange={event => setConfiguration(event.target.value)}
+                placeholder={'{"mcpServers":{"computer-use":{"command":"…","args":[]}}}'}
+              />
+            </>
+          ) : (
+            <>
+              <label htmlFor={`${field}-name`}>{t('Name')}</label>
+              <input
+                id={`${field}-name`}
+                required
+                value={name}
+                disabled={disabled}
+                onChange={event => setName(event.target.value)}
+                placeholder="computer-use"
+                pattern="[A-Za-z0-9][A-Za-z0-9_.\-]{0,63}"
+              />
+              {connection === 'stdio' ? (
+                <>
+                  <label htmlFor={`${field}-command`}>{t('Command')}</label>
+                  <input
+                    id={`${field}-command`}
+                    required
+                    value={command}
+                    disabled={disabled}
+                    onChange={event => setCommand(event.target.value)}
+                    placeholder={t('Absolute executable path or installed command')}
+                  />
+                  <label htmlFor={`${field}-arguments`}>{t('Arguments, one per line')}</label>
+                  <textarea
+                    id={`${field}-arguments`}
+                    value={argumentsText}
+                    disabled={disabled}
+                    onChange={event => setArgumentsText(event.target.value)}
+                  />
+                </>
+              ) : (
+                <>
+                  <label htmlFor={`${field}-url`}>{t('Service URL')}</label>
+                  <input
+                    id={`${field}-url`}
+                    type="url"
+                    required
+                    value={url}
+                    disabled={disabled}
+                    onChange={event => setUrl(event.target.value)}
+                    placeholder="https://example.com/mcp"
+                  />
+                </>
+              )}
+            </>
           )}
-        </p>
-        <button type="submit" disabled={disabled || !servers}>
-          {pending ? t('Checking service…') : t('Add and check')}
+          <p>
+            {t(
+              'Use Import configuration for environment variables, authentication headers or legacy SSE connections. Adding or refreshing connects to the service to check its tools.',
+            )}
+          </p>
+          <button type="submit" disabled={disabled || !servers}>
+            {pending ? t('Checking service…') : t('Add and check')}
+          </button>
+        </form>
+      ) : (
+        <button type="button" onClick={() => setOpen(true)} disabled={disabled || !servers}>
+          <Plus size={14} /> {t('Add an MCP service')}
         </button>
-      </form>
+      )}
     </section>
   );
 }
