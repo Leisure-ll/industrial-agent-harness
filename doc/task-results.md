@@ -16,7 +16,7 @@ Partial output stays visible with request/Action failure status. A valid native 
 
 ```json
 {
-  "artifacts": [{ "localId": "document", "path": "/action/output/notes.txt", "kind": "text" }],
+  "artifacts": [{ "localId": "document", "file": "outputs/notes.txt", "kind": "text" }],
   "presentation": {
     "schemaVersion": "1",
     "groups": [{ "key": "document", "title": "Notes", "primary": "document" }]
