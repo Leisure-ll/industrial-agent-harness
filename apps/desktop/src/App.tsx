@@ -575,11 +575,58 @@ export function App() {
     const removeUpdated = window.viewerHost.onChatUpdated(() => {
       void refreshChats().catch(reason => setError(String(reason)));
     });
+    const refreshAgentStatus = () => {
+      void window
+        .viewerHost!.agentStatus()
+        .then(status => {
+          if (!disposed) setAgentStatus(status);
+        })
+        .catch(reason => setError(String(reason)));
+    };
+    const refreshModelProfile = () => {
+      void window
+        .viewerHost!.modelGet()
+        .then(profile => {
+          if (!disposed) setModelImageInput(profile.imageInput);
+        })
+        .catch(reason => setError(String(reason)));
+    };
+    const applyProjectBindings = () => {
+      void window
+        .viewerHost!.projectBindings()
+        .then(bindings => {
+          if (disposed) return;
+          if (bindings.activeId !== projectIdRef.current)
+            // An external switch must run the full adoption flow — workspace
+            // reset, file-list refresh, chat reload — not just relabel rows;
+            // otherwise the file tree and viewers keep the previous project.
+            void adoptProjectBindings(bindings);
+          else setProjects(bindings.projects);
+        })
+        .catch(reason => setError(String(reason)));
+    };
+    // Model and project state can change outside this window's own UI flows
+    // (external IPC senders, direct config-file edits). Broadcasts invalidate
+    // the mount-time snapshots; a focus re-pull additionally covers mutations
+    // that bypass IPC entirely, since sending a task requires focusing first.
+    const removeModelChanged = window.viewerHost.onModelChanged(() => {
+      refreshAgentStatus();
+      refreshModelProfile();
+    });
+    const removeProjectsChanged = window.viewerHost.onProjectsChanged(applyProjectBindings);
+    const refreshOnWindowFocus = () => {
+      refreshAgentStatus();
+      applyProjectBindings();
+    };
+    window.addEventListener('focus', refreshOnWindowFocus);
     return () => {
       disposed = true;
       clearTimeout(eventTimer);
       removeEvents();
       removeUpdated();
+      removeModelChanged();
+      removeProjectsChanged();
+      window.removeEventListener('focus', refreshOnWindowFocus);
     };
   }, []);
   const activeFile = openFiles.find(file => file.id === activeFileId);
@@ -701,27 +748,37 @@ export function App() {
       setProjectError(String(reason));
     }
   }
+  // Full renderer-side adoption of new project bindings: refresh the file
+  // list and clear the workspace so no trace of the previous project remains.
+  // Shared by the UI switch flows and the external-change sync paths.
+  async function adoptProjectBindings(bindings: {
+    projects: ProjectBinding[];
+    activeId: string | null;
+    projectDir: string | null;
+  }) {
+    fileOpenRevision.current++;
+    setProjects(bindings.projects);
+    setActiveProjectId(bindings.activeId);
+    projectIdRef.current = bindings.activeId;
+    setAgentStatus(current =>
+      current ? { ...current, projectDir: bindings.projectDir } : current,
+    );
+    setProjectFiles(await window.viewerHost!.projectFiles());
+    setCollapsedDirs(new Set());
+    resetWorkspace();
+    setRightOpen(false);
+    setFileTreeOpen(false);
+    setSubmittedTask('');
+    setBroker(undefined);
+    setCapabilityDetail(undefined);
+    setAgentEvents([]);
+    await refreshChats(true);
+  }
   async function createProject(request: { directory: string; name: string; domain: string }) {
     if (!beginNavigation()) return;
     try {
-      fileOpenRevision.current++;
       const bindings = await window.viewerHost!.createProject(request);
-      setProjects(bindings.projects);
-      setActiveProjectId(bindings.activeId);
-      projectIdRef.current = bindings.activeId;
-      setAgentStatus(current =>
-        current ? { ...current, projectDir: bindings.projectDir } : current,
-      );
-      setProjectFiles(await window.viewerHost!.projectFiles());
-      setCollapsedDirs(new Set());
-      resetWorkspace();
-      setRightOpen(false);
-      setFileTreeOpen(false);
-      setSubmittedTask('');
-      setBroker(undefined);
-      setCapabilityDetail(undefined);
-      setAgentEvents([]);
-      await refreshChats(true);
+      await adoptProjectBindings(bindings);
       setProjectDraft(null);
       showPage('project');
     } catch (reason) {
@@ -739,24 +796,7 @@ export function App() {
     }
     setError('');
     try {
-      fileOpenRevision.current++;
-      const bindings = await window.viewerHost!.selectProject(id);
-      setProjects(bindings.projects);
-      setActiveProjectId(bindings.activeId);
-      projectIdRef.current = bindings.activeId;
-      setAgentStatus(current =>
-        current ? { ...current, projectDir: bindings.projectDir } : current,
-      );
-      setProjectFiles(await window.viewerHost!.projectFiles());
-      setCollapsedDirs(new Set());
-      resetWorkspace();
-      setRightOpen(false);
-      setFileTreeOpen(false);
-      setSubmittedTask('');
-      setBroker(undefined);
-      setCapabilityDetail(undefined);
-      setAgentEvents([]);
-      await refreshChats(true);
+      await adoptProjectBindings(await window.viewerHost!.selectProject(id));
       showPage('project');
     } catch (reason) {
       setError(String(reason));

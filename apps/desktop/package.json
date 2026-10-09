@@ -27,6 +27,7 @@
     "test:cad-resize": "electron . --cad-resize-selftest",
     "test:subagents": "electron . --subagent-selftest",
     "test:gui-settings": "electron . --gui-settings-selftest",
+    "test:model-sync": "electron . --model-sync-selftest",
     "test:results": "electron . --task-results-selftest"
   },
   "dependencies": {
