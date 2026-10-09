@@ -17,7 +17,16 @@ function argumentsFor(argv) {
   const args = {};
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
-    if (['--plan', '--prepare', '--upgrade', '--capture-existing', '--recheck-final'].includes(key))
+    if (
+      [
+        '--plan',
+        '--prepare',
+        '--upgrade',
+        '--capture-existing',
+        '--recheck-final',
+        '--update-pack',
+      ].includes(key)
+    )
       args[key.slice(2)] = true;
     else if (['--old-app', '--new-dmg', '--evidence', '--archive'].includes(key)) {
       assert.ok(argv[i + 1] && !argv[i + 1].startsWith('--'), `Missing value for ${key}`);
@@ -36,6 +45,10 @@ function argumentsFor(argv) {
   assert.ok(
     args.plan || args.prepare || args['capture-existing'] || args['new-dmg'],
     'Pass the exact candidate --new-dmg.',
+  );
+  assert.ok(
+    !args['update-pack'] || args['recheck-final'],
+    '--update-pack requires --recheck-final.',
   );
   return args;
 }
@@ -480,7 +493,7 @@ async function upgrade(args, evidence, application) {
   assert.deepEqual(restart, { ready: true, projectRestored: true, actions: 2 });
   const packUpgrade = readJson('pack-upgrade.json');
   assert.equal(packUpgrade.fromVersion, '1.1.4-pack.4');
-  assert.equal(packUpgrade.toVersion, '1.1.4-pack.6');
+  assert.equal(packUpgrade.toVersion, '1.1.4-pack.7');
   assert.equal(packUpgrade.nativeRuntimeReused, true);
   assert.equal(packUpgrade.modelConfigurationLoaded, true);
   assert.equal(packUpgrade.loadedChat.turns, 2);
@@ -510,75 +523,97 @@ async function upgrade(args, evidence, application) {
     `Old → new packaged app replacement and data preservation passed: ${evidence}\n`,
   );
 }
-// Recheck a later build of the same version without claiming another Pack upgrade.
-// The original candidate's upgrade reports and identities remain unchanged.
+// Later builds keep their own identity/evidence. An explicit --update-pack checks
+// the new .6 -> .7 transition without overwriting the original .4 -> .6 reports.
 async function recheckFinal(args, evidence, application) {
+  const updating = Boolean(args['update-pack']);
+  const prefix = updating ? 'next-pack-upgrade' : 'final-restart';
+  const readJson = name => JSON.parse(fs.readFileSync(path.join(evidence, name), 'utf8'));
   assert.ok(
-    !fs.existsSync(path.join(evidence, 'final-restart.json')),
-    'Final recheck evidence already exists.',
+    !fs.existsSync(path.join(evidence, `${prefix}.json`)),
+    'Recheck evidence already exists.',
   );
-  const original = JSON.parse(fs.readFileSync(path.join(evidence, 'upgrade.json'), 'utf8'));
+  const original = readJson(updating ? 'final-restart.json' : 'upgrade.json');
   assert.equal(original.passed, true);
-  assert.deepEqual(await appIdentity(application), original.newIdentity);
-  const originalAfter = JSON.parse(
-    fs.readFileSync(path.join(evidence, 'after-upgrade.json'), 'utf8'),
-  );
+  const previousIdentity = updating ? original.finalIdentity : original.newIdentity;
+  assert.deepEqual(await appIdentity(application), previousIdentity);
+  const originalAfter = readJson(updating ? 'after-final-restart.json' : 'after-upgrade.json');
   const before = await snapshotEvidence(evidence);
   const baseline = compareSnapshots(originalAfter, before);
   assert.ok(baseline.preserved, baseline.changes.join('\n'));
-  writeJson(evidence, 'before-final-restart.json', before);
+  writeJson(evidence, `before-${prefix}.json`, before);
   const finalIdentity = await withMountedDmg(args['new-dmg'], appIdentity);
   assert.equal(finalIdentity.version, '1.0.1-beta.1');
-  assert.equal(finalIdentity.bundleId, original.newIdentity.bundleId);
+  assert.equal(finalIdentity.bundleId, previousIdentity.bundleId);
   const dmgSha256 = await fileHash(args['new-dmg']);
-  writeJson(evidence, 'final-application.json', { ...finalIdentity, dmgSha256 });
+  writeJson(evidence, updating ? 'next-pack-application.json' : 'final-application.json', {
+    ...finalIdentity,
+    dmgSha256,
+  });
   await withMountedDmg(args['new-dmg'], async source => {
     assert.deepEqual(await appIdentity(source), finalIdentity);
     fs.rmSync(application, { recursive: true });
     await execute('/usr/bin/ditto', [source, application]);
   });
   assert.deepEqual(await appIdentity(application), finalIdentity);
-  const originalRestart = fs.readFileSync(path.join(evidence, 'restart.json'));
-  // The packaged legacy entry point has one report filename. Preserve its prior
-  // bytes and retain the new result separately, including when a recheck fails.
-  fs.writeFileSync(path.join(evidence, 'original-upgrade-restart.json'), originalRestart);
+  const originalRestart = updating ? null : fs.readFileSync(path.join(evidence, 'restart.json'));
+  // Older packaged entries use one report filename. Continuation entries write
+  // separate files; ordinary rechecks preserve the prior bytes explicitly.
+  if (originalRestart)
+    fs.writeFileSync(path.join(evidence, 'original-upgrade-restart.json'), originalRestart);
   let restarted;
   try {
     await launch(
       application,
-      ['--cad-install-selftest', '--cad-install-restart'],
+      [
+        '--cad-install-selftest',
+        '--cad-install-restart',
+        ...(updating ? ['--cad-install-upgrade', '--cad-install-continuation'] : []),
+      ],
       evidence,
       applicationEnvironment(evidence),
-      'final-restart.log',
+      `${prefix}.log`,
       120000,
     );
-    restarted = JSON.parse(fs.readFileSync(path.join(evidence, 'restart.json'), 'utf8'));
-    writeJson(evidence, 'final-restart-result.json', restarted);
+    restarted = readJson(updating ? 'restart-continuation.json' : 'restart.json');
+    writeJson(evidence, `${prefix}-result.json`, restarted);
   } finally {
-    fs.writeFileSync(path.join(evidence, 'restart.json'), originalRestart);
+    if (originalRestart) fs.writeFileSync(path.join(evidence, 'restart.json'), originalRestart);
   }
   assert.deepEqual(restarted, { ready: true, projectRestored: true, actions: 2 });
+  let packUpgrade;
+  if (updating) {
+    packUpgrade = readJson('pack-upgrade-continuation.json');
+    assert.equal(packUpgrade.fromVersion, '1.1.4-pack.6');
+    assert.equal(packUpgrade.toVersion, '1.1.4-pack.7');
+    assert.equal(packUpgrade.nativeRuntimeReused, true);
+    assert.equal(packUpgrade.modelConfigurationLoaded, true);
+    assert.equal(packUpgrade.loadedChat.turns, 2);
+    assert.equal(packUpgrade.verifiedActions, 2);
+  }
   const after = await snapshotEvidence(evidence);
-  writeJson(evidence, 'after-final-restart.json', after);
+  writeJson(evidence, `after-${prefix}.json`, after);
   const preservation = compareSnapshots(before, after);
-  writeJson(evidence, 'final-restart.json', {
+  writeJson(evidence, `${prefix}.json`, {
     passed: preservation.preserved,
     finalIdentity,
     dmgSha256,
-    sourceUpgradeDmgSha256: JSON.parse(
-      fs.readFileSync(path.join(evidence, 'new-application.json'), 'utf8'),
-    ).dmgSha256,
+    sourceUpgradeDmgSha256: updating
+      ? original.dmgSha256
+      : readJson('new-application.json').dmgSha256,
     sameApplicationPath: application,
     sameProfile: path.join(evidence, 'profile'),
     samePackStore: path.join(evidence, 'packs'),
     restarted,
     preservation,
-    packUpgradeRepeated: false,
-    qualification:
-      'Final build restart with the previously upgraded .6 CAD Pack and existing data; the original .4-to-.6 migration remains attributed to its original DMG. No signed Core OTA claim.',
+    packUpdatePerformed: updating,
+    ...(packUpgrade ? { packUpgrade } : {}),
+    qualification: updating
+      ? 'Subsequent .6-to-.7 CAD Pack upgrade with native runtime reuse and preserved data. Original app/Pack migrations remain attributed to their original DMGs. No signed Core OTA claim.'
+      : 'Final build restart with its previously upgraded Pack and existing data. The original migration remains attributed to its original DMG. No signed Core OTA claim.',
   });
   assert.ok(preservation.preserved, preservation.changes.join('\n'));
-  process.stdout.write(`Final DMG restart preserves the upgraded profile: ${evidence}\n`);
+  process.stdout.write(`${prefix} passed with preserved data: ${evidence}\n`);
 }
 async function main(argv = process.argv.slice(2)) {
   const args = argumentsFor(argv);
@@ -608,7 +643,9 @@ async function main(argv = process.argv.slice(2)) {
   const plan = {
     kind: 'isolated-packaged-app-replacement',
     stage: args['recheck-final']
-      ? 'recheck-final'
+      ? args['update-pack']
+        ? 'next-pack-upgrade'
+        : 'recheck-final'
       : args.prepare
         ? 'prepare'
         : args.upgrade
@@ -643,7 +680,9 @@ async function main(argv = process.argv.slice(2)) {
   writeJson(
     evidence,
     args['recheck-final']
-      ? 'final-restart-plan.json'
+      ? args['update-pack']
+        ? 'next-pack-upgrade-plan.json'
+        : 'final-restart-plan.json'
       : args.upgrade
         ? 'upgrade-plan.json'
         : args['capture-existing']
@@ -664,7 +703,9 @@ async function main(argv = process.argv.slice(2)) {
       path.join(
         evidence,
         args['recheck-final']
-          ? 'final-restart-failure.log'
+          ? args['update-pack']
+            ? 'next-pack-upgrade-failure.log'
+            : 'final-restart-failure.log'
           : args.upgrade
             ? 'upgrade-failure.log'
             : args['capture-existing']

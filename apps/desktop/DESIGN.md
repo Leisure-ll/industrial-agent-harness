@@ -271,6 +271,13 @@ Primary project actions use neutral accent against the background. Send uses an 
 
 Keyboard focus uses a 2 px accent outline; inputs and summaries offset it by 3 px, while buttons and selects use 2 px. Button state changes are immediate, preventing mixed colors during theme switches.
 
+Capability navigation uses a fixed 16 px icon column and a left-aligned label
+column. Its header and body fill the workbench; switching sections or language
+does not recenter the navigation. The selected row keeps the sidebar's quiet active fill and medium label;
+keyboard focus uses the same 2 px outline inset into the row, without enlarging
+its outer shape. At the compact breakpoint, each icon retains a 32 px target,
+accessible name and tooltip when the visual label is hidden.
+
 ### Domain installation
 
 The first-run domain selector shares the model dialog's neutral surface, 14 px radius,

@@ -186,6 +186,7 @@ const ActionRequestSchema = ProjectRefSchema.extend({
 
 module.exports = {
   ...require('./workspace.cjs'),
+  ...require('./results.cjs'),
   INDUSTRIAL_SCHEMA_VERSION,
   ProjectRefSchema,
   ArtifactRefSchema,

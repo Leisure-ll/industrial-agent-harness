@@ -14,6 +14,7 @@ async function run(window, { manager }) {
     throw Error('Installation selftest requires isolated report and Pack directories.');
   fs.mkdirSync(root, { recursive: true });
   const evaluate = script => window.webContents.executeJavaScript(script, true);
+  const navigationChecks = [];
   async function wait(script, timeout = 30000) {
     const end = Date.now() + timeout;
     while (Date.now() < end) {
@@ -36,6 +37,136 @@ async function run(window, { manager }) {
       }
     }
   };
+  async function checkNavigation(name) {
+    await wait(`document.querySelectorAll('.ia-capability-nav button').length===4`);
+    const geometry = await evaluate(`(() => ({
+      locale: document.documentElement.lang,
+      theme: document.querySelector('.ia-app').classList.contains('theme-dark') ? 'dark' : 'light',
+      width: innerWidth,
+      navigationX: document.querySelector('.ia-capability-nav').getBoundingClientRect().x,
+      rows: Array.from(document.querySelectorAll('.ia-capability-nav button')).map(button => {
+        const rect = button.getBoundingClientRect();
+        const icon = button.querySelector('svg').getBoundingClientRect();
+        const label = button.querySelector('span');
+        return {name:button.getAttribute('aria-label'),title:button.title,current:button.getAttribute('aria-current'),
+          x:rect.x,width:rect.width,height:rect.height,iconX:icon.x,iconWidth:icon.width,
+          labelX:label.getBoundingClientRect().x,labelHidden:getComputedStyle(label).display==='none'};
+      }),
+      overflow: document.querySelector('.ia-capability').scrollWidth > document.querySelector('.ia-capability').clientWidth
+    }))()`);
+    assert.equal(geometry.rows.filter(row => row.current === 'page').length, 1);
+    assert.equal(
+      geometry.overflow,
+      false,
+      'Capability navigation does not cause horizontal overflow.',
+    );
+    for (const row of geometry.rows) {
+      assert.equal(row.name, row.title, 'Compact buttons retain translated accessible names.');
+      assert.ok(row.name);
+      assert.equal(row.iconWidth, 16);
+      assert.ok(row.height >= 32);
+      assert.ok(
+        Math.abs(row.iconX - geometry.rows[0].iconX) < 0.5,
+        'All navigation icons share one column.',
+      );
+      if (geometry.width <= 1050) {
+        assert.equal(row.labelHidden, true);
+        assert.equal(row.width, 32);
+        assert.ok(Math.abs(row.iconX - row.x - 8) < 0.5);
+      } else {
+        assert.equal(row.labelHidden, false);
+        assert.ok(
+          Math.abs(row.labelX - geometry.rows[0].labelX) < 0.5,
+          'All navigation labels start at the same position.',
+        );
+        assert.ok(Math.abs(row.labelX - row.iconX - 24) < 0.5);
+      }
+    }
+    // Move into Skills with a real keyboard event after the native window has
+    // focus; programmatic focus alone does not establish keyboard modality.
+    window.show();
+    window.focus();
+    window.webContents.focus();
+    await wait('document.hasFocus()');
+    await evaluate(
+      `(() => {const buttons=document.querySelectorAll('.ia-capability-nav button');buttons[2].click();buttons[1].focus();})()`,
+    );
+    await wait(
+      `document.querySelectorAll('.ia-capability-nav button')[2].getAttribute('aria-current')==='page'`,
+    );
+    const layout = await evaluate(`(() => {
+      const center=document.querySelector('.ia-capability').getBoundingClientRect();
+      const header=document.querySelector('.ia-capability-header').getBoundingClientRect();
+      const body=document.querySelector('.ia-capability-body').getBoundingClientRect();
+      const nav=document.querySelector('.ia-capability-nav').getBoundingClientRect();
+      return {centerWidth:center.width,headerWidth:header.width,bodyWidth:body.width,navigationX:nav.x};
+    })()`);
+    assert.ok(
+      Math.abs(layout.headerWidth - layout.centerWidth) < 0.5,
+      'Capability header fills the workbench.',
+    );
+    assert.ok(
+      Math.abs(layout.bodyWidth - layout.centerWidth) < 0.5,
+      'Capability body fills the workbench.',
+    );
+    assert.ok(
+      Math.abs(layout.navigationX - geometry.navigationX) < 0.5,
+      'Navigation stays in place when switching sections.',
+    );
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
+    await wait(
+      `document.activeElement === document.querySelectorAll('.ia-capability-nav button')[2] && document.activeElement.matches(':focus-visible')`,
+    );
+    const focus = await evaluate(
+      `(() => {const button=document.querySelectorAll('.ia-capability-nav button')[2];const style=getComputedStyle(button);return {visible:button.matches(':focus-visible'),width:style.outlineWidth,offset:style.outlineOffset};})()`,
+    );
+    assert.equal(focus.visible, true);
+    assert.equal(focus.width, '2px');
+    assert.equal(focus.offset, '-2px');
+    await require('./selftest-capture.cjs').captureSettled(window, {
+      output: path.join(root, `${name}-keyboard.png`),
+    });
+    const point = await evaluate(`(() => {
+      const rect=document.querySelectorAll('.ia-capability-nav button')[2].getBoundingClientRect();
+      return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)};
+    })()`);
+    window.webContents.sendInputEvent({ type: 'mouseMove', ...point });
+    window.webContents.sendInputEvent({
+      type: 'mouseDown',
+      button: 'left',
+      clickCount: 1,
+      ...point,
+    });
+    window.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...point });
+    await wait(
+      `!document.querySelectorAll('.ia-capability-nav button')[2].matches(':focus-visible')`,
+    );
+    // Keep the ordinary mouse view separate from the keyboard-focus evidence.
+    // Click the empty content area, as a user would, then clear any incidental
+    // text selection left by native input while changing languages.
+    const blank = await evaluate(`(() => {
+      const rect=document.querySelector('.ia-capability-content').getBoundingClientRect();
+      return {x:Math.round(rect.right-24),y:Math.round(rect.bottom-24)};
+    })()`);
+    window.webContents.sendInputEvent({ type: 'mouseMove', ...blank });
+    window.webContents.sendInputEvent({
+      type: 'mouseDown',
+      button: 'left',
+      clickCount: 1,
+      ...blank,
+    });
+    window.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...blank });
+    await wait(`!document.querySelector('.ia-capability-nav').contains(document.activeElement)`);
+    await evaluate('getSelection()?.removeAllRanges()');
+    await require('./selftest-capture.cjs').captureSettled(window, {
+      output: path.join(root, `${name}.png`),
+      readyScript: `!document.querySelector('.ia-capability-nav').contains(document.activeElement) && !getSelection()?.toString()`,
+    });
+    navigationChecks.push({ ...geometry, focus, layout });
+    await evaluate(`document.querySelector('.ia-capability-nav button').click()`);
+    await wait(`Boolean(document.querySelector('.ia-packs-section'))`);
+  }
   const refresh = async () => {
     await wait(
       `Array.from(document.querySelectorAll('button')).some(button=>button.textContent==='Check updates'&&!button.disabled)`,
@@ -435,6 +566,7 @@ async function run(window, { manager }) {
       `document.querySelector('.ia-model-modal [aria-label="Close settings"]').click()`,
     );
     await openPacks();
+    await checkNavigation('navigation-en-light');
     corrupt = true;
     await packAction('sample-c', 'Install');
     await wait(
@@ -567,6 +699,7 @@ async function run(window, { manager }) {
       `document.querySelector('.ia-capability')?.textContent.includes('安装已完成') && document.querySelector('.ia-capability')?.textContent.includes('外部工具尚需配置')`,
     );
     await screenshot('07-chinese');
+    await checkNavigation('navigation-zh-light');
     await evaluate(`document.querySelector('.ia-capability-header button').click()`);
     await evaluate(`document.querySelector('.ia-settings-button').click()`);
     await wait(`Boolean(document.querySelector('.ia-settings-row button'))`);
@@ -584,12 +717,19 @@ async function run(window, { manager }) {
       `document.querySelector('.ia-capability')?.textContent.includes('外部工具尚需配置')`,
     );
     await screenshot('07b-chinese-dark');
+    await checkNavigation('navigation-zh-dark');
     window.setSize(640, 480);
+    await checkNavigation('navigation-zh-dark-narrow');
     await screenshot('07c-chinese-dark-narrow');
     window.setSize(...originalSize);
 
     await evaluate(`document.querySelector('.ia-capability-header button').click()`);
     await require('./selftest-language.cjs').setLanguage(window, 'en');
+    await openPacks();
+    window.setSize(640, 480);
+    await checkNavigation('navigation-en-dark-narrow');
+    window.setSize(...originalSize);
+    await evaluate(`document.querySelector('.ia-capability-header button').click()`);
     for (const item of manager.list()) manager.remove(item.domain);
     await evaluate(`localStorage.removeItem('ia-domain-onboarding-skipped')`);
     await window.reload();
@@ -622,6 +762,7 @@ async function run(window, { manager }) {
           transport: 'signed local fixture HTTPS responses',
           nativeFixture: Boolean(asset),
           phases,
+          navigationChecks,
           checks: [
             'language-switch-awaits-render-and-settings-close',
             'external-process-progress-close-and-terminal-refresh',
@@ -642,6 +783,7 @@ async function run(window, { manager }) {
             'project-next-step',
             'chinese',
             'light-dark-640x480-layout',
+            'capability-navigation-alignment-and-keyboard-focus',
           ],
         },
         null,

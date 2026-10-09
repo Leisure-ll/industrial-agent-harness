@@ -133,11 +133,13 @@ export function CapabilityCenter({
           {sections.map(item => (
             <button
               key={item.id}
+              type="button"
               onClick={() => setSection(item.id)}
               aria-current={section === item.id ? 'page' : undefined}
+              aria-label={item.label}
               title={item.label}
             >
-              <item.icon size={15} />
+              <item.icon size={16} aria-hidden="true" />
               <span>{item.label}</span>
             </button>
           ))}

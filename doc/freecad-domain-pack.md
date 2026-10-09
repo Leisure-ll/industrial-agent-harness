@@ -73,3 +73,7 @@ FreeCAD 的 macOS 配置路径不只依赖 `HOME`。桥接器在启动前创建 
 
 
 2026-10-07 增加 `test:cad-resize`：沿用原生检查，另用真实 OCCT 渲染像素验证拖动分隔线、280 px 最小聊天宽度、键盘调整、复位、小窗口和全屏前后的比例变化。发布整改与本地安装验收见[整改记录](release-readiness-20261007.md)。
+
+## 自动成果呈现（#66）
+
+owner Pack `1.1.4-pack.7` 声明 FCStd 模型组、对应 manifest/BREP 预览与 STEP/STL 导出，以及独立诊断报告组。连续 edit 只按确切源文件 hash 显式替代；inspect 将真实检查附到受检模型版本，不挤掉主模型。失败只暴露实际文件。Harness 固定消费 owner commit `09c39193e199de61941882f0e92f10ed7789dbd2`；FreeCAD Skill 在 owner 提供按需比较／诊断选择指导。默认卡片不依赖选择工具。源码原生／Electron 受控回归和独立真实模型连续修改记录见[任务成果](task-results.md)。

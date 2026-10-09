@@ -4,18 +4,18 @@
   "locales": {
     "zh-CN": {
       "label": "简体中文",
-      "systemLanguages": ["zh"]
+      "systemLanguages": [
+        "zh"
+      ]
     },
     "en": {
       "label": "English",
-      "systemLanguages": ["en"]
+      "systemLanguages": [
+        "en"
+      ]
     }
   },
   "messages": {
-    "The operation finished, but its status could not be saved. Free disk space and check the installed domains.": {
-      "en": "The operation finished, but its status could not be saved. Free disk space and check the installed domains.",
-      "zh-CN": "操作已完成，但无法保存状态。请释放磁盘空间，并检查已安装的领域。"
-    },
     "Copy message": {
       "en": "Copy message",
       "zh-CN": "复制消息"
@@ -3012,6 +3012,10 @@
       "en": "Empty message",
       "zh-CN": "空消息"
     },
+    "The operation finished, but its status could not be saved. Free disk space and check the installed domains.": {
+      "en": "The operation finished, but its status could not be saved. Free disk space and check the installed domains.",
+      "zh-CN": "操作已完成，但无法保存状态。请释放磁盘空间，并检查已安装的领域。"
+    },
     "{0} download": {
       "en": "{0} download",
       "zh-CN": "下载 {0}"
@@ -3315,6 +3319,162 @@
     "Remote clients need no local GPU; native service deployment and credentials are separate administrator prerequisites": {
       "en": "Remote clients need no local GPU; native service deployment and credentials are separate administrator prerequisites",
       "zh-CN": "远程客户端无需本地 GPU；原生服务部署及访问凭据需由管理员另行准备"
+    },
+    "Task results": {
+      "en": "Task results",
+      "zh-CN": "任务成果"
+    },
+    "Results ready": {
+      "en": "Results ready",
+      "zh-CN": "成果已就绪"
+    },
+    "Results so far": {
+      "en": "Results so far",
+      "zh-CN": "已产生的成果"
+    },
+    "Selected result": {
+      "en": "Selected result",
+      "zh-CN": "已选择的成果"
+    },
+    "Historical version": {
+      "en": "Historical version",
+      "zh-CN": "历史版本"
+    },
+    "Execution completed": {
+      "en": "Execution completed",
+      "zh-CN": "执行已完成"
+    },
+    "Partial result · execution failed": {
+      "en": "Partial result · execution failed",
+      "zh-CN": "部分成果 · 执行失败"
+    },
+    "Partial results · request not completed": {
+      "en": "Partial results · request not completed",
+      "zh-CN": "部分成果 · 本轮请求未完成"
+    },
+    "Background work is still running": {
+      "en": "Background work is still running",
+      "zh-CN": "后台工作仍在运行"
+    },
+    "Preview result": {
+      "en": "Preview result",
+      "zh-CN": "预览成果"
+    },
+    "Open result": {
+      "en": "Open result",
+      "zh-CN": "打开成果"
+    },
+    "Files and exports": {
+      "en": "Files and exports",
+      "zh-CN": "原生文件与导出"
+    },
+    "Previous versions": {
+      "en": "Previous versions",
+      "zh-CN": "先前版本"
+    },
+    "Verification applies to the recorded version.": {
+      "en": "Verification applies to the recorded version.",
+      "zh-CN": "检查仅适用于此记录版本。"
+    },
+    "Engineering verification was not run": {
+      "en": "Engineering verification was not run",
+      "zh-CN": "尚未运行工程检查"
+    },
+    "Outputs from this action": {
+      "en": "Outputs from this action",
+      "zh-CN": "本次操作的产物"
+    },
+    "Verification evidence": {
+      "en": "Verification evidence",
+      "zh-CN": "检查证据"
+    },
+    "Open output": {
+      "en": "Open output",
+      "zh-CN": "打开产物"
+    },
+    "Execution failed": {
+      "en": "Execution failed",
+      "zh-CN": "执行失败"
+    },
+    "Execution in progress": {
+      "en": "Execution in progress",
+      "zh-CN": "正在执行"
+    },
+    "Verification applies to the inputs recorded for this action.": {
+      "en": "Verification applies to the inputs recorded for this action.",
+      "zh-CN": "检查仅适用于本次操作记录的输入。"
+    },
+    "Show native file": {
+      "en": "Show native file",
+      "zh-CN": "在文件夹中显示原生文件"
+    },
+    "Recorded content changed · checks apply to the previous bytes": {
+      "en": "Recorded content changed · checks apply to the previous bytes",
+      "zh-CN": "文件已变化 · 检查仅适用于原记录内容"
+    },
+    "Recorded file is unavailable": {
+      "en": "Recorded file is unavailable",
+      "zh-CN": "无法读取原记录文件"
+    },
+    "Recorded content has not been checked": {
+      "en": "Recorded content has not been checked",
+      "zh-CN": "尚未核对当前文件内容"
+    },
+    "Partial results · some operations failed": {
+      "en": "Partial results · some operations failed",
+      "zh-CN": "部分成果 · 部分操作失败"
+    },
+    "CAD model": {
+      "en": "CAD model",
+      "zh-CN": "CAD 模型"
+    },
+    "Modified model": {
+      "en": "Modified model",
+      "zh-CN": "修改后的模型"
+    },
+    "CAD diagnostics": {
+      "en": "CAD diagnostics",
+      "zh-CN": "CAD 诊断报告"
+    },
+    "Geometry inspection": {
+      "en": "Geometry inspection",
+      "zh-CN": "几何检查报告"
+    },
+    "Open": {
+      "en": "Open",
+      "zh-CN": "打开"
+    },
+    "Files ({0})": {
+      "en": "Files ({0})",
+      "zh-CN": "文件（{0}）"
+    },
+    "Checks passed": {
+      "en": "Checks passed",
+      "zh-CN": "检查通过"
+    },
+    "Checks failed": {
+      "en": "Checks failed",
+      "zh-CN": "检查失败"
+    },
+    "Insufficient evidence": {
+      "en": "Insufficient evidence",
+      "zh-CN": "证据不足"
+    },
+    "Checks incomplete": {
+      "en": "Checks incomplete",
+      "zh-CN": "检查未完整运行"
+    },
+    "Not checked": {
+      "en": "Not checked",
+      "zh-CN": "未运行检查"
+    },
+    "Step {0}": {
+      "en": "Step {0}",
+      "zh-CN": "步骤 {0}"
+    },
+    "Supporting results ({0})": {
+      "en": "Supporting results ({0})",
+      "zh-CN": "附件与报告（{0}）"
     }
   }
 }

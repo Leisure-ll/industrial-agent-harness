@@ -42,3 +42,7 @@ Action 缺失工具版本、输入哈希和证据时，不通过严格校验，�
 运行 `node --test packages/contracts/tests/*.test.cjs` 验证非法路径、未来版本、缺失证据、
 修改型工具验证声明及旧 Action 兼容。完整状态闭环与失效、失败、恢复在 Runtime 集成测试中验证；
 契约单测不能替代原生工程验收。
+
+## 可选成果展示协议
+
+版本字符串 `1` 的 ToolPresentation／ActionPresentation／ResultGroup／ResultSelection 是独立应用展示协议，不扩充 Artifact 或 Verification 的工程语义。局部输出名先绑定本 Action 的真实产物，替代与检查关系再校验确切输入内容；宿主绑定项目、chat、请求身份。未知版本或不合法声明只禁用该组并保留诊断及事实记录。详见[任务成果契约](task-results.md)。

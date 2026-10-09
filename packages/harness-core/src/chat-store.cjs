@@ -188,9 +188,19 @@ class ChatStore {
     });
   }
   append(turnId, event) {
-    const recorded = { ...event, recordedAt: new Date().toISOString() };
-    // Collapse streamed chunks for a bounded read model; raw events remain in diagnostic JSONL.
+    let recorded = { ...event, recordedAt: new Date().toISOString() };
+    // The lookup and write share the same lock, including across processes.
     this.transaction(() => {
+      if (event.eventId) {
+        const prior = this.statement(
+          "SELECT event_json FROM chat_events WHERE turn_id = ? AND json_extract(event_json, '$.eventId') = ?",
+        ).get(turnId, event.eventId);
+        if (prior) {
+          recorded = JSON.parse(prior.event_json);
+          return;
+        }
+      }
+      // Collapse streamed chunks; raw events remain in diagnostic JSONL.
       if (!this.statement('SELECT id FROM turns WHERE id = ?').get(turnId))
         throw Error('Unknown chat turn.');
       if (event.type === 'text' || event.type === 'thinking') {
@@ -217,6 +227,26 @@ class ChatStore {
       );
     });
     return recorded;
+  }
+  latestEvents(chatId, type) {
+    return this.statement(
+      `SELECT e.event_json FROM chat_events e JOIN turns t ON t.id=e.turn_id
+      WHERE t.chat_id=? AND e.type=? AND e.sequence=(SELECT MAX(last.sequence) FROM chat_events last WHERE last.turn_id=e.turn_id AND last.type=e.type)
+      ORDER BY t.rowid`,
+    )
+      .all(chatId, type)
+      .map(row => JSON.parse(row.event_json));
+  }
+  turnEvents(chatId, turnId) {
+    if (!this.turnBelongsTo(chatId, turnId)) throw Error('Request belongs to another chat.');
+    return this.statement('SELECT event_json FROM chat_events WHERE turn_id=? ORDER BY sequence')
+      .all(turnId)
+      .map(row => JSON.parse(row.event_json));
+  }
+  turnBelongsTo(chatId, turnId) {
+    return Boolean(
+      this.statement('SELECT id FROM turns WHERE id=? AND chat_id=?').get(turnId, chatId),
+    );
   }
   finish(turnId, status) {
     this.statement('UPDATE turns SET status = ?, owner_pid = NULL WHERE id = ?').run(
