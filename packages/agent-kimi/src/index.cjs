@@ -21,6 +21,7 @@ const {
 const { validatePromptImages, imageContent } = require('./image-input.cjs');
 const { createDiagnosticLog } = require('./diagnostic-log.cjs');
 const { createProcessSandbox } = require('./process-sandbox.cjs');
+const { applicationTools } = require('./application-tools.cjs');
 const { runtimeTools } = require('./runtime-tools.cjs');
 const { prepareProjectWorkspace } = require('./project-workspace.cjs');
 
@@ -542,10 +543,15 @@ class KimiSession {
           this.diagnostics.industrialRuntime,
           this.getScope,
           (descriptor, request) => this.requestRuntimeApproval(descriptor, request),
-          result => this.diagnostics.onIndustrialResult?.(result),
-          { imageInput: Boolean(runtime.profile.imageInput), ownerId: this.resourceId },
+          (result, context) => this.diagnostics.onIndustrialResult?.(result, context),
+          {
+            imageInput: Boolean(runtime.profile.imageInput),
+            ownerId: this.resourceId,
+            getApplicationContext: this.diagnostics.getApplicationContext,
+          },
         );
-        this.hostRuntimeTools = new Set(hostedTools.map(tool => tool.name));
+        const appTools = applicationTools(this.diagnostics.getApplicationContext);
+        this.hostRuntimeTools = new Set([...hostedTools, ...appTools].map(tool => tool.name));
         this.session = this.sessionFactory({
           workDir: this.processSandbox?.workDir || this.workDir,
           projectDir: this.workDir,
@@ -560,6 +566,7 @@ class KimiSession {
           env: this.processSandbox?.env || runtime.env,
           yoloMode: approvalMode === 'auto',
           externalTools: [
+            ...appTools,
             ...hostedTools,
             ...externalTools(
               this.getScope,

@@ -7,3 +7,5 @@ Viewer 层的领域无关契约与选择机制。它接收已登记的 Artifact 
 计划提供能力发现、查看器选择、项目/状态绑定、派生缓存身份及跨视图对象引用。显示缓存的键需要覆盖源产物与配套产物哈希、转换器版本和参数；映射缺失时不猜测连通关系。
 
 具体契约和安全边界见 [Viewer 层设计](../../doc/viewer-layer.md)。正式内置 EDA Viewer 在 [viewer-builtin](../viewer-builtin/README.md)。
+
+`result-preview` implements the domain-independent one-time live foreground policy. It rejects replay, background/historical/multiple candidates and changed focus; Registry additionally requires plugin `autoPreview: true`. CAD/document plugins opt in to bounded read-only embedded viewing. File resolution and content checks remain in TaskService, below Desktop. [任务成果与验收](../../doc/task-results.md).

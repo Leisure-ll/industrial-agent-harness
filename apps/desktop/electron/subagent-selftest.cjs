@@ -177,6 +177,16 @@ async function run(window) {
         /agent-/,
       );
       assert.ok(await evaluate(`document.querySelectorAll('.ia-subagent-card').length>0`));
+      assert.ok(
+        await evaluate(
+          `Array.from(document.querySelectorAll('.ia-subagent-card')).every(c=>c.querySelector('.ia-subagent-icon[data-agent-hue]'))`,
+        ),
+      );
+      assert.ok(
+        await evaluate(
+          `Array.from(document.querySelectorAll('.ia-agent-tool summary')).some(s=>s.querySelector('.ia-subagent-icon[data-agent-hue]')&&s.innerText.includes('Agent'))`,
+        ),
+      );
       await evaluate(`document.querySelector('.ia-approval button').click()`);
       if (task === 'BACKGROUND_TASK') {
         await wait(

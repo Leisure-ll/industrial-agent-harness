@@ -1,4 +1,7 @@
-const { createProjectRuntime } = require('@industrial-agent-harness/harness-core');
+const {
+  createProjectRuntime,
+  readProjectRecords,
+} = require('@industrial-agent-harness/harness-core');
 
 // A project has one persistent fact store, shared by its independent chats.
 // Pack changes reset idle sessions before replacing these cached plugins.
@@ -8,6 +11,13 @@ class ProjectRuntimes {
     this.bundles = new Map();
     this.retiring = new Set();
     this.retirementErrors = [];
+  }
+  read(project) {
+    return readProjectRecords({
+      ...this.options,
+      projectDir: project.path,
+      domain: project.domain,
+    });
   }
   get(project, registry) {
     const key = JSON.stringify([project.path, project.domain]);

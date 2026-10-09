@@ -27,7 +27,8 @@
     "test:cad-resize": "electron . --cad-resize-selftest",
     "test:subagents": "electron . --subagent-selftest",
     "test:gui-settings": "electron . --gui-settings-selftest",
-    "test:model-sync": "electron . --model-sync-selftest"
+    "test:model-sync": "electron . --model-sync-selftest",
+    "test:results": "electron . --task-results-selftest"
   },
   "dependencies": {
     "@industrial-agent-harness/agent-kimi": "workspace:*",
@@ -46,7 +47,7 @@
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
     "@industrial-agent-harness/harness-application": "workspace:*",
-    "@zhiman-bj/industrial-domain-packs": "https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/49481057c372c4fa22742d833935335b7812416d"
+    "@zhiman-bj/industrial-domain-packs": "https://codeload.github.com/Zhiman-BJ/industrial-domain-packs/tar.gz/cf72a46b6b4ba927b091ded71b2d52d227db0351"
   },
   "devDependencies": {
     "@types/react": "19.2.18",

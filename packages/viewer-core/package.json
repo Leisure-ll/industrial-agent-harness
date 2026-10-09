@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "exports": {
-    "./registry": "./src/registry.cjs"
+    "./registry": "./src/registry.cjs",
+    "./result-preview": "./src/result-preview.cjs"
   },
   "scripts": {
     "test": "node --test src/*.test.cjs"

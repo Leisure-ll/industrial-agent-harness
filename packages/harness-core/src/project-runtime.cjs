@@ -124,4 +124,27 @@ function createProjectRuntime({
     packVersion: pack?.version || '1.0.0',
   };
 }
-module.exports = { createProjectRuntime };
+function readProjectRecords({
+  projectDir,
+  domain,
+  directory,
+  environment = process.env,
+  remoteSettings = new RemoteSettings({
+    directory: defaultResourceDirectory(environment),
+    environment,
+  }),
+}) {
+  const execution = remoteSettings.project(projectDir, domain);
+  if (execution.location === 'remote') {
+    if (!execution.canonicalProjectId) return null;
+    return IndustrialRuntime.openRecords(projectDir, domain, {
+      directory: path.join(
+        directory || path.join(remoteSettings.directory, 'core'),
+        'remote-workspaces',
+      ),
+      projectRef: { schemaVersion: '1', projectId: execution.canonicalProjectId, domain },
+    });
+  }
+  return IndustrialRuntime.openRecords(projectDir, domain, { directory });
+}
+module.exports = { createProjectRuntime, readProjectRecords };
