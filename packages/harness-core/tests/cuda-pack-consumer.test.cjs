@@ -15,7 +15,9 @@ const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 
 test('pinned consumer discovers CUDA and its Skill while unconfigured execution stays unavailable', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cuda-consumer-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  t.after(() =>
+    fs.promises.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }),
+  );
   const projectDir = path.join(root, 'project');
   fs.mkdirSync(projectDir);
   fs.writeFileSync(path.join(projectDir, 'model.py'), 'reference');
@@ -44,7 +46,9 @@ test('pinned consumer discovers CUDA and its Skill while unconfigured execution 
 
 test('shared factory and Broker use both authenticated MCP identities from the pinned owner', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cuda-consumer-http-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  t.after(() =>
+    fs.promises.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }),
+  );
   const projectDir = path.join(root, 'project');
   fs.mkdirSync(projectDir);
   fs.writeFileSync(path.join(projectDir, 'model.py'), 'reference');
