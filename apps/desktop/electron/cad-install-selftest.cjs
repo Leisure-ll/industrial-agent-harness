@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const { captureSettled } = require('./selftest-capture.cjs');
 
 async function run(window, { manager, runtime }) {
   const reportDir = process.env.HARNESS_CAD_INSTALL_REPORT_DIR;
@@ -139,12 +140,12 @@ async function run(window, { manager, runtime }) {
     `(()=>{window.__cadInstallProgress=[]; window.viewerHost.onDomainProgress(progress=>window.__cadInstallProgress.push(progress));return true;})()`,
   );
   await wait(
-    `Array.from(document.querySelectorAll('.ia-domain-install-row')).some(row=>row.textContent.includes('CAD'))`,
+    `Boolean(document.querySelector('.ia-domain-install-row[data-domain="cad"]:not([data-unavailable]) input:not(:disabled)'))`,
   );
-  fs.writeFileSync(
-    path.join(reportDir, 'first-run.png'),
-    (await window.webContents.capturePage()).toPNG(),
-  );
+  await captureSettled(window, {
+    output: path.join(reportDir, 'first-run.png'),
+    readyScript: `Boolean(document.querySelector('.ia-domain-install-row[data-domain="cad"]:not([data-unavailable]) input:not(:disabled)')) && !document.querySelector('.ia-settings-popover')`,
+  });
   await evaluate(
     `Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row=>row.textContent.includes('CAD')).querySelector('input').click()`,
   );
@@ -269,10 +270,10 @@ async function run(window, { manager, runtime }) {
   await wait(
     `Number(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas')?.dataset.renderedTriangles)>20 && document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas')?.dataset.geometry==='brep'`,
   );
-  fs.writeFileSync(
-    path.join(reportDir, 'cad-viewer.png'),
-    (await window.webContents.capturePage()).toPNG(),
-  );
+  await captureSettled(window, {
+    output: path.join(reportDir, 'cad-viewer.png'),
+    readyScript: `Number(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas')?.dataset.renderedTriangles)>20`,
+  });
   // A lost runtime executable must become repairable through the ordinary UI.
   fs.rmSync(dependency.executable);
   await evaluate(`document.querySelector('.ia-settings-button').click()`);
@@ -290,10 +291,10 @@ async function run(window, { manager, runtime }) {
     `document.querySelector('.ia-pack-card .ia-pack-badge')?.textContent.includes('Ready to use') && !document.querySelector('.ia-domain-progress')`,
     10 * 60 * 1000,
   );
-  fs.writeFileSync(
-    path.join(reportDir, 'domain-ready.png'),
-    (await window.webContents.capturePage()).toPNG(),
-  );
+  await captureSettled(window, {
+    output: path.join(reportDir, 'domain-ready.png'),
+    readyScript: `document.querySelector('.ia-pack-card .ia-pack-badge')?.textContent.includes('Ready to use') && !document.querySelector('.ia-domain-progress')`,
+  });
   fs.writeFileSync(
     path.join(reportDir, 'acceptance.json'),
     JSON.stringify(

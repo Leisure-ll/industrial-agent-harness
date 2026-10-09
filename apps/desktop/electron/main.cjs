@@ -1416,7 +1416,9 @@ async function createWindow() {
       sandbox: true,
       // Pixel assertions must keep receiving frames when another test app or
       // a hosted desktop temporarily covers this window.
-      backgroundThrottling: !process.argv.some(flag => flag.endsWith('-selftest')),
+      backgroundThrottling: !process.argv.some(
+        flag => flag.endsWith('-selftest') || flag === '--packaged-smoke',
+      ),
     },
   });
   if (process.argv.includes('--cad-selftest') || process.argv.includes('--cad-resize-selftest'))
@@ -1562,7 +1564,8 @@ async function createWindow() {
         throw Error('Installed Domains did not reach the registry.');
     }
     const screenshot = process.env.HARNESS_PACKAGED_SMOKE_SCREENSHOT;
-    if (screenshot) fs.writeFileSync(screenshot, (await window.webContents.capturePage()).toPNG());
+    if (screenshot)
+      await require('./selftest-capture.cjs').captureSettled(window, { output: screenshot });
     app.quit();
     return;
   }
