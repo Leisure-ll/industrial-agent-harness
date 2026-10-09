@@ -7,7 +7,7 @@ const { createRequire } = require('node:module');
 const mcpRequire = createRequire(path.resolve(__dirname, '../../packages/domain-mcp/package.json'));
 const { Client } = mcpRequire('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = mcpRequire('@modelcontextprotocol/sdk/client/stdio.js');
-const { capabilities } = require('@industrial-agent-harness/domain-skills');
+const { capabilities } = require('../../packages/domain-skills/src/index.cjs');
 const { resolve } = require('../../packages/capability-broker/src/index.cjs');
 const owner = require('@zhiman-bj/industrial-domain-packs');
 const legacy = require(path.join(owner.sourceDirectory('godot-pack'), 'legacy-harness-pack.json'));
@@ -30,7 +30,7 @@ test(
   async t => {
     assert.ok(
       fs.existsSync(binary),
-      'Set INDUSTRIAL_HARNESS_GODOT_BIN to an installed Godot 4 executable.',
+      'Set INDUSTRIAL_HARNESS_GODOT_CMD to an installed Godot 4 executable.',
     );
     const root = temporary(t),
       project = path.join(root, 'project');
@@ -43,21 +43,22 @@ test(
       path.join(project, 'main.tscn'),
       '[gd_scene format=3]\n[node name="Main" type="Node2D"]\n[node name="Hud" type="Control" parent="."]\ngrow_vertical = 1\n',
     );
-    const scope = resolve(
-      { domain: 'godot', task: 'Build a Godot game scene' },
-      undefined,
-      registry,
-    ).scope;
+    const scope = resolve({ domain: 'godot', task: 'Build a Godot game scene' }, registry).scope;
     const configFile = writeMcpConfig(
       root,
-      selectMcpServers(scope, [
-        {
-          ...legacy.provider,
-          domain: 'godot',
-          packDirectory: 'godot',
-          sourceDirectory: owner.sourceDirectory('godot-pack'),
-        },
-      ]),
+      selectMcpServers(
+        scope,
+        [],
+        [
+          {
+            ...legacy.provider,
+            domain: 'godot',
+            packDirectory: 'godot',
+            sourceDirectory: owner.sourceDirectory('godot-pack'),
+            toolIds: legacy.provider.tools.map(tool => tool.id),
+          },
+        ],
+      ),
       {
         projectDir: project,
         environment: {
