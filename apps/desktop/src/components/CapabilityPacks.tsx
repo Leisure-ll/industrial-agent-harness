@@ -1,3 +1,4 @@
+import { DomainIcon } from '@industrial-agent-harness/viewer-builtin/domain-icon';
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useState } from 'react';
 import type { DomainOption } from '@industrial-agent-harness/viewer-builtin/api';
@@ -188,7 +189,7 @@ export function PacksSection({
                 {installable.map(item => (
                   <div key={item.domain} className="ia-pack-card">
                     <span className="ia-pack-icon" aria-hidden="true">
-                      {item.emoji || '⚙️'}
+                      <DomainIcon domain={item.domain} size={22} />
                     </span>
                     <div className="ia-pack-body">
                       <div className="ia-pack-title">
@@ -231,7 +232,7 @@ export function PacksSection({
                   return (
                     <div key={item.domain} className="ia-pack-card">
                       <span className="ia-pack-icon" aria-hidden="true">
-                        {item.emoji || '⚙️'}
+                        <DomainIcon domain={item.domain} size={22} />
                       </span>
                       <div className="ia-pack-body">
                         <div className="ia-pack-title">
