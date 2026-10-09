@@ -13,11 +13,34 @@ const { CudaService, startHttp } = require(
 );
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 
+// node:test runs after hooks in registration order, so cleanup must close the
+// runtime (and its SQLite handles) before removing the tree: on Windows an
+// open -wal/-shm keeps every unlink busy and the suite stalls on retries.
+const cleanup = root => {
+  let bound;
+  let server;
+  return {
+    bind(runtime) {
+      bound = runtime;
+    },
+    listen(httpServer) {
+      server = httpServer;
+    },
+    async run() {
+      if (bound) await bound.runtime.close().catch(() => {});
+      if (server) {
+        server.closeAllConnections();
+        await new Promise(resolve => server.close(resolve));
+      }
+      await fs.promises.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    },
+  };
+};
+
 test('pinned consumer discovers CUDA and its Skill while unconfigured execution stays unavailable', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cuda-consumer-'));
-  t.after(() =>
-    fs.promises.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }),
-  );
+  const cleaner = cleanup(root);
+  t.after(() => cleaner.run());
   const projectDir = path.join(root, 'project');
   fs.mkdirSync(projectDir);
   fs.writeFileSync(path.join(projectDir, 'model.py'), 'reference');
@@ -38,7 +61,7 @@ test('pinned consumer discovers CUDA and its Skill while unconfigured execution 
     environment: { INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(root, 'config') },
     registry,
   });
-  t.after(() => bound.runtime.close());
+  cleaner.bind(bound);
   const state = await bound.runtime.inspect();
   assert.equal(state.stage, 'kernel');
   assert(!bound.runtime.descriptors().some(tool => tool.id.startsWith('cuda.')));
@@ -46,9 +69,8 @@ test('pinned consumer discovers CUDA and its Skill while unconfigured execution 
 
 test('shared factory and Broker use both authenticated MCP identities from the pinned owner', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cuda-consumer-http-'));
-  t.after(() =>
-    fs.promises.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }),
-  );
+  const cleaner = cleanup(root);
+  t.after(() => cleaner.run());
   const projectDir = path.join(root, 'project');
   fs.mkdirSync(projectDir);
   fs.writeFileSync(path.join(projectDir, 'model.py'), 'reference');
@@ -68,10 +90,7 @@ test('shared factory and Broker use both authenticated MCP identities from the p
     compilerToken: 'compiler-test-token',
     evaluatorToken: 'evaluator-test-token',
   });
-  t.after(() => {
-    server.closeAllConnections();
-    return new Promise(resolve => server.close(resolve));
-  });
+  cleaner.listen(server);
   const environment = { INDUSTRIAL_HARNESS_CONFIG_DIR: path.join(root, 'config') };
   for (const role of ['compiler', 'evaluator']) {
     const prefix = 'INDUSTRIAL_HARNESS_CUDA_' + role.toUpperCase() + '_MCP_';
@@ -86,7 +105,7 @@ test('shared factory and Broker use both authenticated MCP identities from the p
     environment,
     registry: loadRegistry(),
   });
-  t.after(() => bound.runtime.close());
+  cleaner.bind(bound);
   for (const role of ['compiler', 'evaluator']) {
     const state = await bound.runtime.inspect(),
       scope = resolveFromState(
