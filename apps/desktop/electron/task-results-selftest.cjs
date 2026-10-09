@@ -60,6 +60,41 @@ async function run(window) {
   );
   assert.equal(await evaluate(`document.querySelectorAll('.ia-result-card').length`), 7);
   assert.equal(
+    await evaluate(`document.querySelectorAll('.ia-task-results > .ia-result-card').length`),
+    1,
+  );
+  assert.equal(
+    await evaluate(`document.querySelectorAll('.ia-result-supporting .ia-result-card').length`),
+    4,
+  );
+  assert.equal(
+    await evaluate(`Boolean(document.querySelector('.ia-result-supporting').open)`),
+    false,
+  );
+  const rowHeights = await evaluate(
+    `[...document.querySelectorAll('.ia-result-card')].map(card=>card.getBoundingClientRect().height).filter(height=>height>0)`,
+  );
+  assert.ok(
+    rowHeights.every(height => height <= 84),
+    `Default result rows must stay compact: ${rowHeights}`,
+  );
+  console.log('Default result row heights:', rowHeights);
+  await evaluate(`document.querySelector('.ia-result-checks summary').click()`);
+  await wait(
+    `Boolean(document.querySelector('.ia-result-checks[open] .ia-result-check-list p')?.textContent)`,
+  );
+  await evaluate(`document.querySelector('.ia-result-checks[open] summary').click()`);
+  await evaluate(`document.querySelector('.ia-result-supporting > summary').click()`);
+  await wait(`document.querySelector('.ia-result-supporting').open`);
+  assert.deepEqual(
+    await evaluate(
+      `[...document.querySelectorAll('.ia-result-supporting .ia-result-source')].map(node=>node.textContent)`,
+    ),
+    ['Step 1', 'Step 2', 'Step 3', 'Step 4'],
+  );
+  await evaluate(`document.querySelector('.ia-result-supporting > summary').click()`);
+
+  assert.equal(
     await evaluate(
       `document.querySelector('.ia-file-view:not([hidden]) .rp-cad canvas').dataset.geometry`,
     ),
@@ -76,7 +111,7 @@ async function run(window) {
   console.log('Native cards, automatic preview and Viewer navigation passed.');
   // Opening a report during a later request must suppress its automatic model preview.
   await evaluate(
-    `(()=>{const button=[...document.querySelectorAll('.ia-result-file')].find(button=>button.textContent==='readback.json');button?.click();})()`,
+    `(()=>{document.querySelector('.ia-result-files summary').click();const button=[...document.querySelectorAll('.ia-result-file')].find(button=>button.textContent==='readback.json');button?.click();})()`,
   );
   await wait(`Boolean(document.querySelector('.ia-file-view:not([hidden]) .rp-document'))`, 20000);
   await evaluate(
@@ -105,29 +140,70 @@ async function run(window) {
     'history replay never opens a model',
   );
   await evaluate(
-    `(()=>{const cards=[...document.querySelectorAll('.ia-result-card')];cards.filter(card=>card.textContent.includes('Modified model')).at(-1)?.querySelector('button')?.click();})()`,
+    `[...document.querySelectorAll('.ia-task-results')].at(-1)?.querySelector(':scope > .ia-result-card .ia-result-open')?.click()`,
   );
   await wait(
     `Number(document.querySelector('.ia-file-view:not([hidden]) .rp-cad canvas')?.dataset.renderedTriangles)>=12`,
   );
   console.log('History replay preserved cards without automatic opening.');
-  await evaluate(`new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`);
-  let image;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      image = await window.webContents.capturePage();
-      break;
-    } catch (error) {
-      if (attempt === 2) throw error;
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-  }
   const output =
     process.env.HARNESS_RESULT_SCREENSHOT ||
     path.join(require('node:os').tmpdir(), 'task-results-66.png');
-  fs.writeFileSync(output, image.toPNG());
+  async function capture(file) {
+    await evaluate(
+      `(()=>{const result=[...document.querySelectorAll('.ia-task-results')].at(-1);const scroller=result.closest('.ia-chat-scroll');scroller.scrollTop+=result.getBoundingClientRect().top-scroller.getBoundingClientRect().top-Math.max(0,(scroller.clientHeight-result.getBoundingClientRect().height)/2);})()`,
+    );
+    assert.ok(
+      await evaluate(`document.querySelector('.ia-chat-header').getBoundingClientRect().top>=0`),
+      'capturing results must not scroll the chat header out of view',
+    );
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        fs.writeFileSync(file, (await window.webContents.capturePage()).toPNG());
+        return;
+      } catch (error) {
+        if (attempt === 2) throw error;
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  }
+  await capture(output);
+  const supportingSummary = `[...document.querySelectorAll('.ia-result-supporting')].at(-1)`;
+  await evaluate(`${supportingSummary}.querySelector('summary').click()`);
+  await wait(`${supportingSummary}.open`);
+  await capture(output.replace(/\.png$/, '-details.png'));
+  await evaluate(`${supportingSummary}.querySelector('summary').click()`);
+  await wait(`!${supportingSummary}.open`);
+  await evaluate(`document.querySelector('.ia-settings-button').click()`);
+  await wait(`Boolean(document.querySelector('.ia-settings-popover'))`);
+  await evaluate(`document.querySelector('.ia-settings-row button').click()`);
+  await wait(`Boolean(document.querySelector('.theme-dark'))`);
+  await evaluate(`document.querySelector('.ia-settings-title button').click()`);
+  await wait(`!document.querySelector('.ia-settings-popover')`);
+  await capture(output.replace(/\.png$/, '-dark.png'));
+  const originalSize = window.getSize();
+  window.webContents.setZoomFactor(1);
+  window.setSize(640, 640);
   console.log(
-    'Task result cards, automatic native preview, manual report entry, focus preservation, history replay and Viewer navigation passed:',
+    'Narrow result layout:',
+    window.getSize(),
+    await evaluate('({width:innerWidth, zoom:devicePixelRatio})'),
+  );
+  await wait(`Boolean(document.querySelector('.layout-tabs'))`, 20000);
+  assert.equal(window.getSize()[0], 640);
+  await wait(`Boolean(document.querySelector('#tab-chat'))`);
+  await evaluate(`document.querySelector('#tab-chat').click()`);
+  await wait(
+    `document.querySelector('#tab-chat')?.getAttribute('aria-selected')==='true' && document.querySelector('.ia-chat-scroll').getBoundingClientRect().width>0`,
+  );
+  const overflow = await evaluate(
+    `[...document.querySelectorAll('.ia-result-card')].some(card=>{const row=card.querySelector('.ia-result-main');return row.scrollWidth>row.clientWidth+1})`,
+  );
+  assert.equal(overflow, false, 'result titles and actions must fit the narrow layout');
+  await capture(output.replace(/\.png$/, '-narrow.png'));
+  window.setSize(...originalSize);
+  console.log(
+    'Compact result rows, expandable files/checks, themes, narrow layout, native preview, focus and history passed:',
     output,
   );
   model.close();

@@ -4,7 +4,7 @@
 
 ## User behavior
 
-Desktop shows a result card as soon as a producer declares a valid group. The main entry opens the recorded version through Viewer Registry or the source-file canvas; “Show native file” reveals the validated native file in its folder. “Files and exports” exposes actual attachments, including reports. Checks show their canonical outcome and reason. A report never silently replaces a model. Previous versions collapse only after an explicit, content-bound replacement; parallel designs remain separate cards. Older producers without groups retain their recorded Action/output entries.
+Desktop shows a compact result row as soon as a producer declares a valid group. Rows share one container with thin separators: title/open actions on the first line, execution status/file count/check summary on the second. File lists and individual check evidence expand on demand; failure and content warnings stay visible. Non-preview results whose primary artifact is explicitly included in another result’s explicit file set share a collapsed “Supporting results” section. Each row identifies its producing step, so several reports with the same title remain distinguishable. Matching titles alone never merge results. Selected results (including historical selections), failed execution/checks, insufficient evidence and changed/unavailable/unchecked content stay in the main list. All group identities and files remain available. The main entry opens the recorded version through Viewer Registry or the source-file canvas; “Show native file” reveals the validated native file in its folder. “Files” exposes actual attachments, including reports. Checks show their canonical outcome and reason. A report never silently replaces a model. Previous versions collapse only after an explicit, content-bound replacement; parallel designs remain separate cards. Older producers without groups retain their recorded Action/output entries.
 
 A live foreground request may open one preview after all related work is ready, once per request. There must be exactly one eligible candidate (or one explicitly selected group), a successful producing Action, and a supported read-only embedded Viewer. CAD and document plugins opt in; other plugins do not implicitly opt in. Manually opening a file, changing tabs/chats/projects, starting another request, choosing historical results, failure/cancellation, parallel outputs, background completion and historical replay suppress automatic opening. No external program is launched automatically. Viewer loading still checks source and companions and can fail independently of execution or verification.
 
@@ -52,18 +52,20 @@ Validated on **macOS Apple Silicon (darwin-arm64), source workspace**, Node 26.1
 | `pnpm test:architecture-contract`, `pnpm test:architecture` | Existing ownership gates unchanged; no added policy exceptions |
 | Owner `npm test`, `npm run lock:check`, `npm run test:architecture-contract`, locked real stdio MCP smoke | Owner production declarations, partial/failure cases, inventories and source identity |
 | `pnpm test:results` with `INDUSTRIAL_HARNESS_FREECAD_CMD` | Real FreeCAD generation/edit/inspection, two-design comparison, report selection, exact companion mismatch rejection; pinned Kimi with controlled model responses through the authenticated MCP bridge, without `select_result` |
-| Desktop `test:results` after `build` | Real native output → live result cards → Registry → rendered OCCT BREP, toolbar/wheel/pinch/Fit/fullscreen, manual report opening, focus preservation during another request and history replay |
+| Desktop `test:results` after `build` | Real native output → live result cards → Registry → rendered OCCT BREP, toolbar/wheel/pinch/Fit/fullscreen, manual report opening, focus preservation during another request and history replay; compact rows, expandable details, dark theme and 640px layout |
 | Existing `freecad-runtime.test.cjs`, `pnpm test:release` | Native geometry, failure/cancellation, installed Pack consumption, existing Kimi continuation and release integrity |
 
-The source Electron acceptance screenshot shows recorded cards beside the native BREP Viewer:
+The source Electron acceptance screenshot shows compact result rows beside the native BREP Viewer. Default rows measured 62.5 CSS pixels high at the tested desktop size; file and check details expand on demand. The same acceptance run checks dark theme and the 640px minimum-width layout without horizontal result-row overflow:
 
-![Task results and native CAD preview](evidence/task-results-desktop-20261009.png)
+![Compact task results and native CAD preview](evidence/task-results-desktop-20261009.png)
+
+[Expanded reports with source steps](evidence/task-results-desktop-details-20261009.png) · [Dark theme](evidence/task-results-desktop-dark-20261009.png) · [640px layout](evidence/task-results-desktop-narrow-20261009.png)
 
 The new native test files join the existing native CI test catalog; architecture checker, policy and workflows are unchanged. Controlled responses establish tool/UI integration, not general model planning quality. A separate real-model run used **MiniMax-M2.7-highspeed** through the configured model API: one request built a 40×20×5 mm plate, the next performed consecutive width edits to 30 and 35 mm and inspected the final version. All four canonical verifications passed; build/edit model IDs and explicit supersession were retained. A redacted, compact record is in [the evidence JSON](evidence/task-results-20261009.json). No endpoint, credential, hidden reasoning or raw conversation is committed. This single scenario is evidence of that run, not a benchmark of model selection reliability.
 
 ## 中文使用说明
 
-本轮工具产生文件后，成果卡自动出现，无需 Agent 记住收尾调用。主入口预览对应版本；“原生文件与导出”可打开真实附件，“在文件夹中显示原生文件”定位可取走的文件。模型与诊断报告分开；只有明确替代关系才折叠旧版本，并列方案全部保留。检查摘要只说明所引用版本的实际证据，执行结束或能预览不等于工程检查通过。
+本轮工具产生文件后，紧凑成果条目自动出现，无需 Agent 记住收尾调用。默认两行展示标题、打开操作、执行状态、文件数量和检查摘要；文件和检查详情按需展开。主入口预览对应版本，“文件”可打开真实附件，文件夹图标定位可取走的原生文件。明确作为其他成果附件的辅助结果统一收在“附件与报告”中，展开后用步骤区分多份同名报告；不按标题去重。失败、证据不足、内容变化及用户明确选中的结果保持直接可见。模型与诊断报告分开；只有明确替代关系才折叠旧版本，并列方案全部保留。检查摘要只说明所引用版本的实际证据，执行结束或能预览不等于工程检查通过。
 
 当前前台请求结束、相关工作就绪且只有一个明确支持的只读预览时，最多自动打开一次。已经手动换文件／标签／对话、查看历史版本，或任务失败、取消、仍在后台、多方案不明确时，只更新成果。重启和历史回放不自动打开。文件变化、附件不可读或 Viewer 不可用会明确反馈；失败后的部分文件仍可查看，不冒充完成。
 

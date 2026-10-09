@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react';
+import { ArrowUpRight, Eye, FileText, FolderOpen } from 'lucide-react';
 import type {
   TaskResultView,
   ResultOpenRequest,
 } from '@industrial-agent-harness/viewer-builtin/api';
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
+import { partitionResultGroups } from '../result-layout';
 
 export function TaskResults({
   results,
@@ -33,41 +35,126 @@ export function TaskResults({
   }
   function card(group: TaskResultView['groups'][number]) {
     const primary = group.artifacts.find(artifact => artifact.id === group.primaryArtifactId);
+    const step = results.actionIds.indexOf(group.actionId);
+    const statuses = group.verifications.map(verification => verification.status);
+    const checkLabel = statuses.includes('failed')
+      ? 'Checks failed'
+      : statuses.includes('insufficient_evidence')
+        ? 'Insufficient evidence'
+        : statuses.includes('not_run') && statuses.includes('passed')
+          ? 'Checks incomplete'
+          : !statuses.length || statuses.includes('not_run')
+            ? 'Not checked'
+            : 'Checks passed';
+    const entryLabel = group.previewArtifactId ? 'Preview result' : 'Open result';
+    const isOpening = opening === (group.previewArtifactId || group.primaryArtifactId);
     return (
       <article
         className={`ia-result-card ${group.selected ? 'selected' : ''}`}
         key={group.id}
         data-result-id={group.id}
       >
-        <div className="ia-result-heading">
-          <b>{t(group.title)}</b>
-          {group.selected ? <small>{t('Selected result')}</small> : null}
+        <div className="ia-result-main">
+          <FileText size={15} aria-hidden="true" className="ia-result-icon" />
+          <b className="ia-result-title" title={t(group.title)}>
+            {t(group.title)}
+          </b>
+          {group.selected ? (
+            <small className="ia-result-badge">{t('Selected result')}</small>
+          ) : null}
+          {group.historical ? (
+            <small className="ia-result-badge">{t('Historical version')}</small>
+          ) : null}
+          <div className="ia-result-actions">
+            <button
+              className="ia-result-open"
+              aria-label={t(entryLabel)}
+              title={t(entryLabel)}
+              disabled={!onOpen || Boolean(opening) || !primary}
+              onClick={() =>
+                void open(group.id, group.previewArtifactId || group.primaryArtifactId)
+              }
+            >
+              {group.previewArtifactId ? (
+                <Eye size={14} aria-hidden="true" />
+              ) : (
+                <ArrowUpRight size={14} aria-hidden="true" />
+              )}
+              <span>{t(isOpening ? 'Opening…' : 'Open')}</span>
+            </button>
+            <button
+              className="ia-result-reveal"
+              aria-label={t('Show native file')}
+              title={t('Show native file')}
+              disabled={!onOpen || Boolean(opening) || !primary}
+              onClick={() => void open(group.id, group.primaryArtifactId, true)}
+            >
+              <FolderOpen size={14} aria-hidden="true" />
+            </button>
+          </div>
         </div>
-        <p className="ia-result-status">
-          {group.historical
-            ? t('Historical version')
-            : group.executionStatus === 'completed'
-              ? t('Execution completed')
-              : t('Partial result · execution failed')}
-        </p>
-        <button
-          disabled={!onOpen || Boolean(opening) || !primary}
-          onClick={() => void open(group.id, group.previewArtifactId || group.primaryArtifactId)}
-        >
-          {opening
-            ? t('Opening…')
-            : group.previewArtifactId
-              ? t('Preview result')
-              : t('Open result')}
-        </button>
-        <button
-          disabled={!onOpen || Boolean(opening) || !primary}
-          onClick={() => void open(group.id, group.primaryArtifactId, true)}
-        >
-          {t('Show native file')}
-        </button>
+        <div className="ia-result-meta">
+          {step >= 0 && results.actionIds.length > 1 ? (
+            <span className="ia-result-source">{t('Step {0}', { '0': String(step + 1) })}</span>
+          ) : null}
+          <span
+            className={`ia-result-status ${group.executionStatus === 'completed' ? '' : 'failed'}`}
+          >
+            {t(
+              group.executionStatus === 'completed'
+                ? 'Execution completed'
+                : 'Partial result · execution failed',
+            )}
+          </span>
+          <details className="ia-result-files">
+            <summary>{t('Files ({0})', { '0': String(group.artifacts.length) })}</summary>
+            <div className="ia-result-file-list">
+              {group.artifacts.map(artifact => (
+                <button
+                  className="ia-result-file"
+                  title={artifact.relativePath}
+                  key={artifact.id}
+                  disabled={!onOpen || Boolean(opening)}
+                  onClick={() => void open(group.id, artifact.id)}
+                >
+                  <FileText size={13} aria-hidden="true" />
+                  <span>{artifact.relativePath.split('/').at(-1)}</span>
+                </button>
+              ))}
+            </div>
+          </details>
+          {group.verifications.length ? (
+            <details className={`ia-result-checks ${statuses.includes('failed') ? 'failed' : ''}`}>
+              <summary title={t('Verification applies to the recorded version.')}>
+                {t(checkLabel)}{' '}
+                <span className="ia-result-count">{group.verifications.length}</span>
+              </summary>
+              <div className="ia-result-check-list">
+                {group.verifications.map(verification => (
+                  <div key={verification.id}>
+                    <b>
+                      {t(
+                        verification.status === 'passed'
+                          ? 'Engineering verification passed'
+                          : verification.status === 'failed'
+                            ? 'Engineering verification failed'
+                            : verification.status === 'not_run'
+                              ? 'Engineering verification was not run'
+                              : 'Engineering evidence is insufficient',
+                      )}
+                    </b>
+                    <p>{verification.reason}</p>
+                  </div>
+                ))}
+                <small>{t('Verification applies to the recorded version.')}</small>
+              </div>
+            </details>
+          ) : (
+            <span className="ia-result-checks">{t('Not checked')}</span>
+          )}
+        </div>
         {group.contentStatus !== 'recorded' ? (
-          <p className="ia-flow-error">
+          <p className="ia-flow-error ia-result-warning">
             {t(
               group.contentStatus === 'changed'
                 ? 'Recorded content changed · checks apply to the previous bytes'
@@ -77,48 +164,10 @@ export function TaskResults({
             )}
           </p>
         ) : null}
-        <details className="ia-result-files">
-          <summary>{t('Files and exports')}</summary>
-          {group.artifacts.map(artifact => (
-            <button
-              className="ia-result-file"
-              title={artifact.relativePath}
-              key={artifact.id}
-              disabled={!onOpen || Boolean(opening)}
-              onClick={() => void open(group.id, artifact.id)}
-            >
-              {artifact.relativePath.split('/').at(-1)}
-            </button>
-          ))}
-        </details>
-        <div className="ia-result-checks">
-          {group.verifications.length ? (
-            group.verifications.map(verification => (
-              <details key={verification.id}>
-                <summary>
-                  {t(
-                    verification.status === 'passed'
-                      ? 'Engineering verification passed'
-                      : verification.status === 'failed'
-                        ? 'Engineering verification failed'
-                        : verification.status === 'not_run'
-                          ? 'Engineering verification was not run'
-                          : 'Engineering evidence is insufficient',
-                  )}
-                </summary>
-                <p>{verification.reason}</p>
-                <small>{t('Verification applies to the recorded version.')}</small>
-              </details>
-            ))
-          ) : (
-            <small>{t('Engineering verification was not run')}</small>
-          )}
-        </div>
       </article>
     );
   }
-  const current = results.groups.filter(group => !group.superseded);
-  const previous = results.groups.filter(group => group.superseded);
+  const { main, supporting, previous } = partitionResultGroups(results.groups);
   if (!results.groups.length && !results.actionIds.length && !results.diagnostics?.length)
     return null;
   return (
@@ -143,10 +192,18 @@ export function TaskResults({
           )}
         </small>
       </div>
-      {current.map(card)}
+      {main.map(card)}
+      {supporting.length ? (
+        <details className="ia-result-supporting">
+          <summary>{t('Supporting results ({0})', { '0': String(supporting.length) })}</summary>
+          {supporting.map(card)}
+        </details>
+      ) : null}
       {previous.length ? (
-        <details>
-          <summary>{t('Previous versions')}</summary>
+        <details className="ia-result-previous">
+          <summary>
+            {t('Previous versions')} <span className="ia-result-count">{previous.length}</span>
+          </summary>
           {previous.map(card)}
         </details>
       ) : null}

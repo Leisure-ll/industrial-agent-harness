@@ -526,6 +526,7 @@ export interface TaskResultView {
   selection: { groupIds: string[]; historical: boolean; basedOnRevision: number } | null;
   groups: Array<{
     id: string;
+    actionId: string;
     title: string;
     primaryArtifactId: string;
     previewArtifactId?: string;

@@ -3131,6 +3131,42 @@
     "Geometry inspection": {
       "en": "Geometry inspection",
       "zh-CN": "几何检查报告"
+    },
+    "Open": {
+      "en": "Open",
+      "zh-CN": "打开"
+    },
+    "Files ({0})": {
+      "en": "Files ({0})",
+      "zh-CN": "文件（{0}）"
+    },
+    "Checks passed": {
+      "en": "Checks passed",
+      "zh-CN": "检查通过"
+    },
+    "Checks failed": {
+      "en": "Checks failed",
+      "zh-CN": "检查失败"
+    },
+    "Insufficient evidence": {
+      "en": "Insufficient evidence",
+      "zh-CN": "证据不足"
+    },
+    "Checks incomplete": {
+      "en": "Checks incomplete",
+      "zh-CN": "检查未完整运行"
+    },
+    "Not checked": {
+      "en": "Not checked",
+      "zh-CN": "未运行检查"
+    },
+    "Step {0}": {
+      "en": "Step {0}",
+      "zh-CN": "步骤 {0}"
+    },
+    "Supporting results ({0})": {
+      "en": "Supporting results ({0})",
+      "zh-CN": "附件与报告（{0}）"
     }
   }
 }
