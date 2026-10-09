@@ -14,11 +14,61 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Area gating: documentation-only pull requests keep only the repository
+  # structure layer, and pull requests confined to apps/desktop skip the
+  # shared-package Portable matrix and the Linux chip installer acceptance
+  # (neither layer ships Desktop UI code). Pushes to main and manual
+  # dispatches always run every layer, so merged code keeps the full net.
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.areas.outputs.docs_only }}
+      shared_changed: ${{ steps.areas.outputs.shared_changed }}
+    steps:
+      - name: Classify changed files
+        id: areas
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const docs = file => /\.md$/i.test(file) || file === 'LICENSE' || file.startsWith('doc/');
+            const withinDesktop = file => docs(file) || file.startsWith('apps/desktop/');
+            if (context.eventName !== 'pull_request') {
+              core.setOutput('docs_only', 'false');
+              core.setOutput('shared_changed', 'true');
+              return;
+            }
+            const files = [];
+            for (let page = 1; page <= 30; page += 1) {
+              const chunk = await github.rest.pulls.listFiles({
+                ...context.repo,
+                pull_number: context.issue.number,
+                per_page: 100,
+                page,
+              });
+              files.push(...chunk.data.map(entry => entry.filename));
+              if (chunk.data.length < 100) break;
+            }
+            if (files.length >= 3000) {
+              // Too many files to classify reliably; run every layer.
+              core.setOutput('docs_only', 'false');
+              core.setOutput('shared_changed', 'true');
+              return;
+            }
+            core.info(`Changed files (${files.length}):\n${files.join('\n')}`);
+            const docsOnly = files.length > 0 && files.every(withinDesktop) && files.every(docs);
+            const sharedChanged = files.length === 0 || files.some(file => !withinDesktop(file));
+            core.setOutput('docs_only', String(docsOnly));
+            core.setOutput('shared_changed', String(sharedChanged));
+
   repository:
     uses: ./.github/workflows/structure.yml
 
   portable:
     name: Portable (${{ matrix.platform }}-${{ matrix.arch }})
+    needs: changes
+    if: needs.changes.outputs.shared_changed == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     strategy:
@@ -74,31 +124,42 @@ jobs:
           retention-days: 14
 
   desktop:
+    needs: changes
+    if: needs.changes.outputs.docs_only == 'false'
     uses: ./.github/workflows/desktop-package.yml
 
   industrial:
+    needs: changes
+    if: needs.changes.outputs.docs_only == 'false'
     uses: ./.github/workflows/industrial-core.yml
 
   industrial-linux:
+    needs: changes
+    if: needs.changes.outputs.shared_changed == 'true'
     uses: ./.github/workflows/industrial-linux.yml
 
   all-checks-passed:
     name: All checks passed
     if: always()
-    needs: [repository, portable, desktop, industrial, industrial-linux]
+    needs: [changes, repository, portable, desktop, industrial, industrial-linux]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
       REQUIRED_JOBS: ${{ toJSON(needs) }}
     steps:
-      - name: Require every regression layer to succeed
+      - name: Require every scheduled regression layer to succeed
         run: |
           node <<'NODE'
           const jobs = JSON.parse(process.env.REQUIRED_JOBS);
           for (const [name, job] of Object.entries(jobs)) {
             console.log(`${name}: ${job.result}`);
           }
-          if (Object.values(jobs).some(job => job.result !== 'success')) {
+          // Gated layers may be skipped by design; anything that actually ran
+          // must pass, and the area detection itself must never fail silently.
+          const failed = Object.entries(jobs).filter(
+            ([name, job]) => job.result !== 'success' && !(job.result === 'skipped' && name !== 'changes'),
+          );
+          if (failed.length > 0) {
             process.exit(1);
           }
           NODE
