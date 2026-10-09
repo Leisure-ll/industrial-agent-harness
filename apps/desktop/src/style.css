@@ -35,6 +35,12 @@ body,
   --ia-success: #317357;
   --ia-danger: #b13939;
   --ia-warning: #96631e;
+  --ia-agent-0: #7a5af5;
+  --ia-agent-1: #d9564a;
+  --ia-agent-2: #2f9e8f;
+  --ia-agent-3: #b88216;
+  --ia-agent-4: #3b7dd8;
+  --ia-agent-5: #c257b8;
   --ia-font-xs: 11px;
   --ia-font-sm: 12px;
   --ia-font-body: 13px;
@@ -70,6 +76,12 @@ body,
   --ia-success: #85d0ae;
   --ia-danger: #f19b9b;
   --ia-warning: #edc580;
+  --ia-agent-0: #a48bff;
+  --ia-agent-1: #ef8f9b;
+  --ia-agent-2: #5cc9b4;
+  --ia-agent-3: #e3b34e;
+  --ia-agent-4: #74aef5;
+  --ia-agent-5: #dd8fd2;
   color-scheme: dark;
 }
 .ia-app button,
@@ -2995,6 +3007,40 @@ body,
 }
 .ia-subagent-status.awaiting_approval {
   color: var(--ia-warning);
+}
+.ia-subagent-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+.ia-subagent-icon svg {
+  width: 13px;
+  height: 13px;
+}
+.ia-subagent-icon[data-agent-hue='0'] {
+  color: var(--ia-agent-0);
+}
+.ia-subagent-icon[data-agent-hue='1'] {
+  color: var(--ia-agent-1);
+}
+.ia-subagent-icon[data-agent-hue='2'] {
+  color: var(--ia-agent-2);
+}
+.ia-subagent-icon[data-agent-hue='3'] {
+  color: var(--ia-agent-3);
+}
+.ia-subagent-icon[data-agent-hue='4'] {
+  color: var(--ia-agent-4);
+}
+.ia-subagent-icon[data-agent-hue='5'] {
+  color: var(--ia-agent-5);
+}
+.ia-agent-tool > summary .ia-subagent-icon {
+  margin-right: 6px;
+}
+.ia-agent-tool > summary .ia-subagent-icon svg {
+  width: 12px;
+  height: 12px;
 }
 .ia-subagent-card.error {
   border-color: var(--ia-danger);
