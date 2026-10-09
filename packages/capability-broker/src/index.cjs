@@ -83,12 +83,25 @@ function resolve(request, registry, previous) {
         a.item.id.localeCompare(b.item.id),
     )
     .slice(0, requestedDomain && requestedStage ? 3 : 1);
+  // A domain-bound session (a desktop project or the CLI distribution) keeps
+  // at least the domain's primary capability when the task wording gives the
+  // resolver nothing to match; pack priority declares that default. Domain
+  // inference from task text still yields an empty scope.
+  if (!selected.length && requestedDomain) {
+    const primary = scored
+      .filter(({ item }) => !item.alwaysAvailable)
+      .sort((a, b) => b.item.priority - a.item.priority || a.item.id.localeCompare(b.item.id))[0];
+    if (primary) {
+      primary.fallback = true;
+      selected.push(primary);
+    }
+  }
   for (const candidate of scored)
     if (candidate.item.alwaysAvailable && !selected.includes(candidate)) selected.push(candidate);
   record('L1', 'capability.resolve', {
-    selected: selected.map(({ item, hits, toolHits, artifactMatch, continuation }) => ({
+    selected: selected.map(({ item, hits, toolHits, artifactMatch, continuation, fallback }) => ({
       id: item.id,
-      reason: `${continuation ? 'continue previous capability; ' : ''}task: ${hits.join(', ') || 'none'}; tools: ${toolHits.map(tool => tool.id).join(', ') || 'none'}; artifact: ${artifactMatch ? artifactKind : 'none'}`,
+      reason: `${continuation ? 'continue previous capability; ' : ''}${fallback ? 'domain-bound fallback; ' : ''}task: ${hits.join(', ') || 'none'}; tools: ${toolHits.map(tool => tool.id).join(', ') || 'none'}; artifact: ${artifactMatch ? artifactKind : 'none'}`,
     })),
     excluded: scored
       .filter(({ score, item }) => !score && !item.alwaysAvailable)
@@ -111,9 +124,11 @@ function resolve(request, registry, previous) {
           ? 'tool'
           : selected[0]?.continuation
             ? 'continuation'
-            : selected.length
-              ? 'artifact'
-              : 'none',
+            : selected[0]?.fallback
+              ? 'domain-fallback'
+              : selected.length
+                ? 'artifact'
+                : 'none',
     });
   const skills = [...new Set(selected.flatMap(({ item }) => item.skills.map(skill => skill.id)))];
   const tools = [...new Set(selected.flatMap(({ item }) => item.tools.map(tool => tool.id)))];
