@@ -25,17 +25,29 @@ const agentHue = (seed: string) => {
   return hash % AGENT_HUES;
 };
 export const AgentGlyph = ({ seed, className = '' }: { seed: string; className?: string }) => (
-  <span className={`ia-subagent-icon ${className}`} data-agent-hue={agentHue(seed)} aria-hidden="true">
+  <span
+    className={`ia-subagent-icon ${className}`}
+    data-agent-hue={agentHue(seed)}
+    aria-hidden="true"
+  >
     <svg viewBox="0 0 16 16" aria-hidden="true">
       {PETALS.map((petal, index) => (
-        <circle key={index} cx={petal.cx} cy={petal.cy} r="3.4" fill="currentColor" opacity="0.82" />
+        <circle
+          key={index}
+          cx={petal.cx}
+          cy={petal.cy}
+          r="3.4"
+          fill="currentColor"
+          opacity="0.82"
+        />
       ))}
       <circle cx="8" cy="8" r="2.5" fill="currentColor" />
     </svg>
   </span>
 );
-export const agentGlyphSeed = (state: Pick<SubagentState, 'agentId' | 'subagentType' | 'description'>) =>
-  `${state.agentId}:${state.subagentType}:${state.description}`;
+export const agentGlyphSeed = (
+  state: Pick<SubagentState, 'agentId' | 'subagentType' | 'description'>,
+) => `${state.agentId}:${state.subagentType}:${state.description}`;
 
 export const SubagentCard = memo(function SubagentCard({ state }: { state: SubagentState }) {
   const { t } = useDisplayText();
