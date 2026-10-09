@@ -51,6 +51,9 @@ The current source merges the latest main-branch model/project synchronization a
 
 The source and CI reconciliation is distinct from the already qualified local DMG below. Its owner 0.5.1 identity, source commit, hashes and acceptance results remain historical facts. The new source requires its own CI result and any applicable native acceptance; those results are recorded separately when complete. No new installer qualification follows merely from updating the pin.
 
+The reconciliation also separates fresh managed installation tests into a required `native-installed` job on each supported macOS runner. Native task deadlines and engineering assertions are unchanged. The internal Kimi MCP callback now uses a finite communication watchdog compatible with the existing one-hour generic task contract; the upstream default 60-second request timeout previously cancelled otherwise permitted host execution. A real 65-second Runtime task verifies the transport fix, while short execution deadlines and explicit cancellation still fail and clean up owned processes. Runtime archive caching still validates and copies official archives into each independent store; no installed app is substituted for preparation.
+
+
 ## Integrated delivery
 
 Source `7fc7c445263fdc6efd03b6c9293b1fcf0ecfad21` includes the main-branch task-results integration and the capability-center alignment correction. It consumes the combined owner 0.5.1 / CAD `.7` release, preserving both native installation recipes and result presentation. Its Apple Silicon DMG is 272,166,575 bytes, SHA-256 `bddd7de095ebb6ece157d70a7f0615543a9422154142332f3111c66ffd679d85`.

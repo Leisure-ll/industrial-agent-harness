@@ -194,7 +194,7 @@ test('exit zero, stale reports and malformed reports do not become acceptance; t
   }
 });
 test(
-  'real cancellation and normal parent exit both clean up the owned task process group',
+  'real Runtime deadline, cancellation and normal parent exit clean up the owned task process group',
   { timeout: 20000 },
   async t => {
     const { project, bundle, run } = workspace(t);
@@ -208,7 +208,7 @@ test(
         throw error;
       }
     };
-    for (const mode of ['cancel', 'exit']) {
+    for (const mode of ['timeout', 'cancel', 'exit']) {
       const marker = path.join(project, 'owned-task-' + mode);
       fs.writeFileSync(
         path.join(project, 'runner.cjs'),
@@ -225,7 +225,7 @@ test(
             test: {
               command: [process.execPath, '{input}/runner.cjs', marker],
               inputs: ['runner.cjs'],
-              timeoutMs: 5000,
+              timeoutMs: mode === 'timeout' ? 3000 : 5000,
             },
           },
         }),
@@ -271,15 +271,23 @@ test(
         );
       }
       if (mode === 'cancel') bundle.runtime.cancel();
-      else fs.writeFileSync(path.join(path.dirname(readyFile), 'release'), 'exit');
+      else if (mode === 'exit')
+        fs.writeFileSync(path.join(path.dirname(readyFile), 'release'), 'exit');
       const result = await pending;
       await bundle.runtime.waitForIdle();
-      assert.equal(result.action.status, mode === 'cancel' ? 'failed' : 'completed');
+      assert.equal(result.action.status, mode === 'exit' ? 'completed' : 'failed');
+      assert.equal(
+        bundle.runtime.listActions().find(action => action.id === result.action.id).status,
+        result.action.status,
+      );
       const report = JSON.parse(
         bundle.runtime.readArtifact(result.artifacts.find(a => a.kind === 'report.execution').id)
           .content,
       );
-      assert.equal(report.status, mode === 'cancel' ? 'CANCELLED' : 'COMPLETED');
+      assert.equal(
+        report.status,
+        { timeout: 'TIMEOUT', cancel: 'CANCELLED', exit: 'COMPLETED' }[mode],
+      );
       const reaped = Date.now() + 3000;
       while (hostPids.some(alive) && Date.now() < reaped) await sleep(20);
       assert.deepEqual(
