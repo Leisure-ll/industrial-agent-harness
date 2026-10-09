@@ -28,6 +28,30 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      # The Verilator build takes several minutes from source; its version and
+      # pinned tarball SHA live in this workflow file, which keys the cache.
+      # The previous-preview installer is pinned the same way. The chip pack
+      # tarball is pinned by pnpm-lock.yaml, keying its uv environment.
+      - name: Restore compiled Verilator runtime
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/verilator-runtime
+          key: verilator-5.026-${{ runner.os }}-${{ hashFiles('.github/workflows/industrial-linux.yml') }}
+      - name: Restore previous chip preview installer
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/prior-assets
+          key: chip-prior-installer-${{ runner.os }}-${{ hashFiles('.github/workflows/industrial-linux.yml') }}
+      - name: Install pinned workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Resolve chip Domain Pack source
+        id: packs
+        run: echo "chip=$(node scripts/pack-source.cjs chip-pack)" >> "$GITHUB_OUTPUT"
+      - name: Restore chip EDA uv environment
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.packs.outputs.chip }}/eda-harness/.venv
+          key: chip-eda-venv-${{ runner.os }}-py3.13-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Prepare protected Linux and engineering runtimes
         shell: bash
         run: |
@@ -35,20 +59,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bubblewrap ripgrep curl autoconf flex bison help2man libfl-dev g++ make
           bwrap --unshare-user --unshare-pid --ro-bind / / --proc /proc --dev /dev -- /bin/true
-          curl -fL --retry 3 https://github.com/verilator/verilator/archive/refs/tags/v5.026.tar.gz -o "$RUNNER_TEMP/verilator.tar.gz"
-          printf '87fdecf3967007d9ee8c30191ff2476f2a33635d0e0c6e3dbf345cc2f0c50b78  %s\n' "$RUNNER_TEMP/verilator.tar.gz" | sha256sum -c -
-          tar -xzf "$RUNNER_TEMP/verilator.tar.gz" -C "$RUNNER_TEMP"
-          (
-            cd "$RUNNER_TEMP/verilator-5.026"
-            autoconf
-            ./configure --prefix="$RUNNER_TEMP/verilator-runtime"
-            make -j2
-            make install
-          ) > "$RUNNER_TEMP/verilator-build.log" 2>&1
+          if [ ! -x "$RUNNER_TEMP/verilator-runtime/bin/verilator" ]; then
+            curl -fL --retry 3 https://github.com/verilator/verilator/archive/refs/tags/v5.026.tar.gz -o "$RUNNER_TEMP/verilator.tar.gz"
+            printf '87fdecf3967007d9ee8c30191ff2476f2a33635d0e0c6e3dbf345cc2f0c50b78  %s\n' "$RUNNER_TEMP/verilator.tar.gz" | sha256sum -c -
+            tar -xzf "$RUNNER_TEMP/verilator.tar.gz" -C "$RUNNER_TEMP"
+            (
+              cd "$RUNNER_TEMP/verilator-5.026"
+              autoconf
+              ./configure --prefix="$RUNNER_TEMP/verilator-runtime"
+              make -j2
+              make install
+            ) > "$RUNNER_TEMP/verilator-build.log" 2>&1
+          else
+            echo "Using restored Verilator runtime from cache."
+          fi
           export PATH="$RUNNER_TEMP/verilator-runtime/bin:$PATH"
           printf '%s\n' "$RUNNER_TEMP/verilator-runtime/bin" >> "$GITHUB_PATH"
           verilator --version
-          pnpm install --frozen-lockfile
           python -m pip install uv==0.11.6
           node apps/desktop/scripts/setup-kimi.cjs
           cd "$(node scripts/pack-source.cjs chip-pack)/eda-harness"
@@ -59,9 +86,13 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/prior-assets"
           cd "$RUNNER_TEMP/prior-assets"
-          old_url='https://github.com/Zhiman-BJ/industrial-agent-harness/releases/download/chip-linux-installer-v0.1.0-preview.4'
-          curl -fL --retry 3 "$old_url/industrial-harness-chip-linux-install.run" -o industrial-harness-chip-linux-install.run
-          curl -fL --retry 3 "$old_url/industrial-harness-chip-linux-install.run.sha256" -o industrial-harness-chip-linux-install.run.sha256
+          if [ ! -f industrial-harness-chip-linux-install.run ]; then
+            old_url='https://github.com/Zhiman-BJ/industrial-agent-harness/releases/download/chip-linux-installer-v0.1.0-preview.4'
+            curl -fL --retry 3 "$old_url/industrial-harness-chip-linux-install.run" -o industrial-harness-chip-linux-install.run
+            curl -fL --retry 3 "$old_url/industrial-harness-chip-linux-install.run.sha256" -o industrial-harness-chip-linux-install.run.sha256
+          else
+            echo "Using restored previous chip preview installer from cache."
+          fi
           sha256sum -c industrial-harness-chip-linux-install.run.sha256
           bash industrial-harness-chip-linux-install.run --skip-image --prefix "$RUNNER_TEMP/prior chip" --bin-dir "$RUNNER_TEMP/chip-bin"
       - name: Native Agent, project discovery, real RTL and recovery
