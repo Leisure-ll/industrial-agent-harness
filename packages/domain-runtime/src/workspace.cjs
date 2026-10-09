@@ -224,9 +224,30 @@ function createWorkspacePlugin({
         'mutating',
         ({ projectDir, inputs, action }) => {
           const request = ProjectFileApplyRequestSchema.parse(inputs);
-          return receipt(projectDir, action, 'report.files', {
-            changes: applyFiles(projectDir, request.changes, protectedPaths),
-          });
+          const changes = applyFiles(projectDir, request.changes, protectedPaths);
+          const result = receipt(projectDir, action, 'report.files', { changes });
+          const outputs = changes.filter(change => change.sha256 !== null);
+          result.artifacts.push(
+            ...outputs.map((change, index) => ({
+              localId: `file-${index}`,
+              file: change.path,
+              kind: 'file.project',
+              sha256: change.sha256,
+            })),
+          );
+          result.presentation = {
+            schemaVersion: '1',
+            groups: outputs.map((change, index) => ({
+              key: `file-${index}`,
+              title: change.path,
+              primary: `file-${index}`,
+              preview: `file-${index}`,
+              ...(change.beforeSha256
+                ? { supersedesInput: { relativePath: change.path, sha256: change.beforeSha256 } }
+                : {}),
+            })),
+          };
+          return result;
         },
         'inputs',
       ),

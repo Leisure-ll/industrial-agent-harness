@@ -381,6 +381,22 @@ export interface ViewerHostApi {
     content: string | null;
     truncated: boolean;
   }>;
+  revealResult(request: ResultOpenRequest): Promise<void>;
+  openResult(
+    request: ResultOpenRequest,
+  ): Promise<{
+    path: string;
+    name: string;
+    artifact?: ViewerArtifact;
+    source?: {
+      path: string;
+      name: string;
+      sizeBytes: number;
+      viewer: ViewerArtifact['kind'] | null;
+      content: string | null;
+      truncated: boolean;
+    };
+  }>;
   openProjectFile(relative: string): Promise<ViewerArtifact>;
   validateImages(request: { projectId: string; images: PromptImage[] }): Promise<PromptImage[]>;
   runAgent(
@@ -481,6 +497,54 @@ export type SubagentState = {
   status: 'running' | 'awaiting_approval' | 'completed' | 'failed' | 'cancelled';
   summary?: string;
 };
+export interface ResultArtifactRef {
+  id: string;
+  actionId: string;
+  relativePath: string;
+  kind: string;
+  sha256: string;
+  sizeBytes: number;
+}
+export interface ResultOpenRequest {
+  chatId: string;
+  turnId: string;
+  artifactId: string;
+  groupId?: string;
+  actionId?: string;
+  previewOnly?: boolean;
+  revealOnly?: boolean;
+}
+export interface TaskResultView {
+  schemaVersion: '1';
+  projectId: string;
+  chatId: string;
+  turnId: string;
+  revision: number;
+  phase: 'running' | 'background' | 'settled';
+  requestStatus: string;
+  executionStatus: string;
+  diagnostics?: string[];
+  actionIds: string[];
+  selection: { groupIds: string[]; historical: boolean; basedOnRevision: number } | null;
+  groups: Array<{
+    id: string;
+    title: string;
+    primaryArtifactId: string;
+    previewArtifactId?: string;
+    superseded: boolean;
+    historical: boolean;
+    selected: boolean;
+    executionStatus: string;
+    contentStatus: 'recorded' | 'changed' | 'unavailable' | 'unchecked';
+    artifacts: ResultArtifactRef[];
+    verifications: Array<{
+      id: string;
+      status: 'passed' | 'failed' | 'not_run' | 'insufficient_evidence';
+      reason: string;
+    }>;
+  }>;
+}
+
 export type AgentEvent = {
   /** Host receipt time for display; absent on older persisted events. */
   recordedAt?: string;
@@ -491,6 +555,13 @@ export type AgentEvent = {
   agentId?: string;
   background?: boolean;
 } & (
+  | { type: 'results-changed'; eventId: string; results: TaskResultView }
+  | {
+      type: 'results-ready';
+      eventId: string;
+      results: TaskResultView;
+      autoPreviewEligible: boolean;
+    }
   | { type: 'user-images'; images: PromptImage[] }
   | { type: 'input-images'; images: PromptImage[] }
   | { type: 'context-reset'; message: string }
@@ -584,7 +655,9 @@ export type AgentEvent = {
   | {
       type: 'industrial-result';
       action: { id: string; status: string };
+      artifacts?: ResultArtifactRef[];
       verification: {
+        evidence?: { artifactIds: string[] };
         status: 'not_run' | 'passed' | 'failed' | 'insufficient_evidence';
         reason: string;
       };

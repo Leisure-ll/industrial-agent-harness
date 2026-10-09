@@ -13,6 +13,7 @@ const {
   IndustrialCheckpointSchema,
   ToolDescriptorSchema,
   ActionRequestSchema,
+  ActionPresentationSchema,
 } = require('@industrial-agent-harness/contracts');
 
 const digest = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -20,6 +21,7 @@ const now = () => new Date().toISOString();
 const sameInputs = (a, b) =>
   JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 const activeStores = new Set();
+const { bindPresentation } = require('./presentation.cjs');
 const { displayInputs, boundedPreview } = require('./approval-preview.cjs');
 const schemas = {
   project: ProjectRefSchema,
@@ -29,6 +31,7 @@ const schemas = {
   artifact: ArtifactRefSchema,
   verification: IndustrialVerificationResultSchema,
   checkpoint: IndustrialCheckpointSchema,
+  presentation: ActionPresentationSchema,
 };
 
 // Execution implementations and engineering interpretation are injected by a Pack.
@@ -536,7 +539,10 @@ class IndustrialRuntime {
     });
     // A second inspection makes concurrent input edits visibly stale immediately.
     next = await this.inspect();
+    const presentation = bindPresentation(result, action, artifacts, this.projectDir);
+    this.put('presentation', action.id, presentation);
     return {
+      presentation,
       run,
       action,
       artifacts,

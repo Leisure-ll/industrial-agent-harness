@@ -15,3 +15,5 @@ See [versioning and compatibility](../../doc/contracts-versioning.md) for fields
 and the difference between industrial schema version `'1'` and Pack container API version `1`.
 
 Validation: `node --test packages/contracts/tests/*.test.cjs`.
+
+Optional version-1 display declarations (`ToolPresentationSchema`, `ActionPresentationSchema`, `ResultGroupSchema`, `ResultSelectionRequestSchema`) reference canonical records without extending their engineering meaning. Producer-local output names are bound by Domain Runtime; TaskService adds request identity and persists selection. [Result contract](../../doc/task-results.md).

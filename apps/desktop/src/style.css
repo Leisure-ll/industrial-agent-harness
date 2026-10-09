@@ -4195,3 +4195,57 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.ia-task-results {
+  display: grid;
+  gap: 10px;
+  margin-block: 16px;
+}
+.ia-result-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ia-result-heading small,
+.ia-result-status {
+  color: var(--ia-muted);
+  font-size: 12px;
+}
+.ia-result-card {
+  padding: 14px;
+  border: 1px solid var(--ia-border);
+  border-radius: 12px;
+  background: var(--ia-raised);
+}
+.ia-result-card.selected {
+  border-color: var(--ia-accent);
+}
+.ia-result-card > button {
+  margin-block: 4px 10px;
+}
+.ia-result-files summary,
+.ia-result-checks summary {
+  cursor: pointer;
+  font-size: 12px;
+  padding-block: 5px;
+}
+.ia-result-file {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  margin-block: 4px;
+  font-size: 12px;
+}
+.ia-result-checks p {
+  font-size: 12px;
+}
+.ia-result-artifacts {
+  display: grid;
+  gap: 6px;
+}
+.ia-result-artifact {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}

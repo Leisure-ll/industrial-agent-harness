@@ -37,6 +37,7 @@ function createCadPlugins({ projectRoot }) {
   return [
     {
       id: 'cad',
+      autoPreview: true,
       matches: file =>
         /\.(fcstd|stl)$/i.test(file) ||
         (/\.(step|stp)$/i.test(file) &&

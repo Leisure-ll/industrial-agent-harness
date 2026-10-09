@@ -1,7 +1,7 @@
 # CUDA Domain Pack
 
 Harness consumes the CUDA implementation from Domain Packs 0.4.0, pinned to
-`49481057c372c4fa22742d833935335b7812416d`. The owner supplies two distinct remote
+`cf72a46b6b4ba927b091ded71b2d52d227db0351`. The owner supplies two distinct remote
 MCP identities (Compiler and Evaluator), the optimization Skill, source client,
 StateProvider and aggregate Verifier. Kimi, Broker, approvals and canonical
 Actions/Artifacts/States/Checkpoints use the existing shared application path.
@@ -28,8 +28,8 @@ public remote endpoint, desktop bundle or real-model optimization trajectory.
 The CUDA declaration's empty qualifiedBundlePlatforms keeps automatic distribution
 from advertising a package that has not been exercised.
 
-The owner's [setup](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/49481057c372c4fa22742d833935335b7812416d/packs/cuda/README.md)
-and [native qualification](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/49481057c372c4fa22742d833935335b7812416d/packs/cuda/QUALIFICATION.md)
+The owner's [setup](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/packs/cuda/README.md)
+and [native qualification](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/packs/cuda/QUALIFICATION.md)
 record exact worker identities and limits. The production shared factory/Runtime and Broker exercised actual remote compilation, correctness, profiling, scope, approval, artifacts, persistent checkpoints and cancellation. The pinned consumer then repeated the complete native flow using normal release discovery, without an injected CUDA registration. Consumer regression tests cover registration, Skill materialization and both real MCP transports. Local validation passed 318 portable tests, all 24 architecture tests and all 17 release checks; source tests do not grant GPU qualification.
 
 ## Local installation GPU preflight
