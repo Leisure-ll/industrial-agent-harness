@@ -29,6 +29,7 @@ Godot/PCB 的源工程文件另有[受限只读预览](engineering-file-viewers.
 | [系统架构](architecture.md) | Kimi Code、桌面端、Broker、工业运行时与领域包的职责和数据流 |
 | [Capability Broker](capability-broker.md) | Capability 解析、skill 与 MCP 工具的渐进式披露、Scope 和 Trace |
 | [任务成果](task-results.md) | 自动成果卡、确切版本关联、可选选择、CLI/Desktop 与原生验收 |
+| [全领域成果声明与扩展计划（Owner）](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/docs/result-presentation-plan.md) | 五领域、六 Pack 的声明草案、生产缺口、跨仓顺序与待实施测试矩阵 |
 | [Viewer 层](viewer-layer.md) | 内置查看、关键产物预览、外部打开与证据边界 |
 | [通用文件 Viewer](document-viewers.md) | CSV/TSV、JSON、JSONL、Markdown、TXT/LOG 的只读查看、分页与文件边界 |
 | [素材 Viewer](godot-assets-viewers.md) | 图片预览、图集切分、动画播放与 Godot 文本资源支持范围 |

@@ -42,6 +42,12 @@ Harness consumes immutable Domain Packs commit `cf72a46b6b4ba927b091ded71b2d52d2
 
 The recorded Artifact resolver and IndustrialResult component reuse [PR #52](https://github.com/Zhiman-BJ/industrial-agent-harness/pull/52); resolution now lives below Desktop in the application package. #52 was open when this work started and is not merged by this change. Its overlapping result-opening changes must be reconciled before merging it later. Installation and first-run release work remain under #60.
 
+## All-domain expansion preparation
+
+The owner maintains the [per-domain declaration catalog and implementation plan](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/docs/result-presentation-plan.md) and [machine-readable review examples](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/docs/result-presentation-examples.json). These are proposals, not active runtime configuration. They cover Chip, PCB, Godot, CAD (FreeCAD and skill-only two-dimensional CAD) and CUDA in the owner's current five-domain/six-Pack inventory; this Harness pin still excludes CUDA.
+
+Preparation identified a shared version-binding gap: PCB/Godot outputs use immutable run snapshots while subsequent edits/checks use mutable project paths. Current path-and-digest matching cannot equate them. An explicit, verified working-file-to-snapshot relationship is required; digest-only aliasing would incorrectly merge parallel designs. CUDA additionally needs an exact submitted-source manifest/snapshot, and two-dimensional CAD needs an actual Runtime producer/readback entry. The plan sequences these changes and their native, CLI/Desktop, compatibility and release tests. No execution code, Verifier, source lock, consumer pin or automatic-preview policy changes in this preparation.
+
 ## Acceptance and limits
 
 Validated on **macOS Apple Silicon (darwin-arm64), source workspace**, Node 26.10.0, pinned Kimi Code 2.1.1 and official FreeCAD 1.1.4. This feature has not been qualified in a newly packaged installer, Linux/Windows native CAD, or remote execution. Existing platform claims are not expanded.
