@@ -98,6 +98,33 @@ async function run(window) {
     const summary = await evaluate(`window.viewerHost.externalMcpList()`);
     assert.equal(summary[0].id, 'external.computer-use');
     assert.ok(!JSON.stringify(summary).includes('credential'));
+    // The resource list must pick up the added server on the same page: the
+    // row appears without re-entering the settings and its global switch
+    // reflects (and drives) the resolved configuration.
+    const row = `[data-resource-id="external.computer-use"]`;
+    await wait(`Boolean(document.querySelector('${row} input[type="checkbox"]'))`);
+    assert.ok(
+      await evaluate(`document.querySelector('${row} input[type="checkbox"]').checked`),
+      'external server must be enabled by default',
+    );
+    await evaluate(`document.querySelector('${row} input[type="checkbox"]').click()`);
+    await wait(`!document.querySelector('${row} input[type="checkbox"]').checked`);
+    assert.equal(
+      await evaluate(
+        `window.viewerHost.resourceGet({}).then(snapshot=>snapshot.effective.mcpServers.includes('external.computer-use'))`,
+      ),
+      true,
+      'unchecking the global switch must disable the server',
+    );
+    await evaluate(`document.querySelector('${row} input[type="checkbox"]').click()`);
+    await wait(`document.querySelector('${row} input[type="checkbox"]').checked`);
+    assert.equal(
+      await evaluate(
+        `window.viewerHost.resourceGet({}).then(snapshot=>snapshot.effective.mcpServers.includes('external.computer-use'))`,
+      ),
+      false,
+      'rechecking the global switch must re-enable the server',
+    );
     const cli = path.resolve(__dirname, '../../cli/src/main.cjs');
     const listed = await promisify(execFile)(process.execPath, [cli, 'mcp', 'list'], {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', INDUSTRIAL_HARNESS_CONFIG_DIR: settings },
@@ -206,6 +233,15 @@ async function run(window) {
     assert.notEqual(registry.records()[0].revision, revision);
     await evaluate(`document.querySelector('button[aria-label="Remove computer-use"]').click()`);
     await wait(`!document.querySelector('.ia-external-server')`);
+    // The stale row must disappear from the resource list on the same page.
+    await wait(`!document.querySelector('[data-resource-id="external.computer-use"]')`);
+    assert.equal(
+      await evaluate(
+        `window.viewerHost.resourceGet({}).then(snapshot=>snapshot.catalog.mcpServers.some(item=>item.id==='external.computer-use'))`,
+      ),
+      false,
+      'removed server must be gone from the catalog',
+    );
     assert.deepEqual(registry.list(), []);
     console.log(
       JSON.stringify({
@@ -216,6 +252,7 @@ async function run(window) {
         approvals,
         nativeImage: true,
         busyChangeRejected: true,
+        resourceListRefresh: true,
         screenshotDirectory: evidence,
       }),
     );
