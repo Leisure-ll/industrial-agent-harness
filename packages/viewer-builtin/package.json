@@ -31,7 +31,8 @@
     "./runtime/documents": "./src/documents/service.cjs",
     "./runtime/engineering": "./src/engineering/service.cjs",
     "./runtime/cad": "./src/cad/service.cjs",
-    "./runtime/kicad": "./src/kicad/runtime.cjs"
+    "./runtime/kicad": "./src/kicad/runtime.cjs",
+    "./domain-icon": "./src/DomainIcon.tsx"
   },
   "devDependencies": {
     "@types/react": "19.2.18",

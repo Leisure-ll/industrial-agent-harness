@@ -1,3 +1,4 @@
+import { DomainIcon } from '@industrial-agent-harness/viewer-builtin/domain-icon';
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -986,7 +987,7 @@ export function App() {
                       )}
                       {domain && (
                         <span className="ia-project-domain-badge" title={t(domain.label)}>
-                          <span aria-hidden="true">{domain.emoji}</span>
+                          <DomainIcon domain={domain.id} size={14} />
                           {t(domain.label)}
                         </span>
                       )}
