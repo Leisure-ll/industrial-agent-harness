@@ -129,6 +129,7 @@ protocol.registerSchemesAsPrivileged([
 ]);
 if (
   [
+    '--task-results-selftest',
     '--viewer-selftest',
     '--kicad-selftest',
     '--godot-selftest',
@@ -542,6 +543,10 @@ async function registerArtifact(entry) {
 async function checked(id) {
   const entry = artifacts.get(id);
   if (!entry) throw Error('Unknown artifact.');
+  if (entry.recorded) {
+    if (entry.projectId !== activeProject()?.id) throw Error('Result belongs to another project.');
+    await tasks.openResult(selectedSession(), entry.recorded);
+  }
   if ((await digest(entry.file)) !== entry.artifact.sha256)
     throw Error('Artifact content changed; reopen the file.');
   return entry;
@@ -1202,6 +1207,42 @@ function registerHandlers() {
       file,
     });
   });
+  ipcMain.handle('result:reveal', async (event, request) => {
+    chatRequest(event);
+    if (request?.chatId !== activeChatId) throw Error('Open the chat containing this result.');
+    const { file } = await tasks.openResult(selectedSession(), { ...request, revealOnly: true });
+    shell.showItemInFolder(file);
+  });
+  ipcMain.handle('result:open', async (event, request) => {
+    chatRequest(event);
+    if (request?.chatId !== activeChatId) throw Error('Open the chat containing this result.');
+    const entry = selectedSession();
+    const { artifact: recorded, file } = await tasks.openResult(entry, request);
+    let kind = null;
+    try {
+      kind = viewerRegistry.match(file);
+    } catch {}
+    const source = readSourcePreview(file, recorded.relativePath, kind);
+    if (request.previewOnly && (!kind || !viewerRegistry.canAutoPreview(file)))
+      throw Error('No embedded Viewer is available for this result. Use its file entry.');
+    if (!kind) return { path: recorded.relativePath, name: path.basename(file), source };
+    const artifact = {
+      id: recorded.id,
+      kind,
+      name: path.basename(file),
+      design: path.basename(projectDir),
+      sizeBytes: recorded.sizeBytes,
+      sha256: recorded.sha256,
+      source: 'project file',
+    };
+    artifacts.set(artifact.id, {
+      artifact,
+      file,
+      recorded: request,
+      projectId: activeProject().id,
+    });
+    return { path: recorded.relativePath, name: path.basename(file), artifact };
+  });
   ipcMain.handle('project:read', (_event, relative) => {
     const file = projectFile(relative);
     let viewer = null;
@@ -1328,6 +1369,8 @@ async function createWindow() {
     require('./ui-selftest.cjs').prepare(projectConfigDir(), chats);
   if (process.argv.includes('--messages-selftest'))
     require('./messages-selftest.cjs').prepare(projectConfigDir(), chats);
+  if (process.argv.includes('--task-results-selftest'))
+    await require('./task-results-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--subagent-selftest'))
     await require('./subagent-selftest.cjs').prepare(projectConfigDir(), configDir());
   if (process.argv.includes('--mcp-selftest'))
@@ -1577,6 +1620,11 @@ async function createWindow() {
   }
   if (process.argv.includes('--engineering-selftest')) {
     await require('./engineering-selftest.cjs').run(window);
+    app.quit();
+    return;
+  }
+  if (process.argv.includes('--task-results-selftest')) {
+    await require('./task-results-selftest.cjs').run(window);
     app.quit();
     return;
   }

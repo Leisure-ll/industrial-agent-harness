@@ -73,3 +73,7 @@ Desktop 使用 `viewer-builtin/canvas` 打开 Registry 已选择的 Viewer，并
 ## 桌面标签页布局
 
 DesktopViewerHost 支持可切换的两列与标签页布局，多个文件使用同一 ViewerCanvas 和注册入口。已访问的 Viewer 在隐藏标签或更换布局时保留挂载；关闭文件或项目切换执行正常清理。只有当前文件绑定共享导航工具栏，布局和显示器变化不写入工程事实。窗口响应规则与验收见[自适应窗口与标签页](desktop-layouts.md)。
+
+## 任务成果入口（PD-067）
+
+已实现的成果打开共用 TaskService 的内容绑定解析，再交给 Registry 与既有工作区；未分组的旧 Action 保留文件入口。只有显式允许的只读插件可对前台唯一候选自动打开一次；历史回放、后台、失败或用户已改变焦点只更新卡片。源文件与 companions 全部按记录核对，不以预览成功改写检查。行为与 macOS arm64 源码态验收见[任务成果](task-results.md)。

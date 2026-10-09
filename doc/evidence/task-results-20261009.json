@@ -1,0 +1,412 @@
+{
+  "date": "2026-10-09",
+  "harnessBase": "a919d5b90781d0299bcf304f2db11a6211ad4d1a",
+  "packCommit": "e6556e41cd34aa87b32d64391b48084ce7003f29",
+  "execution": "source worktree with issue #66 implementation; not packaged installer acceptance",
+  "kernel": "@moonshot-ai/kimi-code@2.1.1",
+  "native": "FreeCAD 1.1.4",
+  "controlledModel": false,
+  "platform": "darwin-arm64",
+  "model": "MiniMax-M2.7-highspeed",
+  "runs": [
+    {
+      "status": "finished",
+      "chatId": "b685dd82-1ab3-4f0d-ade6-abb1ffb70051",
+      "turnId": "e1978808-9a04-4ccf-a9ab-7d6e6dfa0d42",
+      "actions": [
+        {
+          "toolId": "cad.freecad.build",
+          "status": "completed",
+          "verification": "passed",
+          "boundsY": 20,
+          "actionId": "ee2d0435-e785-4880-94e1-95a3308fadb3",
+          "verificationId": "58d8ea37-d20b-4060-b114-76f803bf5053",
+          "artifacts": [
+            {
+              "id": "0436bee2-654f-453d-8669-ee0df93c60c9",
+              "kind": "model.cad.fcstd",
+              "sha256": "b7583397f0bc1e9a1a8c08205701b6a0422290f59d3d09c3b360b5723777a6df",
+              "sizeBytes": 9927
+            },
+            {
+              "id": "356608e1-3287-412a-b903-edaf9636b94b",
+              "kind": "model.cad.step",
+              "sha256": "2b5a9e83468c2993d9cd180de501493106c383293a7b989b23894762cd53fc31",
+              "sizeBytes": 6865
+            },
+            {
+              "id": "714493d9-36bd-4f01-bde0-f9b7adb418bb",
+              "kind": "model.cad.stl",
+              "sha256": "bde8204b880535489a74cf7a60b3479909c8ab365e090b52fd485308ac5f8980",
+              "sizeBytes": 684
+            },
+            {
+              "id": "9bc9aa6c-a583-499c-ba46-e9c7fefa62e0",
+              "kind": "display.cad.brep",
+              "sha256": "987abf71d18b4b9bbda788165fae8e3ba970e47ef9f29ac21726e41e8955c149",
+              "sizeBytes": 3265
+            },
+            {
+              "id": "5cf2a714-17d2-4752-9d61-cbbed0cab755",
+              "kind": "display.cad.manifest",
+              "sha256": "646a45d7d675a64e33063da238a1e415c8e38411f7e26825a65fc35cdee5a675",
+              "sizeBytes": 1528
+            },
+            {
+              "id": "17628f93-0133-4ffe-8150-87311642f01b",
+              "kind": "display.cad.sketches",
+              "sha256": "61d2f9fe1f03c698889a0baa2f018259542d3b38468eb3867c305c41286e5fca",
+              "sizeBytes": 4422
+            },
+            {
+              "id": "94a69041-ea5e-4419-9d18-d7b0596668cb",
+              "kind": "report.cad.build",
+              "sha256": "28a3e1606691fffcaa5408acb6d25d32b9f4c51aea83ef9ca10ab6c5f2da8b0a",
+              "sizeBytes": 933
+            },
+            {
+              "id": "3f7ef421-4352-426e-9cb5-fb2567c404ea",
+              "kind": "report.cad.readback",
+              "sha256": "755023ab130c79ba283dec893a828f4d4bac3d7bed2d6b71049dd1fa7dba0f8d",
+              "sizeBytes": 1281
+            },
+            {
+              "id": "14db702f-f264-4222-b124-129eace61c9d",
+              "kind": "input.cad.recipe",
+              "sha256": "697c9e49d314c095cc6936fc5ac81564238cada98710005e1e6f6e8cc187c973",
+              "sizeBytes": 476
+            },
+            {
+              "id": "23e74177-cb0c-4135-9d94-ccc61eedd158",
+              "kind": "input.cad.recipe",
+              "sha256": "ed823105650105ef66b61497d04786fd4869fc2dde8f06bdbefb642267e88cc2",
+              "sizeBytes": 270
+            },
+            {
+              "id": "2ef63838-a0bd-4f2f-93ba-f04c35fc8b1c",
+              "kind": "log.tool",
+              "sha256": "a53515cd48c5bf28af5f37aee90564a7d6071bce98124f60798b0136d7313310",
+              "sizeBytes": 1619
+            },
+            {
+              "id": "797b729d-1e47-4254-bfb4-1e06587ea50f",
+              "kind": "log.tool",
+              "sha256": "6f5192aef999539bf08eb938ab1a8da8371001405194f9bc34b4f2121c50f538",
+              "sizeBytes": 74
+            }
+          ]
+        }
+      ],
+      "resultGroups": [
+        {
+          "id": "ee2d0435-e785-4880-94e1-95a3308fadb3:model",
+          "title": "CAD model",
+          "superseded": false
+        },
+        {
+          "id": "ee2d0435-e785-4880-94e1-95a3308fadb3:report",
+          "title": "CAD diagnostics",
+          "superseded": false
+        }
+      ]
+    },
+    {
+      "status": "finished",
+      "chatId": "b685dd82-1ab3-4f0d-ade6-abb1ffb70051",
+      "turnId": "c686e1ea-7d59-4237-91e6-ce687d2aabc7",
+      "actions": [
+        {
+          "toolId": "cad.freecad.edit",
+          "status": "completed",
+          "verification": "passed",
+          "boundsY": 30,
+          "actionId": "69b8a83f-3241-4a03-a20b-2eae300d55ef",
+          "verificationId": "3e99acbf-df05-4976-9fe6-3bfac0800a44",
+          "artifacts": [
+            {
+              "id": "4366e25b-7b57-4433-ae2f-518dd7e48485",
+              "kind": "model.cad.fcstd",
+              "sha256": "3d613fdaa2588494cc40cae52b30723799ac225f7a3ac232b0ed8f064492ccc1",
+              "sizeBytes": 9925
+            },
+            {
+              "id": "1258753c-9ebf-47d4-ae7e-c63ed3d150cb",
+              "kind": "model.cad.step",
+              "sha256": "8f54f6d8ea07ff87e9716be709de2cbc5025dc25b20f2cd46148f615aeb77dfe",
+              "sizeBytes": 6865
+            },
+            {
+              "id": "95ae795d-a56b-4c4b-924d-64377cae6dca",
+              "kind": "model.cad.stl",
+              "sha256": "0e064b19df67781c2e5f9d61f6b2f6e7ae45a7b1dc475c96ab2ceb544cf3aed4",
+              "sizeBytes": 684
+            },
+            {
+              "id": "9bcbb946-b05c-428e-885f-87f24095b6b4",
+              "kind": "display.cad.brep",
+              "sha256": "1767400705aa004dbefc0c16b583bdf3a4dd7fc971c4da512d5c6ab60472b61b",
+              "sizeBytes": 3265
+            },
+            {
+              "id": "556ab76e-a100-41df-b857-39a4941695a6",
+              "kind": "display.cad.manifest",
+              "sha256": "b665d245c95abd4823bef17a4160aa0539010cd2f508266c08eab7368435203a",
+              "sizeBytes": 1489
+            },
+            {
+              "id": "3a62fcf9-192c-4f8d-86f3-89e2ca356dc5",
+              "kind": "display.cad.sketches",
+              "sha256": "d97426ad4794bf39ebedf387768a043866acff82ac89f511cc7345bf6027ff31",
+              "sizeBytes": 4422
+            },
+            {
+              "id": "913a9898-85aa-4c0d-b6fd-66c24e583ebc",
+              "kind": "report.cad.build",
+              "sha256": "d0449af83a2b06e35425ec268a64e2ab0aaa32bccf1cff9b89abb7b33c3913e0",
+              "sizeBytes": 922
+            },
+            {
+              "id": "395a0b52-c5ed-4896-880a-e53b37f4cf6f",
+              "kind": "report.cad.readback",
+              "sha256": "bb7eea336afcd7a009099f5a6526c114d9d2c5f0cc63a66098793bed9e631d01",
+              "sizeBytes": 1248
+            },
+            {
+              "id": "d9006411-7998-444f-963e-9560433545e4",
+              "kind": "input.cad.recipe",
+              "sha256": "342ec8e6bfd4ee51732004ab8c60b305e40c62cc67ff5c3c1dbfdc23bace1bcb",
+              "sizeBytes": 327
+            },
+            {
+              "id": "ce2105bd-29f4-4fba-9fd8-ce6d9cd2abbe",
+              "kind": "input.cad.recipe",
+              "sha256": "c47ae5ccdd3849186b9b87bd23c3251be49126ba33cf9603aac61419431bf8c0",
+              "sizeBytes": 270
+            },
+            {
+              "id": "a5ed8bad-0989-4754-9d9f-3ec520a0e362",
+              "kind": "input.cad.model",
+              "sha256": "b7583397f0bc1e9a1a8c08205701b6a0422290f59d3d09c3b360b5723777a6df",
+              "sizeBytes": 9927
+            },
+            {
+              "id": "66217f01-6d98-4ca7-be70-17186b0a72f3",
+              "kind": "log.tool",
+              "sha256": "cb5c63005f3274c90cc56ebb55ed580ee8f47d065adcf35a7ab7f757fb038e82",
+              "sizeBytes": 1619
+            },
+            {
+              "id": "d22c2fb8-9052-441e-ae21-94233766b72c",
+              "kind": "log.tool",
+              "sha256": "6f5192aef999539bf08eb938ab1a8da8371001405194f9bc34b4f2121c50f538",
+              "sizeBytes": 74
+            }
+          ]
+        },
+        {
+          "toolId": "cad.freecad.edit",
+          "status": "completed",
+          "verification": "passed",
+          "boundsY": 35,
+          "actionId": "a40a7319-b8a0-4806-a418-5d27c9eb4b66",
+          "verificationId": "edd847c5-5749-48fb-b5b0-4abe08bb793b",
+          "artifacts": [
+            {
+              "id": "f51f4169-dc29-4f87-b1b0-50d13cc80a67",
+              "kind": "model.cad.fcstd",
+              "sha256": "e8d8cc4b2be7f6bc7b86da17291858aa908c2b831fb72e1333933217cf7a0aa1",
+              "sizeBytes": 9962
+            },
+            {
+              "id": "b258887a-09b6-4b57-a660-182a35742277",
+              "kind": "model.cad.step",
+              "sha256": "c46a01163d7eaacd3c952afe0d819fae0c93dd659e17e225671dadbdd722b652",
+              "sizeBytes": 6867
+            },
+            {
+              "id": "07720405-ef7e-4905-ad90-ac55669a2d59",
+              "kind": "model.cad.stl",
+              "sha256": "54ae2e86480383f20ef59ee295a9f9cfbc6211adcbc84db3b3b5bdda9b62e095",
+              "sizeBytes": 684
+            },
+            {
+              "id": "c7a7ea40-066b-4176-8e06-9ca36dca2b85",
+              "kind": "display.cad.brep",
+              "sha256": "b3cda612e2df954efc751c021472acc93718449e24f486e7f1c7e998bdcfb953",
+              "sizeBytes": 3269
+            },
+            {
+              "id": "b029f7a3-63d6-4e9d-95f8-3a6d5885ef79",
+              "kind": "display.cad.manifest",
+              "sha256": "cda2e7a149dec4b6d54a623fc2304130ef8de0fd7e44456db10cf4acfed3c103",
+              "sizeBytes": 1489
+            },
+            {
+              "id": "b208263a-4e5a-43ef-8118-6bade6baab92",
+              "kind": "display.cad.sketches",
+              "sha256": "f54ac50c43efe857982952f20cbd56eca6f33624060eb60b2989bb10a28eb736",
+              "sizeBytes": 4422
+            },
+            {
+              "id": "b8b43faf-0613-4777-9581-96cd8f5b19c4",
+              "kind": "report.cad.build",
+              "sha256": "434b31bd68b38260994d5025be43da3260c270b8bfa9804fc5b652130f43d847",
+              "sizeBytes": 922
+            },
+            {
+              "id": "7f57a466-3ec4-43a6-aac8-582075396013",
+              "kind": "report.cad.readback",
+              "sha256": "03893939d2898c1f4caf4e27074f9a400b7d3268218b089e7dc4c78223c3513d",
+              "sizeBytes": 1248
+            },
+            {
+              "id": "38a2cad5-c01f-469c-be3e-6792417a296c",
+              "kind": "input.cad.recipe",
+              "sha256": "2481991f183645025b1cedbfef94f56956b5626012a8fb548416db6542dff4ec",
+              "sizeBytes": 327
+            },
+            {
+              "id": "2910a3f9-f444-4a83-9fbe-bfa6b06d9f2a",
+              "kind": "input.cad.recipe",
+              "sha256": "6b5f88a51090f9b83271f7ef0ab8093e79097d643df0c642b4e6b79d5d22a40f",
+              "sizeBytes": 270
+            },
+            {
+              "id": "6029cc6f-ca4e-4179-833a-33c4dfff5fa9",
+              "kind": "input.cad.model",
+              "sha256": "3d613fdaa2588494cc40cae52b30723799ac225f7a3ac232b0ed8f064492ccc1",
+              "sizeBytes": 9925
+            },
+            {
+              "id": "d682b436-7717-4fae-a404-b4524638ff36",
+              "kind": "log.tool",
+              "sha256": "d066420597e59358f78c72cb4213ba8dffe74687bca6fa6c0a68c8d38acc7484",
+              "sizeBytes": 1619
+            },
+            {
+              "id": "2c4ba6c2-74e2-4321-b465-c34b4f4a86a5",
+              "kind": "log.tool",
+              "sha256": "6f5192aef999539bf08eb938ab1a8da8371001405194f9bc34b4f2121c50f538",
+              "sizeBytes": 74
+            }
+          ]
+        },
+        {
+          "toolId": "cad.freecad.inspect",
+          "status": "completed",
+          "verification": "passed",
+          "boundsY": 35,
+          "actionId": "6151007f-ba7c-495e-8447-5ec3e2219b38",
+          "verificationId": "67211086-48cd-41bf-a6b3-8ffaaf23fdfa",
+          "artifacts": [
+            {
+              "id": "1e83f297-d619-4984-8359-66f86b47b237",
+              "kind": "model.cad.fcstd",
+              "sha256": "085fe63f0cf8e1db610fca73d2c773a70fd1b9b88f689dca9de2f8f968ffc9f6",
+              "sizeBytes": 9982
+            },
+            {
+              "id": "fcf6bad5-0718-4ec7-a211-6cc63aa482c9",
+              "kind": "model.cad.step",
+              "sha256": "a7f0487723beff3073d78e5c10ab7a51e2bd5e5598c33b1b3a74d21ac241644c",
+              "sizeBytes": 6867
+            },
+            {
+              "id": "85a74778-0352-4304-ae35-ffe87b5212d7",
+              "kind": "model.cad.stl",
+              "sha256": "54ae2e86480383f20ef59ee295a9f9cfbc6211adcbc84db3b3b5bdda9b62e095",
+              "sizeBytes": 684
+            },
+            {
+              "id": "a001fc49-a9d9-437e-bb3f-014372050457",
+              "kind": "display.cad.brep",
+              "sha256": "83aff4e3116768ce4e5095ba99f4d288b3b38ca01c8240bf5d40817a1b2e351f",
+              "sizeBytes": 3273
+            },
+            {
+              "id": "3c2b0de8-8dc1-4ee1-9a04-40f96fe5ea9d",
+              "kind": "display.cad.manifest",
+              "sha256": "2bef5e606dec66e0810ba4fce32a2165568f0bfac79386bcbe50e7aa7182c8b3",
+              "sizeBytes": 1489
+            },
+            {
+              "id": "cc761bd3-5ad6-47f6-a13b-616a36040f36",
+              "kind": "display.cad.sketches",
+              "sha256": "b23640e3d4302232fc6f0ba8fb3532514b0abe3139d2e1cbbf1074833d3b988b",
+              "sizeBytes": 4422
+            },
+            {
+              "id": "b71be307-f527-4b27-91f5-16b3db0de58e",
+              "kind": "report.cad.build",
+              "sha256": "21f59fb46d0ca2823954072d01a5d8a84f55a8f366de20d5ac8603dcec4a620d",
+              "sizeBytes": 839
+            },
+            {
+              "id": "e5029a63-8d74-4cf5-a3e9-52b6bf136095",
+              "kind": "report.cad.readback",
+              "sha256": "6a02ea58d598035186a31f474c67f1f6bf1c2728e6b0cf131797724e5b4e3012",
+              "sizeBytes": 1248
+            },
+            {
+              "id": "d0321e46-a343-4472-80e1-1c7dcac7f974",
+              "kind": "input.cad.recipe",
+              "sha256": "56cb4ab63cf7ac738ea9ac063027a48de297df7b5f2ebb6241e90854908fdd7b",
+              "sizeBytes": 161
+            },
+            {
+              "id": "a76c8d2c-7253-4ca9-9e06-6e1a0a8f91d3",
+              "kind": "input.cad.recipe",
+              "sha256": "6b5f88a51090f9b83271f7ef0ab8093e79097d643df0c642b4e6b79d5d22a40f",
+              "sizeBytes": 270
+            },
+            {
+              "id": "bb6b292e-43ac-486c-be1c-e9d94a7a0d49",
+              "kind": "input.cad.model",
+              "sha256": "e8d8cc4b2be7f6bc7b86da17291858aa908c2b831fb72e1333933217cf7a0aa1",
+              "sizeBytes": 9962
+            },
+            {
+              "id": "e40af4dd-aa62-473d-81af-1ab7f4f5fe91",
+              "kind": "log.tool",
+              "sha256": "4943f898ea8186de410b8d88be17e5491ed4477744488629baf750c21250e5a2",
+              "sizeBytes": 1292
+            },
+            {
+              "id": "e94559ad-ea00-41bd-ba94-d6c558b51d25",
+              "kind": "log.tool",
+              "sha256": "6f5192aef999539bf08eb938ab1a8da8371001405194f9bc34b4f2121c50f538",
+              "sizeBytes": 74
+            }
+          ]
+        }
+      ],
+      "resultGroups": [
+        {
+          "id": "69b8a83f-3241-4a03-a20b-2eae300d55ef:model",
+          "title": "Modified model",
+          "superseded": true
+        },
+        {
+          "id": "69b8a83f-3241-4a03-a20b-2eae300d55ef:report",
+          "title": "CAD diagnostics",
+          "superseded": false
+        },
+        {
+          "id": "a40a7319-b8a0-4806-a418-5d27c9eb4b66:model",
+          "title": "Modified model",
+          "superseded": false
+        },
+        {
+          "id": "a40a7319-b8a0-4806-a418-5d27c9eb4b66:report",
+          "title": "CAD diagnostics",
+          "superseded": false
+        },
+        {
+          "id": "6151007f-ba7c-495e-8447-5ec3e2219b38:report",
+          "title": "Geometry inspection",
+          "superseded": false
+        }
+      ]
+    }
+  ]
+}

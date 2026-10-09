@@ -19,6 +19,9 @@ function createViewerRegistry(plugins) {
     match(file) {
       return registeredPlugins.find(plugin => plugin.matches(file))?.id || null;
     },
+    canAutoPreview(file) {
+      return registeredPlugins.find(plugin => plugin.matches(file))?.autoPreview === true;
+    },
     list() {
       return [...byId.keys()];
     },

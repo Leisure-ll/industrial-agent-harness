@@ -1,3 +1,4 @@
+import { createResultPreviewPolicy } from '@industrial-agent-harness/viewer-core/result-preview';
 import { DomainIcon } from '@industrial-agent-harness/viewer-builtin/domain-icon';
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -31,6 +32,7 @@ import {
 } from 'lucide-react';
 import type {
   AgentEvent,
+  ResultOpenRequest,
   ChatHistory,
   ChatSummary,
   SessionStatus,
@@ -103,6 +105,9 @@ export function App() {
   const [activeFileId, setActiveFileId] = useState('');
   const [viewState, setViewState] = useState<WorkspaceViewState>();
   const fileOpenRevision = useRef(0);
+  const previewPolicy = useRef(createResultPreviewPolicy());
+  const liveResultTurn = useRef<string | null>(null);
+  const openResultRef = useRef<(request: ResultOpenRequest) => Promise<void>>(async () => {});
   const [layout, setLayout] = useState<'split' | 'tabs'>(() => {
     try {
       return localStorage.getItem('ia-layout-v1') === 'tabs' ? 'tabs' : 'split';
@@ -325,6 +330,8 @@ export function App() {
   }
   async function openChat(id: string) {
     if (!beginNavigation()) return;
+    previewPolicy.current.invalidate();
+    fileOpenRevision.current++;
     try {
       const history = await readHistory(() => window.viewerHost!.selectChat(id));
       setTask('');
@@ -522,7 +529,24 @@ export function App() {
         sentTasks.current.delete(chatId);
       }
       if (event.chatId && event.chatId !== chatIdRef.current) return;
-      if (event.type === 'industrial-result' || event.type === 'done') refreshProjectFiles();
+      if (event.type === 'results-ready') {
+        const candidate = previewPolicy.current.consume(event, {
+          chatId: chatIdRef.current,
+          projectId: projectIdRef.current,
+          focusRevision: fileOpenRevision.current,
+          turnId: liveResultTurn.current,
+        });
+        if (candidate)
+          void openResultRef
+            .current({ ...candidate, chatId, previewOnly: true })
+            .catch(reason => setError(String(reason)));
+      }
+      if (
+        event.type === 'results-changed' ||
+        event.type === 'industrial-result' ||
+        event.type === 'done'
+      )
+        refreshProjectFiles();
       setAgentOwned(true);
       pendingEvents.push(event);
       if (['done', 'error', 'approval', 'question'].includes(event.type)) flushEvents();
@@ -638,6 +662,7 @@ export function App() {
     );
   }
   function selectTab(id: string) {
+    fileOpenRevision.current++;
     if (id === 'chat') setWorkbenchFocus('chat');
     else {
       if (id !== 'workspace') setActiveFileId(id);
@@ -768,7 +793,39 @@ export function App() {
         setError(String(reason));
     }
   }
+  const openTaskResult = useCallback(async (request: ResultOpenRequest) => {
+    const project = projectIdRef.current;
+    const chat = chatIdRef.current;
+    const revision = ++fileOpenRevision.current;
+    if (request.chatId !== chat) throw Error('Open the chat containing this result.');
+    if (request.revealOnly) {
+      await window.viewerHost!.revealResult(request);
+      return;
+    }
+    const opened = await window.viewerHost!.openResult(request);
+    if (
+      project !== projectIdRef.current ||
+      chat !== chatIdRef.current ||
+      revision !== fileOpenRevision.current
+    )
+      return;
+    const next: WorkspaceFile = {
+      id: opened.artifact?.id || `result-${request.artifactId}`,
+      path: opened.path,
+      name: opened.name,
+      artifact: opened.artifact,
+      source: opened.source,
+    };
+    const files = openWorkspaceFile(openFilesRef.current, next, true, false);
+    setOpenFiles(files.files);
+    setActiveFileId(files.selected.id);
+    setRightOpen(true);
+    setWorkbenchFocus('workspace');
+  }, []);
+  openResultRef.current = openTaskResult;
   async function newChat() {
+    previewPolicy.current.invalidate();
+    fileOpenRevision.current++;
     if (!beginNavigation()) return;
     try {
       if (activeProject && !activeProject.domain) {
@@ -853,6 +910,7 @@ export function App() {
         stage: context?.domain === selectedDomain || !selectedDomain ? context?.stage : undefined,
       });
       setBroker(result);
+      liveResultTurn.current = result.turnId || null;
       await refreshChats(true);
       setTask('');
       if (agentStatus?.available && agentStatus.configured && agentStatus.projectDir)
@@ -902,6 +960,11 @@ export function App() {
   async function runAgent(prompt = submittedTask, images: PromptImage[] = []) {
     if (navigationPending.current || startingAgent.current) return;
     startingAgent.current = true;
+    previewPolicy.current.begin({
+      chatId: chatIdRef.current,
+      projectId: projectIdRef.current,
+      focusRevision: fileOpenRevision.current,
+    });
     const chatId = chatIdRef.current;
     if (chatId) {
       sentImages.current.set(chatId, images);
@@ -1433,6 +1496,9 @@ export function App() {
                           {turn.events.length > 0 && (
                             <AgentFlow
                               onLog={showAgentLog}
+                              onOpenResult={openTaskResult}
+                              turnId={turn.id}
+                              chatId={activeChatId || undefined}
                               events={turn.events}
                               running={agentOwned && agentBusy && index === turns.length - 1}
                               debug={debug}

@@ -4195,3 +4195,184 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.ia-task-results {
+  margin-block: 12px;
+  border: 1px solid var(--ia-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ia-result-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  padding: 7px 10px;
+  font-size: 11px;
+}
+.ia-result-heading b,
+.ia-result-title {
+  font-weight: 500;
+}
+.ia-result-heading small,
+.ia-result-status,
+.ia-result-badge {
+  color: var(--ia-muted);
+  font-size: 11px;
+}
+.ia-result-card {
+  min-width: 0;
+  padding: 7px 10px;
+  border-top: 1px solid var(--ia-border);
+  display: grid;
+  gap: 3px;
+}
+.ia-result-card.selected {
+  box-shadow: inset 2px 0 var(--ia-accent);
+  background: var(--ia-hover);
+}
+.ia-result-main {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.ia-result-icon {
+  flex-shrink: 0;
+  color: var(--ia-muted);
+}
+.ia-result-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+.ia-result-badge {
+  flex-shrink: 0;
+}
+.ia-result-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.ia-app .ia-result-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 3px 5px;
+  font-size: 11px;
+}
+.ia-result-meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  padding-left: 22px;
+  color: var(--ia-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.ia-result-meta details {
+  min-width: 0;
+  max-width: 100%;
+}
+.ia-result-meta details[open] {
+  flex-basis: 100%;
+}
+.ia-result-meta summary,
+.ia-result-supporting > summary,
+.ia-result-previous > summary {
+  cursor: pointer;
+}
+.ia-result-count {
+  margin-left: 3px;
+  color: var(--ia-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ia-result-file-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 2px 8px;
+  margin-top: 5px;
+}
+.ia-app .ia-result-file {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 4px;
+  text-align: left;
+  font-size: 11px;
+}
+.ia-result-file svg {
+  flex-shrink: 0;
+}
+.ia-result-file span {
+  overflow-wrap: anywhere;
+}
+.ia-result-check-list {
+  display: grid;
+  gap: 6px;
+  padding-block: 6px 2px;
+  color: var(--ia-text);
+}
+.ia-result-check-list b {
+  font-size: 11px;
+  font-weight: 500;
+}
+.ia-result-check-list p {
+  margin: 2px 0;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.ia-result-check-list small {
+  color: var(--ia-muted);
+}
+.ia-result-status.failed,
+.ia-result-checks.failed > summary {
+  color: var(--ia-danger);
+}
+.ia-result-card .ia-result-warning {
+  margin: 2px 0 0;
+  padding: 0 0 0 22px;
+  font-size: 11px;
+}
+.ia-result-supporting > summary,
+.ia-result-previous > summary {
+  border-top: 1px solid var(--ia-border);
+  padding: 7px 10px;
+  color: var(--ia-muted);
+  font-size: 11px;
+}
+.ia-task-results > p {
+  margin: 0;
+  padding: 7px 10px;
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .ia-result-open span {
+    display: none;
+  }
+  .ia-result-badge {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+.ia-result-artifacts {
+  display: grid;
+  gap: 6px;
+}
+.ia-result-artifact {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}

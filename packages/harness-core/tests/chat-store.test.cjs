@@ -267,3 +267,17 @@ test('killed process leaves an interrupted turn and an expired approval, without
   recovered.acquire(chat.id)();
   assert.equal(recovered.history(chat.id, project, 'test-domain').turns.length, 1);
 });
+
+test('stable result event IDs deduplicate across store handles and request history stays isolated', t => {
+  const { project, store, openStore } = fixture(t);
+  const chat = store.create(project, 'test-domain');
+  const turn = store.beginTurn(chat.id, 'Results');
+  const event = { type: 'results-changed', eventId: 'results:stable', results: { revision: 1 } };
+  const original = store.append(turn, event);
+  const other = openStore();
+  assert.deepEqual(other.append(turn, { ...event, results: { revision: 999 } }), original);
+  assert.equal(store.turnEvents(chat.id, turn).length, 1);
+  assert.equal(store.latestEvents(chat.id, 'results-changed')[0].results.revision, 1);
+  const stranger = store.create(project, 'test-domain');
+  assert.throws(() => other.turnEvents(stranger.id, turn), /another chat/);
+});

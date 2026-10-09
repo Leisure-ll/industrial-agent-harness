@@ -100,13 +100,22 @@ Apple Silicon 桌面构建包含可选 CAD Pack。首次选择 CAD 会自动准�
 
 | 领域                                                                                                                            | 预览版已提供                                                                                         | 依赖与限制                                                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| [Chip](https://github.com/Zhiman-BJ/industrial-domain-packs/tree/49481057c372c4fa22742d833935335b7812416d/packs/chip/README.md) | EDA 知识与工具注册、持久化的声明式 RTL 验证路径，以及波形、网表、版图查看                            | Core 路径需要 Python 与 Verilator；其他 EDA 流程另需工具、镜像或 PDK，完整执行仍需接入 Runtime。       |
+| [Chip](https://github.com/Zhiman-BJ/industrial-domain-packs/tree/cf72a46b6b4ba927b091ded71b2d52d227db0351/packs/chip/README.md) | EDA 知识与工具注册、持久化的声明式 RTL 验证路径，以及波形、网表、版图查看                            | Core 路径需要 Python 与 Verilator；其他 EDA 流程另需工具、镜像或 PDK，完整执行仍需接入 Runtime。       |
 | [CUDA](doc/cuda-domain-pack.md)                                                                                                 | Compiler / Evaluator 两个远程 MCP、算子优化 Skill 与 canonical 原生证据                              | 开发者配置两个已认证端点；固定 RTX 4090 AXPBY；私有执行依赖外置，尚不提供桌面安装包。                   |
 | [PCB](doc/pcb-godot-runtime.md)                                                                                                 | 公开类型化矩形板框／已有安装孔修改，原生 DRC 与独立任务验证；KiCad Viewer                            | macOS Apple Silicon，另行安装官方 KiCad 10.0.6；有限机械布局任务，无电气／制造验收，不依赖私有 actor。 |
 | [Godot](doc/pcb-godot-runtime.md)                                                                                               | 类型化场景变换／BoxMesh 修改，原生导入／回读／限帧验证；源码与 Web Export Viewer                     | macOS Apple Silicon，另行安装 Godot 4.7.2；验证显式结构约束，无完整游戏 QA。Web Export 保留独立依赖。  |
 | [CAD · FreeCAD](doc/freecad-domain-pack.md)                                                                                     | 参数化草图、拉伸、打孔、布尔建模和版本化参数/轮廓修改；FCStd/STEP/STL 导出、独立回读验证与 OCCT 查看 | 打包桌面版自动准备 FreeCAD 1.1.4 macOS arm64；只支持受限原生特征，不验收机械强度或可制造性。           |
 
 按 [Pack 作者教程](doc/pack-authoring.md)独立开发扩展。领域代码留在 Pack 内，共享 Core 与 Broker 不依赖具体领域。已注册、能够显示或原生烟测成功，均不代表完整工业工作流已经验收。[PCB／Godot 原生任务](doc/pcb-godot-runtime.md) 已为显式首批任务补齐共享 Runtime；不扩大其他工程支持承诺。先前[发布整改记录](doc/release-readiness-20261007.md)保留为历史证据。
+
+
+### 任务成果
+
+工具产生文件后，共享任务服务自动登记紧凑成果条目，辅助报告收在“附件与报告”中，文件和检查详情按需展开；CLI 输出同一分组和文件引用。主入口查看成果，原生文件／导出入口取走文件，检查摘要只对应记录版本。明确替代关系保留历史，并列方案全部可见。当前前台请求结束、只有一个支持的只读预览且未手动换文件／标签／聊天时，最多自动打开一次；历史、后台、失败和多方案不抢焦点。部分结果和文件变化明确提示，Agent 的 `select_result` 可选。FreeCAD 生成→连续修改→检查→卡片→OCCT 已在 macOS arm64 源码态验证，并另行记录真实模型演示；未扩大安装包或平台支持。[行为、契约和验收](doc/task-results.md)。
+
+读取聊天历史不要求执行配置完成，远程项目也可直接新建／读取聊天。已有成果从记录库只读查询，不加载 Pack；单次读取复用文件校验，下次读取及打开文件重新检查内容。
+
+Owner 已整理[全部五领域、六个 Pack 的声明草案与扩展计划](https://github.com/Zhiman-BJ/industrial-domain-packs/blob/cf72a46b6b4ba927b091ded71b2d52d227db0351/docs/result-presentation-plan.md)。当前接入任务成果的领域生产者为 FreeCAD；其他领域的成果接入仍属待实施项。当前消费版本保留 main 已接入的 CUDA 支持。
 
 ## 已接入的 Viewer
 
