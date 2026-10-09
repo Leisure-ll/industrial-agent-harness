@@ -6,11 +6,11 @@
 
 按以下顺序执行，不允许跳步或改写判定：
 
-0. **对象与工作区确认**：QA 的验证对象是**当前工作区**（不是 HEAD）。执行前先 `git status --short`，把快照存入本次证据目录，并记录运行开始时的 `HEAD` 作为本次锚定提交（汇总报告的 `commit` 字段用它；运行期间并行会话切换分支不影响判定）。本仓库常有多会话并行，工作区可能含有不属于本次 QA 的改动（下称**外来文件**）：未提交/未跟踪源文件、被并行会话改写的 `node_modules` 内容（如 frozen-lockfile 安装不含的额外 pack）、机器本地产物。若某层失败且失败来源全部是外来文件，先做**干净基线**：`git worktree add <临时目录> HEAD` → 在该 worktree 内 `pnpm install --frozen-lockfile` → 只重跑失败的层。基线通过则该层记 `blocked`（原因 `foreign-wip`，notes 列出冲突文件与基线结果），结束后删除临时 worktree；基线仍失败才是代码回归，判 `fail`。若调用方的验证意图是 main 分支健康度而非当前检出，应先 `git fetch origin` 并以 `origin/main` 为基线锚点。
+0. **对象与工作区确认**：QA 的验证对象是**当前工作区**（不是 HEAD）。执行前先 `git status --short`，把快照存入本次证据目录，并**保存完整锚定 SHA**：`ANCHOR_SHA="$(git rev-parse HEAD)"`——汇总报告的 `commit` 字段用它，后续一切基线判定也都用它。本仓库常有多会话并行，工作区可能含有不属于本次 QA 的改动（下称**外来文件**）：未提交/未跟踪源文件、被并行会话改写的 `node_modules` 内容（如 frozen-lockfile 安装不含的额外 pack）、机器本地产物。若某层失败且失败来源全部是外来文件，先做**干净基线**：`git worktree add --detach <临时目录> "$ANCHOR_SHA"` → 在该 worktree 内 `pnpm install --frozen-lockfile` → 只重跑失败的层。基线必须使用保存的完整 SHA，**禁止**动态 `HEAD`：并行会话可能在执行期间切换分支，动态 `HEAD` 会验证到与报告锚定提交不一致的代码。基线通过则该层记 `blocked`（原因 `foreign-wip`，notes 列出冲突文件与基线结果），结束后删除临时 worktree；基线仍失败才是代码回归，判 `fail`。若调用方的验证意图是 main 分支健康度而非当前检出，应先 `git fetch origin` 并以 `origin/main` 的完整 SHA 作为锚定。
 1. **能力探测**：读取 §2 前置条件矩阵，确定本机可运行的层（T0–T6）。不可运行的层标记 `blocked` 并写明缺失的前置条件，不得伪造结果。
 2. **按层执行**：从 T0 开始逐层运行。**任一层 `fail` 即停止后续层**（fail-fast），先排查 §6 的已知 flake；命中已知 flake 可重试一次，重试仍失败则判定 `fail`。**fail-fast 仅由 `fail` 触发**：`blocked`（前置缺失或外来文件冲突）不算失败，不停止后续层——后续层前置满足即照常执行。§6 本地误报处置后的重跑**不占用** flake 重试额度；重跑暴露出的**不同**失败按新失败独立判定。
 3. **状态语义**：`pass`/`fail` = 实际执行后的判定；`blocked` = §2 前置缺失或 §1.0 外来文件环境冲突；`skipped` = 因上游层失败被 fail-fast 连带、未启动。
-4. **证据收集**：每次运行使用独立子目录 `dist/ci-reports/<UTC时间戳>-<commit短hash>/`（该目录 gitignored），只写入自己的子目录，不改动其他会话留下的文件；`ci-tests.cjs` 固定写到 `dist/ci-reports/<suite>.json` 的报告须移入本子目录。该固定文件名意味着多会话并行运行同一 suite 会互相覆盖：suite 跑完后校验报告 mtime 落在本层执行窗口内，否则视为被他者覆盖，重跑该 suite 一次并在 notes 记录。
+4. **证据收集**：每次运行使用独立子目录 `dist/ci-reports/<UTC时间戳>-<commit短hash>/`（该目录 gitignored），只写入自己的子目录，不改动其他会话留下的文件。`ci-tests.cjs` 固定写到 `dist/ci-reports/<suite>.json`，该固定路径意味着多会话并行运行同一 suite 会互相覆盖，**mtime 校验不足以证明报告归属**（他人在本层执行窗口内覆盖的报告同样"新鲜"）。因此对每个 suite 加**目录锁**：运行前 `mkdir dist/ci-reports/.lock.<suite>`（mkdir 是原子操作；已存在说明另一会话正在跑同一 suite——等待锁消失后重试，等待超时则把该用例记 `blocked` 并注明锁冲突）；suite 完成、把 `<suite>.json` 移入自己子目录后 `rmdir` 解锁。锁只能约束遵守本手册的会话，故移入前仍做兜底校验：报告 mtime ≥ 本 suite 启动时间，且 JSON 内 `platform`/`arch` 与本机一致；任一不符则在本锁保护内重跑该 suite 一次并在 notes 记录。
 5. **汇总报告**：全部层执行完后，向调用方输出如下 JSON。`verdict` ∈ `pass|fail|blocked`：所有实际执行的层 pass 且无 blocked → `pass`；无 fail 但存在 blocked → `blocked`（共享工作区无法下结论，建议干净环境重跑）；否则 `fail`。tier 对象必须含 `cases` 数组逐用例记录：
 
 ```json
@@ -75,7 +75,7 @@
 
 | ID | 命令 | 覆盖 | 通过判据 | 证据 |
 | --- | --- | --- | --- | --- |
-| T1-1 | `pnpm run test:ci -- portable` | 自动发现全部 `packages/*`、`apps/cli`、`apps/desktop` 的 `node --test` 目录（含桌面 13 个主进程单测：updater、window-bounds、session-manager、project-bindings、model-config、chat-history、agent-events、language、gui-permissions、message-content、project-files、project-runtimes、workspace-files），排除 T4 专属文件 | `dist/ci-reports/portable.json` 中 `ok: true`：success 且 failed=cancelled=todo=0 且 skipped 与允许清单**完全一致**（§6） | `portable.json`、`portable.log` |
+| T1-1 | `pnpm run test:ci -- portable` | 自动发现全部 `packages/*`、`apps/cli`、`apps/desktop` 的 `node --test` 目录（含桌面 13 个主进程单测：updater、window-bounds、session-manager、project-bindings、model-config、chat-history、agent-events、language、gui-permissions、message-content、project-files、project-runtimes、workspace-files），排除 T4 专属文件 | `dist/ci-reports/portable.json` 中 `ok: true`：success 且 failed=cancelled=todo=0，且实际 skip 集合是指允许清单的**子集**——清单内条目当次未跳过属正常（如装有 KLayout 的机器该测试真实执行并通过），清单外出现任何 skip 即 fail（§6） | `portable.json`、`portable.log` |
 | T1-2 | `pnpm run smoke:ci-packages` | 独立打包 CLI 消费者验证 | 退出码 0 | `packages.log` |
 
 便携层有 180 秒硬超时：超时即 fail，不会退化成平台跳过。可设 `HARNESS_CI_PLATFORM` / `HARNESS_CI_ARCH` 校验运行平台与预期一致（不匹配直接报错）。
@@ -101,9 +101,10 @@
 | T2-13 | `test:godot` | Godot Web Export Viewer |
 | T2-14 | `test:engineering` | 工程文件只读预览 |
 | T2-15 | `test:documents` | 通用文件 Viewer（CSV/JSON/Markdown 等） |
-| T2-16 | `test:cad` / `test:cad-resize` | CAD 领域交互 / 视口 resize |
+| T2-16 | `test:cad` / `test:cad-resize` | CAD 领域交互 / 视口 resize。真实调用 `cad.freecad.build`/`cad.freecad.export` 工具，**必须先完成 T4-1 native 准备中的 FreeCAD 步骤并导出 `INDUSTRIAL_HARNESS_FREECAD_CMD`**，否则在干净环境必然失败 |
+| T2-17 | `test:results` | 任务成果卡：自动成果生成、版本关联、预览与历史重载（PR #72 引入） |
 
-CI 参考集：`desktop-package.yml` 跑 `ui language parallel gui-settings`；`industrial-core.yml` 跑 `chats logs mcp subagents kicad engineering ui language documents images parallel`。本地全量即把上表全部执行。
+CI 参考集：`desktop-package.yml` 跑 `ui language parallel gui-settings`；`industrial-core.yml` 跑 `chats logs mcp subagents kicad engineering ui language documents images parallel`。本地全量即把上表全部执行（共 18 个入口，其中 T2-16 受 FreeCAD 前置约束）。
 
 ### T3 Transport 与 Benchmark（CI：structure.yml 后段）
 
@@ -116,9 +117,29 @@ CI 参考集：`desktop-package.yml` 跑 `ui language parallel gui-settings`；`
 
 前置检查由 `ci-tests.cjs` 自带：平台/KIMI_EXECUTABLE/FreeCAD/chip venv/verilator/rg 缺一即报错退出。
 
+**native（darwin arm64）完整准备**（与 industrial-core.yml 等价，可直接复制；在仓库根执行）：
+
+```bash
+python -m pip install uv==0.11.6 && brew install verilator ripgrep
+node apps/desktop/scripts/setup-kimi.cjs
+export KIMI_EXECUTABLE="$(node -p "require('./packages/agent-kimi/src/code-session.cjs').bundledExecutable()")"
+(cd "$(node scripts/pack-source.cjs chip-pack)/eda-harness" && uv sync --frozen --no-dev --python 3.13)
+export INDUSTRIAL_HARNESS_FREECAD_CMD="$(node scripts/setup-freecad.cjs)"   # stdout 即官方 FreeCAD 可执行路径
+for pack in pcb godot; do node "$(node scripts/pack-source.cjs "$pack-pack")/runtime/setup-native.cjs" "$PWD/dist/$pack-runtime"; done
+node scripts/package-headless.cjs dist/freecad-cli --domain cad
+node scripts/package-headless.cjs dist/professional-cli
+HARNESS_BOOTSTRAP_DOMAINS='' node scripts/stage-desktop.cjs dist/professional-desktop
+export HARNESS_FREECAD_TEST_CLI="$PWD/dist/freecad-cli/industrial-harness.cjs"
+export HARNESS_PROFESSIONAL_TEST_CLI="$PWD/dist/professional-cli/industrial-harness.cjs"
+export HARNESS_PROFESSIONAL_DESKTOP_ENTRY="$PWD/dist/professional-desktop/electron/main.cjs"
+export HARNESS_PROFESSIONAL_EVIDENCE="$PWD/dist/ci-reports/professional-evidence"; mkdir -p "$HARNESS_PROFESSIONAL_EVIDENCE"
+```
+
+**native-linux（linux x64）准备**只需两步：`node apps/desktop/scripts/setup-kimi.cjs` + 上述 `KIMI_EXECUTABLE` 导出，以及 chip pack 的 `uv sync`（见 industrial-linux.yml）。
+
 | ID | 命令 | 覆盖 |
 | --- | --- | --- |
-| T4-1 | 备齐运行时（见 §2；CI 的等价命令：`python -m pip install uv==0.11.6`、`brew install verilator ripgrep`、`node apps/desktop/scripts/setup-kimi.cjs`、chip pack 内 `uv sync --frozen --no-dev --python 3.13`、`node scripts/setup-freecad.cjs`、pcb/godot `runtime/setup-native.cjs`） | 受保护 Agent 与原生工程运行时 |
+| T4-1 | 执行上方准备命令块 | 受保护 Agent、官方 FreeCAD、pcb/godot 原生运行时与独立 CLI/Desktop 打包（professional/freecad 测试入口的绑定来源） |
 | T4-2 | `pnpm run test:ci -- native`（或 `native-linux`） | `industrial-core-vertical-slice.test.cjs`（里程碑 Gate：StateProvider→Broker→Scoped Tool→Runtime→Verilator→Artifact→Verifier→Checkpoint 真实闭环）、installed-pack、pcb-godot runtime/installed、freecad-runtime、后台任务、沙箱、会话混沌/资源、MCP 实测等 23 个文件 |
 | T4-3 | `node --test tests/integration/headless-package-kimi.test.cjs` | 打包 headless Agent 的生产进程边界 |
 | T4-4 | 打包 CLI + 工作区验证：对 chip/pcb/godot 依次 `node scripts/package-headless.cjs dist/workspace-<domain> --domain <domain>` 后 `node scripts/smoke-workspace-cli.cjs <cli> <domain> <evidence.json>` | 三个领域的独立 CLI 真实任务与 MCP |
@@ -161,7 +182,7 @@ CI 参考集：`desktop-package.yml` 跑 `ui language parallel gui-settings`；`
 按需选择档位；未达成的层按 §1 输出 `blocked`：
 
 - **最小（PR 自检，约 10–15 分钟）**：T0 → T1。
-- **标准（本机 darwin arm64 开发机，约 30–45 分钟）**：T0 → T1 → T2（build 后全表）→ T3-2。
+- **标准（本机 darwin arm64 开发机，约 30–45 分钟）**：T0 → T1 → T2（build 后除 CAD 两入口外的全部 selftest）→ T3-2。
 - **完整（等价 CI 全网）**：T0 → T1 → T2 → T3 → T4 → T5；T6 由 linux x64 环境执行或引用 CI 结果。
 
 一次性的标准档执行序列（可直接复制）：
@@ -179,15 +200,16 @@ pnpm run test:ci -- portable 2>&1 | tee "$EVID/portable.log"; mv dist/ci-reports
 pnpm run smoke:ci-packages 2>&1 | tee "$EVID/packages.log"                                  # T1-2
 pnpm --filter @industrial-agent-harness/desktop build                                        # T2 前置
 export INDUSTRIAL_UI_SCREENSHOTS="$PWD/$EVID/ui"; mkdir -p "$INDUSTRIAL_UI_SCREENSHOTS"
-for suite in ui parallel language gui-settings messages chats logs mcp external-mcp subagents images kicad godot engineering documents cad cad-resize; do
+for suite in ui parallel language gui-settings messages chats logs mcp external-mcp subagents images kicad godot engineering documents results; do
   pnpm --filter @industrial-agent-harness/desktop "test:$suite" 2>&1 | tee "$EVID/desktop-$suite.log"
 done
+# T2 CAD 入口（test:cad / test:cad-resize）不在标准档：需先完成 T4-1 的 FreeCAD 准备
 pnpm run test:ci -- benchmark 2>&1 | tee "$EVID/benchmark.log"; mv dist/ci-reports/benchmark.json "$EVID/"  # T3-2
 ```
 
 ## 6. 判定规则、允许跳过与已知 flake
 
-**允许的 skip 清单**（`scripts/ci-tests.cjs` 强制 skipped 必须与之完全一致，多跳/少跳都算 fail）：
+**允许的 skip 清单**（`scripts/ci-tests.cjs` 的判定是**子集语义**：实际 skip 必须全部落在清单内，清单外任何 skip 即 fail；清单内条目当次实际执行而未跳过是合法的，例如装有 KLayout 的机器上该测试会真实运行并通过）：
 
 - portable：`KLayout LayoutView renders a bounded GDS viewport when available`（GDS 视口依赖本机 KLayout）；win32 另允许两条进程清理用例（`timeout and cancellation kill descendants…`、`natural parent exit also cleans up orphaned tools…`）。
 - transport：`fixed real PCB-bench source supplies all 89 schemas and complete Skill resources, while host execution remains refused`。
