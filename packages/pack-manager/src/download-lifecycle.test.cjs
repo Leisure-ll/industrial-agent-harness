@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { createArchive, digest, signCatalog, compareVersions } = require('./index.cjs');
+const { createLocalhostCertificate } = require('./localhost-tls.cjs');
 
 test('version ordering includes numeric components and prerelease precedence', () => {
   for (const [older, newer] of [
@@ -51,12 +52,13 @@ test(
       archives[version] = createArchive(source);
     }
     const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
-    const fixture = path.resolve(__dirname, '../fixtures');
+    const tls = createLocalhostCertificate();
+    fs.writeFileSync(path.join(root, 'localhost-cert.pem'), tls.cert);
     const sockets = new Set();
     const server = https.createServer(
       {
-        key: fs.readFileSync(path.join(fixture, 'localhost-key.pem')),
-        cert: fs.readFileSync(path.join(fixture, 'localhost-cert.pem')),
+        key: tls.key,
+        cert: tls.cert,
       },
       (req, res) => {
         const version = req.url.includes('1.0.0')
@@ -102,8 +104,8 @@ test(
     });
     const base = `https://127.0.0.1:${server.address().port}`;
     const options = { root, base, key: publicKey.export({ type: 'spki', format: 'pem' }) };
-    // A separate production Node client trusts only the fixture CA. No disabled
-    // certificate verification or mocked fetch/installer is used.
+    // A separate production Node client trusts only the test-generated CA. No
+    // disabled certificate verification or mocked fetch/installer is used.
     const script = `
     const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
     const {PackManager}=require(${JSON.stringify(path.join(__dirname, 'index.cjs'))});
@@ -128,7 +130,7 @@ test(
       process.execPath,
       ['-e', script, JSON.stringify(options)],
       {
-        env: { ...process.env, NODE_EXTRA_CA_CERTS: path.join(fixture, 'localhost-cert.pem') },
+        env: { ...process.env, NODE_EXTRA_CA_CERTS: path.join(root, 'localhost-cert.pem') },
         timeout: 20000,
         maxBuffer: 1024 * 1024,
       },
