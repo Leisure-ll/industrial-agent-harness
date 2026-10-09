@@ -382,9 +382,7 @@ export interface ViewerHostApi {
     truncated: boolean;
   }>;
   revealResult(request: ResultOpenRequest): Promise<void>;
-  openResult(
-    request: ResultOpenRequest,
-  ): Promise<{
+  openResult(request: ResultOpenRequest): Promise<{
     path: string;
     name: string;
     artifact?: ViewerArtifact;
