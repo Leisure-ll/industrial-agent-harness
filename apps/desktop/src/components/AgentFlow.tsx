@@ -1,6 +1,6 @@
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import type { AgentEvent } from '@industrial-agent-harness/viewer-builtin/api';
-import { SubagentCard } from './SubagentCard';
+import { SubagentCard, AgentGlyph, agentGlyphSeed } from './SubagentCard';
 import { AnswerMarkdown } from './AnswerMarkdown';
 import { ThinkingPreview } from './ThinkingPreview';
 import { MessageActions } from './MessageActions';
@@ -406,9 +406,13 @@ export const AgentFlow = memo(function AgentFlow({
         if (event.type === 'tool') {
           if (lastToolIndex.get(event.id) !== index) return null;
           const result = results.get(event.id);
+          const childStates = [...children.values()].filter(c => c.parentToolCallId === event.id);
           return (
             <details className={`ia-agent-tool ${result?.error ? 'error' : ''}`} key={index}>
               <summary>
+                {childStates.map(child => (
+                  <AgentGlyph key={child.id} seed={agentGlyphSeed(child)} className="mini" />
+                ))}
                 {result?.error ? t('Tool failed') : result ? t('Tool finished') : t('Using tool')} ·{' '}
                 {event.name}
               </summary>
