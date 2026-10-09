@@ -1,42 +1,51 @@
 import { DomainIcon } from '@industrial-agent-harness/viewer-builtin/domain-icon';
 import { useDisplayText } from '@industrial-agent-harness/viewer-builtin/text';
 import { useEffect, useState } from 'react';
-import type { DomainOption } from '@industrial-agent-harness/viewer-builtin/api';
+import type {
+  AvailableDomainPack,
+  DomainInstallationStatus,
+  DomainInstallProgress,
+  DomainOption,
+} from '@industrial-agent-harness/viewer-builtin/api';
+import {
+  cancelInstallation,
+  CatalogEmpty,
+  CatalogNotice,
+  InstallationOutcome,
+  InstallationProgress,
+  InstallationSize,
+  RuntimeReadiness,
+  UnavailableDomains,
+} from './DomainInstallation';
 
-export type DomainStatus = Awaited<
-  ReturnType<NonNullable<typeof window.viewerHost>['domainStatus']>
->;
-export type AvailablePack = Awaited<
-  ReturnType<NonNullable<typeof window.viewerHost>['domainAvailable']>
->[number];
-export type DomainProgress = {
-  domain?: string;
-  label: string;
-  phase: string;
-  active?: boolean;
-  received?: number;
-  total?: number;
-};
+export type DomainStatus = DomainInstallationStatus;
+export type AvailablePack = AvailableDomainPack;
+export type DomainProgress = DomainInstallProgress;
 
 export function PacksSection({
   status,
   statusError,
   progress,
   busy,
+  revision,
   onChanged,
   onRefresh,
+  onStatus,
 }: {
   status?: DomainStatus;
   statusError: string;
   progress: DomainProgress | null;
   busy: boolean;
+  revision: number;
   onChanged: (installed: DomainOption[]) => void;
   onRefresh: () => void;
+  onStatus: (status: DomainStatus) => void;
 }) {
   const { t } = useDisplayText();
   const [available, setAvailable] = useState<AvailablePack[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState('');
   const [feedError, setFeedError] = useState('');
   useEffect(() => {
@@ -47,81 +56,92 @@ export function PacksSection({
     let cancelled = false;
     setLoading(true);
     setFeedError('');
-    void window
-      .viewerHost!.domainAvailable()
-      .then(items => {
-        if (!cancelled) setAvailable(items);
-      })
-      .catch(reason => {
+    void (async () => {
+      try {
+        const items = await window.viewerHost!.domainAvailable();
+        const next = await window.viewerHost!.domainStatus();
+        if (!cancelled) {
+          setAvailable(items);
+          onStatus(next);
+        }
+      } catch (reason) {
         if (!cancelled) {
           setFeedError(String(reason));
           setAvailable([]);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [status?.managed, status?.catalogWarning, progress === null]);
-  async function install(domain: string) {
-    if (busy || pending || progress) return;
+  }, [status?.managed, revision]);
+  const installing = Boolean(progress) || Boolean(status?.operation?.active);
+  const disabled = busy || pending || installing || cancelling;
+  async function change(action: 'install' | 'remove' | 'repair', domain: string) {
+    if (disabled) return;
     setPending(true);
     setError('');
     try {
-      const result = await window.viewerHost!.domainInstall([domain]);
+      const host = window.viewerHost!;
+      const result = await (action === 'install'
+        ? host.domainInstall([domain])
+        : action === 'remove'
+          ? host.domainRemove(domain)
+          : host.domainRepair(domain));
       onChanged(result.installed);
     } catch (reason) {
-      setError(String(reason));
+      try {
+        const next = await window.viewerHost!.domainStatus();
+        onStatus(next);
+        if (
+          next.lastOperation?.outcome !== 'cancelled' ||
+          !String(reason).includes('Domain preparation cancelled.')
+        )
+          setError(String(reason));
+      } catch {
+        setError(String(reason));
+      }
+    } finally {
+      setPending(false);
       onRefresh();
-    } finally {
-      setPending(false);
     }
   }
-  async function remove(domain: string) {
-    if (busy || pending || progress) return;
-    setPending(true);
-    setError('');
+  async function cancel() {
+    if (cancelling) return;
+    setCancelling(true);
     try {
-      const result = await window.viewerHost!.domainRemove(domain);
-      onChanged(result.installed);
+      await cancelInstallation();
     } catch (reason) {
       setError(String(reason));
     } finally {
-      setPending(false);
-    }
-  }
-  async function repair(domain: string) {
-    if (busy || pending || progress) return;
-    setPending(true);
-    setError('');
-    try {
-      const result = await window.viewerHost!.domainRepair(domain);
-      onChanged(result.installed);
-    } catch (reason) {
-      setError(String(reason));
-    } finally {
-      setPending(false);
+      setCancelling(false);
+      onRefresh();
     }
   }
   const installed = status?.installed || [];
   const installedIds = new Set(installed.map(item => item.domain));
   const installable = available.filter(item => !installedIds.has(item.domain));
-  const updateFor = (domain: string) => available.find(item => item.domain === domain);
-  const diagnosticsFor = (domain: string) =>
-    (status?.errors || []).filter(item => item.domain === domain);
-  const disabled = busy || pending || Boolean(progress);
+  const hasUpdates = available.some(item => item.updateAvailable);
   return (
-    <section className="ia-capability-section" aria-label={t('Domain packs')}>
-      <h2>{t('Domain packs')}</h2>
+    <section className="ia-capability-section ia-packs-section" aria-label={t('Domain packs')}>
+      <div className="ia-pack-section-heading">
+        <h2>{t('Domain packs')}</h2>
+        <button className="ia-pack-action" onClick={onRefresh} disabled={loading || disabled}>
+          {t('Check updates')}
+        </button>
+      </div>
       <p>{t('Each pack bundles the skills, MCP servers and runtime for one domain.')}</p>
       {statusError && (
         <p role="alert" className="ia-project-error">
           {t(statusError)}
         </p>
       )}
-      {error && (
+      <CatalogNotice status={status} loading={loading} />
+      {!status && !statusError && <p role="status">{t('Checking domains…')}</p>}
+      {!installing && <InstallationOutcome status={status} error={error} />}
+      {installing && error && (
         <p role="alert" className="ia-project-error">
           {t(error)}
         </p>
@@ -131,47 +151,17 @@ export function PacksSection({
           {t('Catalog unavailable:')} {feedError}
         </p>
       )}
-      {status?.catalogWarning && (
-        <p role="status" className="ia-capability-note">
-          {t('Updates unavailable. Bundled domains can still be installed.')}
-        </p>
-      )}
-      {progress && (
-        <div className="ia-domain-progress" role="status">
-          <span>
-            {progress.label} ·{' '}
-            {t(
-              (
-                {
-                  downloading: 'Downloading…',
-                  installing: 'Preparing…',
-                  checking: 'Checking…',
-                  ready: 'Ready to use',
-                } as Record<string, string>
-              )[progress.phase] || 'Preparing…',
-            )}
-          </span>
-          <button
-            type="button"
-            onClick={() =>
-              void window.viewerHost!.domainCancel().catch(reason => setError(String(reason)))
-            }
-          >
-            {t('Cancel download')}
-          </button>
-          {progress.phase === 'downloading' && (
-            <>
-              <progress max={progress.total} value={progress.received} />
-              <small>
-                {((progress.received || 0) / 1024 / 1024).toFixed(0)} /{' '}
-                {((progress.total || 0) / 1024 / 1024).toFixed(0)} MB
-              </small>
-            </>
-          )}
-        </div>
+      {installing && (
+        <InstallationProgress
+          progress={progress || status?.operation?.progress || null}
+          cancelling={cancelling}
+          onCancel={() => void cancel()}
+          background
+          operation={status?.operation}
+        />
       )}
       {busy && <p role="status">{t('Finish the current task before changing domains.')}</p>}
-      {!status?.managed && !statusError && (
+      {status && !status.managed && !statusError && (
         <p className="ia-capability-note">
           {t(
             'Domain installation is available in packaged builds. Development resources are loaded from this repository.',
@@ -187,28 +177,27 @@ export function PacksSection({
               </h3>
               <div className="ia-pack-grid">
                 {installable.map(item => (
-                  <div key={item.domain} className="ia-pack-card">
+                  <div key={item.domain} className="ia-pack-card" data-domain={item.domain}>
                     <span className="ia-pack-icon" aria-hidden="true">
-                      <DomainIcon domain={item.domain} size={22} />
+                      <DomainIcon domain={item.domain} size={18} />
                     </span>
                     <div className="ia-pack-body">
                       <div className="ia-pack-title">
-                        <b>{item.label || item.domain}</b>
+                        <b>{t(item.label || item.domain)}</b>
                         <small>v{item.version}</small>
                       </div>
                       {item.summary && <p className="ia-pack-summary">{t(item.summary)}</p>}
-                      <small className="ia-pack-meta">
-                        {((item.size + (item.runtimeDownloadSize || 0)) / 1024 / 1024).toFixed(0)}{' '}
-                        {t('MB download')}
-                        {item.prerequisites?.length
-                          ? ` · ${t('Needs:')} ${item.prerequisites.map(text => t(text)).join('; ')}`
-                          : ''}
-                      </small>
+                      <InstallationSize pack={item} />
+                      {item.prerequisites?.length ? (
+                        <small className="ia-pack-meta">
+                          {t('Needs:')} {item.prerequisites.map(text => t(text)).join('; ')}
+                        </small>
+                      ) : null}
                     </div>
                     <button
                       className="ia-pack-action"
                       disabled={disabled || loading}
-                      onClick={() => void install(item.domain)}
+                      onClick={() => void change('install', item.domain)}
                     >
                       {t('Install')}
                     </button>
@@ -217,8 +206,16 @@ export function PacksSection({
               </div>
             </>
           )}
-          {!loading && !installable.length && !feedError && (
-            <p>{t('All available domains are installed and up to date.')}</p>
+          {!loading && !installable.length && !hasUpdates && !feedError && (
+            <CatalogEmpty status={status} available={available} />
+          )}
+          {Boolean(status.catalog?.unavailableDomains?.length) && (
+            <>
+              <h3>{t('Not available to install')}</h3>
+              <div className="ia-pack-grid">
+                <UnavailableDomains status={status} />
+              </div>
+            </>
           )}
           {installed.length > 0 && (
             <>
@@ -227,22 +224,21 @@ export function PacksSection({
               </h3>
               <div className="ia-pack-grid">
                 {installed.map(item => {
-                  const update = updateFor(item.domain);
-                  const problems = diagnosticsFor(item.domain);
+                  const update = available.find(entry => entry.domain === item.domain);
+                  const problems = (status.errors || []).filter(
+                    problem => problem.domain === item.domain,
+                  );
                   return (
-                    <div key={item.domain} className="ia-pack-card">
+                    <div key={item.domain} className="ia-pack-card" data-domain={item.domain}>
                       <span className="ia-pack-icon" aria-hidden="true">
-                        <DomainIcon domain={item.domain} size={22} />
+                        <DomainIcon domain={item.domain} size={18} />
                       </span>
                       <div className="ia-pack-body">
                         <div className="ia-pack-title">
                           <b>{t(item.label)}</b>
                           <small>
                             {update?.updateAvailable
-                              ? t('Version {0} → {1}', {
-                                  '0': item.version,
-                                  '1': update.version,
-                                })
+                              ? t('Version {0} → {1}', { '0': item.version, '1': update.version })
                               : `v${item.version}`}
                           </small>
                         </div>
@@ -252,31 +248,25 @@ export function PacksSection({
                             {problem.message}
                           </small>
                         ))}
-                        {item.runtimeState && (
-                          <small
-                            className={`ia-pack-badge ${item.runtimeState === 'ready' ? 'ok' : 'warn'}`}
-                          >
-                            {t(
-                              item.runtimeState === 'ready' ? 'Ready to use' : 'Needs preparation',
-                            )}
-                          </small>
-                        )}
+                        <RuntimeReadiness item={item} />
+                        {update?.updateAvailable && <InstallationSize pack={update} />}
                       </div>
                       <div className="ia-pack-actions">
                         {update?.updateAvailable && (
                           <button
                             className="ia-pack-action primary"
                             disabled={disabled}
-                            onClick={() => void install(item.domain)}
+                            onClick={() => void change('install', item.domain)}
                           >
                             {t('Update')}
                           </button>
                         )}
-                        {item.runtimeState && (
+                        {(item.runtimeState === 'ready' ||
+                          item.runtimeState === 'needs-preparation') && (
                           <button
                             className="ia-pack-action"
                             disabled={disabled}
-                            onClick={() => void repair(item.domain)}
+                            onClick={() => void change('repair', item.domain)}
                           >
                             {t(
                               item.runtimeState === 'ready' ? 'Check / repair' : 'Prepare / retry',
@@ -286,7 +276,7 @@ export function PacksSection({
                         <button
                           className="ia-pack-action"
                           disabled={disabled}
-                          onClick={() => void remove(item.domain)}
+                          onClick={() => void change('remove', item.domain)}
                         >
                           {t('Remove')}
                         </button>

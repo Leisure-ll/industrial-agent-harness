@@ -12,6 +12,10 @@
     }
   },
   "messages": {
+    "The operation finished, but its status could not be saved. Free disk space and check the installed domains.": {
+      "en": "The operation finished, but its status could not be saved. Free disk space and check the installed domains.",
+      "zh-CN": "操作已完成，但无法保存状态。请释放磁盘空间，并检查已安装的领域。"
+    },
     "Copy message": {
       "en": "Copy message",
       "zh-CN": "复制消息"
@@ -3007,6 +3011,310 @@
     "Empty message": {
       "en": "Empty message",
       "zh-CN": "空消息"
+    },
+    "{0} download": {
+      "en": "{0} download",
+      "zh-CN": "下载 {0}"
+    },
+    "{0} installed": {
+      "en": "{0} installed",
+      "zh-CN": "安装后 {0}"
+    },
+    "About {0} installed": {
+      "en": "About {0} installed",
+      "zh-CN": "安装后约 {0}"
+    },
+    "{0} free space needed": {
+      "en": "{0} free space needed",
+      "zh-CN": "需 {0} 可用空间"
+    },
+    "Reusing downloaded files": {
+      "en": "Reusing downloaded files",
+      "zh-CN": "复用已下载文件"
+    },
+    "Online catalog is not configured. Only bundled domains are listed.": {
+      "en": "Online catalog is not configured. Only bundled domains are listed.",
+      "zh-CN": "尚未配置在线目录，目前只列出安装包附带的领域。"
+    },
+    "The online catalog has not been checked yet.": {
+      "en": "The online catalog has not been checked yet.",
+      "zh-CN": "尚未检查在线领域目录。"
+    },
+    "Online catalog connected. Showing domains compatible with this computer.": {
+      "en": "Online catalog connected. Showing domains compatible with this computer.",
+      "zh-CN": "已连接在线目录，正在显示兼容此电脑的领域。"
+    },
+    "The online catalog is unavailable. Bundled domains can still be installed.": {
+      "en": "The online catalog is unavailable. Bundled domains can still be installed.",
+      "zh-CN": "暂时无法连接在线目录，仍可安装随安装包附带的领域。"
+    },
+    "Checking available domains…": {
+      "en": "Checking available domains…",
+      "zh-CN": "正在检查可安装领域…"
+    },
+    "No compatible domains are available from the current sources.": {
+      "en": "No compatible domains are available from the current sources.",
+      "zh-CN": "当前来源中没有兼容此电脑的领域。"
+    },
+    "All compatible domains in the connected catalog are installed and up to date.": {
+      "en": "All compatible domains in the connected catalog are installed and up to date.",
+      "zh-CN": "已连接目录中兼容此电脑的领域均已安装，且为最新版本。"
+    },
+    "All currently installable domains are installed. Online availability has not been confirmed.": {
+      "en": "All currently installable domains are installed. Online availability has not been confirmed.",
+      "zh-CN": "当前可安装的领域均已安装，尚未确认在线目录。"
+    },
+    "External tools need setup": {
+      "en": "External tools need setup",
+      "zh-CN": "外部工具尚需配置"
+    },
+    "Pack installed": {
+      "en": "Pack installed",
+      "zh-CN": "领域包已安装"
+    },
+    "Online catalog is not configured. No domains are bundled for this computer.": {
+      "en": "Online catalog is not configured. No domains are bundled for this computer.",
+      "zh-CN": "尚未配置在线目录，当前安装包没有适用于此电脑的内置领域。"
+    },
+    "Not installable in this release": {
+      "en": "Not installable in this release",
+      "zh-CN": "当前版本暂不可安装"
+    },
+    "Unavailable on this platform": {
+      "en": "Unavailable on this platform",
+      "zh-CN": "当前平台不可用"
+    },
+    "Not offered by the current catalog": {
+      "en": "Not offered by the current catalog",
+      "zh-CN": "当前目录暂未提供"
+    },
+    "Not available to install": {
+      "en": "Not available to install",
+      "zh-CN": "暂不可安装"
+    },
+    "Online catalog is not configured. Bundled domains can be installed.": {
+      "en": "Online catalog is not configured. Bundled domains can be installed.",
+      "zh-CN": "尚未配置在线目录，可安装当前安装包内置的领域。"
+    },
+    "Online catalog connected. Choose domains available for this computer.": {
+      "en": "Online catalog connected. Choose domains available for this computer.",
+      "zh-CN": "在线目录已连接，可选择适用于当前电脑的领域。"
+    },
+    "Online catalog is unavailable. Check your connection and try again.": {
+      "en": "Online catalog is unavailable. Check your connection and try again.",
+      "zh-CN": "在线目录暂不可用，请检查网络后重试。"
+    },
+    "Another process is preparing domains. This page updates automatically; you can close it. Cancel from the process that started installation.": {
+      "en": "Another process is preparing domains. This page updates automatically; you can close it. Cancel from the process that started installation.",
+      "zh-CN": "另一个进程正在准备领域，本页会自动更新，可以关闭。请在启动安装的进程中取消。"
+    },
+    "This installation cannot be cancelled here. Cancel from the process that started it.": {
+      "en": "This installation cannot be cancelled here. Cancel from the process that started it.",
+      "zh-CN": "此处无法取消这次安装，请在启动安装的进程中取消。"
+    },
+    "Domain removed. Existing project files and history are kept.": {
+      "en": "Domain removed. Existing project files and history are kept.",
+      "zh-CN": "领域已移除，已有项目文件和历史记录会保留。"
+    },
+    "Installation finished. Review each domain’s readiness below.": {
+      "en": "Installation finished. Review each domain’s readiness below.",
+      "zh-CN": "安装已完成，请查看下方各领域的就绪状态。"
+    },
+    "Installation cancelled. You can retry; completed domains are kept.": {
+      "en": "Installation cancelled. You can retry; completed domains are kept.",
+      "zh-CN": "安装已取消，可重新尝试；已完成的领域会保留。"
+    },
+    "Installation could not finish. Review the error and try again.": {
+      "en": "Installation could not finish. Review the error and try again.",
+      "zh-CN": "安装未能完成，请查看错误后重试。"
+    },
+    "The previous installation was interrupted. Check or retry the affected domain.": {
+      "en": "The previous installation was interrupted. Check or retry the affected domain.",
+      "zh-CN": "上次安装意外中断，请检查或重新安装受影响的领域。"
+    },
+    "Checking available space…": {
+      "en": "Checking available space…",
+      "zh-CN": "正在检查可用空间…"
+    },
+    "Downloading files…": {
+      "en": "Downloading files…",
+      "zh-CN": "正在下载文件…"
+    },
+    "Verifying downloaded files…": {
+      "en": "Verifying downloaded files…",
+      "zh-CN": "正在校验下载文件…"
+    },
+    "Opening the installer…": {
+      "en": "Opening the installer…",
+      "zh-CN": "正在打开安装镜像…"
+    },
+    "Extracting files…": {
+      "en": "Extracting files…",
+      "zh-CN": "正在解压文件…"
+    },
+    "Copying application files…": {
+      "en": "Copying application files…",
+      "zh-CN": "正在复制应用文件…"
+    },
+    "Preparing files…": {
+      "en": "Preparing files…",
+      "zh-CN": "正在准备文件…"
+    },
+    "Checking executable readiness…": {
+      "en": "Checking executable readiness…",
+      "zh-CN": "正在检查程序是否可运行…"
+    },
+    "Activating the domain…": {
+      "en": "Activating the domain…",
+      "zh-CN": "正在启用领域…"
+    },
+    "Starting installation…": {
+      "en": "Starting installation…",
+      "zh-CN": "正在开始安装…"
+    },
+    "Cancelling and cleaning up…": {
+      "en": "Cancelling and cleaning up…",
+      "zh-CN": "正在取消并清理临时文件…"
+    },
+    "Cancelling…": {
+      "en": "Cancelling…",
+      "zh-CN": "正在取消…"
+    },
+    "Cancel installation": {
+      "en": "Cancel installation",
+      "zh-CN": "取消安装"
+    },
+    "Installation progress": {
+      "en": "Installation progress",
+      "zh-CN": "安装进度"
+    },
+    "Waiting for download…": {
+      "en": "Waiting for download…",
+      "zh-CN": "正在等待下载…"
+    },
+    "{0}/s": {
+      "en": "{0}/s",
+      "zh-CN": "{0}/秒"
+    },
+    "About {0} sec remaining": {
+      "en": "About {0} sec remaining",
+      "zh-CN": "预计还需 {0} 秒"
+    },
+    "About {0} min remaining": {
+      "en": "About {0} min remaining",
+      "zh-CN": "预计还需 {0} 分钟"
+    },
+    "Preparation may take several minutes. Keep the app open.": {
+      "en": "Preparation may take several minutes. Keep the app open.",
+      "zh-CN": "准备过程可能需要几分钟，请保持应用开启。"
+    },
+    "You can leave this page. Installation continues while the app is open.": {
+      "en": "You can leave this page. Installation continues while the app is open.",
+      "zh-CN": "可以离开此页面，保持应用开启即可继续安装。"
+    },
+    "{0} available on disk": {
+      "en": "{0} available on disk",
+      "zh-CN": "磁盘可用 {0}"
+    },
+    "Cancel installation and close": {
+      "en": "Cancel installation and close",
+      "zh-CN": "取消安装并关闭"
+    },
+    "Your selected domains are installed": {
+      "en": "Your selected domains are installed",
+      "zh-CN": "所选领域已安装"
+    },
+    "Configure your model connection, then create a project to start a task.": {
+      "en": "Configure your model connection, then create a project to start a task.",
+      "zh-CN": "配置模型连接后，创建项目即可开始任务。"
+    },
+    "Configure model": {
+      "en": "Configure model",
+      "zh-CN": "配置模型"
+    },
+    "Version {0}": {
+      "en": "Version {0}",
+      "zh-CN": "版本 {0}"
+    },
+    "{0} domains selected": {
+      "en": "{0} domains selected",
+      "zh-CN": "已选择 {0} 个领域"
+    },
+    "Not enough space: {0} available. Free disk space and check again.": {
+      "en": "Not enough space: {0} available. Free disk space and check again.",
+      "zh-CN": "空间不足：当前可用 {0}。请释放磁盘空间后重新检查。"
+    },
+    "Only {0} is free. Installation will check reusable files before deciding if more space is needed.": {
+      "en": "Only {0} is free. Installation will check reusable files before deciding if more space is needed.",
+      "zh-CN": "当前可用空间为 {0}。安装时会先检查可复用文件，再判断是否需要释放更多空间。"
+    },
+    "Preparation finished": {
+      "en": "Preparation finished",
+      "zh-CN": "准备已完成"
+    },
+    "Domain Pack archive hash mismatch.": {
+      "en": "Domain Pack archive hash mismatch.",
+      "zh-CN": "领域包文件校验失败，请重新下载。"
+    },
+    "Runtime archive verification failed.": {
+      "en": "Runtime archive verification failed.",
+      "zh-CN": "运行程序安装文件校验失败，请重新下载。"
+    },
+    "Download timed out. Please retry.": {
+      "en": "Download timed out. Please retry.",
+      "zh-CN": "下载超时，请重试。"
+    },
+    "Download stalled. Please retry.": {
+      "en": "Download stalled. Please retry.",
+      "zh-CN": "下载已停止响应，请重试。"
+    },
+    "Cannot inspect installation disk space.": {
+      "en": "Cannot inspect installation disk space.",
+      "zh-CN": "无法读取安装位置的可用空间，请检查目录权限后重试。"
+    },
+    "EDA skills, viewers and the Chip MCP service": {
+      "en": "EDA skills, viewers and the Chip MCP service",
+      "zh-CN": "EDA 技能、查看器与芯片 MCP 服务"
+    },
+    "Local RTL verification requires Python 3.13, Verilator and a C++ toolchain; prepare these separately": {
+      "en": "Local RTL verification requires Python 3.13, Verilator and a C++ toolchain; prepare these separately",
+      "zh-CN": "本地 RTL 验证需要 Python 3.13、Verilator 和 C++ 工具链，请单独准备"
+    },
+    "Other EDA flows require their own tools, container images and PDK; installing this Pack does not install the complete EDA environment": {
+      "en": "Other EDA flows require their own tools, container images and PDK; installing this Pack does not install the complete EDA environment",
+      "zh-CN": "其他 EDA 流程需要对应工具、容器镜像和 PDK；此领域包不包含完整 EDA 环境"
+    },
+    "Public KiCad rectangular board and footprint edits with DRC and task constraints": {
+      "en": "Public KiCad rectangular board and footprint edits with DRC and task constraints",
+      "zh-CN": "使用公开 KiCad 工具编辑矩形电路板与封装，并检查设计规则和任务约束"
+    },
+    "KiCad 10.0.6 and its bundled pcbnew Python are prepared automatically by a compatible Harness on Apple Silicon": {
+      "en": "KiCad 10.0.6 and its bundled pcbnew Python are prepared automatically by a compatible Harness on Apple Silicon",
+      "zh-CN": "在 Apple Silicon 上，兼容的 Harness 会自动准备 KiCad 10.0.6 及其 pcbnew Python"
+    },
+    "Scene transforms, BoxMesh geometry and independent Godot structural verification": {
+      "en": "Scene transforms, BoxMesh geometry and independent Godot structural verification",
+      "zh-CN": "场景变换、BoxMesh 几何编辑与独立 Godot 结构验证"
+    },
+    "Godot 4.7.2 is prepared automatically by a compatible Harness on Apple Silicon; export templates are separate and not needed for the qualified structural task": {
+      "en": "Godot 4.7.2 is prepared automatically by a compatible Harness on Apple Silicon; export templates are separate and not needed for the qualified structural task",
+      "zh-CN": "在 Apple Silicon 上，兼容的 Harness 会自动准备 Godot 4.7.2；已验收的结构任务无需另行下载导出模板"
+    },
+    "FreeCAD 1.1.4 is prepared automatically on Apple Silicon": {
+      "en": "FreeCAD 1.1.4 is prepared automatically on Apple Silicon",
+      "zh-CN": "在 Apple Silicon 上自动准备 FreeCAD 1.1.4"
+    },
+    "Remote CUDA Compiler and RTX 4090 Evaluator MCP with kernel optimization Skill": {
+      "en": "Remote CUDA Compiler and RTX 4090 Evaluator MCP with kernel optimization Skill",
+      "zh-CN": "远程 CUDA 编译器、RTX 4090 评估 MCP 服务与内核优化技能"
+    },
+    "Developer configuration: both authenticated remote Compiler and Evaluator MCP services and a matching fixed reference model": {
+      "en": "Developer configuration: both authenticated remote Compiler and Evaluator MCP services and a matching fixed reference model",
+      "zh-CN": "需开发者配置：已认证的远程编译器与评估器 MCP 服务，以及配套的固定参考模型"
+    },
+    "Remote clients need no local GPU; native service deployment and credentials are separate administrator prerequisites": {
+      "en": "Remote clients need no local GPU; native service deployment and credentials are separate administrator prerequisites",
+      "zh-CN": "远程客户端无需本地 GPU；原生服务部署及访问凭据需由管理员另行准备"
     }
   }
 }

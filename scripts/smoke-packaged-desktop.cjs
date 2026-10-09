@@ -83,6 +83,11 @@ if (process.argv.includes('--domains')) {
       .filter(item => ['chip', 'pcb', 'godot'].includes(item.id))
       .map(({ id, label }) => ({ id, label })),
   );
+  environment.HARNESS_PACKAGED_SMOKE_STORE = path.join(fixture, 'store');
+  require('./runtime-archive-cache.cjs').stageRuntimeArchiveCache(
+    environment.HARNESS_PACKAGED_SMOKE_STORE,
+    catalog.packs.flatMap(item => item.runtimeAssets || []),
+  );
   const config = path.join(fixture, 'pack-feed.json');
   fs.writeFileSync(
     config,
@@ -98,7 +103,7 @@ if (process.argv.includes('--domains')) {
 }
 const result = spawnSync(executable, ['--packaged-smoke'], {
   encoding: 'utf8',
-  timeout: 30000,
+  timeout: process.argv.includes('--domains') ? 30 * 60 * 1000 : 30000,
   env: environment,
 });
 if (fixture) fs.rmSync(fixture, { recursive: true, force: true });
@@ -111,6 +116,31 @@ if (
   process.stderr.write(result.stderr || '');
   throw result.error || Error(`Packaged Desktop first-run smoke failed: ${result.status}`);
 }
+const firstRun = result.stdout.split('\n').flatMap(line => {
+  try {
+    const value = JSON.parse(line);
+    return Array.isArray(value.firstRunDomains) ? [value] : [];
+  } catch {
+    return [];
+  }
+})[0];
+require('node:assert/strict').deepEqual(
+  firstRun?.firstRunDomains,
+  require('@zhiman-bj/industrial-domain-packs')
+    .consumerMetadata()
+    .domains.map(item => item.id)
+    .sort(),
+  'Every declared domain must be visible, with unavailable domains explained.',
+);
+const reports = path.join(root, 'dist/ci-reports');
+fs.mkdirSync(reports, { recursive: true });
+fs.writeFileSync(
+  path.join(
+    reports,
+    process.argv.includes('--domains') ? 'desktop-domain-install.json' : 'desktop-first-run.json',
+  ),
+  JSON.stringify({ ...firstRun, screenshot, executable, passed: true }, null, 2),
+);
 process.stdout.write(
   `${process.argv.includes('--domains') ? 'Platform-qualified Domain installation passed' : 'First-run Domain selection passed'}: ${screenshot}\n`,
 );

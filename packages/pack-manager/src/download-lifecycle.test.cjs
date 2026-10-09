@@ -117,6 +117,7 @@ test(
       const stalled=await select('1.2.0','stall'),progress=[];
       await assert.rejects(manager.install(stalled,{stallMs:1000,onProgress:p=>progress.push(p)}),/stalled/);
       assert.ok(progress.some(p=>p.received>0&&p.total===stalled.size));
+      assert.ok(progress.some(p=>p.bytesPerSecond>0&&Number.isFinite(p.etaSeconds)&&p.etaSeconds>=0));
       const controller=new AbortController();
       await assert.rejects(manager.install(await select('1.2.0','cancel'),{signal:controller.signal,onProgress:p=>{if(p.received>0)controller.abort(Error('USER_CANCELLED'));}}),/USER_CANCELLED/);
       assert.equal(manager.list()[0].version,'1.1.0');

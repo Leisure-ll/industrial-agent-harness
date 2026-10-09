@@ -1,4 +1,6 @@
-const { Transfer } = require('./transfer.cjs');
+const { Transfer, TransferProgress } = require('./transfer.cjs');
+const { availableSpace, footprint, checkSpace } = require('./install-space.cjs');
+const { inspectRuntimeZip } = require('./runtime-zip.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -6,6 +8,17 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+// Footprint metadata does not change executable identity or invalidate old receipts.
+function declarationHash(asset) {
+  const { installedSize, ...execution } = asset;
+  return hash(Buffer.from(JSON.stringify(execution)));
+}
+function matchesDeclaration(receipt, asset) {
+  return (
+    receipt.declarationHash === declarationHash(asset) ||
+    receipt.declarationHash === hash(Buffer.from(JSON.stringify(asset)))
+  );
+}
 const safe = value =>
   typeof value === 'string' &&
   /^[A-Za-z0-9._ -]+(?:\/[A-Za-z0-9._ -]+)*$/.test(value) &&
@@ -21,13 +34,19 @@ function validateRuntimeAssets(assets = []) {
       !/^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.-]+)?$/.test(asset.version || '') ||
       typeof asset.label !== 'string' ||
       !asset.label ||
-      asset.type !== 'macos-app-dmg' ||
+      !['macos-app-dmg', 'macos-app-zip'].includes(asset.type) ||
       asset.platform !== 'darwin-arm64' ||
       !/^https:\/\//.test(asset.url || '') ||
       !/^[a-f0-9]{64}$/.test(asset.sha256 || '') ||
       !Number.isSafeInteger(asset.size) ||
       asset.size <= 0 ||
       asset.size > 2 * 1024 ** 3 ||
+      (asset.installedSize != null &&
+        (!Number.isSafeInteger(asset.installedSize) ||
+          asset.installedSize < 1 ||
+          asset.installedSize > 32 * 1024 ** 3)) ||
+      (asset.archiveApp != null &&
+        (!safe(asset.archiveApp) || !asset.archiveApp.endsWith('.app'))) ||
       !safe(asset.app) ||
       asset.app.includes('/') ||
       !asset.app.endsWith('.app') ||
@@ -47,21 +66,58 @@ function validateRuntimeAssets(assets = []) {
     const url = new URL(asset.url);
     if (url.username || url.password) throw Error('Runtime URL cannot contain credentials.');
     if (
-      !asset.profileEnvironment ||
-      typeof asset.profileEnvironment !== 'object' ||
-      Array.isArray(asset.profileEnvironment) ||
-      Object.entries(asset.profileEnvironment).some(
-        ([key, value]) =>
-          !/^[A-Z][A-Z0-9_]+$/.test(key) ||
-          ['PATH', 'HOME', 'TMPDIR', 'NODE_OPTIONS'].includes(key) ||
-          !['home', 'data', 'temp'].includes(value),
-      )
+      asset.profileEnvironment != null &&
+      (typeof asset.profileEnvironment !== 'object' ||
+        Array.isArray(asset.profileEnvironment) ||
+        Object.entries(asset.profileEnvironment).some(
+          ([key, value]) =>
+            !/^[A-Z][A-Z0-9_]+$/.test(key) ||
+            ['PATH', 'HOME', 'TMPDIR', 'NODE_OPTIONS'].includes(key) ||
+            !['home', 'data', 'temp'].includes(value),
+        ))
     )
       throw Error('Invalid runtime probe profile.');
-    ids.add(asset.id);
     variables.add(asset.environment);
+    if (
+      asset.environmentExecutables != null &&
+      (typeof asset.environmentExecutables !== 'object' ||
+        Array.isArray(asset.environmentExecutables) ||
+        Object.keys(asset.environmentExecutables).length > 8)
+    )
+      throw Error('Invalid runtime executable environment.');
+    for (const [variable, executable] of Object.entries(asset.environmentExecutables || {})) {
+      if (
+        !/^INDUSTRIAL_HARNESS_[A-Z0-9_]+$/.test(variable) ||
+        variables.has(variable) ||
+        !safe(executable) ||
+        !executable.startsWith('Contents/')
+      )
+        throw Error('Invalid runtime executable environment.');
+      variables.add(variable);
+    }
+    ids.add(asset.id);
   }
   return assets;
+}
+function validateAppTree(directory) {
+  const root = fs.realpathSync(directory);
+  let bytes = 0,
+    count = 0;
+  const visit = file => {
+    if (++count > 200000) throw Error('Runtime app contains too many files.');
+    const stat = fs.lstatSync(file);
+    if (stat.isSymbolicLink()) {
+      const resolved = fs.realpathSync(file);
+      if (resolved !== root && !resolved.startsWith(root + path.sep))
+        throw Error('Runtime app contains an escaping symbolic link.');
+    } else if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(file)) visit(path.join(file, entry));
+    } else if (stat.isFile()) bytes += stat.size;
+    else throw Error('Runtime app contains a special file.');
+    if (bytes > 32 * 1024 ** 3) throw Error('Runtime app exceeds installation size limit.');
+  };
+  visit(root);
+  return bytes;
 }
 async function fileHash(file) {
   const digest = crypto.createHash('sha256');
@@ -69,35 +125,81 @@ async function fileHash(file) {
   return digest.digest('hex');
 }
 function run(command, args, { cwd, env, signal, timeout = 60000 } = {}) {
+  signal?.throwIfAborted();
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env, signal, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(command, args, {
+      cwd,
+      env,
+      detached: process.platform !== 'win32',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     let output = '',
-      overflow = false,
-      timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill('SIGKILL');
-    }, timeout);
-    const receive = bytes => {
-      output += bytes;
-      if (output.length > 1024 * 1024) {
-        overflow = true;
-        child.kill('SIGKILL');
+      failure,
+      settled = false,
+      forceKill;
+    const kill = mode => {
+      if (!child.pid) return;
+      try {
+        if (process.platform === 'win32') child.kill(mode);
+        else process.kill(-child.pid, mode);
+      } catch (error) {
+        if (error.code !== 'ESRCH') child.kill(mode);
       }
+    };
+    const stop = error => {
+      if (failure) return;
+      failure = error;
+      kill('SIGTERM');
+      // Settle only on close: installers must finish exiting before their
+      // destination is removed or their image is detached.
+      forceKill = setTimeout(() => kill('SIGKILL'), 5000);
+      forceKill.unref?.();
+    };
+    const aborted = () => stop(signal.reason || Error('Runtime preparation cancelled.'));
+    signal?.addEventListener('abort', aborted, { once: true });
+    if (signal?.aborted) aborted();
+    const timer = setTimeout(
+      () => stop(Error(`Runtime preparation timed out after ${timeout / 1000} seconds.`)),
+      timeout,
+    );
+    const cleanup = () => {
+      clearTimeout(timer);
+      clearTimeout(forceKill);
+      signal?.removeEventListener('abort', aborted);
+    };
+    const receive = bytes => {
+      if (output.length > 1024 * 1024) return;
+      output += bytes;
+      if (output.length > 1024 * 1024)
+        stop(Error('Runtime preparation output exceeded its limit.'));
     };
     child.stdout.on('data', receive);
     child.stderr.on('data', receive);
     child.on('error', error => {
-      clearTimeout(timer);
-      reject(error);
+      failure ||= error;
+      if (!child.pid && !settled) {
+        settled = true;
+        cleanup();
+        reject(error);
+      }
     });
     child.on('close', code => {
-      clearTimeout(timer);
-      if (timedOut) reject(Error(`Runtime preparation timed out after ${timeout / 1000} seconds.`));
-      else if (code === 0 && !overflow) resolve(output);
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (failure) reject(failure);
+      else if (code === 0) resolve(output);
       else reject(Error(`Runtime preparation failed (${code}): ${output.slice(-2000)}`));
     });
   });
+}
+function sourceIsMounted(directory) {
+  // Reading the mountpoint's own metadata never traverses its contents. Images
+  // have a distinct device; an unexpected link is never safe to remove.
+  const info = fs.lstatSync(directory, { throwIfNoEntry: false });
+  return Boolean(
+    info && (info.isSymbolicLink() || info.dev !== fs.statSync(path.dirname(directory)).dev),
+  );
 }
 async function download(asset, target, { signal, onProgress }) {
   const temporary = target + '.' + crypto.randomUUID() + '.partial';
@@ -106,7 +208,8 @@ async function download(asset, target, { signal, onProgress }) {
     try {
       const response = await transfer.response(asset.url);
       const fd = fs.openSync(temporary, 'wx', 0o600),
-        digest = crypto.createHash('sha256');
+        digest = crypto.createHash('sha256'),
+        progress = new TransferProgress(asset.size);
       let received = 0,
         reported = 0;
       try {
@@ -120,7 +223,7 @@ async function download(asset, target, { signal, onProgress }) {
           digest.update(chunk);
           fs.writeFileSync(fd, chunk);
           if (received - reported >= 1024 * 1024 || received === asset.size) {
-            onProgress({ phase: 'downloading', received, total: asset.size });
+            onProgress(progress.update(received));
             reported = received;
           }
         }
@@ -141,16 +244,66 @@ class RuntimeAssetManager {
     platform = `${process.platform}-${process.arch}`,
     command = run,
     fetchArchive = download,
+    space = availableSpace,
   } = {}) {
     if (!directory) throw Error('Runtime asset store is required.');
     this.directory = path.join(path.resolve(directory), '.runtime-assets');
     this.platform = platform;
     this.command = command;
     this.fetchArchive = fetchArchive;
+    this.space = space;
   }
   location(asset) {
     validateRuntimeAssets([asset]);
-    return path.join(this.directory, asset.id, `${asset.version}-${asset.sha256}`);
+    const base = path.join(this.directory, asset.id, `${asset.version}-${asset.sha256}`);
+    try {
+      const receipt = JSON.parse(fs.readFileSync(path.join(base, 'receipt.json'), 'utf8'));
+      if (
+        !receipt ||
+        typeof receipt !== 'object' ||
+        !/^[a-f0-9]{64}$/.test(receipt.declarationHash || '')
+      )
+        return base;
+      // A changed probe/environment/app recipe must not replace the runtime used
+      // by an old active Pack before the new Pack itself can be activated.
+      if (!matchesDeclaration(receipt, asset)) return `${base}-${declarationHash(asset)}`;
+    } catch (error) {
+      if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error;
+    }
+    return base;
+  }
+  estimate(assets = [], { verifiedCache = new Set() } = {}) {
+    validateRuntimeAssets(assets);
+    let downloadBytes = 0,
+      installedBytes = 0,
+      estimated = false,
+      cacheReused = false;
+    for (const asset of assets) {
+      if (this.status([asset])[0].ready) continue;
+      if (verifiedCache.has(asset.sha256)) cacheReused = true;
+      else downloadBytes += asset.size;
+      installedBytes += asset.installedSize || Math.min(32 * 1024 ** 3, asset.size * 8);
+      estimated ||= asset.installedSize == null;
+    }
+    return {
+      ...footprint(downloadBytes, installedBytes, { estimated, cacheReused }),
+      availableBytes: this.space(this.directory),
+    };
+  }
+  executables(asset, location) {
+    const root = fs.realpathSync(path.join(location, asset.app));
+    const entries = { [asset.environment]: asset.executable, ...asset.environmentExecutables };
+    return Object.fromEntries(
+      Object.entries(entries).map(([variable, relative]) => {
+        const executable = path.join(location, asset.app, relative);
+        if (
+          !fs.realpathSync(executable).startsWith(root + path.sep) ||
+          !fs.statSync(executable).isFile()
+        )
+          throw Error('Runtime executable escaped its app or is not a file.');
+        return [variable, executable];
+      }),
+    );
   }
   status(assets = []) {
     validateRuntimeAssets(assets);
@@ -161,11 +314,18 @@ class RuntimeAssetManager {
         const location = this.location(asset),
           receipt = JSON.parse(fs.readFileSync(path.join(location, 'receipt.json'), 'utf8'));
         const executable = path.join(location, asset.app, asset.executable);
+        const executables = this.executables(asset, location);
         if (
+          fs.existsSync(path.join(location, '.needs-repair')) ||
           receipt.sha256 !== asset.sha256 ||
-          receipt.declarationHash !== hash(Buffer.from(JSON.stringify(asset))) ||
+          !matchesDeclaration(receipt, asset) ||
           !fs.realpathSync(executable).startsWith(fs.realpathSync(location) + path.sep) ||
-          receipt.executableSha256 !== hash(fs.readFileSync(executable))
+          receipt.executableSha256 !== hash(fs.readFileSync(executable)) ||
+          Object.entries(executables).some(
+            ([variable, file]) =>
+              variable !== asset.environment &&
+              receipt.executableHashes?.[variable] !== hash(fs.readFileSync(file)),
+          )
         )
           throw Error('Runtime installation changed.');
         return {
@@ -174,6 +334,7 @@ class RuntimeAssetManager {
           version: asset.version,
           ready: true,
           executable,
+          executables,
           checkedAt: receipt.checkedAt,
         };
       } catch (error) {
@@ -190,7 +351,11 @@ class RuntimeAssetManager {
   environment(assets = []) {
     const statuses = this.status(assets);
     return Object.fromEntries(
-      assets.map((asset, index) => [asset.environment, statuses[index].executable || '']),
+      assets.flatMap((asset, index) =>
+        Object.keys({ [asset.environment]: asset.executable, ...asset.environmentExecutables }).map(
+          variable => [variable, statuses[index].executables?.[variable] || ''],
+        ),
+      ),
     );
   }
   async probe(asset, location, { signal } = {}) {
@@ -212,7 +377,7 @@ class RuntimeAssetManager {
             PYTHONDONTWRITEBYTECODE: '1',
             QT_QPA_PLATFORM: 'offscreen',
             ...Object.fromEntries(
-              Object.entries(asset.profileEnvironment).map(([key, value]) => [
+              Object.entries(asset.profileEnvironment || {}).map(([key, value]) => [
                 key,
                 value === 'home' ? profile : path.join(profile, value),
               ]),
@@ -249,8 +414,8 @@ class RuntimeAssetManager {
       }
       throw Error('Runtime preparation is already in progress.');
     }
-    fs.writeFileSync(fd, JSON.stringify({ pid: process.pid }));
     try {
+      fs.writeFileSync(fd, JSON.stringify({ pid: process.pid }));
       for (const asset of assets) {
         signal?.throwIfAborted();
         if (asset.platform !== this.platform)
@@ -264,6 +429,7 @@ class RuntimeAssetManager {
           }
           report({ phase: 'checking' });
           try {
+            validateAppTree(path.join(target, asset.app));
             await this.command(
               '/usr/bin/codesign',
               ['--verify', '--deep', '--strict', path.join(target, asset.app)],
@@ -274,49 +440,95 @@ class RuntimeAssetManager {
             continue;
           } catch (error) {
             signal?.throwIfAborted();
-            fs.rmSync(path.join(target, 'receipt.json'), { force: true });
+            // Preserve the files but do not report failed native integrity as ready.
+            fs.writeFileSync(path.join(target, '.needs-repair'), String(error.message), {
+              mode: 0o600,
+            });
           }
         }
         const cache = path.join(this.directory, 'cache');
         fs.mkdirSync(cache, { recursive: true });
-        const archive = path.join(cache, asset.sha256 + '.dmg');
-        report({ phase: 'checking' });
+        const archive = path.join(
+          cache,
+          asset.sha256 + (asset.type === 'macos-app-zip' ? '.zip' : '.dmg'),
+        );
+        report({ phase: 'verifying' });
         if (
           fs.existsSync(archive) &&
           (fs.statSync(archive).size !== asset.size || (await fileHash(archive)) !== asset.sha256)
         )
           fs.rmSync(archive);
-        if (!fs.existsSync(archive)) {
+        const cacheReused = fs.existsSync(archive);
+        const installedBytes = asset.installedSize || Math.min(32 * 1024 ** 3, asset.size * 8);
+        const estimate = footprint(cacheReused ? 0 : asset.size, installedBytes, {
+          cacheReused,
+          estimated: asset.installedSize == null,
+        });
+        const space = checkSpace(this.directory, estimate, this.space);
+        report({ phase: 'checking-space', ...space });
+        signal?.throwIfAborted();
+        if (!cacheReused) {
           report({ phase: 'downloading', received: 0, total: asset.size });
           await this.fetchArchive(asset, archive, { signal, onProgress: report });
         }
+        report({ phase: 'verifying', cacheReused });
         // Always verify even cached input before mounting or executing anything.
         if (fs.statSync(archive).size !== asset.size || (await fileHash(archive)) !== asset.sha256)
           throw Error('Runtime archive verification failed.');
+        signal?.throwIfAborted();
         const parent = path.dirname(target);
         fs.mkdirSync(parent, { recursive: true });
         const staging = fs.mkdtempSync(path.join(parent, '.staging-'));
-        const mount = fs.realpathSync(
-          fs.mkdtempSync(path.join(os.tmpdir(), 'harness-runtime-mount-')),
-        );
+        const mount = fs.realpathSync(fs.mkdtempSync(path.join(parent, '.source-')));
         const backup = target + '.previous-' + crypto.randomUUID();
-        let mounted = false;
+        let mountAttempted = false;
         try {
-          report({ phase: 'installing' });
-          await this.command(
-            '/usr/bin/hdiutil',
-            ['attach', '-readonly', '-nobrowse', '-mountpoint', mount, archive],
-            { signal, timeout: 5 * 60 * 1000 },
-          );
-          mounted = true;
-          const source = fs.realpathSync(path.join(mount, asset.app));
-          if (source !== path.join(mount, asset.app) || !fs.statSync(source).isDirectory())
+          if (asset.type === 'macos-app-dmg') {
+            report({ phase: 'mounting' });
+            mountAttempted = true;
+            await this.command(
+              '/usr/bin/hdiutil',
+              ['attach', '-readonly', '-nobrowse', '-mountpoint', mount, archive],
+              { signal, timeout: 5 * 60 * 1000 },
+            );
+          } else {
+            const inspection = inspectRuntimeZip(
+              archive,
+              Math.max(installedBytes * 1.1, installedBytes + 64 * 1024 ** 2),
+            );
+            checkSpace(this.directory, footprint(0, inspection.installedBytes), this.space);
+            report({ phase: 'extracting' });
+            await this.command('/usr/bin/ditto', ['-x', '-k', archive, mount], {
+              signal,
+              timeout: 5 * 60 * 1000,
+            });
+          }
+          const expected = path.join(mount, asset.archiveApp || asset.app);
+          const source = fs.realpathSync(expected);
+          if (source !== expected || !fs.statSync(source).isDirectory())
             throw Error('Unexpected runtime app bundle.');
-          await this.command('/usr/bin/ditto', [source, path.join(staging, asset.app)], {
-            signal,
-            timeout: 5 * 60 * 1000,
-          });
+          // ditto preserves links encountered inside a directory. The source
+          // argument itself was resolved above, so validate copied links locally
+          // before signature checks or execution; walking compressed DMGs twice
+          // otherwise causes repeated random decompression of large runtimes.
+          checkSpace(
+            this.directory,
+            footprint(0, asset.type === 'macos-app-dmg' ? installedBytes : 0),
+            this.space,
+          );
+          signal?.throwIfAborted();
+          if (asset.type === 'macos-app-dmg') {
+            report({ phase: 'copying' });
+            await this.command('/usr/bin/ditto', [source, path.join(staging, asset.app)], {
+              signal,
+              timeout: 5 * 60 * 1000,
+            });
+          } else fs.renameSync(source, path.join(staging, asset.app));
           report({ phase: 'checking' });
+          const copiedBytes = validateAppTree(path.join(staging, asset.app));
+          if (copiedBytes > Math.max(installedBytes * 1.1, installedBytes + 64 * 1024 ** 2))
+            throw Error('Runtime app exceeds declared installation size.');
+          signal?.throwIfAborted();
           await this.command(
             '/usr/bin/codesign',
             ['--verify', '--deep', '--strict', path.join(staging, asset.app)],
@@ -324,6 +536,7 @@ class RuntimeAssetManager {
           );
           await this.probe(asset, staging, { signal });
           const executable = path.join(staging, asset.app, asset.executable);
+          const executables = this.executables(asset, staging);
           if (!fs.realpathSync(executable).startsWith(fs.realpathSync(staging) + path.sep))
             throw Error('Runtime executable escaped its app.');
           fs.writeFileSync(
@@ -331,13 +544,21 @@ class RuntimeAssetManager {
             JSON.stringify({
               schemaVersion: 1,
               sha256: asset.sha256,
-              declarationHash: hash(Buffer.from(JSON.stringify(asset))),
+              declarationHash: declarationHash(asset),
               executableSha256: hash(fs.readFileSync(executable)),
+              executableHashes: Object.fromEntries(
+                Object.entries(executables).map(([variable, file]) => [
+                  variable,
+                  hash(fs.readFileSync(file)),
+                ]),
+              ),
               checkedAt: new Date().toISOString(),
               url: asset.url,
             }),
             { flag: 'wx', mode: 0o600 },
           );
+          signal?.throwIfAborted();
+          report({ phase: 'activating' });
           signal?.throwIfAborted();
           if (fs.existsSync(target)) fs.renameSync(target, backup);
           try {
@@ -350,11 +571,23 @@ class RuntimeAssetManager {
           report({ phase: 'ready' });
         } finally {
           try {
-            if (mounted)
-              await this.command('/usr/bin/hdiutil', ['detach', mount], { timeout: 60000 });
+            if (mountAttempted) {
+              // Attach can mount successfully and still reject during abort.
+              // Always attempt bounded detach of our own mountpoint.
+              try {
+                await this.command('/usr/bin/hdiutil', ['detach', mount], { timeout: 60000 });
+              } catch (error) {
+                if (sourceIsMounted(mount))
+                  throw Error(`Runtime image could not be detached: ${error.message}`);
+              }
+            }
           } finally {
             fs.rmSync(staging, { recursive: true, force: true });
-            fs.rmdirSync(mount);
+            if (!sourceIsMounted(mount)) fs.rmSync(mount, { recursive: true, force: true });
+            else
+              throw Error(
+                'Runtime image is still mounted; its contents were preserved for recovery.',
+              );
           }
         }
       }
@@ -365,4 +598,4 @@ class RuntimeAssetManager {
     }
   }
 }
-module.exports = { RuntimeAssetManager, validateRuntimeAssets, fileHash };
+module.exports = { RuntimeAssetManager, validateRuntimeAssets, fileHash, run };

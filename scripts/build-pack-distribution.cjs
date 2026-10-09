@@ -112,6 +112,11 @@ for (const declaration of metadata.domains) {
     sha256: digest(archive),
     size: archive.length,
     runtimeDownloadSize: bundle.runtimeAssets.reduce((sum, asset) => sum + asset.size, 0),
+    runtimeInstalledSize: bundle.runtimeAssets.reduce(
+      (sum, asset) => sum + (asset.installedSize || asset.size * 4),
+      0,
+    ),
+    runtimeAssets: bundle.runtimeAssets,
     url: file,
     platforms,
   });

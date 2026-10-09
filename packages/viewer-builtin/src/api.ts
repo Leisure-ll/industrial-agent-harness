@@ -210,52 +210,13 @@ export interface ViewerHostApi {
     stage?: string;
   }): Promise<BrokerResult>;
   domains(): Promise<DomainOption[]>;
-  domainStatus(): Promise<{
-    managed: boolean;
-    catalogWarning?: string;
-    operation?: {
-      active: boolean;
-      progress: { label: string; phase: string; received?: number; total?: number } | null;
-    } | null;
-    installed: Array<{
-      domain: string;
-      version: string;
-      label: string;
-      emoji: string;
-      summary?: string;
-      prerequisites?: string[];
-      runtimeState?: 'ready' | 'needs-preparation' | null;
-    }>;
-    errors: Array<{ domain: string; version: string; message: string }>;
-  }>;
-  domainAvailable(): Promise<
-    Array<{
-      domain: string;
-      version: string;
-      label?: string;
-      emoji?: string;
-      summary?: string;
-      prerequisites?: string[];
-      size: number;
-      runtimeDownloadSize?: number;
-      updateAvailable?: boolean;
-      platforms: string[];
-    }>
-  >;
+  domainStatus(): Promise<DomainInstallationStatus>;
+  domainAvailable(): Promise<AvailableDomainPack[]>;
   domainCancel(): Promise<{ cancelled: boolean }>;
   domainInstall(domains: string[]): Promise<{ installed: DomainOption[] }>;
   domainRemove(domain: string): Promise<{ installed: DomainOption[] }>;
   domainRepair(domain: string): Promise<{ installed: DomainOption[] }>;
-  onDomainProgress(
-    callback: (progress: {
-      domain: string;
-      label: string;
-      phase: 'downloading' | 'installing' | 'checking' | 'ready' | 'finished';
-      active?: boolean;
-      received?: number;
-      total?: number;
-    }) => void,
-  ): () => void;
+  onDomainProgress(callback: (progress: DomainInstallProgress) => void): () => void;
   coreUpdateStatus(): Promise<CoreUpdateState>;
   coreUpdateCheck(): Promise<CoreUpdateState>;
   coreUpdateInstall(): Promise<void>;
@@ -426,6 +387,86 @@ export interface GuiPluginState {
     accessibility: 'granted' | 'denied' | 'unknown';
   } | null;
   error?: string;
+}
+export interface InstallationFootprint {
+  downloadBytes: number;
+  installedBytes: number;
+  requiredBytes: number;
+  availableBytes?: number;
+  cacheReused?: boolean;
+  estimated?: boolean;
+}
+export interface DomainInstallProgress {
+  domain?: string;
+  label: string;
+  phase: string;
+  active?: boolean;
+  received?: number;
+  total?: number;
+  bytesPerSecond?: number;
+  etaSeconds?: number;
+  requiredBytes?: number;
+  availableBytes?: number;
+  downloadBytes?: number;
+  installedBytes?: number;
+  cacheReused?: boolean;
+}
+export interface InstalledDomainPack {
+  domain: string;
+  version: string;
+  label: string;
+  emoji: string;
+  summary?: string;
+  prerequisites?: string[];
+  runtimeState?: 'ready' | 'needs-preparation' | 'external-dependencies' | 'installed' | null;
+}
+export interface AvailableDomainPack {
+  domain: string;
+  version: string;
+  label?: string;
+  emoji?: string;
+  summary?: string;
+  prerequisites?: string[];
+  size: number;
+  runtimeDownloadSize?: number;
+  runtimeInstalledSize?: number;
+  installation?: InstallationFootprint;
+  updateAvailable?: boolean;
+  platforms: string[];
+}
+export interface DomainInstallationStatus {
+  managed: boolean;
+  catalogWarning?: string;
+  catalog?: {
+    state: 'unconfigured' | 'not-checked' | 'connected' | 'unavailable';
+    bundledDomains: number;
+    compatibleDomains?: number;
+    message?: string;
+    unavailableDomains?: Array<{
+      domain: string;
+      label: string;
+      emoji?: string;
+      summary?: string;
+      prerequisites?: string[];
+      version?: string;
+      reason: 'not-distributed' | 'platform-unsupported' | 'catalog-unavailable';
+    }>;
+  };
+  operation?: {
+    active: boolean;
+    progress: DomainInstallProgress | null;
+    source?: 'desktop' | 'external';
+    cancellable?: boolean;
+  } | null;
+  lastOperation?: {
+    operation?: 'install' | 'remove';
+    outcome: 'completed' | 'cancelled' | 'failed' | 'interrupted';
+    finishedAt: string;
+    error?: string;
+    statusWarning?: string;
+  } | null;
+  installed: InstalledDomainPack[];
+  errors: Array<{ domain: string; version: string; message: string }>;
 }
 export interface DomainOption {
   id: string;

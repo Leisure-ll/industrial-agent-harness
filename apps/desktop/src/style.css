@@ -1641,87 +1641,6 @@ body,
 .ia-app .ia-domain-choice:hover {
   background: var(--ia-hover);
 }
-.ia-domains-modal {
-  width: min(540px, calc(100vw - 32px));
-  max-height: calc(100vh - 48px);
-}
-.ia-domains-content {
-  padding: 18px 22px 22px;
-  overflow: auto;
-}
-.ia-domains-list {
-  display: grid;
-  gap: 8px;
-}
-.ia-domain-install-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--ia-border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-.ia-domain-install-row > span:last-child {
-  display: grid;
-  gap: 3px;
-}
-.ia-domain-install-row small {
-  color: var(--ia-muted);
-}
-.ia-domains-installed {
-  margin-top: 22px;
-  border-top: 1px solid var(--ia-border);
-}
-.ia-domains-installed h2 {
-  font-size: 12px;
-  margin: 16px 0 8px;
-}
-.ia-domains-installed-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 0;
-  font-size: 12px;
-}
-.ia-domain-progress {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 12px 0;
-}
-.ia-domain-progress progress {
-  flex: 1;
-  min-width: 100px;
-  accent-color: var(--ia-accent);
-}
-.ia-domain-readiness {
-  display: block;
-  color: var(--ia-muted);
-  font-size: 12px;
-  margin-top: 4px;
-}
-.ia-domains-installed-row button,
-.ia-domains-actions button {
-  border: 1px solid var(--ia-border);
-  border-radius: 6px;
-  padding: 7px 10px;
-  background: var(--ia-raised);
-  color: var(--ia-text);
-}
-.ia-domains-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
-}
-.ia-domains-actions .ia-domains-primary {
-  background: var(--ia-accent);
-  color: var(--ia-bg);
-  border-color: var(--ia-accent);
-}
 .ia-broker-tool {
   margin: 6px 0 12px 12px;
 }
@@ -4194,4 +4113,311 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Installation uses the existing model-dialog and flat workbench language. */
+.ia-model-modal.ia-domains-modal {
+  width: min(590px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  padding: 0;
+  overflow: hidden;
+}
+.ia-domains-modal[open] {
+  display: flex;
+  flex-direction: column;
+}
+.ia-domains-modal::backdrop {
+  background: #0008;
+}
+.ia-domains-modal > header {
+  flex: none;
+  gap: 16px;
+  padding: 18px 22px 16px;
+}
+.ia-domains-modal > header h2 {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin: 0 0 4px;
+}
+.ia-domains-modal > header h2:focus {
+  outline: none;
+}
+.ia-domains-modal > header .ia-icon {
+  display: grid;
+  place-items: center;
+  width: var(--ia-control-size);
+  height: var(--ia-control-size);
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  flex: none;
+}
+.ia-domains-modal > header .ia-icon:hover:not(:disabled) {
+  background: var(--ia-hover);
+}
+.ia-domains-content {
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 22px;
+  font-size: var(--ia-font-sm);
+}
+.ia-domains-content > .ia-catalog-status {
+  margin: 0 0 12px;
+  font-size: var(--ia-font-xs);
+}
+.ia-domains-list {
+  display: grid;
+  gap: 2px;
+}
+.ia-domain-install-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 10px;
+  margin-inline: -10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ia-domain-install-row:hover:not(:has(input:disabled)) {
+  background: var(--ia-hover);
+}
+.ia-domain-install-row:has(input:checked) {
+  background: var(--ia-active);
+}
+.ia-domain-install-row:has(input:disabled) {
+  cursor: default;
+}
+.ia-domain-install-row > input {
+  margin: 3px 0 0;
+  flex: none;
+  accent-color: var(--ia-accent);
+}
+.ia-domain-install-row > svg {
+  margin-top: 1px;
+  flex: none;
+}
+.ia-domain-install-row > span:last-child {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ia-domain-install-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.ia-domain-install-title b,
+.ia-install-selection b,
+.ia-domain-progress b {
+  font-weight: 500;
+}
+.ia-domain-install-title .ia-install-size {
+  margin-left: auto;
+}
+.ia-domain-install-row small,
+.ia-domain-progress small,
+.ia-install-selection small {
+  color: var(--ia-muted);
+  font-size: var(--ia-font-xs);
+}
+.ia-install-size {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  font-size: var(--ia-font-xs);
+}
+.ia-domain-progress {
+  display: grid;
+  gap: 6px;
+  padding: 0 0 14px;
+  margin: 0 0 8px;
+  border-bottom: 1px solid var(--ia-border);
+  font-size: var(--ia-font-sm);
+}
+.ia-domain-progress-heading,
+.ia-pack-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ia-domain-progress-heading button,
+.ia-domain-setup button,
+.ia-domains-installed-row button {
+  border: 1px solid var(--ia-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--ia-text);
+  font-size: var(--ia-font-xs);
+  flex: none;
+}
+.ia-domain-progress-heading button {
+  border-color: transparent;
+  color: var(--ia-muted);
+}
+.ia-domain-progress progress {
+  width: 100%;
+  height: 4px;
+  accent-color: var(--ia-accent);
+}
+.ia-install-transfer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ia-install-selection,
+.ia-domain-setup {
+  padding: 14px 0 0;
+  margin: 12px 0 0;
+  border-top: 1px solid var(--ia-border);
+  font-size: var(--ia-font-sm);
+}
+.ia-install-selection {
+  display: grid;
+  gap: 5px;
+}
+.ia-domain-setup {
+  padding: 0 0 16px;
+  margin: 0 0 10px;
+  border-top: 0;
+  border-bottom: 1px solid var(--ia-border);
+}
+.ia-domain-setup h2 {
+  font-size: var(--ia-font-body);
+  font-weight: 500;
+  margin: 0 0 4px;
+}
+.ia-domain-setup p {
+  margin: 0 0 12px;
+  color: var(--ia-muted);
+}
+.ia-domain-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ia-domain-setup [data-action='model'] {
+  background: var(--ia-accent);
+  color: var(--ia-bg);
+  border-color: var(--ia-accent);
+}
+.ia-domains-installed {
+  margin-top: 14px;
+  border-top: 1px solid var(--ia-border);
+}
+.ia-domains-installed h2 {
+  margin: 14px 0 6px;
+  font-size: var(--ia-font-sm);
+  font-weight: 500;
+}
+.ia-domains-installed-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+.ia-domains-installed-row > span {
+  flex: 1;
+  min-width: 0;
+}
+.ia-domains-installed-row .ia-pack-badge,
+.ia-domains-installed-row .ia-pack-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--ia-font-xs);
+}
+.ia-domains-installed-row .ia-pack-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ia-domains-modal > .ia-domains-actions {
+  margin: 0;
+  padding: 12px 22px 16px;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ia-domains-actions > button:first-child {
+  margin-right: auto;
+}
+.ia-domains-actions .ia-domains-primary {
+  background: var(--ia-accent);
+  border-color: var(--ia-accent);
+  color: var(--ia-bg);
+}
+.ia-pack-badge:not(.ok):not(.warn) {
+  color: var(--ia-muted);
+}
+.ia-install-selection .ia-project-error {
+  color: var(--ia-danger);
+}
+.ia-install-outcome {
+  font-size: var(--ia-font-sm);
+}
+.ia-install-outcome p {
+  margin: 0 0 10px;
+}
+.ia-install-error-detail {
+  overflow-wrap: anywhere;
+}
+.ia-packs-section .ia-pack-grid {
+  display: block;
+}
+.ia-packs-section .ia-pack-card {
+  padding: 14px 0;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--ia-border);
+  border-radius: 0;
+  background: transparent;
+}
+.ia-packs-section .ia-pack-icon {
+  width: 20px;
+  height: 24px;
+  background: transparent;
+  border-radius: 0;
+}
+.ia-packs-section .ia-pack-title {
+  justify-content: flex-start;
+}
+.ia-packs-section .ia-pack-title b {
+  font-weight: 500;
+}
+.ia-packs-section h3 {
+  font-size: var(--ia-font-sm);
+  font-weight: 500;
+  margin: 22px 0 2px;
+}
+.ia-packs-section .ia-pack-action {
+  font-size: var(--ia-font-xs);
+  padding: 6px 10px;
+}
+@media (max-width: 650px) {
+  .ia-domains-modal > header,
+  .ia-domains-content,
+  .ia-domains-modal > .ia-domains-actions {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .ia-domain-progress-heading {
+    align-items: flex-start;
+  }
+  .ia-domain-install-title .ia-install-size {
+    margin-left: 0;
+  }
+  .ia-packs-section .ia-pack-card {
+    flex-wrap: wrap;
+  }
+  .ia-packs-section .ia-pack-body {
+    min-width: 150px;
+  }
 }

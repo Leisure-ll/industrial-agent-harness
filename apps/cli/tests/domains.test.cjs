@@ -129,7 +129,20 @@ test('CLI installs a signed new Domain, loads its Broker scope, then removes it'
   );
   const scope = JSON.parse(output.text.split('\n')[0]);
   assert.deepEqual(scope.scope.capabilityIds, ['test.inspect']);
+  const { InstallationJournal } = require('@industrial-agent-harness/pack-manager/src/catalog.cjs');
+  const manager = new PackManager({ directory: store });
+  const preparing = new InstallationJournal(manager);
+  preparing.begin(['test']);
+  await assert.rejects(
+    runDomains(['remove', 'test', '--store', store], output),
+    /already in progress/,
+  );
+  assert.equal(manager.list()[0].domain, 'test');
+  assert.equal(preparing.snapshot().active, true);
+  preparing.finish('cancelled');
   await runDomains(['remove', 'test', '--store', store], output);
+  assert.equal(preparing.snapshot().operation, 'remove');
+  assert.equal(preparing.snapshot().outcome, 'completed');
   output.text = '';
   await assert.rejects(
     run(
@@ -140,7 +153,7 @@ test('CLI installs a signed new Domain, loads its Broker scope, then removes it'
   );
 });
 
-test('real Chip and PCB Packs install first; Godot can be added later without losing either', async t => {
+test('portable registration installs Chip and PCB, then adds Godot; native preparation is qualified separately', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-real-packs-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const previous = {
@@ -190,21 +203,22 @@ test('real Chip and PCB Packs install first; Godot can be added later without lo
     return;
   }
   const store = path.join(root, 'packs');
-  const options = [
-    '--catalog',
-    'https://updates.example/catalog.json',
-    '--keys-file',
-    keys,
-    '--store',
-    store,
-  ];
+  // This suite checks registration/scope on every OS. Native dependency
+  // preparation and real task execution belong to the installed native gate.
+  const manager = new PackManager({ directory: store, keys: JSON.parse(fs.readFileSync(keys)) });
+  const catalog = await manager.catalog('https://updates.example/catalog.json');
+  process.env.INDUSTRIAL_HARNESS_PACK_STORE = store;
   const sink = {
     text: '',
     write(chunk) {
       this.text += chunk;
     },
   };
-  for (const domain of ['chip', 'pcb']) await runDomains(['install', domain, ...options], sink);
+  for (const domain of ['chip', 'pcb'])
+    await manager.install(
+      catalog.packs.find(item => item.domain === domain),
+      { prepareRuntime: false },
+    );
   assert.deepEqual(
     loadRegistry().domains.map(item => item.id),
     ['chip', 'pcb'],
@@ -219,7 +233,12 @@ test('real Chip and PCB Packs install first; Godot can be added later without lo
     await run({ command: 'run', projectDir: project, domain, task, scopeOnly: true }, sink);
     assert.ok(JSON.parse(sink.text.split('\n')[0]).scope.capabilityIds.includes(expected));
   }
-  await runDomains(['install', 'godot', ...options], sink);
+  await manager.install(
+    catalog.packs.find(item => item.domain === 'godot'),
+    { prepareRuntime: false },
+  );
+  for (const installed of manager.list().filter(item => ['pcb', 'godot'].includes(item.domain)))
+    assert.ok(manager.runtimeAssets.status(installed.runtimeAssets).every(asset => !asset.ready));
   assert.deepEqual(
     loadRegistry().domains.map(item => item.id),
     ['chip', 'godot', 'pcb'],
@@ -238,10 +257,8 @@ test('real Chip and PCB Packs install first; Godot can be added later without lo
   assert.equal(JSON.parse(sink.text.split('\n')[0]).scope.domain, 'godot');
   if (process.platform === 'darwin' && process.arch === 'arm64') {
     // Registration can be checked without preparing a multi-gigabyte native
-    // dependency in the cross-platform unit suite. The mandatory macOS CAD
-    // installer gate exercises automatic preparation and real native tasks.
-    const manager = new PackManager({ directory: store, keys: JSON.parse(fs.readFileSync(keys)) });
-    const catalog = await manager.catalog('https://updates.example/catalog.json');
+    // dependency in the cross-platform unit suite. The mandatory installed native
+    // and CAD installer gates exercise managed preparation and real native tasks.
     await manager.install(catalog.packs.find(item => item.domain === 'cad'));
     assert.equal(
       manager.runtimeAssets.status(

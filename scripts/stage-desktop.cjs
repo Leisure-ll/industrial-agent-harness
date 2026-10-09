@@ -91,11 +91,21 @@ if (process.env.HARNESS_RELEASE_BUILD === '1' && (!feedUrl || !keysFile || !core
 const keys = keysFile ? JSON.parse(fs.readFileSync(keysFile, 'utf8')) : {};
 const channel = process.env.HARNESS_RELEASE_CHANNEL || 'beta';
 if (!['stable', 'beta'].includes(channel)) throw Error('Invalid release channel.');
-// A Core-owned optional Pack lets the installer work without a published feed.
+// Core-owned optional Packs let first install and add-ons work without a feed.
 // It remains a user-selected Pack, never a pre-enabled project resource.
 const bootstrapDomains =
   process.env.HARNESS_BOOTSTRAP_DOMAINS ??
-  (process.platform === 'darwin' && process.arch === 'arm64' ? 'cad' : '');
+  (process.platform === 'darwin' && process.arch === 'arm64'
+    ? packRelease
+        .consumerMetadata()
+        .domains.filter(
+          item =>
+            !item.qualifiedBundlePlatforms ||
+            item.qualifiedBundlePlatforms.includes(`${process.platform}-${process.arch}`),
+        )
+        .map(item => item.id)
+        .join(',')
+    : '');
 const bootstrap = path.join(target, 'bootstrap-packs');
 if (bootstrapDomains) {
   const result = spawnSync(

@@ -1,10 +1,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { defaultPackDirectory, compareVersions } = require('@industrial-agent-harness/pack-manager');
 const {
-  PackManager,
-  defaultPackDirectory,
-  compareVersions,
-} = require('@industrial-agent-harness/pack-manager');
+  PackCatalog,
+  describeInstalled,
+  InstallationJournal,
+} = require('@industrial-agent-harness/pack-manager/src/catalog.cjs');
 
 const usage = `industrial-harness domains list [--store DIR]
 industrial-harness domains available --catalog HTTPS_URL --keys-file FILE [--store DIR]
@@ -52,27 +53,45 @@ async function runDomains(argv, output = process.stdout) {
   const keys = options.keysFile
     ? JSON.parse(fs.readFileSync(path.resolve(options.keysFile), 'utf8'))
     : {};
-  const manager = new PackManager({ directory, keys });
+  const catalog = new PackCatalog({
+    directory,
+    keys,
+    url: options.catalog,
+    channel: 'stable',
+    declaredDomains: require('@zhiman-bj/industrial-domain-packs').consumerMetadata().domains,
+  });
+  const manager = catalog.manager;
+  const journal = new InstallationJournal(manager);
+  const finish = (outcome, error) => {
+    const receipt = journal.finish(outcome, error);
+    if (receipt?.statusWarning)
+      output.write(`${JSON.stringify({ warning: receipt.statusWarning })}\n`);
+  };
   const controller = new AbortController();
   const cancel = () => controller.abort(Error('Domain preparation cancelled.'));
   process.once('SIGINT', cancel);
+  process.once('SIGTERM', cancel);
   try {
     process.env.INDUSTRIAL_HARNESS_PACK_STORE = directory;
     if (options.command === 'list') {
       output.write(
-        `${JSON.stringify({ store: directory, installed: manager.list().map(({ location, ...item }) => ({ domain: item.domain, version: item.version, label: item.label, location, runtimeAssets: manager.runtimeAssets.status(item.runtimeAssets) })) }, null, 2)}\n`,
+        `${JSON.stringify({ store: directory, lastOperation: journal.snapshot(), installed: manager.list().map(item => ({ ...describeInstalled(manager, item), location: item.location })) }, null, 2)}\n`,
       );
       return 0;
     }
     if (options.command === 'remove') {
+      journal.begin([options.domain], 'remove');
       manager.remove(options.domain);
+      finish('completed');
       output.write(`${JSON.stringify({ removed: options.domain })}\n`);
       return 0;
     }
-    const onProgress = progress =>
+    const onProgress = progress => {
+      journal.progress(progress);
       output.write(`${JSON.stringify({ type: 'runtime_progress', ...progress })}\n`);
+    };
     if (options.command === 'repair') {
-      manager.assertIdle(options.domain);
+      journal.begin([options.domain], 'repair');
       const bundle = manager.list().find(item => item.domain === options.domain);
       if (!bundle) throw Error('Domain is not installed.');
       await manager.runtimeAssets.ensure(bundle.runtimeAssets, {
@@ -80,31 +99,42 @@ async function runDomains(argv, output = process.stdout) {
         onProgress,
         signal: controller.signal,
       });
+      finish('completed');
       output.write(`${JSON.stringify({ repaired: options.domain })}\n`);
       return 0;
     }
-    const catalog = await manager.catalog(options.catalog, { signal: controller.signal });
-    const available = catalog.packs.filter(item =>
-      item.platforms.includes(`${process.platform}-${process.arch}`),
-    );
+    const available = await catalog.available({ signal: controller.signal });
+    if (catalog.snapshot().state === 'unavailable') throw Error(catalog.snapshot().message);
     if (options.command === 'available') {
-      output.write(`${JSON.stringify({ channel: catalog.channel, packs: available }, null, 2)}\n`);
+      output.write(
+        `${JSON.stringify({ channel: manager.channel, catalog: catalog.snapshot(), packs: catalog.summaries(available) }, null, 2)}\n`,
+      );
       return 0;
     }
     if (options.command === 'install') {
       const item = available.find(pack => pack.domain === options.domain);
       if (!item) throw Error('Domain is unavailable for this platform.');
+      journal.begin([item.domain]);
       const installed = await manager.install(item, {
         prepareRuntime: true,
         onProgress,
         signal: controller.signal,
       });
+      finish('completed');
       output.write(
         `${JSON.stringify({ installed: installed.domain, version: installed.version })}\n`,
       );
       return 0;
     }
     const current = new Map(manager.list().map(item => [item.domain, item.version]));
+    journal.begin(
+      available
+        .filter(
+          item =>
+            current.has(item.domain) && compareVersions(item.version, current.get(item.domain)) > 0,
+        )
+        .map(item => item.domain),
+    );
     for (const item of available) {
       if (!current.has(item.domain) || compareVersions(item.version, current.get(item.domain)) <= 0)
         continue;
@@ -117,9 +147,14 @@ async function runDomains(argv, output = process.stdout) {
         `${JSON.stringify({ updated: installed.domain, version: installed.version })}\n`,
       );
     }
+    finish('completed');
     return 0;
+  } catch (error) {
+    finish(controller.signal.aborted ? 'cancelled' : 'failed', error);
+    throw error;
   } finally {
     process.removeListener('SIGINT', cancel);
+    process.removeListener('SIGTERM', cancel);
   }
 }
 

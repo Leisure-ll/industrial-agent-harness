@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 
 async function run(window, { manager, runtime }) {
   const reportDir = process.env.HARNESS_CAD_INSTALL_REPORT_DIR;
@@ -33,6 +34,80 @@ async function run(window, { manager, runtime }) {
     );
     assert.equal(runtime().listActions().length, 2);
     assert.equal(runtime().latestCheckpoint()?.state.status, 'verified');
+    if (process.argv.includes('--cad-install-upgrade')) {
+      const chats = await evaluate('window.viewerHost.chats()');
+      assert.equal(chats.chats.length, 1);
+      const history = await evaluate(
+        `window.viewerHost.chatHistory({id:${JSON.stringify(chats.chats[0].id)}})`,
+      );
+      assert.equal(history.turns.length, 2);
+      assert.ok(history.turns.every(turn => turn.status === 'finished'));
+      assert.ok(history.turns[0].task.includes('CAD_INSTALL_BUILD'));
+      assert.ok(history.turns[1].task.includes('CAD_INSTALL_EDIT'));
+      assert.ok(history.turns.every(turn => turn.events.length > 0));
+      const model = await evaluate('window.viewerHost.modelGet()');
+      assert.equal(model.provider, 'openai_legacy');
+      assert.equal(model.model, 'controlled-cad-install');
+      assert.equal(model.hasApiKey, true);
+      assert.equal(model.keyPersisted, true);
+      const oldBundle = manager.list().find(item => item.domain === 'cad');
+      assert.equal(oldBundle.version, '1.1.4-pack.4');
+      const oldAsset = oldBundle.runtimeAssets[0];
+      const oldLocation = manager.runtimeAssets.location(oldAsset);
+      const oldRuntime = manager.runtimeAssets.status([oldAsset])[0];
+      assert.equal(oldRuntime.ready, true);
+      const receiptPath = path.join(oldLocation, 'receipt.json');
+      const digest = file =>
+        crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+      const receiptSha256 = digest(receiptPath);
+      const executableStat = fs.statSync(oldRuntime.executable);
+      const available = await evaluate('window.viewerHost.domainAvailable()');
+      assert.equal(available.find(item => item.domain === 'cad')?.version, '1.1.4-pack.6');
+      await evaluate(`window.viewerHost.domainInstall(['cad'])`);
+      const updatedBundle = manager.list().find(item => item.domain === 'cad');
+      assert.equal(updatedBundle.version, '1.1.4-pack.6');
+      assert.ok(updatedBundle.runtimeAssets[0].installedSize > 0);
+      const updatedRuntime = manager.runtimeAssets.status(updatedBundle.runtimeAssets)[0];
+      assert.equal(updatedRuntime.ready, true);
+      assert.equal(manager.runtimeAssets.location(updatedBundle.runtimeAssets[0]), oldLocation);
+      assert.equal(updatedRuntime.executable, oldRuntime.executable);
+      assert.equal(updatedRuntime.checkedAt, oldRuntime.checkedAt);
+      assert.equal(digest(receiptPath), receiptSha256);
+      const updatedStat = fs.statSync(updatedRuntime.executable);
+      assert.equal(updatedStat.ino, executableStat.ino);
+      assert.equal(updatedStat.dev, executableStat.dev);
+      assert.equal(runtime().listActions().length, 2);
+      assert.equal(runtime().listVerifications().length, 2);
+      assert.ok(
+        runtime()
+          .listVerifications()
+          .every(item => item.status === 'passed'),
+      );
+      assert.equal(runtime().latestCheckpoint()?.state.status, 'verified');
+      const restored = await evaluate(
+        `window.viewerHost.chatHistory({id:${JSON.stringify(chats.chats[0].id)}})`,
+      );
+      assert.deepEqual(restored.turns, history.turns);
+      fs.writeFileSync(
+        path.join(reportDir, 'pack-upgrade.json'),
+        JSON.stringify(
+          {
+            fromVersion: oldBundle.version,
+            toVersion: updatedBundle.version,
+            nativeRuntimeReused: true,
+            runtimeDirectory: path.relative(reportDir, oldLocation),
+            receiptSha256,
+            runtimeCheckedAt: oldRuntime.checkedAt,
+            executableInode: executableStat.ino,
+            loadedChat: { id: history.chat.id, turns: history.turns.length },
+            modelConfigurationLoaded: true,
+            verifiedActions: 2,
+          },
+          null,
+          2,
+        ),
+      );
+    }
     fs.writeFileSync(
       path.join(reportDir, 'restart.json'),
       JSON.stringify({ ready: true, projectRestored: true, actions: 2 }),
@@ -76,9 +151,11 @@ async function run(window, { manager, runtime }) {
   await wait(`!document.querySelector('.ia-domains-primary').disabled`);
   await evaluate(`document.querySelector('.ia-domains-primary').click()`);
   await wait(
-    `window.viewerHost.domainStatus().then(status=>status.installed.some(item=>item.domain==='cad' && item.runtimeState==='ready') && !document.querySelector('.ia-domains-modal'))`,
+    `window.viewerHost.domainStatus().then(status=>status.installed.some(item=>item.domain==='cad' && item.runtimeState==='ready') && Boolean(document.querySelector('.ia-domain-setup [data-action="done"]')))`,
     20 * 60 * 1000,
   );
+  await evaluate(`document.querySelector('.ia-domain-setup [data-action="done"]').click()`);
+  await wait(`!document.querySelector('.ia-domains-modal')`);
   const bundle = manager.list().find(item => item.domain === 'cad');
   const dependency = manager.runtimeAssets.status(bundle.runtimeAssets)[0];
   assert.equal(dependency.ready, true);

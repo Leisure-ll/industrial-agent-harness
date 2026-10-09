@@ -1937,6 +1937,13 @@ export function App() {
       {domainManagerOpen && (
         <DomainManager
           firstRun={domainFirstRun}
+          onSetupNext={action => {
+            localStorage.setItem('ia-domain-onboarding-skipped', 'true');
+            setDomainManagerOpen(false);
+            setDomainFirstRun(false);
+            if (action === 'model') setModelSettingsOpen(true);
+            else setProjectDraft({ directory: '', name: '', domain: domains[0]?.id || '' });
+          }}
           busy={runningSessions.some(session => session.running)}
           onChanged={items => {
             setDomains(items);
