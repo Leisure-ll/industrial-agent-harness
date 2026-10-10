@@ -10,6 +10,12 @@ const {
 } = require('@modelcontextprotocol/sdk/types.js');
 const { z } = require('zod');
 
+// The generic workspace contract permits a one-hour task. Keep the internal
+// callback alive through that execution budget plus a minute for result/cleanup
+// transport. This finite communication watchdog does not replace Runtime's
+// execution deadlines or cover arbitrarily long approval waits.
+const HOST_CALLBACK_TIMEOUT_MS = 3_660_000;
+
 function createExternalTool({ parameters, handler, ...descriptor }) {
   return {
     ...descriptor,
@@ -119,6 +125,7 @@ async function startToolServer(tools) {
       transport: 'http',
       url: `http://127.0.0.1:${server.address().port}/mcp`,
       headers: { Authorization: `Bearer ${token}` },
+      toolTimeoutMs: HOST_CALLBACK_TIMEOUT_MS,
     },
     async close() {
       if (closed) return;

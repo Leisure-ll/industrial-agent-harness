@@ -10,6 +10,7 @@ const { createRequire } = require('node:module');
 const {
   PackManager,
   createArchive,
+  decodeArchive,
   digest,
   signCatalog,
 } = require('../../packages/pack-manager/src/index.cjs');
@@ -18,6 +19,7 @@ const { createProjectRuntime } = require('../../packages/harness-core/src/index.
 const { configToml, sessionEnv } = require('../../packages/agent-kimi/src/model-config.cjs');
 const { bundledExecutable } = require('../../packages/agent-kimi/src/code-session.cjs');
 const { startModel } = require('./fixtures/domain-mcp-model.cjs');
+const { stageRuntimeArchiveCache } = require('../../scripts/runtime-archive-cache.cjs');
 const execute = promisify(execFile),
   repo = path.resolve(__dirname, '../..');
 if (process.platform !== 'darwin' || process.arch !== 'arm64')
@@ -144,15 +146,60 @@ async function install(t, root) {
     channel: 'beta',
   });
   const originalFetch = global.fetch;
+  let catalog;
   global.fetch = async () => new Response(fs.readFileSync(path.join(release, 'catalog.json')));
   try {
-    for (const p of (await manager.catalog('https://qualification.example/catalog.json')).packs)
-      await manager.install(p, {
-        bytes: fs.readFileSync(path.join(release, path.basename(p.url))),
-      });
+    catalog = await manager.catalog('https://qualification.example/catalog.json');
   } finally {
     global.fetch = originalFetch;
   }
+  const progress = [],
+    cachedArchives = [];
+  for (const p of catalog.packs) {
+    const bytes = fs.readFileSync(path.join(release, path.basename(p.url)));
+    const assets = decodeArchive(bytes).bundle.runtimeAssets || [];
+    assert.ok(assets.length, 'Installed native profiles must declare managed dependencies.');
+    cachedArchives.push(...stageRuntimeArchiveCache(manager.directory, assets));
+    await manager.install(p, {
+      bytes,
+      prepareRuntime: true,
+      onProgress: event => progress.push(event),
+    });
+    assert.ok(manager.runtimeAssets.status(assets).every(asset => asset.ready));
+    for (const executable of Object.values(manager.runtimeAssets.environment(assets)))
+      assert.ok(
+        fs.realpathSync(executable).startsWith(fs.realpathSync(manager.directory) + path.sep),
+      );
+  }
+  fs.writeFileSync(
+    path.join(root, 'managed-installation.json'),
+    JSON.stringify(
+      {
+        cachedArchives,
+        progress,
+        runtimes: manager.list().flatMap(pack => manager.runtimeAssets.status(pack.runtimeAssets)),
+      },
+      null,
+      2,
+    ),
+  );
+  // Prove that both adapters discover managed executables from the shared store.
+  const variables = manager
+    .list()
+    .flatMap(bundle =>
+      (bundle.runtimeAssets || []).flatMap(asset => [
+        asset.environment,
+        ...Object.keys(asset.environmentExecutables || {}),
+      ]),
+    );
+  const previousOverrides = Object.fromEntries(variables.map(name => [name, process.env[name]]));
+  for (const name of variables) delete process.env[name];
+  t.after(() => {
+    for (const [name, value] of Object.entries(previousOverrides)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
   const old = process.env.INDUSTRIAL_HARNESS_PACK_STORE;
   process.env.INDUSTRIAL_HARNESS_PACK_STORE = manager.directory;
   t.after(() => {
@@ -170,7 +217,7 @@ async function install(t, root) {
 }
 test(
   'signed PCB/Godot Packs outside repositories perform continuous native tasks through real Kimi, shared Desktop TaskService and CLI, then restore durable acceptance',
-  { timeout: 240000 },
+  { timeout: 20 * 60 * 1000 },
   async t => {
     const evidence = process.env.HARNESS_PROFESSIONAL_EVIDENCE;
     const root = fs.realpathSync(
@@ -439,7 +486,7 @@ test(
 
 test(
   'installed PCB/Godot tasks run through the real Desktop composer, approvals and chat history with independent native evidence',
-  { timeout: 240000 },
+  { timeout: 20 * 60 * 1000 },
   async t => {
     const evidence = process.env.HARNESS_PROFESSIONAL_EVIDENCE;
     const root = fs.realpathSync(

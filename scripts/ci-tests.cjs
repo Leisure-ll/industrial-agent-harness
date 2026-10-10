@@ -16,7 +16,6 @@ const nativeFiles = [
   'tests/integration/task-results-freecad.test.cjs',
   'tests/integration/task-results-kimi.test.cjs',
   'tests/integration/pcb-godot-runtime.test.cjs',
-  'tests/integration/pcb-godot-installed.test.cjs',
   'tests/integration/godot-native.test.cjs',
   'tests/integration/industrial-core-vertical-slice.test.cjs',
   'tests/integration/industrial-core-installed-pack.test.cjs',
@@ -34,6 +33,16 @@ const nativeFiles = [
   'tests/integration/chat-resume.test.cjs',
   'tests/benchmark/model-drivers.test.cjs',
 ];
+// Full native installation stays on its own runner: archive verification, DMG
+// copying and first launch must not compete with bounded engineering actions.
+const nativeInstalledFiles = [
+  'tests/integration/freecad-installed.test.cjs',
+  'tests/integration/pcb-godot-installed.test.cjs',
+];
+const nativeTestCounts = { native: 68, 'native-installed': 3 };
+function testConcurrency(suite) {
+  return suite === 'native-installed' ? 1 : suite.startsWith('native') ? 2 : 4;
+}
 const transportFiles = [
   'tests/integration/external-mcp.test.cjs',
   'tests/integration/domain-mcp-scope.test.cjs',
@@ -81,10 +90,18 @@ function portableFiles() {
     });
     return matches.map(file => path.join(directory, file).split(path.sep).join('/'));
   });
-  return [...new Set([...files, 'tests/ci/ci-tests.test.cjs', 'tests/ci/ci-areas.test.cjs'])]
+  return [
+    ...new Set([
+      ...files,
+      'tests/ci/ci-tests.test.cjs',
+      'tests/ci/ci-areas.test.cjs',
+      'tests/ci/native-evidence.test.cjs',
+      'tests/ci/runtime-archives.test.cjs',
+    ]),
+  ]
     .filter(
       file =>
-        ![...nativeFiles, ...linuxNativeFiles].includes(file) ||
+        ![...nativeFiles, ...nativeInstalledFiles, ...linuxNativeFiles].includes(file) ||
         file.includes('industrial-recovery'),
     )
     .sort();
@@ -107,13 +124,14 @@ function allowedSkips(suite, platform = process.platform) {
   return skips;
 }
 
-function assess(summary, skipped, allowed = []) {
+function assess(summary, skipped, allowed = [], expectedTests) {
   const unexpectedSkips = skipped.filter(name => !allowed.includes(name));
   const counts = summary?.counts;
   const ok = Boolean(
     summary?.success &&
       counts?.tests > 0 &&
       counts?.passed > 0 &&
+      (expectedTests === undefined || counts.tests === expectedTests) &&
       counts.failed === 0 &&
       counts.cancelled === 0 &&
       counts.todo === 0 &&
@@ -129,6 +147,7 @@ async function runFiles({
   reportDirectory,
   allowed = [],
   timeout = suite === 'portable' ? 180000 : undefined,
+  expectedTests = nativeTestCounts[suite],
 }) {
   if (files.length === 0) throw Error('CI test catalog is empty.');
   for (const file of files) {
@@ -141,7 +160,7 @@ async function runFiles({
   const stream = run({
     files,
     execArgv: [],
-    concurrency: suite.startsWith('native') ? 2 : 4,
+    concurrency: testConcurrency(suite),
     ...(timeout ? { signal: AbortSignal.timeout(timeout) } : {}),
   });
   stream.on('test:pass', data => {
@@ -160,7 +179,8 @@ async function runFiles({
     summary,
     skipped,
     allowedSkips: allowed,
-    ...assess(summary, skipped, allowed),
+    expectedTests,
+    ...assess(summary, skipped, allowed, expectedTests),
   };
   fs.mkdirSync(reportDirectory, { recursive: true });
   fs.writeFileSync(
@@ -178,7 +198,11 @@ async function runFiles({
 
 async function main(suite) {
   // pnpm forwards an optional separator to scripts.
-  if (!['portable', 'native', 'native-linux', 'benchmark', 'transport'].includes(suite))
+  if (
+    !['portable', 'native', 'native-installed', 'native-linux', 'benchmark', 'transport'].includes(
+      suite,
+    )
+  )
     throw Error(`Unknown CI suite: ${suite}`);
   process.chdir(root);
   for (const [variable, actual] of [
@@ -191,7 +215,7 @@ async function main(suite) {
   }
   if (suite.startsWith('native')) {
     const supported =
-      suite === 'native'
+      suite !== 'native-linux'
         ? process.platform === 'darwin' && process.arch === 'arm64'
         : process.platform === 'linux' && process.arch === 'x64';
     if (!supported) {
@@ -200,10 +224,14 @@ async function main(suite) {
     for (const file of [
       process.env.KIMI_EXECUTABLE,
       ...(suite === 'native' ? [process.env.INDUSTRIAL_HARNESS_FREECAD_CMD] : []),
-      path.join(
-        require('../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
-        'eda-harness/.venv/bin/python',
-      ),
+      ...(suite !== 'native-installed'
+        ? [
+            path.join(
+              require('../packages/domain-skills/src/index.cjs').packSourceDirectory('chip-pack'),
+              'eda-harness/.venv/bin/python',
+            ),
+          ]
+        : []),
     ]) {
       if (!file || !fs.existsSync(file)) throw Error(`Missing required native runtime: ${file}`);
     }
@@ -212,7 +240,9 @@ async function main(suite) {
   for (const tool of suite === 'benchmark'
     ? ['iverilog', 'vvp']
     : suite.startsWith('native')
-      ? ['verilator', 'rg']
+      ? suite === 'native-installed'
+        ? ['rg']
+        : ['verilator', 'rg']
       : []) {
     const result = spawnSync(tool, [tool === 'verilator' || tool === 'rg' ? '--version' : '-V'], {
       encoding: 'utf8',
@@ -224,11 +254,13 @@ async function main(suite) {
       ? portableFiles()
       : suite === 'native'
         ? nativeFiles
-        : suite === 'native-linux'
-          ? linuxNativeFiles
-          : suite === 'transport'
-            ? transportFiles
-            : ['tests/benchmark/paired.test.cjs'];
+        : suite === 'native-installed'
+          ? nativeInstalledFiles
+          : suite === 'native-linux'
+            ? linuxNativeFiles
+            : suite === 'transport'
+              ? transportFiles
+              : ['tests/benchmark/paired.test.cjs'];
   const report = await runFiles({
     suite,
     files: files.map(file => path.join(root, file)),
@@ -238,7 +270,16 @@ async function main(suite) {
   process.exitCode = report.ok ? 0 : 1;
 }
 
-module.exports = { assess, allowedSkips, runFiles };
+module.exports = {
+  assess,
+  allowedSkips,
+  runFiles,
+  nativeFiles,
+  nativeInstalledFiles,
+  nativeTestCounts,
+  testConcurrency,
+  portableFiles,
+};
 if (require.main === module) {
   const suite = process.argv.slice(2).filter(argument => argument !== '--')[0];
   main(suite).catch(error => {

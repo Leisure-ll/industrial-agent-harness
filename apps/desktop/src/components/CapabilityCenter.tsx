@@ -40,8 +40,8 @@ export function CapabilityCenter({
       .then(value => {
         if (cancelled) return;
         setStatus(value);
-        if (value.operation?.active && value.operation.progress)
-          setProgress(value.operation.progress);
+        setStatusError('');
+        setProgress(value.operation?.active ? value.operation.progress : null);
       })
       .catch(reason => {
         if (!cancelled) setStatusError(String(reason));
@@ -50,6 +50,35 @@ export function CapabilityCenter({
       cancelled = true;
     };
   }, [revision]);
+  useEffect(() => {
+    if (!status?.operation?.active || status.operation.source !== 'external') return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      try {
+        const next = await window.viewerHost!.domainStatus();
+        if (stopped) return;
+        if (!next.operation?.active) {
+          const domains = await window.viewerHost!.domains();
+          if (stopped) return;
+          onDomainsChanged(domains);
+          setRevision(value => value + 1);
+        }
+        setStatus(next);
+        setStatusError('');
+        setProgress(next.operation?.active ? next.operation.progress : null);
+        if (!next.operation?.active) return;
+      } catch (reason) {
+        if (!stopped) setStatusError(String(reason));
+      }
+      if (!stopped) timer = setTimeout(poll, 800);
+    }
+    timer = setTimeout(poll, 800);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [status?.operation?.active, status?.operation?.source]);
   useEffect(
     () =>
       window.viewerHost!.onDomainProgress(next => {
@@ -104,11 +133,13 @@ export function CapabilityCenter({
           {sections.map(item => (
             <button
               key={item.id}
+              type="button"
               onClick={() => setSection(item.id)}
               aria-current={section === item.id ? 'page' : undefined}
+              aria-label={item.label}
               title={item.label}
             >
-              <item.icon size={15} />
+              <item.icon size={16} aria-hidden="true" />
               <span>{item.label}</span>
             </button>
           ))}
@@ -121,6 +152,8 @@ export function CapabilityCenter({
                 statusError={statusError}
                 progress={progress}
                 busy={busy}
+                revision={revision}
+                onStatus={setStatus}
                 onChanged={installed => {
                   onDomainsChanged(installed);
                   void refreshStatus();

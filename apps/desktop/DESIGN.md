@@ -271,6 +271,34 @@ Primary project actions use neutral accent against the background. Send uses an 
 
 Keyboard focus uses a 2 px accent outline; inputs and summaries offset it by 3 px, while buttons and selects use 2 px. Button state changes are immediate, preventing mixed colors during theme switches.
 
+Capability navigation uses a fixed 16 px icon column and a left-aligned label
+column. Its header and body fill the workbench; switching sections or language
+does not recenter the navigation. The selected row keeps the sidebar's quiet active fill and medium label;
+keyboard focus uses the same 2 px outline inset into the row, without enlarging
+its outer shape. At the compact breakpoint, each icon retains a 32 px target,
+accessible name and tooltip when the visual label is hidden.
+
+### Domain installation
+
+The first-run domain selector shares the model dialog's neutral surface, 14 px radius,
+shadow, inset and ruled header/footer. Its task title is a compact 16 px medium label;
+body and metadata use the existing 12 px and 11 px roles. The close control is a 32 px
+Lucide ghost button. Initial focus lands on the title, with normal keyboard focus
+rings preserved on controls.
+
+Use flat selection rows with a quiet selected fill, not bordered cards. Keep version
+and download size beside the domain name, with declared prerequisites below. Show
+installed footprint, working-space estimate and available disk space once in the
+selection summary. Estimates warn; the runtime's verified precheck decides whether
+installation can proceed. Progress and completion use ordinary ruled sections, and
+Capability Center uses the same flat rows without decorative icon tiles.
+
+The body scrolls independently from the fixed dialog actions, including at 640 × 480.
+Shared neutral tokens drive light/dark themes; semantic readiness colors keep their
+existing meaning. Preserve multi-selection, accurate catalog states, cancellation,
+retry, update, repair and next-step actions while changing presentation. The visible
+word “installed” must remain distinct from verified executable readiness.
+
 ### Inputs / Fields
 
 The composer uses panel tone around a raised body, with a thin border. Empty sessions include a project strip above that body. Input starts at 64 px high, or 50 px in short empty sessions, resizes between 50 and 160 px, and uses the conversation role. Focus-within adds an accent border and 1 px outline offset by 3 px. Border motion is 160 ms with `cubic-bezier(0.16, 1, 0.3, 1)`; reduced motion disables it.

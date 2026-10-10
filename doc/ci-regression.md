@@ -9,6 +9,7 @@
 | 桌面安装 | macOS 15 ARM64、Windows 2025 x64 | 打包应用首次启动、内置资源与 Domain 安装流程 |
 | Linux 安装与工业闭环 | Ubuntu 22.04 x86-64 | bubblewrap/seccomp、真实 Kimi/Verilator、成功/失败/取消/恢复、干净 Chip 安装包、实际安装消费与重复安装 |
 | 原生工业闭环 | macOS 15 / 26 ARM64 | 实际 Seatbelt、Verilator、FreeCAD、固定 Kimi Code、持久化事实、审批拒绝、失败恢复、图像/并行会话、聊天恢复、空闲回收与强制中断，以及真实 CAD 产物的桌面查看 |
+| 原生安装消费 | macOS 15 / 26 ARM64 | 独立安装 CAD、PCB、Godot，保留签名、原生准备、API/CLI/Desktop 工程任务、独立验证和恢复断言 |
 
 `ubuntu-24.04`、`ubuntu-24.04-arm`、`macos-15`、`windows-2025` 直接对应原生 OS/架构机器。基础测试还会检查 Node 实际报告的 OS 与架构，避免把交叉编译当作目标平台运行。Node 固定为 24，pnpm 固定为 11.1.3，Python 为 3.13，uv 为 0.11.6，Kimi Code 为 2.1.1；安装遵循已有锁文件。CI 使用本地 HTTP 模型 fixture，不需要模型 API 密钥。
 
@@ -18,7 +19,7 @@
 
 `scripts/ci-tests.cjs` 记录执行文件、平台、Node 版本、计数与跳过项；零测试、失败、取消、TODO 或未登记跳过都失败。原生闭环和独立 RTL benchmark 不允许跳过，缺少对应门禁要求的 Kimi、Python Runtime、FreeCAD、Verilator 或 Icarus 会失败。回归 JSON 与桌面/原生/CLI 日志通过 Actions artifacts 保留 14 天；失败和取消时也尝试上传已产生的证据。更新 PR 会取消同一 PR 的旧运行。
 
-Portable 测试流设有三分钟的终止信号；测试已通过但进程仍持有未清理的句柄时，也会中止并记录失败文件，避免等待整个 job 到期。超时与取消仍导致门禁失败。原生工业套件沿用原有时限。
+Portable 测试流设有三分钟的终止信号；测试已通过但进程仍持有未清理的句柄时，也会中止并记录失败文件，避免等待整个 job 到期。超时与取消仍导致门禁失败。原生工业套件沿用原有时限。`native-installed` 在独立必跑机器上串行执行三个全新托管安装用例，`native` 保留其余工业闭环；两者都不允许跳过，任一失败仍阻止汇总通过。隔离避免大型 app 准备和 Desktop Godot 任务与有明确执行截止的 CAD/RTL 测试争用同一台机器。官方归档缓存仍完整校验后复制到每个独立 store，不复用已经安装的 app。收集报告时只排除 fixture 中的 `installed/.runtime-assets` 原生输入，保留工程输出、聊天、安装报告及 Pack 身份；Actions 原先也不上传该隐藏依赖目录。
 
 有三类明确的覆盖缺口，保留在报告中：
 
@@ -44,9 +45,10 @@ pnpm run smoke:ci-packages
 pnpm run test:ci -- benchmark
 pnpm run test:ci -- transport
 KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" pnpm run test:ci -- native
+KIMI_EXECUTABLE="$PWD/apps/desktop/.venv-kimi/bin/kimi" pnpm run test:ci -- native-installed
 ```
 
-`benchmark` 需要 `iverilog` 和 `vvp`；`transport` 需要 Chip/PCB 锁定 Python 环境；`native` 需要 Apple Silicon、Verilator、FreeCAD 1.1.4、Chip Python 环境与固定 Kimi，准备步骤见 [Industrial Core workflow](../.github/workflows/industrial-core.yml)。CLI 冒烟只清理自身的 `dist/ci-headless` 临时目录，之后从独立临时工作目录运行四个领域包，检查领域绑定、资源、共享配置与禁用策略。
+`benchmark` 需要 `iverilog` 和 `vvp`；`transport` 需要 Chip/PCB 锁定 Python 环境；`native` 需要 Apple Silicon、Verilator、FreeCAD 1.1.4、Chip Python 环境与固定 Kimi，准备步骤见 [Industrial Core workflow](../.github/workflows/industrial-core.yml)。`native-installed` 需要固定 Kimi、签名 Pack 构建和独立 CLI/Desktop payload，以及官方原生归档；每个 fixture 经生产安装层独立解包、签名检查和版本探测。CLI 冒烟只清理自身的 `dist/ci-headless` 临时目录，之后从独立临时工作目录运行四个领域包，检查领域绑定、资源、共享配置与禁用策略。
 
 ## 参考来源
 

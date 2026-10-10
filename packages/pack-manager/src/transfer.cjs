@@ -1,5 +1,25 @@
 // Bound connection and idle time independently of total transfer time. A large
 // native toolchain can take minutes while still making steady progress.
+class TransferProgress {
+  constructor(total, now = () => performance.now()) {
+    this.total = total;
+    this.now = now;
+    this.startedAt = now();
+  }
+  update(received) {
+    const elapsed = (this.now() - this.startedAt) / 1000;
+    const bytesPerSecond = elapsed > 0 && received > 0 ? received / elapsed : undefined;
+    return {
+      phase: 'downloading',
+      received,
+      total: this.total,
+      ...(bytesPerSecond ? { bytesPerSecond } : {}),
+      ...(bytesPerSecond && this.total != null
+        ? { etaSeconds: Math.max(0, (this.total - received) / bytesPerSecond) }
+        : {}),
+    };
+  }
+}
 class Transfer {
   constructor({ signal, stallMs = 60000, timeoutMs = 20 * 60 * 1000 } = {}) {
     this.controller = new AbortController();
@@ -53,4 +73,4 @@ class Transfer {
     }
   }
 }
-module.exports = { Transfer };
+module.exports = { Transfer, TransferProgress };

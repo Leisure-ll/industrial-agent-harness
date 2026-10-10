@@ -1,16 +1,64 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const { captureSettled } = require('./selftest-capture.cjs');
 
 async function run(window, { manager, runtime }) {
   const reportDir = process.env.HARNESS_CAD_INSTALL_REPORT_DIR;
   if (!reportDir) throw Error('CAD install selftest requires an evidence directory.');
   fs.mkdirSync(reportDir, { recursive: true });
-  const evaluate = script => window.webContents.executeJavaScript(script, true);
+  const contents = window.webContents;
+  const continuation = process.argv.includes('--cad-install-continuation');
+  const diagnostics = { phase: 'starting', waitingFor: null, lastObservation: null, events: [] };
+  const saveDiagnostics = event => {
+    if (event) diagnostics.events.push({ event, at: new Date().toISOString() });
+    fs.writeFileSync(
+      path.join(reportDir, 'cad-lifecycle.json'),
+      JSON.stringify(
+        {
+          ...diagnostics,
+          windowDestroyed: window.isDestroyed(),
+          rendererDestroyed: contents.isDestroyed(),
+        },
+        null,
+        2,
+      ),
+    );
+  };
+  window.on('close', () => saveDiagnostics('close'));
+  window.on('closed', () => saveDiagnostics('closed'));
+  contents.on('render-process-gone', (_event, details) =>
+    saveDiagnostics(`render-process-gone: ${JSON.stringify(details)}`),
+  );
+  const evaluate = script => contents.executeJavaScript(script, true);
+  let lastObservationAt = 0;
+  async function observeRepair() {
+    if (diagnostics.phase !== 'repair' || Date.now() - lastObservationAt < 2000) return;
+    lastObservationAt = Date.now();
+    diagnostics.lastObservation = {
+      at: new Date().toISOString(),
+      state: await evaluate(
+        `({badges:Array.from(document.querySelectorAll('.ia-pack-badge')).map(node=>({domain:node.closest('[data-domain]')?.dataset.domain,text:node.textContent,visible:node.getClientRects().length>0})),progress:Array.from(document.querySelectorAll('.ia-domain-progress')).map(node=>({text:node.innerText,visible:node.getClientRects().length>0})),body:document.body.innerText.slice(-5000)})`,
+      ),
+    };
+    saveDiagnostics();
+  }
   async function wait(script, timeout = 60000) {
     const end = Date.now() + timeout;
+    diagnostics.waitingFor = script;
     while (Date.now() < end) {
-      if (await evaluate(script)) return;
+      if (window.isDestroyed() || contents.isDestroyed()) {
+        saveDiagnostics('destroyed-while-waiting');
+        throw Error(
+          `CAD window was destroyed while waiting for: ${script}. See cad-lifecycle.json.`,
+        );
+      }
+      await observeRepair();
+      if (await evaluate(script)) {
+        diagnostics.waitingFor = null;
+        return;
+      }
       const failure = await evaluate(
         `document.querySelector('.ia-domains-modal [role="alert"], .ia-capability-section > .ia-project-error[role="alert"]')?.textContent || ''`,
       );
@@ -33,10 +81,91 @@ async function run(window, { manager, runtime }) {
     );
     assert.equal(runtime().listActions().length, 2);
     assert.equal(runtime().latestCheckpoint()?.state.status, 'verified');
+    if (process.argv.includes('--cad-install-upgrade')) {
+      const chats = await evaluate('window.viewerHost.chats()');
+      assert.equal(chats.chats.length, 1);
+      const history = await evaluate(
+        `window.viewerHost.chatHistory({id:${JSON.stringify(chats.chats[0].id)}})`,
+      );
+      assert.equal(history.turns.length, 2);
+      assert.ok(history.turns.every(turn => turn.status === 'finished'));
+      assert.ok(history.turns[0].task.includes('CAD_INSTALL_BUILD'));
+      assert.ok(history.turns[1].task.includes('CAD_INSTALL_EDIT'));
+      assert.ok(history.turns.every(turn => turn.events.length > 0));
+      const model = await evaluate('window.viewerHost.modelGet()');
+      assert.equal(model.provider, 'openai_legacy');
+      assert.equal(model.model, 'controlled-cad-install');
+      assert.equal(model.hasApiKey, true);
+      assert.equal(model.keyPersisted, true);
+      const oldBundle = manager.list().find(item => item.domain === 'cad');
+      assert.equal(oldBundle.version, continuation ? '1.1.4-pack.6' : '1.1.4-pack.4');
+      const oldAsset = oldBundle.runtimeAssets[0];
+      const oldLocation = manager.runtimeAssets.location(oldAsset);
+      const oldRuntime = manager.runtimeAssets.status([oldAsset])[0];
+      assert.equal(oldRuntime.ready, true);
+      const receiptPath = path.join(oldLocation, 'receipt.json');
+      const digest = file =>
+        crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+      const receiptSha256 = digest(receiptPath);
+      const executableStat = fs.statSync(oldRuntime.executable);
+      const bundledCatalog = manager.bundledCatalog(
+        path.join(process.resourcesPath, 'bootstrap-packs'),
+      );
+      const targetVersion = bundledCatalog.packs.find(item => item.domain === 'cad')?.version;
+      assert.equal(targetVersion, '1.1.4-pack.7');
+      const available = await evaluate('window.viewerHost.domainAvailable()');
+      assert.equal(available.find(item => item.domain === 'cad')?.version, targetVersion);
+      await evaluate(`window.viewerHost.domainInstall(['cad'])`);
+      const updatedBundle = manager.list().find(item => item.domain === 'cad');
+      assert.equal(updatedBundle.version, targetVersion);
+      assert.ok(updatedBundle.runtimeAssets[0].installedSize > 0);
+      const updatedRuntime = manager.runtimeAssets.status(updatedBundle.runtimeAssets)[0];
+      assert.equal(updatedRuntime.ready, true);
+      assert.equal(manager.runtimeAssets.location(updatedBundle.runtimeAssets[0]), oldLocation);
+      assert.equal(updatedRuntime.executable, oldRuntime.executable);
+      assert.equal(updatedRuntime.checkedAt, oldRuntime.checkedAt);
+      assert.equal(digest(receiptPath), receiptSha256);
+      const updatedStat = fs.statSync(updatedRuntime.executable);
+      assert.equal(updatedStat.ino, executableStat.ino);
+      assert.equal(updatedStat.dev, executableStat.dev);
+      assert.equal(runtime().listActions().length, 2);
+      assert.equal(runtime().listVerifications().length, 2);
+      assert.ok(
+        runtime()
+          .listVerifications()
+          .every(item => item.status === 'passed'),
+      );
+      assert.equal(runtime().latestCheckpoint()?.state.status, 'verified');
+      const restored = await evaluate(
+        `window.viewerHost.chatHistory({id:${JSON.stringify(chats.chats[0].id)}})`,
+      );
+      assert.deepEqual(restored.turns, history.turns);
+      fs.writeFileSync(
+        path.join(reportDir, continuation ? 'pack-upgrade-continuation.json' : 'pack-upgrade.json'),
+        JSON.stringify(
+          {
+            fromVersion: oldBundle.version,
+            toVersion: updatedBundle.version,
+            nativeRuntimeReused: true,
+            runtimeDirectory: path.relative(reportDir, oldLocation),
+            receiptSha256,
+            runtimeCheckedAt: oldRuntime.checkedAt,
+            executableInode: executableStat.ino,
+            loadedChat: { id: history.chat.id, turns: history.turns.length },
+            modelConfigurationLoaded: true,
+            verifiedActions: 2,
+          },
+          null,
+          2,
+        ),
+      );
+    }
     fs.writeFileSync(
-      path.join(reportDir, 'restart.json'),
+      path.join(reportDir, continuation ? 'restart-continuation.json' : 'restart.json'),
       JSON.stringify({ ready: true, projectRestored: true, actions: 2 }),
     );
+    diagnostics.phase = 'complete';
+    saveDiagnostics();
     console.log('Packaged CAD restart: dependency, project and verified actions retained.');
     return;
   }
@@ -44,7 +173,9 @@ async function run(window, { manager, runtime }) {
   // Optional CI/local cache is the exact official DMG, checked again by the
   // production manager. Neither app mounting nor native verification is mocked.
   const cacheFile = process.env.HARNESS_CAD_INSTALL_ARCHIVE;
-  if (cacheFile) {
+  const preparedRuntime = process.env.HARNESS_CAD_INSTALL_RUNTIME_CACHE;
+  let runtimeCacheReuse = null;
+  if (cacheFile || preparedRuntime) {
     const bundled = new (require('@industrial-agent-harness/pack-manager').PackManager)();
     const catalog = bundled.bundledCatalog(path.join(process.resourcesPath, 'bootstrap-packs'));
     const archive = fs.readFileSync(
@@ -56,29 +187,78 @@ async function run(window, { manager, runtime }) {
     );
     const { bundle } = require('@industrial-agent-harness/pack-manager').decodeArchive(archive);
     const asset = bundle.runtimeAssets[0];
-    const cache = path.join(manager.runtimeAssets.directory, 'cache');
-    fs.mkdirSync(cache, { recursive: true });
-    fs.copyFileSync(cacheFile, path.join(cache, asset.sha256 + '.dmg'));
+    if (preparedRuntime) {
+      const source = fs.realpathSync(preparedRuntime);
+      const destination = manager.runtimeAssets.directory;
+      fs.mkdirSync(destination, { recursive: true });
+      assert.notEqual(source, fs.realpathSync(destination));
+      assert.equal(
+        fs.readdirSync(destination).length,
+        0,
+        'Warm qualification still requires an empty isolated runtime store.',
+      );
+      fs.rmdirSync(destination); // Empty isolated destination; cp creates it exclusively.
+      fs.cpSync(source, destination, {
+        recursive: true,
+        mode: fs.constants.COPYFILE_FICLONE,
+        verbatimSymlinks: true,
+        preserveTimestamps: true,
+        force: false,
+        errorOnExist: true,
+      });
+      const status = manager.runtimeAssets.status([asset])[0];
+      assert.equal(
+        status.ready,
+        true,
+        'Production readiness must validate the copied receipt and executable.',
+      );
+      const originalExecutable = path.join(source, path.relative(destination, status.executable));
+      const originalStat = fs.statSync(originalExecutable),
+        clonedStat = fs.statSync(status.executable);
+      assert.ok(
+        originalStat.dev !== clonedStat.dev || originalStat.ino !== clonedStat.ino,
+        'Repair must not modify the source runtime inode.',
+      );
+      runtimeCacheReuse = {
+        mode: 'independent-clone',
+        source,
+        ready: true,
+        checkedAt: status.checkedAt,
+      };
+      assert.equal(
+        manager.list().length,
+        0,
+        'No installed Pack may be seeded by warm qualification.',
+      );
+    }
+    if (cacheFile) {
+      const cache = path.join(manager.runtimeAssets.directory, 'cache');
+      fs.mkdirSync(cache, { recursive: true });
+      const destination = path.join(cache, asset.sha256 + '.dmg');
+      if (!fs.existsSync(destination)) fs.copyFileSync(cacheFile, destination);
+    }
   }
   await evaluate(
     `(()=>{window.__cadInstallProgress=[]; window.viewerHost.onDomainProgress(progress=>window.__cadInstallProgress.push(progress));return true;})()`,
   );
   await wait(
-    `Array.from(document.querySelectorAll('.ia-domain-install-row')).some(row=>row.textContent.includes('CAD'))`,
+    `Boolean(document.querySelector('.ia-domain-install-row[data-domain="cad"]:not([data-unavailable]) input:not(:disabled)'))`,
   );
-  fs.writeFileSync(
-    path.join(reportDir, 'first-run.png'),
-    (await window.webContents.capturePage()).toPNG(),
-  );
+  await captureSettled(window, {
+    output: path.join(reportDir, 'first-run.png'),
+    readyScript: `Boolean(document.querySelector('.ia-domain-install-row[data-domain="cad"]:not([data-unavailable]) input:not(:disabled)')) && !document.querySelector('.ia-settings-popover')`,
+  });
   await evaluate(
     `Array.from(document.querySelectorAll('.ia-domain-install-row')).find(row=>row.textContent.includes('CAD')).querySelector('input').click()`,
   );
   await wait(`!document.querySelector('.ia-domains-primary').disabled`);
   await evaluate(`document.querySelector('.ia-domains-primary').click()`);
   await wait(
-    `window.viewerHost.domainStatus().then(status=>status.installed.some(item=>item.domain==='cad' && item.runtimeState==='ready') && !document.querySelector('.ia-domains-modal'))`,
+    `window.viewerHost.domainStatus().then(status=>status.installed.some(item=>item.domain==='cad' && item.runtimeState==='ready') && Boolean(document.querySelector('.ia-domain-setup [data-action="done"]')))`,
     20 * 60 * 1000,
   );
+  await evaluate(`document.querySelector('.ia-domain-setup [data-action="done"]').click()`);
+  await wait(`!document.querySelector('.ia-domains-modal')`);
   const bundle = manager.list().find(item => item.domain === 'cad');
   const dependency = manager.runtimeAssets.status(bundle.runtimeAssets)[0];
   assert.equal(dependency.ready, true);
@@ -192,11 +372,13 @@ async function run(window, { manager, runtime }) {
   await wait(
     `Number(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas')?.dataset.renderedTriangles)>20 && document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas')?.dataset.geometry==='brep'`,
   );
-  fs.writeFileSync(
-    path.join(reportDir, 'cad-viewer.png'),
-    (await window.webContents.capturePage()).toPNG(),
-  );
+  await captureSettled(window, {
+    output: path.join(reportDir, 'cad-viewer.png'),
+    readyScript: `Number(document.querySelector('.ia-file-view:not([hidden])')?.querySelector('.rp-cad canvas')?.dataset.renderedTriangles)>20`,
+  });
   // A lost runtime executable must become repairable through the ordinary UI.
+  diagnostics.phase = 'repair';
+  saveDiagnostics();
   fs.rmSync(dependency.executable);
   await evaluate(`document.querySelector('.ia-settings-button').click()`);
   await wait(`Boolean(document.querySelector('.ia-settings-row'))`);
@@ -204,19 +386,22 @@ async function run(window, { manager, runtime }) {
     `Array.from(document.querySelectorAll('.ia-settings-row')).find(row=>row.textContent.includes('Domains')).querySelector('button').click()`,
   );
   await wait(
-    `document.querySelector('.ia-pack-card .ia-pack-badge')?.textContent.includes('Needs preparation')`,
+    `document.querySelector('.ia-pack-card[data-domain="cad"] .ia-pack-badge')?.textContent.includes('Needs preparation')`,
   );
   await evaluate(
     `Array.from(document.querySelectorAll('.ia-pack-actions button')).find(node=>node.textContent.includes('Prepare / retry')).click()`,
   );
   await wait(
-    `document.querySelector('.ia-pack-card .ia-pack-badge')?.textContent.includes('Ready to use') && !document.querySelector('.ia-domain-progress')`,
+    `document.querySelector('.ia-pack-card[data-domain="cad"] .ia-pack-badge')?.textContent.includes('Ready to use') && !document.querySelector('.ia-domain-progress')`,
     10 * 60 * 1000,
   );
-  fs.writeFileSync(
-    path.join(reportDir, 'domain-ready.png'),
-    (await window.webContents.capturePage()).toPNG(),
-  );
+  await captureSettled(window, {
+    output: path.join(reportDir, 'domain-ready.png'),
+    readyScript: `document.querySelector('.ia-pack-card[data-domain="cad"] .ia-pack-badge')?.textContent.includes('Ready to use') && !document.querySelector('.ia-domain-progress')`,
+  });
+  assert.equal(manager.runtimeAssets.status(bundle.runtimeAssets)[0].ready, true);
+  diagnostics.phase = 'complete';
+  saveDiagnostics();
   fs.writeFileSync(
     path.join(reportDir, 'acceptance.json'),
     JSON.stringify(
@@ -230,6 +415,8 @@ async function run(window, { manager, runtime }) {
         readback: geometry,
         viewer: 'OCCT BREP',
         repaired: true,
+        preparationMode: runtimeCacheReuse ? 'warm-runtime-reuse' : 'cold-native-preparation',
+        runtimeCacheReuse,
       },
       null,
       2,

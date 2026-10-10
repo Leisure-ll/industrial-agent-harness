@@ -16,17 +16,18 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const languageConfig = require('../i18n.config.json');
 const { guiPermissions, guiPermissionSettingsUrl } = require('./gui-permissions.cjs');
+const { PackManager, defaultPackDirectory } = require('@industrial-agent-harness/pack-manager');
 const {
-  PackManager,
-  defaultPackDirectory,
-  compareVersions,
-} = require('@industrial-agent-harness/pack-manager');
+  PackCatalog,
+  describeInstalled,
+  InstallationJournal,
+} = require('@industrial-agent-harness/pack-manager/src/catalog.cjs');
 if (app.isPackaged && !process.env.INDUSTRIAL_HARNESS_PACK_STORE)
   process.env.INDUSTRIAL_HARNESS_PACK_STORE = defaultPackDirectory();
 if (process.argv.includes('--packaged-smoke'))
-  process.env.INDUSTRIAL_HARNESS_PACK_STORE = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'industrial-harness-packs-smoke-'),
-  );
+  process.env.INDUSTRIAL_HARNESS_PACK_STORE =
+    process.env.HARNESS_PACKAGED_SMOKE_STORE ||
+    fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-packs-smoke-'));
 if (process.argv.includes('--cad-install-selftest')) {
   if (
     !app.isPackaged ||
@@ -44,8 +45,10 @@ if (process.argv.includes('--cad-install-selftest')) {
 }
 if (process.argv.includes('--packaged-smoke') && process.env.HARNESS_PACKAGED_SMOKE_FEED_DIR) {
   const fixture = process.env.HARNESS_PACKAGED_SMOKE_FEED_DIR;
-  global.fetch = async url => {
+  const nativeFetch = global.fetch;
+  global.fetch = async (url, options) => {
     const parsed = new URL(url);
+    if (parsed.hostname !== 'updates.example') return nativeFetch(url, options);
     if (
       parsed.protocol !== 'https:' ||
       parsed.hostname !== 'updates.example' ||
@@ -150,6 +153,7 @@ if (
     '--image-input-selftest',
     '--model-sync-selftest',
     '--packaged-smoke',
+    '--install-experience-selftest',
   ].some(flag => process.argv.includes(flag))
 )
   app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'industrial-harness-selftest-')));
@@ -167,8 +171,12 @@ const packManager = new PackManager();
 const managedPacks = Boolean(process.env.INDUSTRIAL_HARNESS_PACK_STORE);
 let domainMutationActive = false;
 let domainController;
+let domainOperationDone = Promise.resolve();
+let finishDomainOperation;
 let domainProgress = null;
 let catalogWarning = '';
+let catalogState;
+const installationJournal = new InstallationJournal(packManager);
 function releaseConfig() {
   const file =
     process.env.INDUSTRIAL_HARNESS_PACK_FEED_FILE ||
@@ -177,14 +185,17 @@ function releaseConfig() {
     ? JSON.parse(fs.readFileSync(file, 'utf8'))
     : {};
 }
-function packFeed() {
+function packCatalog() {
   const config = releaseConfig();
-  const url = process.env.INDUSTRIAL_HARNESS_PACK_CATALOG_URL || config.catalogUrl;
   const keysFile = process.env.INDUSTRIAL_HARNESS_PACK_KEYS_FILE;
-  const keys = keysFile ? JSON.parse(fs.readFileSync(keysFile, 'utf8')) : config.publicKeys;
-  if (!url || !keys || typeof keys !== 'object' || !Object.keys(keys).length)
-    throw Error('Domain download feed is not configured.');
-  return { url, keys, channel: config.channel || 'stable' };
+  return new PackCatalog({
+    directory: packManager.directory,
+    url: process.env.INDUSTRIAL_HARNESS_PACK_CATALOG_URL || config.catalogUrl,
+    keys: keysFile ? JSON.parse(fs.readFileSync(keysFile, 'utf8')) : config.publicKeys,
+    channel: config.channel || 'beta',
+    bundledDirectory: path.join(process.resourcesPath, 'bootstrap-packs'),
+    declaredDomains: require('@zhiman-bj/industrial-domain-packs').consumerMetadata().domains,
+  });
 }
 function currentRegistry() {
   return loadRegistry();
@@ -193,38 +204,11 @@ function installedDomains() {
   return currentRegistry().domains;
 }
 async function availablePacks(options = {}) {
-  const config = releaseConfig();
-  const hasFeed = process.env.INDUSTRIAL_HARNESS_PACK_CATALOG_URL || config.catalogUrl;
-  const feed = hasFeed ? packFeed() : { keys: {}, channel: config.channel || 'beta' };
-  const manager = new PackManager({
-    directory: packManager.directory,
-    keys: feed.keys,
-    channel: feed.channel,
-  });
-  const bootstrap = path.join(process.resourcesPath, 'bootstrap-packs');
-  let packs = fs.existsSync(bootstrap) ? manager.bundledCatalog(bootstrap).packs : [];
-  catalogWarning = '';
-  if (hasFeed) {
-    try {
-      const remote = (await manager.catalog(feed.url, options)).packs;
-      const byDomain = new Map(packs.map(item => [item.domain, item]));
-      for (const item of remote)
-        if (
-          !byDomain.has(item.domain) ||
-          compareVersions(item.version, byDomain.get(item.domain).version) >= 0
-        )
-          byDomain.set(item.domain, item);
-      packs = [...byDomain.values()];
-    } catch (error) {
-      options.signal?.throwIfAborted();
-      if (!packs.length) throw error;
-      catalogWarning = String(error.message);
-    }
-  }
-  return {
-    manager,
-    packs: packs.filter(item => item.platforms.includes(`${process.platform}-${process.arch}`)),
-  };
+  const catalog = packCatalog();
+  const packs = await catalog.available(options);
+  catalogState = catalog.snapshot();
+  catalogWarning = catalogState.state === 'unavailable' ? catalogState.message : '';
+  return { manager: catalog.manager, packs, catalog };
 }
 const artifacts = new Map();
 const netlistSessions = new Map();
@@ -727,21 +711,20 @@ function registerHandlers() {
   ipcMain.handle('domains:status', () => ({
     managed: managedPacks,
     catalogWarning,
-    operation: domainMutationActive ? { active: true, progress: domainProgress } : null,
+    catalog: catalogState || packCatalog().snapshot(),
+    lastOperation: installationJournal.snapshot()?.active ? null : installationJournal.snapshot(),
+    operation: domainMutationActive
+      ? {
+          active: true,
+          progress: domainProgress,
+          source: 'desktop',
+          cancellable: Boolean(domainController),
+        }
+      : installationJournal.snapshot()?.active
+        ? { ...installationJournal.snapshot(), source: 'external', cancellable: false }
+        : null,
     installed: managedPacks
-      ? packManager.list().map(({ location, ...item }) => ({
-          domain: item.domain,
-          version: item.version,
-          label: item.label,
-          emoji: item.emoji,
-          summary: item.summary,
-          prerequisites: item.prerequisites,
-          runtimeState: item.runtimeAssets?.length
-            ? packManager.runtimeAssets.status(item.runtimeAssets).every(asset => asset.ready)
-              ? 'ready'
-              : 'needs-preparation'
-            : null,
-        }))
+      ? packManager.list().map(item => describeInstalled(packManager, item))
       : installedDomains().map(item => ({
           domain: item.id,
           version: 'development',
@@ -752,34 +735,14 @@ function registerHandlers() {
   }));
   ipcMain.handle('domains:available', async () => {
     if (!managedPacks) return [];
-    const { packs } = await availablePacks();
-    return packs.map(
-      ({
-        domain,
-        label,
-        emoji,
-        summary,
-        prerequisites,
-        version,
-        size,
-        platforms,
-        runtimeDownloadSize,
-      }) => ({
-        domain,
-        label,
-        emoji,
-        summary,
-        prerequisites,
-        version,
-        size,
-        runtimeDownloadSize,
-        platforms,
-      }),
-    );
+    const { packs, catalog } = await availablePacks();
+    return catalog.summaries(packs);
   });
-  ipcMain.handle('domains:cancel', () => {
+  ipcMain.handle('domains:cancel', async () => {
+    const cancelled = Boolean(domainController);
     domainController?.abort(Error('Domain preparation cancelled.'));
-    return { cancelled: Boolean(domainController) };
+    await domainOperationDone;
+    return { cancelled };
   });
   ipcMain.handle('domains:install', async (_event, request) => {
     if (!managedPacks) throw Error('Domain installation is available in managed builds.');
@@ -793,7 +756,11 @@ function registerHandlers() {
       throw Error('Choose one or more distinct Domains.');
     sessions.assertIdle();
     if (domainMutationActive) throw Error('Domain preparation is already in progress.');
+    installationJournal.begin(request.domains || [request.domain]);
     domainMutationActive = true;
+    domainOperationDone = new Promise(resolve => {
+      finishDomainOperation = resolve;
+    });
     domainController = new AbortController();
     domainProgress = null;
     try {
@@ -811,15 +778,22 @@ function registerHandlers() {
           signal: domainController.signal,
           onProgress: progress => {
             domainProgress = { domain: item.domain, ...progress };
+            installationJournal.progress(domainProgress);
             if (!_event.sender.isDestroyed())
               _event.sender.send('domains:progress', { domain: item.domain, ...progress });
           },
         });
+      installationJournal.finish('completed');
       return { installed: installedDomains() };
+    } catch (error) {
+      installationJournal.finish(domainController.signal.aborted ? 'cancelled' : 'failed', error);
+      throw error;
     } finally {
       domainMutationActive = false;
       domainController = undefined;
       domainProgress = null;
+      finishDomainOperation?.();
+      finishDomainOperation = undefined;
       const sender = _event.sender;
       if (!sender.isDestroyed())
         sender.send('domains:progress', {
@@ -827,6 +801,8 @@ function registerHandlers() {
           label: '',
           phase: 'finished',
           active: false,
+          outcome: installationJournal.snapshot()?.outcome,
+          error: installationJournal.snapshot()?.error,
         });
     }
   });
@@ -834,7 +810,11 @@ function registerHandlers() {
     if (!managedPacks || typeof request?.domain !== 'string') throw Error('Invalid Domain repair.');
     sessions.assertIdle();
     if (domainMutationActive) throw Error('Domain preparation is already in progress.');
+    installationJournal.begin([request.domain], 'repair');
     domainMutationActive = true;
+    domainOperationDone = new Promise(resolve => {
+      finishDomainOperation = resolve;
+    });
     domainController = new AbortController();
     domainProgress = null;
     try {
@@ -848,15 +828,22 @@ function registerHandlers() {
         signal: domainController.signal,
         onProgress: progress => {
           domainProgress = { domain: request.domain, ...progress };
+          installationJournal.progress(domainProgress);
           if (!event.sender.isDestroyed())
             event.sender.send('domains:progress', { domain: request.domain, ...progress });
         },
       });
+      installationJournal.finish('completed');
       return { installed: installedDomains() };
+    } catch (error) {
+      installationJournal.finish(domainController.signal.aborted ? 'cancelled' : 'failed', error);
+      throw error;
     } finally {
       domainMutationActive = false;
       domainController = undefined;
       domainProgress = null;
+      finishDomainOperation?.();
+      finishDomainOperation = undefined;
       const sender = event.sender;
       if (!sender.isDestroyed())
         sender.send('domains:progress', {
@@ -864,6 +851,8 @@ function registerHandlers() {
           label: '',
           phase: 'finished',
           active: false,
+          outcome: installationJournal.snapshot()?.outcome,
+          error: installationJournal.snapshot()?.error,
         });
     }
   });
@@ -874,10 +863,34 @@ function registerHandlers() {
     if (domainMutationActive) throw Error('Domain preparation is already in progress.');
     if (projectBindings.projects.some(project => project.domain === request.domain))
       throw Error('A Project still uses this Domain.');
-    await sessions.reset();
-    await projectRuntimes.close();
-    packManager.remove(request.domain);
-    return { installed: installedDomains() };
+    installationJournal.begin([request.domain], 'remove');
+    domainMutationActive = true;
+    domainOperationDone = new Promise(resolve => {
+      finishDomainOperation = resolve;
+    });
+    try {
+      await sessions.reset();
+      await projectRuntimes.close();
+      packManager.remove(request.domain);
+      installationJournal.finish('completed');
+      return { installed: installedDomains() };
+    } catch (error) {
+      installationJournal.finish('failed', error);
+      throw error;
+    } finally {
+      domainMutationActive = false;
+      finishDomainOperation?.();
+      finishDomainOperation = undefined;
+      if (!_event.sender.isDestroyed())
+        _event.sender.send('domains:progress', {
+          asset: '',
+          label: '',
+          phase: 'finished',
+          active: false,
+          outcome: installationJournal.snapshot()?.outcome,
+          error: installationJournal.snapshot()?.error,
+        });
+    }
   });
   ipcMain.handle('resource:catalog', () => resourceCatalog(activeProject()?.domain));
   ipcMain.handle('broker:resolve', async (event, request) => {
@@ -1482,7 +1495,9 @@ async function createWindow() {
       sandbox: true,
       // Pixel assertions must keep receiving frames when another test app or
       // a hosted desktop temporarily covers this window.
-      backgroundThrottling: !process.argv.some(flag => flag.endsWith('-selftest')),
+      backgroundThrottling: !process.argv.some(
+        flag => flag.endsWith('-selftest') || flag === '--packaged-smoke',
+      ),
     },
   });
   if (process.argv.includes('--cad-selftest') || process.argv.includes('--cad-resize-selftest'))
@@ -1518,11 +1533,16 @@ async function createWindow() {
     app.quit();
     return;
   }
+  if (process.argv.includes('--install-experience-selftest')) {
+    await require('./install-experience-selftest.cjs').run(window, { manager: packManager });
+    app.quit();
+    return;
+  }
   if (process.argv.includes('--packaged-smoke')) {
     if (!app.isPackaged) throw Error('Packaged smoke requires an installed app.');
     await require('./selftest-language.cjs').setLanguage(window, 'en');
-    async function waitFor(script) {
-      const end = Date.now() + 15000;
+    async function waitFor(script, timeout = 15000) {
+      const end = Date.now() + timeout;
       while (Date.now() < end) {
         let ready;
         try {
@@ -1547,6 +1567,25 @@ async function createWindow() {
     await waitFor(
       `Boolean(document.querySelector('.ia-domains-modal')) && window.viewerHost.domainStatus().then(status => status.managed && status.installed.length === 0)`,
     );
+    const { packs: offered } = await availablePacks();
+    const offeredDomains = offered.map(item => item.domain).sort();
+    await waitFor(
+      `JSON.stringify(Array.from(document.querySelectorAll('.ia-domain-install-row:not([data-unavailable])')).map(row => row.dataset.domain).sort()) === ${JSON.stringify(JSON.stringify(offeredDomains))} && document.querySelector('.ia-domains-actions button')?.disabled === false`,
+    );
+    const knownDomains = [
+      ...offeredDomains,
+      ...catalogState.unavailableDomains.map(item => item.domain),
+    ].sort();
+    await waitFor(
+      `JSON.stringify(Array.from(document.querySelectorAll('.ia-domain-install-row')).map(row => row.dataset.domain).sort()) === ${JSON.stringify(JSON.stringify(knownDomains))}`,
+    );
+    console.log(
+      JSON.stringify({
+        firstRunDomains: knownDomains,
+        installableDomains: offeredDomains,
+        catalog: catalogState.state,
+      }),
+    );
     if (process.env.HARNESS_PACKAGED_SMOKE_FEED_DIR) {
       const planned = JSON.parse(process.env.HARNESS_PACKAGED_SMOKE_DOMAINS || '[]');
       if (!planned.length || planned.some(item => !item.id || !item.label))
@@ -1566,8 +1605,11 @@ async function createWindow() {
         await click(`document.querySelector('.ia-domains-primary').click()`);
         installed += items.length;
         await waitFor(
-          `window.viewerHost.domainStatus().then(status => status.installed.length === ${installed} && !document.querySelector('.ia-domains-modal'))`,
+          `window.viewerHost.domainStatus().then(status => status.installed.length === ${installed} && Boolean(document.querySelector('.ia-domain-setup [data-action="done"]')))`,
+          20 * 60 * 1000,
         );
+        await click(`document.querySelector('.ia-domain-setup [data-action="done"]').click()`);
+        await waitFor(`!document.querySelector('.ia-domains-modal')`);
       }
       await installInitial(initial);
       for (const item of planned.slice(initial.length)) {
@@ -1591,6 +1633,7 @@ async function createWindow() {
         installed++;
         await waitFor(
           `window.viewerHost.domainStatus().then(status => status.installed.length === ${installed} && status.installed.some(item => item.domain === ${JSON.stringify(item.id)}))`,
+          20 * 60 * 1000,
         );
       }
       const domains = await window.webContents.executeJavaScript(
@@ -1600,7 +1643,8 @@ async function createWindow() {
         throw Error('Installed Domains did not reach the registry.');
     }
     const screenshot = process.env.HARNESS_PACKAGED_SMOKE_SCREENSHOT;
-    if (screenshot) fs.writeFileSync(screenshot, (await window.webContents.capturePage()).toPNG());
+    if (screenshot)
+      await require('./selftest-capture.cjs').captureSettled(window, { output: screenshot });
     app.quit();
     return;
   }
@@ -2062,6 +2106,7 @@ app.on('before-quit', event => {
   kicadRuntime.close();
   shutdownPromise = (async () => {
     try {
+      await domainOperationDone;
       await tasks.close();
     } finally {
       await guiBridge?.close();

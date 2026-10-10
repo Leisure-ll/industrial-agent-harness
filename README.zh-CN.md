@@ -94,16 +94,16 @@ Linux x86-64 芯片用户可使用[一键安装](releases/chip-linux-installer-v
 
 需要下载包时，请查看 [GitHub Releases](https://github.com/Zhiman-BJ/industrial-agent-harness/releases)，并按对应版本说明安装。[无界面安装](apps/cli/README.md#github-release-安装)和[领域 CLI 分包](doc/domain-cli-downloads.md)提供校验与外部依赖说明。历史归档不会自动获得当前源码的新功能。
 
-Apple Silicon 桌面构建包含可选 CAD Pack。首次选择 CAD 会自动准备固定官方 FreeCAD；设置 → 领域显示就绪状态并提供修复。Core 内置 Kimi Code 2.1.1，用户填写模型 API 配置即可，不需要开发工具或命令路径配置。详见[构建、安装验收与发行边界](doc/macos-cad-distribution.md)及[本轮发布整改](doc/release-readiness-20261007.md)。
+1.0.1-beta.1 本地 Apple Silicon 桌面候选包列出全部五个领域：Chip、PCB、Godot、CAD 四个 Pack 可直接选择，未配置在线目录也能安装；CUDA 保持可见，明确显示远程服务前提和当前暂无可安装桌面包的状态。选择 PCB、Godot 或 CAD 后，应用自动在用户 Pack 目录准备固定官方 KiCad 10.0.6、Godot 4.7.2 或 FreeCAD 1.1.4；这三项托管工具无需用户运行命令或配置环境变量。Chip 仍需外部 Python、编译器及 EDA/PDK 环境。Core 内置 Kimi Code 2.1.1，模型 API 配置仍需单独完成。安装界面展示大小预估、进度、取消与恢复，完成后分别显示各领域的实际就绪状态。详见[安装体验与发行边界](doc/install-experience.md)及[CAD 安装验收](doc/macos-cad-distribution.md)。本地候选包尚不代表正式签名公众发行或真实 Core OTA 已通过验收。
 
 ## 领域扩展
 
 | 领域                                                                                                                            | 预览版已提供                                                                                         | 依赖与限制                                                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| [Chip](https://github.com/Zhiman-BJ/industrial-domain-packs/tree/cf72a46b6b4ba927b091ded71b2d52d227db0351/packs/chip/README.md) | EDA 知识与工具注册、持久化的声明式 RTL 验证路径，以及波形、网表、版图查看                            | Core 路径需要 Python 与 Verilator；其他 EDA 流程另需工具、镜像或 PDK，完整执行仍需接入 Runtime。       |
+| [Chip](https://github.com/Zhiman-BJ/industrial-domain-packs/tree/b9759342cace66df0be0c4559b7c24fb28ea07d9/packs/chip/README.md) | EDA 知识与工具注册、持久化的声明式 RTL 验证路径，以及波形、网表、版图查看                            | Core 路径需要 Python 与 Verilator；其他 EDA 流程另需工具、镜像或 PDK，完整执行仍需接入 Runtime。       |
 | [CUDA](doc/cuda-domain-pack.md)                                                                                                 | Compiler / Evaluator 两个远程 MCP、算子优化 Skill 与 canonical 原生证据                              | 开发者配置两个已认证端点；固定 RTX 4090 AXPBY；私有执行依赖外置，尚不提供桌面安装包。                   |
-| [PCB](doc/pcb-godot-runtime.md)                                                                                                 | 公开类型化矩形板框／已有安装孔修改，原生 DRC 与独立任务验证；KiCad Viewer                            | macOS Apple Silicon，另行安装官方 KiCad 10.0.6；有限机械布局任务，无电气／制造验收，不依赖私有 actor。 |
-| [Godot](doc/pcb-godot-runtime.md)                                                                                               | 类型化场景变换／BoxMesh 修改，原生导入／回读／限帧验证；源码与 Web Export Viewer                     | macOS Apple Silicon，另行安装 Godot 4.7.2；验证显式结构约束，无完整游戏 QA。Web Export 保留独立依赖。  |
+| [PCB](doc/pcb-godot-runtime.md)                                                                                                 | 公开类型化矩形板框／已有安装孔修改，原生 DRC 与独立任务验证；KiCad Viewer                            | macOS Apple Silicon，打包桌面版自动准备官方 KiCad 10.0.6 及其 Python；有限机械布局任务，无电气／制造验收，不依赖私有 actor。 |
+| [Godot](doc/pcb-godot-runtime.md)                                                                                               | 类型化场景变换／BoxMesh 修改，原生导入／回读／限帧验证；源码与 Web Export Viewer                     | macOS Apple Silicon，打包桌面版自动准备 Godot 4.7.2；验证显式结构约束，无完整游戏 QA。Web Export 保留独立依赖。  |
 | [CAD · FreeCAD](doc/freecad-domain-pack.md)                                                                                     | 参数化草图、拉伸、打孔、布尔建模和版本化参数/轮廓修改；FCStd/STEP/STL 导出、独立回读验证与 OCCT 查看 | 打包桌面版自动准备 FreeCAD 1.1.4 macOS arm64；只支持受限原生特征，不验收机械强度或可制造性。           |
 
 按 [Pack 作者教程](doc/pack-authoring.md)独立开发扩展。领域代码留在 Pack 内，共享 Core 与 Broker 不依赖具体领域。已注册、能够显示或原生烟测成功，均不代表完整工业工作流已经验收。[PCB／Godot 原生任务](doc/pcb-godot-runtime.md) 已为显式首批任务补齐共享 Runtime；不扩大其他工程支持承诺。先前[发布整改记录](doc/release-readiness-20261007.md)保留为历史证据。
@@ -190,4 +190,4 @@ pnpm run format:check
 
 CLI 和 Desktop 现共用 Harness 任务服务；领域声明、Skill 和实现来自一个固定版本的 Domain Packs。见[消费迁移与验收](doc/shared-task-and-pack-consumption.md)。
 
-PCB 与 Godot 专业 Runtime Actions 提供有限的 macOS Apple Silicon 原生任务，领域实现统一维护在精确固定的 Domain Packs 包中。见 [任务边界、依赖与验收](doc/pcb-godot-runtime.md)。原生软件需单独安装；其他平台与远端仍未验收。
+PCB 与 Godot 专业 Runtime Actions 提供有限的 macOS Apple Silicon 原生任务，领域实现统一维护在精确固定的 Domain Packs 包中。当前 1.0.1-beta.1 源码消费端固定 Domain Packs 0.5.2 提交 `b9759342cace66df0be0c4559b7c24fb28ea07d9`，由通用 Pack Manager 准备声明中的官方原生软件。见[任务边界、依赖与验收](doc/pcb-godot-runtime.md)；其他平台与远端仍未验收。

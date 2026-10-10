@@ -1,25 +1,28 @@
 # macOS / Windows 安装、Domain 补装与 OTA 规划
 
-> 状态：2026-10-04 起，桌面构建与首次启动 CI 目标收敛为 macOS Apple Silicon（arm64）和 Windows x64。因缺少 Intel Mac 测试机，暂停 Intel Mac 支持、CI 与安装包发行，详见 [PD-036](product-decisions.md#pd-036暂停-intel-mac-支持)。2026-09-30 的三平台烟测保留为历史记录。签名安装器、真实安装和旧版到新版 OTA 仍待验收。当前交付优先级仍以 [P0–P3 实施路线](03-implementation-roadmap.md)为准。现有 `headless-v*` 是按 Domain 分发的 CLI 预览归档，不是桌面安装器，也没有 OTA。
+> 状态：2026-10-04 起，桌面构建与首次启动 CI 目标收敛为 macOS Apple Silicon（arm64）和 Windows x64。因缺少 Intel Mac 测试机，暂停 Intel Mac 支持、CI 与安装包发行，详见 [PD-036](product-decisions.md#pd-036暂停-intel-mac-支持)。2026-09-30 的三平台烟测保留为历史记录。本地未签名候选包与原生准备可分别验收；正式签名安装器、公众下载首启和旧版到新版 Core OTA 仍待验收。当前交付优先级仍以 [P0–P3 实施路线](03-implementation-roadmap.md)为准。现有 `headless-v*` 是按 Domain 分发的 CLI 预览归档，不是桌面安装器，也没有 OTA。
 
 ## 当前实现与使用
 
 - `packages/pack-manager` 实现签名目录验证、HTTPS 下载、摘要与文件路径检查、跨进程写锁、事务安装、运行中租约、损坏隔离和重装恢复。`scripts/build-pack-distribution.cjs` 从 Chip、PCB、Godot、CAD 现有资源生成独立 `.hpack`；发布时用 `HARNESS_PACK_SIGNING_KEY_FILE` 和 `HARNESS_PACK_SIGNING_KEY_ID` 生成签名目录。
-- 打包版 Desktop 首次启动提供多选 Domain，Settings → Domains 可补装和更新。Desktop 与 CLI 从同一用户目录加载已安装包；开发模式仍使用仓库里的资源。CLI 提供 `domains list/available/install/update/remove`。在线包列表接受发行公钥验证过的目录；随 Core 提供的可选 Pack 继承应用资源的信任边界，并验证清单固定的归档 SHA-256。
+- 1.0.1-beta.1 本地 Apple Silicon 候选包列出全部五个领域，默认提供 Chip、PCB、Godot、CAD 四域多选；CUDA 显示远程服务前提和当前无可安装桌面包的状态，能力中心可补装、更新和修复；没有在线目录也能使用这些随包选项。Desktop 与 CLI 从同一用户目录加载已安装包，共用目录与就绪状态描述；开发模式仍使用仓库里的资源。CLI 提供 `domains list/available/install/update/remove/repair`。在线包列表接受发行公钥验证过的目录；随 Core 提供的可选 Pack 继承应用资源的信任边界，并验证清单固定的归档 SHA-256。
+- 当前源码消费端固定 Domain Packs 0.5.2 提交 `b9759342cace66df0be0c4559b7c24fb28ea07d9`。PCB、Godot、CAD 按 owner 声明自动下载并准备官方 KiCad 10.0.6、Godot 4.7.2、FreeCAD 1.1.4，用户无需命令或环境变量。界面区分目录未配置／未检查／已连接／不可用，显示下载与安装大小、分阶段进度、可测量的速度与剩余时间，完成后按领域呈现就绪状态和下一步入口。取消等待清理，中断后提示重试，缓存重新校验后复用；空间预估与实际写入前的磁盘检查分开。详见[安装体验](install-experience.md)。
 - `electron-builder.config.cjs` 配置 macOS arm64 DMG/ZIP 和 Windows NSIS；主进程通过 `electron-updater` 检查并下载 Core 更新，任务空闲时允许重启安装。`HARNESS_RELEASE_BUILD=1` 要求 Pack 下载源、公钥文件、Core 更新源并强制代码签名；macOS 同时启用公证。CI 配置 Apple Silicon 和 Windows x64 两个目标平台的打包与首次启动检查。
 - 模块化安装回归覆盖真实 Chip + PCB 首装、Godot 后补装，以及 Broker/CLI 在安装前后的 Domain 可见性。[2026-09-30 的三平台 CI 打包烟测](https://github.com/Zhiman-BJ/industrial-agent-harness/actions/runs/36691521328)是历史记录，通过签名测试目录和模拟下载完成同一路径；当前只在 Apple Silicon 和 Windows x64 用 `node scripts/smoke-packaged-desktop.cjs --domains` 复跑。该测试验证打包应用的界面和安装链，不等同于安装器、线上 HTTPS 下载源与正式发行密钥的验收。
-- 本地构建：在 Apple Silicon 上先执行 `pnpm --filter @industrial-agent-harness/desktop build`，再执行 `node scripts/stage-desktop.cjs dist/desktop-stage-local`，最后用 `apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-local --config "$PWD/electron-builder.config.cjs" --mac dmg zip --arm64 --publish never`。输出在 `dist/desktop-release/`。目录名称每次须新建；Apple Silicon 本地包包含可选 CAD Pack，即使没有在线 Pack 目录也可首装；FreeCAD 依赖仍需联网下载。
-- `desktop-v<apps/desktop/package.json 版本>` 标签触发 `.github/workflows/release-desktop.yml`：构建 Ed25519 签名的 Domain 目录、macOS 签名公证 DMG/ZIP、Windows 签名 NSIS，并在安装包自检成功后创建同名版本 Release，再把文件上传到渠道对应的 GitHub Release 更新源。发布源固定为 `desktop-beta-feed` / `desktop-stable-feed`；先上传版本文件，最后切换 `catalog.json` 和 Core 更新元数据。需配置仓库 Secrets `HARNESS_PACK_PUBLIC_KEYS_JSON_B64`、`HARNESS_PACK_SIGNING_KEY_PEM_B64`、`MAC_CSC_LINK`、`MAC_CSC_KEY_PASSWORD`、`APPLE_API_KEY_P8_B64`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`、`WIN_CSC_LINK`、`WIN_CSC_KEY_PASSWORD`，以及变量 `HARNESS_PACK_SIGNING_KEY_ID`。签名私钥和公钥 ID 必须配对。1.0.0 使用 stable 更新源。
+- 本地构建：在 Apple Silicon 上先执行 `pnpm --filter @industrial-agent-harness/desktop build`，再执行 `node scripts/stage-desktop.cjs dist/desktop-stage-local`，最后用 `apps/desktop/node_modules/.bin/electron-builder --projectDir dist/desktop-stage-local --config "$PWD/electron-builder.config.cjs" --mac dmg zip --arm64 --publish never`。输出在 `dist/desktop-release/`。目录名称每次须新建；Apple Silicon 本地包包含四个可选 Pack，即使没有在线 Pack 目录也可首装；三个托管原生软件首次准备仍需下载官方归档，已完整校验的缓存可复用。
+- `desktop-v<apps/desktop/package.json 版本>` 标签触发 `.github/workflows/release-desktop.yml`：构建 Ed25519 签名的 Domain 目录、macOS 签名公证 DMG/ZIP、Windows 签名 NSIS，并在安装包自检成功后创建同名版本 Release，再把文件上传到渠道对应的 GitHub Release 更新源。发布源固定为 `desktop-beta-feed` / `desktop-stable-feed`；先上传版本文件，最后切换 `catalog.json` 和 Core 更新元数据。需配置仓库 Secrets `HARNESS_PACK_PUBLIC_KEYS_JSON_B64`、`HARNESS_PACK_SIGNING_KEY_PEM_B64`、`MAC_CSC_LINK`、`MAC_CSC_KEY_PASSWORD`、`APPLE_API_KEY_P8_B64`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`、`WIN_CSC_LINK`、`WIN_CSC_KEY_PASSWORD`，以及变量 `HARNESS_PACK_SIGNING_KEY_ID`。签名私钥和公钥 ID 必须配对。1.0.1-beta.1 是本地 beta 候选版本；工作流配置不代表已经发布到该渠道。
 
-当前可验证的是安装链代码、真实 Domain 包的选择/补装和目标平台未签名打包应用的首次启动；仓库尚未配置发行签名凭据，也没有两个旧/新版本的真实安装包，无法完成正式发布与真实 OTA 验收。Core 已内置固定 Kimi Code 2.1.1（Node Server API），不需要另外安装 Python Kimi、Node 或 pnpm。2026-10-06 新增 Apple Silicon CAD 安装闭环，见[本地安装与验收](macos-cad-distribution.md)。CAD 依赖通过官方固定 FreeCAD DMG 自动准备；其他 Domain 的工业依赖仍分别验收。Chip MCP 的 Python 环境、EDA 工具/PDK 仍需按 Domain 健康检查补齐。CI 通过只证明对应版本的打包应用可启动，不代表签名安装器与 OTA 已完成验收，也不恢复已暂停的 Intel Mac 支持。
+当前交付仍为本地未签名候选包。本次环境检查未发现 Developer ID 签名身份，仓库发行 secrets 与 variables 为空；正式签名、公证、公共下载目录、公众 Gatekeeper 首启及真实旧版 → 新版 Core OTA 尚未验收。Core 已内置固定 Kimi Code 2.1.1（Node Server API），不需要另外安装 Python Kimi、Node 或 pnpm。2026-10-06 起的 CAD 安装闭环保留在[本地安装与验收](macos-cad-distribution.md)，2026-10-09 的通用安装层将相同准备入口扩展到 PCB／Godot。Chip MCP 的 Python、RTL 编译工具链及更广 EDA 工具／镜像／PDK 仍需外部准备；CUDA 仍为开发者远程服务配置，不进入自动桌面分发。CI 通过仅证明其实际覆盖的路径，不代表正式发行与 OTA 就绪，也不恢复 Intel Mac 支持。
 
 ## 目标与首版范围
+
+以下部分保留发行与 OTA 的规划要求；未在上面的“当前实现与使用”或专项验收中明确实现的项目，不作为本地候选包能力声明。
 
 1. 提供 macOS（Apple Silicon / arm64）与 Windows（x64）的可安装桌面版；每个平台须分别经过真实安装、首次启动和升级测试后才标为支持。Intel Mac 暂停支持，Windows ARM64 待独立验证。
 2. 首次安装时可以多选 Domain；以后在应用内安装遗漏的 Domain。同一套 Pack 管理层供 Desktop 和 CLI 使用。
 3. 桌面版支持联网检查、下载、验证并应用 Core 与 Domain Pack 更新。更新不能中断正在执行的工业 Action 或覆盖历史工程证据。
 
-模型 API 凭证、PDK 和商业许可仍由用户提供；首批 CAD 的开源 FreeCAD 依赖由应用自动准备。某个 Domain 已安装，不等于它的工业执行环境已就绪。健康状态须明确区分“可查看”“可运行 Agent”“工业工具就绪”“需要外部依赖”。
+模型 API 凭证、PDK 和商业许可仍由用户提供；Apple Silicon 上的 CAD、PCB、Godot 官方原生依赖由应用按固定声明自动准备。某个 Domain 已安装，不等于它的工业执行环境已就绪。健康状态须明确区分“可查看”“可运行 Agent”“工业工具就绪”“需要外部依赖”。
 
 ## 用户流程
 
@@ -47,7 +50,7 @@ Settings → Domains 显示“已安装 / 可安装 / 更新可用 / 不兼容 /
 | Domain Pack | 领域声明、Capability、Skill、MCP/Tool 映射、StateProvider、Verifier、领域 Viewer/Bridge 适配和必要的可再分发资源 | 独立语义版本；按 Domain 补装与 OTA |
 | 外部依赖 | 模型凭证、PDK、商业/系统软件、工具镜像及受许可限制的数据 | 由健康检查识别；只对明确可再分发的依赖提供自动安装 |
 
-首版沿用现有 Chip、PCB、Godot ID。Chip 的 25 工具服务可作为 Pack 一部分安装，但 Python 环境、EDA 镜像、PDK 与项目资源须逐项检查；PCB 的 KiCad Viewer 可以在没有原生 KiCad 的情况下工作，工业动作另行判定；Godot 的 Web Export Viewer 与原生 Godot 安装状态分开展示。不要把现有 Scope 烟测结果写成这些工具已完成工程验证。
+当前四个默认可选领域沿用 Chip、PCB、Godot、CAD ID；CUDA 保留开发者接入身份。Chip 的 25 工具服务可作为 Pack 一部分安装，但 Python 环境、EDA 镜像、PDK 与项目资源须逐项检查；PCB 的 KiCad Viewer 可以在没有原生 KiCad 的情况下工作，工业动作另行判定；Godot 的 Web Export Viewer 与原生 Godot 安装状态分开展示。不要把现有 Scope 烟测结果写成这些工具已完成工程验证。
 
 Pack 包含 `pack.json`（或等价的验证过的格式），至少声明 `id`、`version`、`manifestSchema`、`coreApi` 兼容范围、`platform/arch`、能力层级、依赖、文件清单、入口、健康检查及迁移版本。Core 与 Pack 的契约版本独立于应用版本；Broker、Runtime 和 Viewer Registry 从已激活的 Pack 发现能力，不在 Core 写死 Chip/PCB/Godot。当前 `packages/domain-skills` 的静态导入、`distribution.json` 过滤和 `package-headless.cjs` 删除其他 Domain 文件的方式只适用于预览包，需迁移到动态注册与安装快照。
 

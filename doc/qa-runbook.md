@@ -61,7 +61,7 @@
 
 ## 3. 分层用例目录
 
-所有命令在仓库根目录执行。`pnpm run test:ci -- <suite>` 由 `scripts/ci-tests.cjs` 编排：套件 ∈ `portable | native | native-linux | benchmark | transport`，报告写入 `dist/ci-reports/<suite>.json`。
+所有命令在仓库根目录执行。`pnpm run test:ci -- <suite>` 由 `scripts/ci-tests.cjs` 编排：套件 ∈ `portable | native | native-installed | native-linux | benchmark | transport`，报告写入 `dist/ci-reports/<suite>.json`。
 
 ### T0 仓库结构与静态门（CI：structure.yml）
 
@@ -141,7 +141,8 @@ export HARNESS_PROFESSIONAL_EVIDENCE="$PWD/dist/ci-reports/professional-evidence
 | ID | 命令 | 覆盖 |
 | --- | --- | --- |
 | T4-1 | 执行上方准备命令块 | 受保护 Agent、官方 FreeCAD、pcb/godot 原生运行时与独立 CLI/Desktop 打包（professional/freecad 测试入口的绑定来源） |
-| T4-2 | `pnpm run test:ci -- native`（或 `native-linux`） | `industrial-core-vertical-slice.test.cjs`（里程碑 Gate：StateProvider→Broker→Scoped Tool→Runtime→Verilator→Artifact→Verifier→Checkpoint 真实闭环）、installed-pack、pcb-godot runtime/installed、freecad-runtime、后台任务、沙箱、会话混沌/资源、MCP 实测等 23 个文件 |
+| T4-2 | `pnpm run test:ci -- native`（或 `native-linux`） | `industrial-core-vertical-slice.test.cjs`（里程碑 Gate：StateProvider→Broker→Scoped Tool→Runtime→Verilator→Artifact→Verifier→Checkpoint 真实闭环）、installed-pack、pcb-godot runtime、freecad-runtime、后台任务、沙箱、会话混沌/资源、MCP 实测；文件清单由 `scripts/ci-tests.cjs` 维护 |
+| T4-2a | `pnpm run test:ci -- native-installed`（darwin arm64） | 独立必跑安装组，串行执行 `freecad-installed.test.cjs` 和 `pcb-godot-installed.test.cjs` 的三项全新托管安装与真实工程验收；原断言、执行截止与零跳过要求保留。准备使用固定官方归档与独立 CLI/Desktop payload，见 `industrial-core.yml` 的安装 job |
 | T4-3 | `node --test tests/integration/headless-package-kimi.test.cjs` | 打包 headless Agent 的生产进程边界 |
 | T4-4 | 打包 CLI + 工作区验证：对 chip/pcb/godot 依次 `node scripts/package-headless.cjs dist/workspace-<domain> --domain <domain>` 后 `node scripts/smoke-workspace-cli.cjs <cli> <domain> <evidence.json>` | 三个领域的独立 CLI 真实任务与 MCP |
 

@@ -3,8 +3,10 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const zlib = require('node:zlib');
-const { Transfer } = require('./transfer.cjs');
+const { Transfer, TransferProgress } = require('./transfer.cjs');
+const { availableSpace, footprint, checkSpace } = require('./install-space.cjs');
 const { RuntimeAssetManager, validateRuntimeAssets } = require('./runtime-assets.cjs');
+const { InstallationJournal } = require('./installation-journal.cjs');
 
 const MAX_COMPRESSED = 128 * 1024 * 1024;
 const MAX_EXPANDED = 512 * 1024 * 1024;
@@ -137,6 +139,17 @@ function validateBundle(bundle) {
   return bundle;
 }
 
+function validateFootprintMetadata(entry) {
+  if (!entry || typeof entry !== 'object') throw Error('Invalid Pack installation footprint.');
+  for (const key of ['installedSize', 'runtimeDownloadSize', 'runtimeInstalledSize']) {
+    if (
+      entry[key] != null &&
+      (!Number.isSafeInteger(entry[key]) || entry[key] < 0 || entry[key] > 256 * 1024 ** 3)
+    )
+      throw Error('Invalid Pack installation footprint.');
+  }
+  validateRuntimeAssets(entry.runtimeAssets);
+}
 function verifyCatalog(envelope, keys) {
   if (
     envelope?.schemaVersion !== 1 ||
@@ -165,6 +178,7 @@ function verifyCatalog(envelope, keys) {
     throw Error('Invalid Pack catalog payload.');
   const ids = new Set();
   for (const item of catalog.packs) {
+    validateFootprintMetadata(item);
     if (
       !ID.test(item?.domain || '') ||
       ids.has(item.domain) ||
@@ -378,9 +392,10 @@ async function download(url, expectedSize, maxBytes = MAX_COMPRESSED, options = 
   return new Transfer(options).run(async transfer => {
     const response = await transfer.response(url),
       chunks = [];
+    const progress = new TransferProgress(expectedSize);
     let size = 0,
       reported = 0;
-    options.onProgress?.({ phase: 'downloading', received: 0, total: expectedSize });
+    options.onProgress?.(progress.update(0));
     for await (const chunk of response.body) {
       transfer.signal.throwIfAborted();
       transfer.touch();
@@ -389,7 +404,7 @@ async function download(url, expectedSize, maxBytes = MAX_COMPRESSED, options = 
         throw Error('Pack download exceeds size limits.');
       chunks.push(chunk);
       if (size - reported >= 65536 || size === expectedSize) {
-        options.onProgress?.({ phase: 'downloading', received: size, total: expectedSize });
+        options.onProgress?.(progress.update(size));
         reported = size;
       }
     }
@@ -399,13 +414,34 @@ async function download(url, expectedSize, maxBytes = MAX_COMPRESSED, options = 
 }
 
 class PackManager {
-  constructor({ directory = defaultPackDirectory(), keys = {}, channel = 'stable' } = {}) {
+  constructor({
+    directory = defaultPackDirectory(),
+    keys = {},
+    channel = 'stable',
+    space = availableSpace,
+  } = {}) {
     this.directory = path.resolve(directory);
     this.keys = keys;
+    this.space = space;
     this.channel = channel;
     this.verifiedEntries = new WeakSet();
     this.bundledEntries = new WeakMap();
-    this.runtimeAssets = new RuntimeAssetManager({ directory: this.directory });
+    this.runtimeAssets = new RuntimeAssetManager({ directory: this.directory, space });
+  }
+  estimate(entry) {
+    validateFootprintMetadata(entry);
+    const runtime = this.runtimeAssets.estimate(entry.runtimeAssets || []);
+    const packBytes = entry.installedSize || Math.min(MAX_EXPANDED, entry.size * 8);
+    const downloadBytes = (this.bundledEntries.has(entry) ? 0 : entry.size) + runtime.downloadBytes;
+    const installedBytes =
+      packBytes + (entry.runtimeAssets ? runtime.installedBytes : entry.runtimeInstalledSize || 0);
+    return {
+      ...footprint(downloadBytes, installedBytes, {
+        estimated: entry.installedSize == null || runtime.estimated,
+        cacheReused: runtime.cacheReused,
+      }),
+      availableBytes: this.space(this.directory),
+    };
   }
   stateFile() {
     return path.join(this.directory, 'installed.json');
@@ -473,6 +509,9 @@ class PackManager {
     const lease = path.join(directory, `${process.pid}-${crypto.randomUUID()}.json`);
     this.withLock(() => {
       if (!this.readState().active[domain]) throw Error(`Domain ${domain} is not installed.`);
+      const operation = new InstallationJournal(this).snapshot();
+      if (operation?.active && operation.domains?.includes(domain))
+        throw Error(`Domain ${domain} preparation is in progress.`);
       fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
       fs.writeFileSync(lease, JSON.stringify({ pid: process.pid, domain }), {
         flag: 'wx',
@@ -583,6 +622,7 @@ class PackManager {
     if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.packs))
       throw Error('Invalid bundled catalog.');
     for (const entry of catalog.packs) {
+      validateFootprintMetadata(entry);
       if (
         !ID.test(entry.domain || '') ||
         !VERSION.test(entry.version || '') ||
@@ -635,6 +675,16 @@ class PackManager {
     signal?.throwIfAborted();
     assertVersion();
     const report = progress => onProgress?.({ label: entry.label || entry.domain, ...progress });
+    fs.mkdirSync(this.directory, { recursive: true, mode: 0o700 });
+    // Native dependencies perform their own preflight after cache verification.
+    // A conservative UI estimate must not reject a retry that can reuse cache.
+    const estimated = this.estimate({ ...entry, runtimeAssets: [], runtimeInstalledSize: 0 });
+    if (this.bundledEntries.has(entry) || bytes) {
+      estimated.requiredBytes -= estimated.downloadBytes;
+      estimated.downloadBytes = 0;
+    }
+    report({ phase: 'checking-space', ...checkSpace(this.directory, estimated, this.space) });
+    signal?.throwIfAborted();
     const archive =
       bytes ||
       (this.bundledEntries.has(entry)
@@ -645,6 +695,7 @@ class PackManager {
             stallMs,
             timeoutMs,
           }));
+    report({ phase: 'verifying' });
     if (digest(archive) !== entry.sha256) throw Error('Domain Pack archive hash mismatch.');
     if (archive.length !== entry.size) throw Error('Domain Pack archive size mismatch.');
     signal?.throwIfAborted();
@@ -653,6 +704,8 @@ class PackManager {
       throw Error('Domain Pack catalog identity mismatch.');
     if (bundle.coreApi !== 1) throw Error('Domain Pack requires another Core API.');
     this.assertIdle(bundle.domain);
+    const expandedBytes = files.reduce((sum, file) => sum + file.bytes.length, 0);
+    checkSpace(this.directory, footprint(0, expandedBytes), this.space);
     // A failed toolchain preparation must not activate an unusable Pack update.
     if (prepareRuntime)
       await this.runtimeAssets.ensure(bundle.runtimeAssets, { onProgress, signal });
@@ -665,7 +718,8 @@ class PackManager {
         signal?.throwIfAborted();
         assertVersion();
         this.assertIdle(bundle.domain);
-        report({ phase: 'installing' });
+        report({ phase: 'extracting' });
+        checkSpace(this.directory, footprint(0, expandedBytes), this.space);
         fs.mkdirSync(staging, { recursive: true, mode: 0o700 });
         for (const file of files) {
           const output = path.join(staging, ...file.path.split('/'));
@@ -684,6 +738,9 @@ class PackManager {
           }),
           { flag: 'wx', mode: 0o600 },
         );
+        signal?.throwIfAborted();
+        report({ phase: 'activating' });
+        signal?.throwIfAborted();
         const replaced = fs.existsSync(target);
         if (replaced) fs.renameSync(target, backup);
         try {
@@ -697,6 +754,7 @@ class PackManager {
           throw error;
         }
         fs.rmSync(backup, { recursive: true, force: true });
+        report({ phase: 'ready' });
         return { ...bundle, location: target };
       });
     } finally {

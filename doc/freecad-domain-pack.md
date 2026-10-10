@@ -76,4 +76,4 @@ FreeCAD 的 macOS 配置路径不只依赖 `HOME`。桥接器在启动前创建 
 
 ## 自动成果呈现（#66）
 
-owner Pack `1.1.4-pack.5` 声明 FCStd 模型组、对应 manifest/BREP 预览与 STEP/STL 导出，以及独立诊断报告组。连续 edit 只按确切源文件 hash 显式替代；inspect 将真实检查附到受检模型版本，不挤掉主模型。失败只暴露实际文件。Harness 固定消费 owner commit `cf72a46b6b4ba927b091ded71b2d52d227db0351`；FreeCAD Skill 在 owner 提供按需比较／诊断选择指导。默认卡片不依赖选择工具。源码原生／Electron 受控回归和独立真实模型连续修改记录见[任务成果](task-results.md)。
+owner Pack `1.1.4-pack.7` 声明 FCStd 模型组、对应 manifest/BREP 预览与 STEP/STL 导出，以及独立诊断报告组。连续 edit 只按确切源文件 hash 显式替代；inspect 将真实检查附到受检模型版本，不挤掉主模型。失败只暴露实际文件。Harness 固定消费 owner commit `b9759342cace66df0be0c4559b7c24fb28ea07d9`；FreeCAD Skill 在 owner 提供按需比较／诊断选择指导。默认卡片不依赖选择工具。源码原生／Electron 受控回归和独立真实模型连续修改记录见[任务成果](task-results.md)。
